@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                           |
-| ------------------ | --------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [02. Server foundation](02-server-foundation.md), part A of 2 (local server). Part B is the Render deploy |
-| **Branch**         | `plan-02-1-local-server`                                                                                  |
-| **PR**             | [#3](https://github.com/willemrosenthal/pr-peek/pull/3) (part A), CI green                                |
-| **Last step done** | Part A done: steps 2.1 to 2.6 and 2.8. Server, worker, and health check run locally                       |
-| **Next step**      | Part B: step 2.7, Supabase and Render Blueprint, on branch `plan-02-2-render` after part A merges         |
-| **Waiting on you** | Merge part A. A Render account. A Supabase project and its session pooler URL. Branch protection          |
+|                    |                                                                                                       |
+| ------------------ | ----------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [02. Server foundation](02-server-foundation.md), part B of 2: Supabase (free plan) and Render deploy |
+| **Branch**         | `plan-02-2-render`                                                                                    |
+| **PR**             | [#4](https://github.com/willemrosenthal/pr-peek/pull/4) (part B), CI green. Part A merged as #3       |
+| **Last step done** | `render.yaml` and pool sizes done. Supabase project and Render account set up by you                  |
+| **Next step**      | You: merge, update `prod`, create the Blueprint. Me: check the deploy, then finish plan 02            |
+| **Waiting on you** | Merge part B. Update `prod`. Create the Render Blueprint. Branch protection for `main` and `prod`     |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.

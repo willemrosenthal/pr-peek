@@ -10,6 +10,8 @@ const schema = z.object({
     .default("info"),
   APP_URL: z.url(),
   DATABASE_URL: z.url(),
+  // Max connections per pool. Kept small to stay under Supabase's free plan limit.
+  DB_POOL_MAX: z.coerce.number().int().positive().default(5),
   // Set by Render on every deploy.
   RENDER_GIT_COMMIT: z.string().optional(),
 });

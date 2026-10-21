@@ -8,7 +8,7 @@ import { onShutdown } from "./shutdown";
 
 const config = loadConfig();
 const logger = createLogger(config);
-const db = createDb(config.DATABASE_URL);
+const db = createDb(config);
 
 const app = createApp({
   logger,

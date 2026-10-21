@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "pnpm -r --parallel --if-present dev",
     "build": "pnpm -r --if-present build",
+    "render:build": "pnpm install --frozen-lockfile --prod=false && pnpm build",
     "lint": "eslint .",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",

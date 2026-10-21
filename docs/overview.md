@@ -131,5 +131,5 @@ Items close on their own when the condition goes away (you submitted the review,
 | --------------------------------------------- | ----------------- | ---------------------------------------------------------------- |
 | GitHub OAuth Apps (one for dev, one for prod) | Plan 03           | "Sign in with GitHub"                                            |
 | Render                                        | Plan 02           | Hosting the server and worker                                    |
-| Supabase (you already have a paid account)    | Plan 02           | The production Postgres database                                 |
+| Supabase (free plan, in its own free org)     | Plan 02           | The production Postgres database                                 |
 | Apple Developer Program (about $99 a year)    | Plan 09, optional | Signing the Mac app so other people can open it without warnings |

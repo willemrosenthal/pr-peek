@@ -1,0 +1,54 @@
+# Render Blueprint. Render reads this file to create and update the services.
+# Docs: https://render.com/docs/blueprint-spec
+
+envVarGroups:
+  - name: git-buddy-env
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      # Render asks for these when the Blueprint is created. They are never stored in the repo.
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_URL
+        sync: false
+
+services:
+  - type: web
+    name: git-buddy-web
+    runtime: node
+    plan: starter
+    # Same area as the Supabase project (US East, Ohio).
+    region: ohio
+    branch: prod
+    autoDeploy: true
+    buildCommand: corepack enable && pnpm render:build
+    # Both services migrate before starting, so neither runs new code on an old schema.
+    # Prisma locks the database while migrating, so running it twice at once is safe.
+    preDeployCommand: pnpm --filter @pr-peek/server db:deploy
+    startCommand: node apps/server/dist/index.js
+    healthCheckPath: /api/health
+    buildFilter:
+      ignoredPaths:
+        - docs/**
+        - apps/desktop/**
+    envVars:
+      - fromGroup: git-buddy-env
+
+  - type: worker
+    name: git-buddy-worker
+    runtime: node
+    plan: starter
+    region: ohio
+    branch: prod
+    autoDeploy: true
+    buildCommand: corepack enable && pnpm render:build
+    preDeployCommand: pnpm --filter @pr-peek/server db:deploy
+    startCommand: node apps/server/dist/worker.js
+    buildFilter:
+      ignoredPaths:
+        - docs/**
+        - apps/desktop/**
+    envVars:
+      - fromGroup: git-buddy-env
