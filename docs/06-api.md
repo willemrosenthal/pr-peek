@@ -17,10 +17,10 @@ All under `/api`. All require sign in except auth and health.
 
 **Items**
 
-| Method and path | What it does |
-| --- | --- |
-| `GET /items` | Open items, grouped into `review`, `replies`, and `mine`, sorted by urgency. Each item includes PR title, repo, number, url, kind, summary, age, stale level, severity, unseen flag |
-| `POST /items/seen` | Body `{ ids }`. Marks items as seen when the list is opened |
+| Method and path    | What it does                                                                                                                                                                        |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /items`       | Open items, grouped into `review`, `replies`, and `mine`, sorted by urgency. Each item includes PR title, repo, number, url, kind, summary, age, stale level, severity, unseen flag |
+| `POST /items/seen` | Body `{ ids }`. Marks items as seen when the list is opened                                                                                                                         |
 
 There are no done or snooze endpoints. Items clear on their own (see [plan 05](05-rules-engine.md#when-an-item-clears)).
 
@@ -28,24 +28,24 @@ There are no done or snooze endpoints. Items clear on their own (see [plan 05](0
 
 **Settings**
 
-| Method and path | What it does |
-| --- | --- |
-| `GET /settings` | User settings plus each rule with its name, group, defaults, and the user's choices |
-| `PATCH /settings` | Update user settings (timezone, staleness, quiet hours, digest time, bots, team requests) |
-| `PATCH /rules/:ruleId` | Update `enabled`, `severity`, `channels` |
+| Method and path        | What it does                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| `GET /settings`        | User settings plus each rule with its name, group, defaults, and the user's choices       |
+| `PATCH /settings`      | Update user settings (timezone, staleness, quiet hours, digest time, bots, team requests) |
+| `PATCH /rules/:ruleId` | Update `enabled`, `severity`, `channels`                                                  |
 
 **Sync**
 
-| Method and path | What it does |
-| --- | --- |
-| `POST /sync` | "Refresh now". Enqueues a sync for this user right away. Rate limited to once per 30 seconds |
-| `GET /sync/status` | `lastSyncedAt`, `syncError`, and whether a sync is running |
+| Method and path    | What it does                                                                                 |
+| ------------------ | -------------------------------------------------------------------------------------------- |
+| `POST /sync`       | "Refresh now". Enqueues a sync for this user right away. Rate limited to once per 30 seconds |
+| `GET /sync/status` | `lastSyncedAt`, `syncError`, and whether a sync is running                                   |
 
 **Counts (for badges)**
 
-| Method and path | What it does |
-| --- | --- |
-| `GET /summary` | `{ total, review, replies, mine, hasStale, hasFailing }`. Used by the app badge and later the menu bar icon |
+| Method and path | What it does                                                                                                |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| `GET /summary`  | `{ total, review, replies, mine, hasStale, hasFailing }`. Used by the app badge and later the menu bar icon |
 
 ### 6.3 Live updates with SSE
 

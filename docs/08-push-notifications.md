@@ -17,11 +17,11 @@ No third party account is needed. The `web-push` npm package handles the encrypt
 
 **Platform notes:**
 
-| Platform | Notes |
-| --- | --- |
-| iPhone and iPad | Works only for PWAs added to the Home Screen (iOS 16.4 and later). Permission must be asked in response to a tap |
-| Android | Works in Chrome, installed or not |
-| Mac | Works in Safari (including "Add to Dock" apps), Chrome, Edge, Firefox. Chrome and Edge must be running to receive pushes |
+| Platform        | Notes                                                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| iPhone and iPad | Works only for PWAs added to the Home Screen (iOS 16.4 and later). Permission must be asked in response to a tap         |
+| Android         | Works in Chrome, installed or not                                                                                        |
+| Mac             | Works in Safari (including "Add to Dock" apps), Chrome, Edge, Firefox. Chrome and Edge must be running to receive pushes |
 
 ## Steps
 

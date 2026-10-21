@@ -10,11 +10,11 @@ We use a **GitHub OAuth App**, the standard "Sign in with GitHub" setup. When a 
 
 OAuth App permissions ("scopes") are coarse:
 
-| Scope | Why we need it | Downside |
-| --- | --- | --- |
-| `repo` | Read PRs, reviews, and checks in **private** repos | It also grants write access. GitHub has no read-only private repo scope for OAuth Apps |
-| `read:org` | See team review requests and org repo lists | None really |
-| `notifications` | Optional cheap "something changed" signal (plan 04) | None really |
+| Scope           | Why we need it                                      | Downside                                                                               |
+| --------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `repo`          | Read PRs, reviews, and checks in **private** repos  | It also grants write access. GitHub has no read-only private repo scope for OAuth Apps |
+| `read:org`      | See team review requests and org repo lists         | None really                                                                            |
+| `notifications` | Optional cheap "something changed" signal (plan 04) | None really                                                                            |
 
 The `repo` scope is the main reason a GitHub App (plan 11) is a good upgrade later, since GitHub Apps can ask for read-only access. For now, be upfront about it on the sign in screen. Offer a "public repos only" option that asks for `public_repo` instead of `repo`.
 

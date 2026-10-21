@@ -34,17 +34,17 @@
 - [ ] Add Prisma to `apps/server`, schema at `apps/server/prisma/schema.prisma`.
 - [ ] Create the first models. Later plans add fields as needed, but sketching them now keeps the data model coherent:
 
-| Model | Purpose | Key fields |
-| --- | --- | --- |
-| `User` | One per GitHub account | `githubId` (unique), `login`, `name`, `avatarUrl`, `accessTokenEnc`, `tokenScopes`, `lastSyncedAt`, `syncError` |
-| `UserSettings` | One per user | `timezone`, `staleWarnHours` (4), `staleLateHours` (24), `workHoursOnly`, `quietStart`, `quietEnd`, `quietWeekends`, `digestTime`, `includeTeamRequests`, `hideBots` |
-| `WatchedRepo` | Repos a user picked | `userId`, `githubRepoId`, `owner`, `name`, `enabled`, `muted`. Unique on `(userId, githubRepoId)` |
-| `PullRequest` | Our copy of a PR, per user | `userId`, `githubNodeId`, `repoOwner`, `repoName`, `number`, `title`, `url`, `authorLogin`, `isDraft`, `state`, `headSha`, `checkState`, `githubUpdatedAt`, `snapshot` (JSON of the details we fetched) |
-| `Item` | One "needs your attention" thing | `userId`, `pullRequestId`, `kind`, `dedupeKey` (unique per user), `latestEventId`, `eventCount`, `actorLogin`, `summary`, `occurredAt`, `waitingSince`, `status` (open, resolved), `resolvedAt`, `seenAt` |
-| `RuleSetting` | A user's choices per rule | `userId`, `ruleId`, `enabled`, `severity`, `channels` (array), `options` (JSON) |
-| `PushSubscription` | One per device that accepted push | `userId`, `endpoint` (unique), `p256dh`, `auth`, `label`, `platform`, `lastSuccessAt`, `failureCount` |
-| `NotificationLog` | What we sent, so we never send twice | `userId`, `itemId`, `channel`, `sentAt`, `status` |
-| `Session` | Sign in sessions | managed by the session store in plan 03 |
+| Model              | Purpose                              | Key fields                                                                                                                                                                                                |
+| ------------------ | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `User`             | One per GitHub account               | `githubId` (unique), `login`, `name`, `avatarUrl`, `accessTokenEnc`, `tokenScopes`, `lastSyncedAt`, `syncError`                                                                                           |
+| `UserSettings`     | One per user                         | `timezone`, `staleWarnHours` (4), `staleLateHours` (24), `workHoursOnly`, `quietStart`, `quietEnd`, `quietWeekends`, `digestTime`, `includeTeamRequests`, `hideBots`                                      |
+| `WatchedRepo`      | Repos a user picked                  | `userId`, `githubRepoId`, `owner`, `name`, `enabled`, `muted`. Unique on `(userId, githubRepoId)`                                                                                                         |
+| `PullRequest`      | Our copy of a PR, per user           | `userId`, `githubNodeId`, `repoOwner`, `repoName`, `number`, `title`, `url`, `authorLogin`, `isDraft`, `state`, `headSha`, `checkState`, `githubUpdatedAt`, `snapshot` (JSON of the details we fetched)   |
+| `Item`             | One "needs your attention" thing     | `userId`, `pullRequestId`, `kind`, `dedupeKey` (unique per user), `latestEventId`, `eventCount`, `actorLogin`, `summary`, `occurredAt`, `waitingSince`, `status` (open, resolved), `resolvedAt`, `seenAt` |
+| `RuleSetting`      | A user's choices per rule            | `userId`, `ruleId`, `enabled`, `severity`, `channels` (array), `options` (JSON)                                                                                                                           |
+| `PushSubscription` | One per device that accepted push    | `userId`, `endpoint` (unique), `p256dh`, `auth`, `label`, `platform`, `lastSuccessAt`, `failureCount`                                                                                                     |
+| `NotificationLog`  | What we sent, so we never send twice | `userId`, `itemId`, `channel`, `sentAt`, `status`                                                                                                                                                         |
+| `Session`          | Sign in sessions                     | managed by the session store in plan 03                                                                                                                                                                   |
 
 - [ ] Note: PRs are stored per user, not shared, because each user's token decides what they're allowed to see. We can share data between users later if it ever matters for speed.
 - [ ] Run the first migration (`prisma migrate dev`) and commit it.

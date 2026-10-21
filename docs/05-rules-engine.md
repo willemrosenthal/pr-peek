@@ -27,14 +27,14 @@ To keep the list short, each PR gets at most one item per kind. New events updat
 - `dedupeKey` decides when it's a **new item**.
 - `latestEventId` changing means **something new happened** on an existing item. Plan 08 uses that to decide whether to notify.
 
-| Kind | `dedupeKey` | New item when |
-| --- | --- | --- |
-| `review_requested` | `rr:<pr>:<requestEventId>` | You're asked for the first time |
-| `re_requested` | `rrr:<pr>:<requestEventId>` | You're asked again after you already reviewed |
-| `reply` | `reply:<pr>` | Someone replies after your comment |
-| `reviewed` | `reviewed:<pr>` | Someone reviews your PR |
-| `commented` | `commented:<pr>` | Someone comments on your PR |
-| `check_failed` | `check:<pr>:<headSha>` | Checks fail on a new commit |
+| Kind               | `dedupeKey`                 | New item when                                 |
+| ------------------ | --------------------------- | --------------------------------------------- |
+| `review_requested` | `rr:<pr>:<requestEventId>`  | You're asked for the first time               |
+| `re_requested`     | `rrr:<pr>:<requestEventId>` | You're asked again after you already reviewed |
+| `reply`            | `reply:<pr>`                | Someone replies after your comment            |
+| `reviewed`         | `reviewed:<pr>`             | Someone reviews your PR                       |
+| `commented`        | `commented:<pr>`            | Someone comments on your PR                   |
+| `check_failed`     | `check:<pr>:<headSha>`      | Checks fail on a new commit                   |
 
 ### 5.3 The built in rules
 
@@ -47,6 +47,7 @@ Each rule ignores events by you, and events by bots when the user turned on "hid
   - A conversation comment after your latest one mentions `@you`.
 
   The summary is a preview of the latest reply, like `sam-r: "Good call, moved it in 3f2c1a"`.
+
 - [ ] **My PR was reviewed.** You're the author, and there are reviews by others that you haven't acted on yet (see the table below). The summary shows the latest state: "jlee approved", "jlee requested changes".
 - [ ] **New comment on my PR.** You're the author, and there are conversation or review comments by others that you haven't acted on yet. The summary is a count plus the latest preview.
 - [ ] **Check failed on my PR.** You're the author, and the latest commit's rollup is `FAILURE` or `ERROR`. The summary lists failing check names, like "e2e-tests, lint".
@@ -56,14 +57,14 @@ Each rule ignores events by you, and events by bots when the user turned on "hid
 
 There are no snooze or done buttons. An item stays in the list until you act on it, or the PR is merged or closed. Each rule decides what "acted on" means. These are starting defaults and may change.
 
-| Kind | Clears when |
-| --- | --- |
-| Review requested, re-requested | You submit a review, or you're removed as a reviewer |
-| Reply to my comment | You reply in that thread, or comment on the PR after the reply |
-| My PR was reviewed: changes requested | You push a new commit, or reply to the review |
-| My PR was reviewed: approved | The PR is merged or closed |
-| New comment on my PR | You reply, or push a new commit after the comment |
-| Check failed | The checks pass, or you push a new commit (a new failure makes a new item) |
+| Kind                                  | Clears when                                                                |
+| ------------------------------------- | -------------------------------------------------------------------------- |
+| Review requested, re-requested        | You submit a review, or you're removed as a reviewer                       |
+| Reply to my comment                   | You reply in that thread, or comment on the PR after the reply             |
+| My PR was reviewed: changes requested | You push a new commit, or reply to the review                              |
+| My PR was reviewed: approved          | The PR is merged or closed                                                 |
+| New comment on my PR                  | You reply, or push a new commit after the comment                          |
+| Check failed                          | The checks pass, or you push a new commit (a new failure makes a new item) |
 
 - [ ] Each rule returns no item once its "clears when" condition is true. Step 5.5 then resolves it.
 
@@ -80,6 +81,7 @@ There are no snooze or done buttons. An item stays in the list until you act on 
   - Ties broken by newest event.
 
   Keep the weights in one object so they're easy to tune.
+
 - [ ] Unit tests for all of the above, including work hours across a weekend and a timezone change.
 
 ### 5.5 Applying rules on the server

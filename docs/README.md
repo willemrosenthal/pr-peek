@@ -1,5 +1,18 @@
 # Docs
 
+## Status
+
+Updated after every step. Read this first when picking work back up.
+
+|                    |                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------- |
+| **Current plan**   | [01. Repo setup](completed/01-repo-setup.md), all steps done                    |
+| **Branch**         | `plan-01-repo-setup`                                                            |
+| **PR**             | Opening now                                                                     |
+| **Last step done** | 1.6 CI. Everything passes locally                                               |
+| **Next step**      | Confirm CI passes on the PR, then start [plan 02](02-server-foundation.md)      |
+| **Waiting on you** | Merge the PR. Create the `prod` branch. Turn on branch protection (plan 01 1.6) |
+
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.
 - [completed/](completed/): finished plans.
@@ -15,31 +28,31 @@ Plans can be edited while in progress when we learn something. Completed plans a
 
 ## Phase 1: server and PWA
 
-| # | Plan | Result |
-| --- | --- | --- |
-| 01 | [Repo setup](01-repo-setup.md) | Empty monorepo that builds, lints, and tests in CI |
-| 02 | [Server foundation and first deploy](02-server-foundation.md) | Express + Prisma + Postgres live on Render, deploying from `prod` |
-| 03 | [GitHub sign in](03-github-auth.md) | Users can sign in with GitHub. Tokens stored encrypted |
-| 04 | [GitHub sync engine](04-github-sync.md) | Worker pulls each user's PRs on a schedule and stores them |
-| 05 | [Rules and attention items](05-rules-engine.md) | PR data turned into sorted "needs you" items, all 7 cases |
-| 06 | [API and live updates](06-api.md) | JSON API for items, repos, settings. SSE stream |
-| 07 | [Web app (PWA)](07-web-app.md) | The list (design A2), onboarding, settings. Installable |
-| 08 | [Push notifications](08-push-notifications.md) | Web Push to phone and desktop, quiet hours, morning summary |
+| #   | Plan                                                          | Result                                                            |
+| --- | ------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 01  | ✅ [Repo setup](completed/01-repo-setup.md)                   | Empty monorepo that builds, lints, and tests in CI                |
+| 02  | [Server foundation and first deploy](02-server-foundation.md) | Express + Prisma + Postgres live on Render, deploying from `prod` |
+| 03  | [GitHub sign in](03-github-auth.md)                           | Users can sign in with GitHub. Tokens stored encrypted            |
+| 04  | [GitHub sync engine](04-github-sync.md)                       | Worker pulls each user's PRs on a schedule and stores them        |
+| 05  | [Rules and attention items](05-rules-engine.md)               | PR data turned into sorted "needs you" items, all 7 cases         |
+| 06  | [API and live updates](06-api.md)                             | JSON API for items, repos, settings. SSE stream                   |
+| 07  | [Web app (PWA)](07-web-app.md)                                | The list (design A2), onboarding, settings. Installable           |
+| 08  | [Push notifications](08-push-notifications.md)                | Web Push to phone and desktop, quiet hours, morning summary       |
 
 **Milestone:** after plan 08, pr-peek is fully usable on phone and desktop browser, for you and others.
 
 ## Phase 2: Mac menu bar app
 
-| # | Plan | Result |
-| --- | --- | --- |
-| 09 | [Desktop app (Tauri)](09-desktop-tauri.md) | Menu bar icon with count, dropdown list, native alerts, auto updates |
+| #   | Plan                                       | Result                                                               |
+| --- | ------------------------------------------ | -------------------------------------------------------------------- |
+| 09  | [Desktop app (Tauri)](09-desktop-tauri.md) | Menu bar icon with count, dropdown list, native alerts, auto updates |
 
 ## Phase 3: opening it up
 
-| # | Plan | Result |
-| --- | --- | --- |
-| 10 | [Launch readiness](10-launch-readiness.md) | Safe and supportable for other people: privacy, limits, monitoring, account deletion |
-| 11 | [Future features](11-future.md) | GitHub App webhooks, PR actions, team views, Slack, and more |
+| #   | Plan                                       | Result                                                                               |
+| --- | ------------------------------------------ | ------------------------------------------------------------------------------------ |
+| 10  | [Launch readiness](10-launch-readiness.md) | Safe and supportable for other people: privacy, limits, monitoring, account deletion |
+| 11  | [Future features](11-future.md)            | GitHub App webhooks, PR actions, team views, Slack, and more                         |
 
 ## Running in parallel
 

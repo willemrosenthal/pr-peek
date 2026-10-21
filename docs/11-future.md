@@ -7,11 +7,13 @@ Ideas for after launch, roughly in order of value. Each would get its own detail
 **What:** replace or complement the OAuth App with a **GitHub App**. Orgs install it on their repos, and GitHub sends our server an event (a **webhook**) the moment something happens.
 
 **Why:**
+
 - Alerts within seconds instead of 1 to 2 minutes.
 - Far fewer API calls.
 - Read-only permissions instead of the broad `repo` scope.
 
 **Notes:**
+
 - Needs an org admin to install it, so keep OAuth polling as the fallback for repos without the App.
 - Webhook handler: check the signature, enqueue a `sync:pr` job for each affected user, and reuse the plan 04 detail fetch and plan 05 rules.
 
