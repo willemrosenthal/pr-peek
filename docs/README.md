@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | --------------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [02. Server foundation](02-server-foundation.md), part A of 2 (local server). Part B is the Render deploy |
 | **Branch**         | `plan-02-1-local-server`                                                                                  |
-| **PR**             | Opening now (part A)                                                                                      |
+| **PR**             | [#3](https://github.com/willemrosenthal/pr-peek/pull/3) (part A), CI green                                |
 | **Last step done** | Part A done: steps 2.1 to 2.6 and 2.8. Server, worker, and health check run locally                       |
 | **Next step**      | Part B: step 2.7, Render Blueprint, on branch `plan-02-2-render` after part A merges                      |
 | **Waiting on you** | Merge part A. A Render account. Branch protection for `main` and `prod` (plan 01, step 1.6)               |
