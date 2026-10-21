@@ -8,6 +8,7 @@ import express, {
 import helmet from "helmet";
 import type { Logger } from "pino";
 import { pinoHttp } from "pino-http";
+import { requireSameOrigin } from "./csrf";
 
 const API = "/api";
 const HEALTH = "/health";
@@ -16,12 +17,18 @@ export interface AppDeps {
   logger: Logger;
   version: string;
   checkDb: () => Promise<void>;
+  // Public URL of the app. Requests that change data must come from here.
+  appUrl: string;
+  // Session middleware (see session.ts). Runs on API routes only.
+  session: RequestHandler;
   // Folder with the built PWA. Skipped if it has no index.html.
   webDir?: string;
 }
 
 export function createApp(deps: AppDeps): Express {
   const app = express();
+  // Render sits in front of us as a proxy. This lets secure cookies work.
+  app.set("trust proxy", 1);
 
   app.use(
     pinoHttp({
@@ -33,8 +40,13 @@ export function createApp(deps: AppDeps): Express {
   app.use(helmet());
   app.use(express.json({ limit: "100kb" }));
 
-  app.use(API, apiRouter(deps));
-  app.use(API, notFound);
+  app.use(
+    API,
+    deps.session,
+    requireSameOrigin(deps.appUrl),
+    apiRouter(deps),
+    notFound,
+  );
 
   const { webDir } = deps;
   if (webDir && existsSync(join(webDir, "index.html"))) {
