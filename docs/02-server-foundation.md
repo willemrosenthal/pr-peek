@@ -86,7 +86,9 @@ Hosting names are `git-buddy` on both Supabase and Render. The code and repo kee
 - [x] `render.yaml` at the root, defining:
   - **`git-buddy-web`**, a Node web service on the `starter` plan in `ohio`:
     - Branch `prod`, auto deploy on.
-    - Build: `corepack enable && pnpm render:build`. The root `render:build` script runs `pnpm install --frozen-lockfile --prod=false && pnpm build`. `--prod=false` makes pnpm install dev dependencies (Prisma CLI, tsup) even though `NODE_ENV=production`. If `corepack enable` fails on Render, swap it for `npm install -g pnpm@9.15.4`.
+    - Build: `pnpm render:build`. The root `render:build` script runs `pnpm install --frozen-lockfile --prod=false && pnpm build`. `--prod=false` makes pnpm install dev dependencies (Prisma CLI, tsup) even though `NODE_ENV=production`.
+    - No `corepack enable`. It fails on Render with "read-only file system" because it tries to replace `/usr/bin/pnpm`. Render already has pnpm installed.
+    - Render's pnpm may be newer than our pinned 9.15.4. pnpm 10+ skips dependency install scripts unless they're allowed, and Prisma needs its script to download the engine that runs migrations. The root `package.json` lists the allowed ones in `pnpm.onlyBuiltDependencies` (`@prisma/engines`, `esbuild`, `prisma`), so every pnpm version behaves the same. Add to that list if a new dependency needs an install script.
     - Pre deploy: `pnpm --filter @pr-peek/server db:deploy` (runs migrations before the new version goes live)
     - Start: `node apps/server/dist/index.js`
     - Health check path `/api/health`.
@@ -94,7 +96,7 @@ Hosting names are `git-buddy` on both Supabase and Render. The code and repo kee
     - It migrates too, because Render deploys both services at once. Without it, new worker code could start before the web service's migration runs. Prisma locks the database while migrating, so two runs at once are safe.
   - An env group `git-buddy-env` shared by both services:
     - `NODE_VERSION=24` and `NODE_ENV=production`.
-    - `DATABASE_URL` and `APP_URL` with `sync: false`, so Render asks for the values instead of storing them in the repo. Later plans add more secrets.
+    - `DATABASE_URL` and `APP_URL` with `sync: false`, so their values are never stored in the repo. Render did **not** ask for them when creating the Blueprint, so they were added by hand in Environment Groups, `git-buddy-env`. Do the same for secrets in later plans.
 - [x] Build filters, so changes only under `apps/desktop` or `docs` don't trigger a deploy.
 - [x] Plans: `starter` for both. Render free web services sleep when idle, and background workers and pre deploy commands need a paid plan. Check Render's current pricing; change `plan` in `render.yaml` if you want a different tier.
 - [ ] **(You)** In Render, create a new Blueprint from the repo, paste `DATABASE_URL` and `APP_URL` when asked, and approve the services.
