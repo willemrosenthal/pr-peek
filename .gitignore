@@ -44,6 +44,9 @@ apps/desktop/src-tauri/gen/
 # Local database data (if Postgres data is mounted into the repo)
 .pgdata/
 
+# Local PR description draft
+pr-description.md
+
 # macOS
 .DS_Store
 
