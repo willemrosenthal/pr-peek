@@ -67,31 +67,34 @@
 
 **Supabase database (free plan)**
 
-- [ ] **(You)** In Supabase, create a new **free organization** (for example `pr-peek`). A project inside your paid organization is billed at that organization's rate, so it has to live in its own free one.
-- [ ] **(You)** In that organization, create a project named `pr-peek`. Save the database password somewhere safe. Pick the region closest to the Render region you'll use (for example, Supabase "East US (North Virginia)" with Render "Virginia"). Same area means lower delay on every query.
-- [ ] Free plan limits to know about (check Supabase's pricing page for current numbers):
+Hosting names are `git-buddy` on both Supabase and Render. The code and repo keep the `pr-peek` name.
+
+- [x] **(You)** In Supabase, create a new **free organization**. A project inside your paid organization is billed at that organization's rate, so it has to live in its own free one.
+- [x] **(You)** In that organization, create a project named `git-buddy`. Save the database password somewhere safe. Pick the region closest to the Render region (Render's `virginia` in `render.yaml` matches Supabase "East US (North Virginia)"). Same area means lower delay on every query.
+- [x] Free plan limits to know about (check Supabase's pricing page for current numbers):
   - **No backups.** Fine while it's just you. Plan 10 covers backups before other people sign in.
   - **Pauses after about a week with no activity.** The worker queries every minute, so this only happens if the worker is down for days. If it pauses, restore it from the Supabase dashboard.
   - **Small storage and lower connection limits.** Both are plenty for us.
-- [ ] **(You)** Copy the **session pooler** connection string: Supabase dashboard, Connect, then "Session pooler". It looks like `postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`.
+- [x] **(You)** Copy the **session pooler** connection string: Supabase dashboard, Connect, then "Session pooler". It looks like `postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`.
   - Use the session pooler, not the transaction pooler (port 6543). pg-boss and the live updates in plan 06 need a steady connection per client, which the transaction pooler doesn't give.
   - The session pooler works over IPv4. Supabase's direct connection may need IPv6, which Render may not support.
-- [ ] Add `?sslmode=require` to the end of the string if it isn't there. Supabase requires encrypted connections.
-- [ ] Keep connection counts small. The session pooler has a limit per project (see Supabase, Database settings). Set Prisma's pool (`max` on `PrismaPg`) and pg-boss's pool (`max` in its options) to 5 each, from an env var, so two services stay well under the limit.
+- [ ] **(You)** Add `?sslmode=require` to the end of the string if it isn't there, before pasting it into Render. Supabase requires encrypted connections.
+- [x] Keep connection counts small. `DB_POOL_MAX` (default 5) sets both Prisma's and pg-boss's pool size, so two services stay well under the free plan's limit.
 
 **Render Blueprint**
 
-- [ ] `render.yaml` at the root, defining:
-  - **`pr-peek-web`**, a Node web service:
+- [x] `render.yaml` at the root, defining:
+  - **`git-buddy-web`**, a Node web service on the `starter` plan in `virginia`:
     - Branch `prod`, auto deploy on.
-    - Build: `corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm build`. `--prod=false` makes pnpm install dev dependencies (Prisma CLI, tsup) even though `NODE_ENV=production`.
+    - Build: `corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm build`. `--prod=false` makes pnpm install dev dependencies (Prisma CLI, tsup) even though `NODE_ENV=production`. If `corepack enable` fails on Render, swap it for `npm install -g pnpm@9.15.4`.
     - Pre deploy: `pnpm --filter @pr-peek/server db:deploy` (runs migrations before the new version goes live)
     - Start: `node apps/server/dist/index.js`
     - Health check path `/api/health`.
-  - **`pr-peek-worker`**, a background worker, same branch and build. Start: `node apps/server/dist/worker.js`.
-  - An env group `pr-peek-secrets` shared by both services. `DATABASE_URL` and `APP_URL` go here (`sync: false`, so Render asks for the values instead of storing them in the repo). Later plans add more secrets.
-- [ ] Set build filters so changes only under `apps/desktop` or `docs` don't trigger a deploy.
-- [ ] Note: Render free web services sleep when idle, and background workers and pre deploy commands need a paid plan. Check Render's current pricing and pick the smallest paid plans for the web service and worker.
+  - **`git-buddy-worker`**, a background worker, same plan, region, branch, and build. Start: `node apps/server/dist/worker.js`.
+  - An env group `git-buddy-secrets` shared by both services. `DATABASE_URL` and `APP_URL` go here (`sync: false`, so Render asks for the values instead of storing them in the repo). Later plans add more secrets.
+  - Both services set `NODE_VERSION=24` and `NODE_ENV=production`.
+- [x] Build filters, so changes only under `apps/desktop` or `docs` don't trigger a deploy.
+- [x] Plans: `starter` for both. Render free web services sleep when idle, and background workers and pre deploy commands need a paid plan. Check Render's current pricing; change `plan` in `render.yaml` if you want a different tier.
 - [ ] **(You)** In Render, create a new Blueprint from the repo, paste `DATABASE_URL` and `APP_URL` when asked, and approve the services.
 
 ### 2.8 Local dev scripts

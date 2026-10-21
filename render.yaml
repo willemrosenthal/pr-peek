@@ -1,0 +1,55 @@
+# Render Blueprint. Render reads this file to create and update the services.
+# Docs: https://render.com/docs/blueprint-spec
+
+envVarGroups:
+  - name: git-buddy-secrets
+    envVars:
+      # Render asks for these when the Blueprint is created. They are never stored in the repo.
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_URL
+        sync: false
+
+services:
+  - type: web
+    name: git-buddy-web
+    runtime: node
+    plan: starter
+    region: virginia
+    branch: prod
+    autoDeploy: true
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm build
+    # Runs database migrations before the new version goes live.
+    preDeployCommand: pnpm --filter @pr-peek/server db:deploy
+    startCommand: node apps/server/dist/index.js
+    healthCheckPath: /api/health
+    buildFilter:
+      ignoredPaths:
+        - docs/**
+        - apps/desktop/**
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - fromGroup: git-buddy-secrets
+
+  - type: worker
+    name: git-buddy-worker
+    runtime: node
+    plan: starter
+    region: virginia
+    branch: prod
+    autoDeploy: true
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm build
+    startCommand: node apps/server/dist/worker.js
+    buildFilter:
+      ignoredPaths:
+        - docs/**
+        - apps/desktop/**
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - fromGroup: git-buddy-secrets
