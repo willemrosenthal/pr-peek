@@ -40,7 +40,7 @@
 | `UserSettings` | One per user | `timezone`, `staleWarnHours` (4), `staleLateHours` (24), `workHoursOnly`, `quietStart`, `quietEnd`, `quietWeekends`, `digestTime`, `includeTeamRequests`, `hideBots` |
 | `WatchedRepo` | Repos a user picked | `userId`, `githubRepoId`, `owner`, `name`, `enabled`, `muted`. Unique on `(userId, githubRepoId)` |
 | `PullRequest` | Our copy of a PR, per user | `userId`, `githubNodeId`, `repoOwner`, `repoName`, `number`, `title`, `url`, `authorLogin`, `isDraft`, `state`, `headSha`, `checkState`, `githubUpdatedAt`, `snapshot` (JSON of the details we fetched) |
-| `Item` | One "needs your attention" thing | `userId`, `pullRequestId`, `kind`, `dedupeKey` (unique per user), `latestEventId`, `eventCount`, `actorLogin`, `summary`, `occurredAt`, `waitingSince`, `status` (open, done, snoozed, resolved), `snoozedUntil`, `seenAt` |
+| `Item` | One "needs your attention" thing | `userId`, `pullRequestId`, `kind`, `dedupeKey` (unique per user), `latestEventId`, `eventCount`, `actorLogin`, `summary`, `occurredAt`, `waitingSince`, `status` (open, resolved), `resolvedAt`, `seenAt` |
 | `RuleSetting` | A user's choices per rule | `userId`, `ruleId`, `enabled`, `severity`, `channels` (array), `options` (JSON) |
 | `PushSubscription` | One per device that accepted push | `userId`, `endpoint` (unique), `p256dh`, `auth`, `label`, `platform`, `lastSuccessAt`, `failureCount` |
 | `NotificationLog` | What we sent, so we never send twice | `userId`, `itemId`, `channel`, `sentAt`, `status` |

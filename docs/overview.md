@@ -25,10 +25,11 @@ This file describes **what** we are building and **how the pieces fit**. The ste
 
 ### Everywhere
 
-- One sorted list, grouped into sections (design concept A in the [mockups](https://claude.ai/artifact/RiRMAZfxkrJMeSUzfw1ckb)).
+- One sorted list, grouped into sections. Rows use design A2, a divided two-line list (see the [mockups](https://claude.ai/artifact/RiRMAZfxkrJMeSUzfw1ckb)). This may still change.
 - Push notifications to phone and desktop, controlled per rule.
 - Quiet hours, a morning summary, and staleness limits.
-- Snooze, mark done, and mute per item, PR, or repo.
+- No snooze or done buttons. An item stays until you act on it (review, reply, fix the check) or the PR closes. See [plan 05](05-rules-engine.md#when-an-item-clears).
+- Mute a whole repo in settings.
 - Many users, each signing in with their own GitHub account.
 
 ### Later
