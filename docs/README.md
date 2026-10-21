@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ------------------------------------------------------------------------------------------------ |
 | **Current plan**   | [03. GitHub sign in](03-github-auth.md), part B of 2: sign in flow, token refresh, GitHub client |
 | **Branch**         | `plan-03-2-sign-in`                                                                              |
-| **PR**             | Opening now (part B). Part A merged as #7                                                        |
+| **PR**             | [#8](https://github.com/willemrosenthal/pr-peek/pull/8) (part B), CI green. Part A merged as #7  |
 | **Last step done** | 3.1, 3.4, 3.5 built and tested (75 tests). Real sign in not tried yet                            |
 | **Next step**      | You: real sign in locally and on Render. Me: move plan 03 to `completed/`, then plan 04          |
 | **Waiting on you** | Merge part B, update `prod`. Sign in for real (see the PR). Heartbeat check                      |
