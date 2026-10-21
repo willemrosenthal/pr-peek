@@ -20,12 +20,9 @@ All under `/api`. All require sign in except auth and health.
 | Method and path | What it does |
 | --- | --- |
 | `GET /items` | Open items, grouped into `review`, `replies`, and `mine`, sorted by urgency. Each item includes PR title, repo, number, url, kind, summary, age, stale level, severity, unseen flag |
-| `GET /items?status=snoozed` | Snoozed items, for a "Snoozed" view |
-| `POST /items/:id/done` | Mark done |
-| `POST /items/:id/snooze` | Body `{ until }` or `{ preset: "1h" \| "tomorrow" \| "monday" }` |
-| `POST /items/:id/unsnooze` | Back to open |
 | `POST /items/seen` | Body `{ ids }`. Marks items as seen when the list is opened |
-| `POST /prs/:id/mute` | Hide all items for one PR until it closes |
+
+There are no done or snooze endpoints. Items clear on their own (see [plan 05](05-rules-engine.md#when-an-item-clears)).
 
 **Repos:** the endpoints from plan 04.1.
 
@@ -65,5 +62,5 @@ All under `/api`. All require sign in except auth and health.
 ## Done when
 
 - [ ] Every endpoint above works locally against real synced data. A small `.http` file (for the VS Code REST Client extension) or Bruno collection is checked in for manual testing.
-- [ ] Marking an item done or snoozed changes `GET /items` right away.
+- [ ] Submitting a review on GitHub removes that item from `GET /items` after the next sync.
 - [ ] With `curl -N` on `/api/stream`, a new GitHub event shows up as an SSE message within one sync cycle.

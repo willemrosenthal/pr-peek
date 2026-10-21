@@ -47,10 +47,25 @@ Each rule ignores events by you, and events by bots when the user turned on "hid
   - A conversation comment after your latest one mentions `@you`.
 
   The summary is a preview of the latest reply, like `sam-r: "Good call, moved it in 3f2c1a"`.
-- [ ] **My PR was reviewed.** You're the author, and there are reviews by others since you last marked the item done. The summary shows the latest state: "jlee approved", "jlee requested changes".
-- [ ] **New comment on my PR.** You're the author, and there are conversation or review comments by others since you last marked it done. The summary is a count plus the latest preview.
+- [ ] **My PR was reviewed.** You're the author, and there are reviews by others that you haven't acted on yet (see the table below). The summary shows the latest state: "jlee approved", "jlee requested changes".
+- [ ] **New comment on my PR.** You're the author, and there are conversation or review comments by others that you haven't acted on yet. The summary is a count plus the latest preview.
 - [ ] **Check failed on my PR.** You're the author, and the latest commit's rollup is `FAILURE` or `ERROR`. The summary lists failing check names, like "e2e-tests, lint".
 - [ ] Register all rules in one `rules` array. Adding a case later means adding one file to that array.
+
+#### When an item clears
+
+There are no snooze or done buttons. An item stays in the list until you act on it, or the PR is merged or closed. Each rule decides what "acted on" means. These are starting defaults and may change.
+
+| Kind | Clears when |
+| --- | --- |
+| Review requested, re-requested | You submit a review, or you're removed as a reviewer |
+| Reply to my comment | You reply in that thread, or comment on the PR after the reply |
+| My PR was reviewed: changes requested | You push a new commit, or reply to the review |
+| My PR was reviewed: approved | The PR is merged or closed |
+| New comment on my PR | You reply, or push a new commit after the comment |
+| Check failed | The checks pass, or you push a new commit (a new failure makes a new item) |
+
+- [ ] Each rule returns no item once its "clears when" condition is true. Step 5.5 then resolves it.
 
 ### 5.4 Staleness and urgency (`packages/core`)
 
@@ -71,10 +86,9 @@ Each rule ignores events by you, and events by bots when the user turned on "hid
 
 - [ ] After each PR detail fetch in plan 04, run every enabled rule on it.
 - [ ] In one transaction:
-  - **Upsert** items by `(userId, dedupeKey)`. New ones start `open`. Existing ones keep their status, except that a `done` item whose `latestEventId` changes goes back to `open`.
-  - **Resolve** open items for that PR that rules no longer produce (you reviewed, checks passed). Set `status = resolved`.
+  - **Upsert** items by `(userId, dedupeKey)`. New ones start `open`. Existing ones update their summary, `latestEventId`, and `eventCount`.
+  - **Resolve** open items for that PR that rules no longer produce (you reviewed, checks passed). Set `status = resolved` and `resolvedAt`.
 - [ ] PRs that left the search results (merged, closed): resolve all their items.
-- [ ] Snoozed items whose `snoozedUntil` has passed go back to `open`. Handled in the dispatch job.
 - [ ] For every item that is new or has a changed `latestEventId`, enqueue a `notify:item` job. Plan 08 handles it. For now it just logs.
 - [ ] After changes, publish a "user items changed" message for SSE (plan 06). Postgres `NOTIFY` works for this, since the worker and web service are separate processes.
 

@@ -51,7 +51,7 @@ The `notify:item` job from plan 05.5:
 - [ ] Skip if:
   - The rule's channels don't include push.
   - The item isn't open.
-  - The item is snoozed or its PR is muted.
+  - The item's repo is muted.
   - `NotificationLog` already has this `(itemId, latestEventId)`.
 - [ ] **Staleness reminders:** a scheduled job finds review requests that just crossed the warn or late threshold and notifies once per threshold. It repeats at the user's "remind every" interval.
 - [ ] **Quiet hours:** inside quiet hours (or on a quiet weekend), don't send. Leave it for the morning summary. High severity can optionally break through quiet hours, as a setting, off by default.
@@ -70,7 +70,7 @@ The `notify:item` job from plan 05.5:
 - [ ] In `src/sw.ts`:
   - `push` event: show the notification with title, body, icon, `tag`, and `data.url`. Also update the app badge with the count in the payload.
   - `notificationclick` event: focus an open pr-peek window if there is one, otherwise open one. Then go to the PR URL, or open it on GitHub. Mark the item seen through the API.
-- [ ] Action buttons ("Snooze 1h", "Done") work on Chrome and Android, but not on iOS or Mac Safari. Add them where supported, and handle them in `notificationclick` by checking `event.action`.
+- [ ] No action buttons on notifications for now. Tapping one opens the PR.
 
 ### 8.6 Morning summary
 

@@ -1,6 +1,6 @@
 # 07. Web app (PWA)
 
-**Goal:** the React app people actually use, with sign in, onboarding, the concept A list, item actions, and settings. It's installable on phone and desktop. Push notifications come in plan 08.
+**Goal:** the React app people actually use, with sign in, onboarding, the list, and settings. It's installable on phone and desktop. Push notifications come in plan 08.
 
 **Needs:** plan 06. The final row design from the design iteration (step 7.1).
 
@@ -8,7 +8,7 @@
 
 ### 7.1 Finish the design (can start earlier)
 
-- [ ] Iterate on concept A in the [design canvas](https://claude.ai/artifact/RiRMAZfxkrJMeSUzfw1ckb): clearer, more compact rows that read as one item each.
+- [x] Pick a row style in the [design canvas](https://claude.ai/artifact/RiRMAZfxkrJMeSUzfw1ckb). Current choice: **A2, divided two-line list**. It may still change.
 - [ ] Also design:
   - The phone layout (full screen list).
   - Dark mode.
@@ -26,8 +26,7 @@
 | --- | --- |
 | `/signin` | Sign in with GitHub, with a clear note about permissions and a "public repos only" option |
 | `/onboarding` | Pick repos, set timezone, prompt to install and turn on notifications |
-| `/` | The list (concept A) |
-| `/snoozed` | Snoozed items |
+| `/` | The list |
 | `/settings/:tab` | General, Repositories, Rules, Timing, Devices |
 | `/install` | How to install on iPhone, Android, Mac |
 
@@ -44,12 +43,11 @@
 | Need | Base UI part |
 | --- | --- |
 | Collapsible list sections | Collapsible or Accordion |
-| Row "more" actions (snooze, mute, open) | Menu |
 | Settings toggles | Switch |
 | Settings dropdowns | Select |
 | Settings tabs | Tabs |
 | Confirm dialogs (remove repo, sign out) | Dialog / Alert Dialog |
-| "Marked done. Undo" messages | Toast |
+| Short messages ("New version available") | Toast |
 | Hover hints | Tooltip |
 
 - [ ] Note: Base UI's npm package was renamed around its 1.0 release (`@base-ui-components/react` became `@base-ui/react`). Check npm for the current name when installing.
@@ -57,19 +55,12 @@
 ### 7.4 The list
 
 - [ ] `ItemList` with three collapsible sections: "Needs my review", "Replies to me", "My PRs". Each shows a count. Remember which sections are collapsed in `localStorage`.
-- [ ] `ItemRow`, matching the final design:
-  - Repo and number.
-  - PR title.
-  - Summary line (who did what).
-  - Age pill, colored by stale level.
-  - Status pill (Re-requested, Failing, Changes, Approved).
-  - An unseen dot.
-- [ ] Clicking a row opens the PR on GitHub in a new tab, and marks it seen.
-- [ ] Row actions:
-  - Desktop: on hover or focus.
-  - Phone: swipe left to snooze, swipe right for done, or a long press menu.
-  - Both: a "more" menu.
-- [ ] Done and snooze update the list right away (optimistic update), roll back if the request fails, and show an Undo toast.
+- [ ] `ItemRow`, matching design A2 (divided two-line list):
+  - Thin divider lines between rows.
+  - Line 1: a small colored state icon, the PR title, and the age on the right, colored by stale level.
+  - Line 2: what happened ("jlee re-requested your review", "e2e-tests failed"), and the short repo and number on the right.
+  - An unseen marker (style to be decided).
+- [ ] Clicking a row opens the PR on GitHub in a new tab, and marks it seen. That's the only row action. There's no snooze or done.
 - [ ] Header: last synced time, refresh button (calls `POST /api/sync`), settings link.
 - [ ] Banners:
   - "Reconnect GitHub" when `needsReauth`.
@@ -114,13 +105,13 @@
 
 ### 7.8 Tests
 
-- [ ] Vitest + Testing Library for `ItemRow` states, section collapse, optimistic done with rollback, and the reauth banner.
-- [ ] One Playwright smoke test (a tool that drives a real browser) against a seeded local server: sign in with a test session, see items, mark one done.
+- [ ] Vitest + Testing Library for `ItemRow` states (each kind and stale level), section collapse, and the reauth banner.
+- [ ] One Playwright smoke test (a tool that drives a real browser) against a seeded local server: sign in with a test session, see items, click one to open the PR.
 
 ## Done when
 
 - [ ] On your phone, the Render URL installs to the Home Screen and opens full screen with your real items.
 - [ ] On desktop, the list updates on its own within a sync cycle when something happens on GitHub.
-- [ ] Done, snooze, and undo work on phone and desktop.
+- [ ] Acting on GitHub (submitting a review, fixing a check) removes the item on both phone and desktop within a sync cycle.
 - [ ] Settings changes take effect on the next sync.
 - [ ] Lighthouse PWA and accessibility checks pass with no major issues.

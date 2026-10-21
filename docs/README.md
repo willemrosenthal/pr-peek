@@ -23,7 +23,7 @@ Plans can be edited while in progress when we learn something. Completed plans a
 | 04 | [GitHub sync engine](04-github-sync.md) | Worker pulls each user's PRs on a schedule and stores them |
 | 05 | [Rules and attention items](05-rules-engine.md) | PR data turned into sorted "needs you" items, all 7 cases |
 | 06 | [API and live updates](06-api.md) | JSON API for items, repos, settings. SSE stream |
-| 07 | [Web app (PWA)](07-web-app.md) | Concept A list, onboarding, settings. Installable |
+| 07 | [Web app (PWA)](07-web-app.md) | The list (design A2), onboarding, settings. Installable |
 | 08 | [Push notifications](08-push-notifications.md) | Web Push to phone and desktop, quiet hours, morning summary |
 
 **Milestone:** after plan 08, pr-peek is fully usable on phone and desktop browser, for you and others.
@@ -43,7 +43,7 @@ Plans can be edited while in progress when we learn something. Completed plans a
 
 ## Running in parallel
 
-- **Design iteration** on concept A (clearer, more compact rows) can happen any time before plan 07. The mockups are on the [design canvas](https://claude.ai/artifact/RiRMAZfxkrJMeSUzfw1ckb).
+- **Design iteration** can happen any time before plan 07. Rows use A2 for now. Still to design: phone layout, dark mode, empty and error states, sign in and onboarding. The mockups are on the [design canvas](https://claude.ai/artifact/RiRMAZfxkrJMeSUzfw1ckb).
 - Plan 10 items like the privacy page can start any time after plan 03.
 
 ## Conventions for every plan
