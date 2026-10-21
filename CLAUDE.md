@@ -81,6 +81,11 @@ After the PR is up, send a short message with:
 - One or two lines on what it does.
 - **What to do next**, as a numbered list. Same as the PR, so it can be done from either place.
 
+## Shell commands
+
+- Run git and gh from the repo root as plain `git ...` or `gh ...`. Don't use `git -C <path>`. It stops the permission allow list from matching.
+- Keep commit messages on one line with `-m`, and add the co-author trailer with a second `-m`.
+
 ## Branches
 
 - `main`: work lands here through PRs.
