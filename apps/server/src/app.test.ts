@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import express from "express";
@@ -31,6 +31,34 @@ describe("GET /api/health", () => {
     const res = await request(app).get("/api/health");
     expect(res.status).toBe(503);
     expect(res.body).toEqual({ ok: false, version: "test" });
+  });
+});
+
+describe("request logging", () => {
+  function appWithLogs(overrides: Partial<AppDeps> = {}) {
+    const lines: string[] = [];
+    const logger = pino({ level: "info" }, { write: (l) => lines.push(l) });
+    return { app: makeApp({ logger, ...overrides }), lines };
+  }
+
+  it("skips successful health checks", async () => {
+    const { app, lines } = appWithLogs();
+    await request(app).get("/api/health");
+    expect(lines).toEqual([]);
+  });
+
+  it("still logs failed health checks", async () => {
+    const { app, lines } = appWithLogs({
+      checkDb: () => Promise.reject(new Error("connection refused")),
+    });
+    await request(app).get("/api/health");
+    expect(lines.join("")).toContain("health check failed");
+  });
+
+  it("logs other requests", async () => {
+    const { app, lines } = appWithLogs();
+    await request(app).get("/api/nope");
+    expect(lines.join("")).toContain("request completed");
   });
 });
 
@@ -80,6 +108,8 @@ describe("serving the PWA", () => {
   const webDir = mkdtempSync(join(tmpdir(), "pr-peek-web-"));
   const emptyDir = mkdtempSync(join(tmpdir(), "pr-peek-empty-"));
   writeFileSync(join(webDir, "index.html"), "<h1>pr-peek</h1>");
+  mkdirSync(join(webDir, "assets"));
+  writeFileSync(join(webDir, "assets", "app.js"), "console.log(1);");
   afterAll(() => {
     rmSync(webDir, { recursive: true, force: true });
     rmSync(emptyDir, { recursive: true, force: true });
@@ -89,6 +119,12 @@ describe("serving the PWA", () => {
     const res = await request(makeApp({ webDir })).get("/settings/rules");
     expect(res.status).toBe(200);
     expect(res.text).toContain("pr-peek");
+  });
+
+  it("serves files that exist", async () => {
+    const res = await request(makeApp({ webDir })).get("/assets/app.js");
+    expect(res.status).toBe(200);
+    expect(res.type).toBe("text/javascript");
   });
 
   it("returns 404, not index.html, for missing files", async () => {
