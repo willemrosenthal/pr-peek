@@ -21,7 +21,9 @@
 - **No `Session` model yet.** The session store in plan 03 creates its own table.
 - **`NotificationLog` has an `eventId`** and is unique on `(itemId, eventId, channel)`, so the database itself stops duplicate alerts.
 - **`/api/health` returns 503** with `ok: false` when the database is down, so Render's health check catches it.
-- **Logs redact** cookie, authorization, and set-cookie headers.
+- **Logs redact** cookie, authorization, and set-cookie headers, and skip successful health checks (Render calls them every few seconds).
+- **Missing files get a 404**, not `index.html`, so a stale asset link fails clearly instead of loading HTML as JavaScript.
+- **Indexes on foreign keys** that the original schema left out (`Item.pullRequestId`, `PushSubscription.userId`, `NotificationLog.userId`), added in a second migration.
 - **The production database is Supabase**, not Render Postgres. Render hosts only the web service and worker.
 
 ## Steps
@@ -77,7 +79,7 @@
 - [ ] `render.yaml` at the root, defining:
   - **`pr-peek-web`**, a Node web service:
     - Branch `prod`, auto deploy on.
-    - Build: `corepack enable && pnpm install --frozen-lockfile && pnpm build`
+    - Build: `corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm build`. `--prod=false` makes pnpm install dev dependencies (Prisma CLI, tsup) even though `NODE_ENV=production`.
     - Pre deploy: `pnpm --filter @pr-peek/server db:deploy` (runs migrations before the new version goes live)
     - Start: `node apps/server/dist/index.js`
     - Health check path `/api/health`.
@@ -95,6 +97,6 @@
 ## Done when
 
 - [x] `docker compose up -d && pnpm dev` starts the server and worker locally, and `curl localhost:3000/api/health` returns `ok: true`.
-- [x] Tests (Vitest + Supertest) cover `/api/health`, API errors, PWA serving, config checks, and log redaction.
+- [x] Tests (Vitest + Supertest) cover `/api/health`, API errors (including hidden 500 details), PWA serving and missing files, config checks, and log redaction.
 - [ ] Merging `main` into `prod` deploys both services on Render, the migration runs against Supabase, and the public `/api/health` returns `ok: true`.
 - [ ] Worker logs on Render show the heartbeat job every minute.

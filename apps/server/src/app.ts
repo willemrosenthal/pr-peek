@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { extname, join } from "node:path";
 import express, {
   type ErrorRequestHandler,
   type Express,
@@ -8,6 +8,9 @@ import express, {
 import helmet from "helmet";
 import type { Logger } from "pino";
 import { pinoHttp } from "pino-http";
+
+const API = "/api";
+const HEALTH = "/health";
 
 export interface AppDeps {
   logger: Logger;
@@ -20,21 +23,30 @@ export interface AppDeps {
 export function createApp(deps: AppDeps): Express {
   const app = express();
 
-  app.use(pinoHttp({ logger: deps.logger }));
+  app.use(
+    pinoHttp({
+      logger: deps.logger,
+      // Render calls this every few seconds. Failures are still logged by the route.
+      autoLogging: { ignore: (req) => req.url === `${API}${HEALTH}` },
+    }),
+  );
   app.use(helmet());
   app.use(express.json({ limit: "100kb" }));
 
-  app.use("/api", apiRouter(deps));
-  app.use("/api", notFound);
+  app.use(API, apiRouter(deps));
+  app.use(API, notFound);
 
   const { webDir } = deps;
   if (webDir && existsSync(join(webDir, "index.html"))) {
     app.use(express.static(webDir));
-    app.get("/{*path}", (_req, res) => {
+    // App routes get index.html. Missing files (e.g. an old asset) fall through to a 404.
+    app.get("/{*path}", (req, res, next) => {
+      if (extname(req.path)) return next();
       res.sendFile(join(webDir, "index.html"));
     });
   }
 
+  app.use(notFound);
   app.use(errorHandler);
   return app;
 }
@@ -42,7 +54,7 @@ export function createApp(deps: AppDeps): Express {
 function apiRouter(deps: AppDeps): express.Router {
   const router = express.Router();
 
-  router.get("/health", async (req, res) => {
+  router.get(HEALTH, async (req, res) => {
     try {
       await deps.checkDb();
       res.json({ ok: true, version: deps.version });
@@ -71,7 +83,7 @@ function httpError(err: unknown): { status: number; message?: string } {
     : { status };
 }
 
-const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   const { status, message } = httpError(err);
   if (status >= 500) {
     req.log.error({ err }, "request failed");

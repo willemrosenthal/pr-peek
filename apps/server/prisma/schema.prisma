@@ -115,6 +115,7 @@ model Item {
 
   @@unique([userId, dedupeKey])
   @@index([userId, status])
+  @@index([pullRequestId])
 }
 
 model RuleSetting {
@@ -143,6 +144,8 @@ model PushSubscription {
   createdAt     DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model NotificationLog {
@@ -159,4 +162,5 @@ model NotificationLog {
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([itemId, eventId, channel])
+  @@index([userId])
 }
