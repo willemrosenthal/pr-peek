@@ -1,15 +1,18 @@
+import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "./config";
 
+const key = randomBytes(32);
 const required = {
   APP_URL: "http://localhost:5173",
   DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
+  SESSION_SECRET: "x".repeat(32),
+  TOKEN_ENC_KEY: key.toString("base64"),
 };
 
 describe("loadConfig", () => {
   it("applies defaults", () => {
-    expect(loadConfig(required)).toEqual({
-      ...required,
+    expect(loadConfig(required)).toMatchObject({
       NODE_ENV: "development",
       PORT: 3000,
       LOG_LEVEL: "info",
@@ -23,19 +26,26 @@ describe("loadConfig", () => {
     expect(config.DB_POOL_MAX).toBe(3);
   });
 
-  it("rejects a pool size of zero", () => {
-    expect(() => loadConfig({ ...required, DB_POOL_MAX: "0" })).toThrow(
-      /DB_POOL_MAX/,
-    );
+  it("decodes the token key into bytes", () => {
+    expect(loadConfig(required).TOKEN_ENC_KEY.equals(key)).toBe(true);
   });
 
   it("names each missing variable", () => {
-    expect(() => loadConfig({})).toThrow(/APP_URL[\s\S]*DATABASE_URL/);
+    expect(() => loadConfig({})).toThrow(
+      /APP_URL[\s\S]*DATABASE_URL[\s\S]*SESSION_SECRET[\s\S]*TOKEN_ENC_KEY/,
+    );
   });
 
-  it("rejects an unknown NODE_ENV", () => {
-    expect(() => loadConfig({ ...required, NODE_ENV: "staging" })).toThrow(
-      /NODE_ENV/,
-    );
+  it.each([
+    ["an unknown NODE_ENV", { NODE_ENV: "staging" }, /NODE_ENV/],
+    ["a pool size of zero", { DB_POOL_MAX: "0" }, /DB_POOL_MAX/],
+    ["a short session secret", { SESSION_SECRET: "short" }, /SESSION_SECRET/],
+    [
+      "a token key of the wrong length",
+      { TOKEN_ENC_KEY: randomBytes(16).toString("base64") },
+      /TOKEN_ENC_KEY/,
+    ],
+  ])("rejects %s", (_name, overrides, error) => {
+    expect(() => loadConfig({ ...required, ...overrides })).toThrow(error);
   });
 });

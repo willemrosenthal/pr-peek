@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [02. Server foundation](completed/02-server-foundation.md), finishing. Next: [03. GitHub sign in](03-github-auth.md) |
-| **Branch**         | `plan-02-4-finish`                                                                                                   |
-| **PR**             | Opening now (finish plan 02). Earlier: #3, #4, #5                                                                    |
-| **Last step done** | Live at `https://git-buddy-web.onrender.com`. Health check passes against Supabase                                   |
-| **Next step**      | Start [plan 03](03-github-auth.md) once this merges                                                                  |
-| **Waiting on you** | Confirm the worker's heartbeat in Render logs. Merge this PR. Branch protection for `main` and `prod`                |
+|                    |                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [03. GitHub sign in](03-github-auth.md), part A of 2: encryption, sessions, CSRF. Part B: sign in flow   |
+| **Branch**         | `plan-03-1-sessions`                                                                                     |
+| **PR**             | Opening now (part A)                                                                                     |
+| **Last step done** | 3.2 and 3.3: encryption, sessions, CSRF. Tested locally                                                  |
+| **Next step**      | Part B (`plan-03-2-sign-in`): 3.1, 3.4, 3.5 once part A merges                                           |
+| **Waiting on you** | Add `SESSION_SECRET` and `TOKEN_ENC_KEY` to Render before `prod`. Create the OAuth Apps. Heartbeat check |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.

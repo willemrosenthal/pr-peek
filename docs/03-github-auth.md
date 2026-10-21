@@ -18,37 +18,55 @@ OAuth App permissions ("scopes") are coarse:
 
 The `repo` scope is the main reason a GitHub App (plan 11) is a good upgrade later, since GitHub Apps can ask for read-only access. For now, be upfront about it on the sign in screen. Offer a "public repos only" option that asks for `public_repo` instead of `repo`.
 
+**Split into two PRs:**
+
+- **Part A** (`plan-03-1-sessions`): steps 3.2 and 3.3. Token encryption, sessions, CSRF.
+- **Part B** (`plan-03-2-sign-in`): steps 3.1, 3.4, and 3.5. OAuth Apps, the sign in flow, `/api/me`, and the GitHub client.
+
+## Changes from the original plan
+
+- **No web app until plan 07.** In dev, `APP_URL` and the OAuth callback point at Express on port 3000. Plan 07 moves both to the Vite dev server on 5173. Until then, sign in ends on a 404 page; check `/api/me` instead.
+- **The `session` table is in the Prisma schema**, matching `connect-pg-simple`'s `table.sql`. That way Prisma migrations create it and don't see it as unexpected drift.
+- **One database pool** (`createPool` in `db.ts`) is shared by Prisma and the session store, to keep connections low on Supabase.
+- **Default `RuleSetting` rows come in plan 05**, where the rules are defined. New users get `UserSettings` now.
+- **Hosting names:** the prod OAuth App is `git-buddy`, and its secrets go in Render's `git-buddy-env` group.
+
 ## Steps
 
 ### 3.1 Create the OAuth Apps (You)
 
-- [ ] **(You)** In GitHub, Settings, Developer settings, OAuth Apps, create **pr-peek (dev)**:
-  - Homepage: `http://localhost:5173`
-  - Callback: `http://localhost:5173/api/auth/github/callback` (the Vite dev server proxies `/api` to Express, see plan 07)
-- [ ] **(You)** Create **pr-peek** for production with your Render URL (or custom domain) as the homepage and callback base.
+- [ ] **(You)** In GitHub, Settings, Developer settings, OAuth Apps, create **git-buddy (dev)**:
+  - Homepage: `http://localhost:3000`
+  - Callback: `http://localhost:3000/api/auth/github/callback` (plan 07 changes both to port 5173)
+- [ ] **(You)** Create **git-buddy** for production:
+  - Homepage: `https://git-buddy-web.onrender.com`
+  - Callback: `https://git-buddy-web.onrender.com/api/auth/github/callback`
 - [ ] Add to `.env.example`: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`.
-- [ ] **(You)** Put the prod values in the Render `pr-peek-secrets` env group.
+- [ ] **(You)** Put the prod values in Render's `git-buddy-env` group.
 
-### 3.2 Token encryption
+### 3.2 Token encryption (part A)
 
-- [ ] `apps/server/src/crypto.ts` with `encrypt(text)` and `decrypt(blob)`:
+- [x] `apps/server/src/crypto.ts` with `encrypt(text, key)` and `decrypt(blob, key)`:
   - AES-256-GCM (a standard encryption method that also detects tampering) using Node's built in `crypto`.
   - A fresh random IV (a random starting value, so the same token never encrypts to the same output) per call.
   - Stored as `v1:<iv>:<authTag>:<ciphertext>` in base64. The `v1` prefix lets us rotate keys later.
-- [ ] Add `TOKEN_ENC_KEY` (32 random bytes, base64) to config. Document how to generate it: `openssl rand -base64 32`.
-- [ ] Unit tests: round trip, tampered data fails, wrong key fails.
+- [x] `TOKEN_ENC_KEY` (32 random bytes, base64) in config, checked for the right length. Generate with `openssl rand -base64 32`.
+- [x] Unit tests: round trip, no plain text in the output, different output each time, wrong key fails, tampered data fails, bad format fails.
+- [ ] **(You)** Add `TOKEN_ENC_KEY` to Render's `git-buddy-env` group **before** this reaches `prod`. Use a new value, not the dev one.
 
-### 3.3 Sessions
+### 3.3 Sessions (part A)
 
-- [ ] `express-session` with `connect-pg-simple` (stores sessions in a Postgres table).
-- [ ] Cookie settings:
+- [x] `express-session` with `connect-pg-simple` (stores sessions in the `session` Postgres table), in `src/session.ts`.
+- [x] Cookie settings:
   - `httpOnly` (JavaScript can't read it)
   - `secure` in production (HTTPS only)
   - `sameSite: "lax"`
   - 30 day rolling expiry (each visit pushes the expiry forward)
-- [ ] Add `SESSION_SECRET` to config.
-- [ ] Set `app.set("trust proxy", 1)` so secure cookies work behind Render's proxy.
-- [ ] CSRF protection (stopping other sites from making requests as the user): for every non GET `/api` request, require the `Origin` header to match `APP_URL`. Since the API and PWA share one domain, this is enough.
+  - No cookie until something is saved in the session.
+- [x] `SESSION_SECRET` in config (at least 32 characters).
+- [x] `app.set("trust proxy", 1)` so secure cookies work behind Render's proxy.
+- [x] CSRF protection (stopping other sites from making requests as the user), in `src/csrf.ts`: every non GET `/api` request needs an `Origin` header that matches `APP_URL`. Since the API and PWA share one domain, this is enough.
+- [ ] **(You)** Add `SESSION_SECRET` to Render's `git-buddy-env` group **before** this reaches `prod`. Use a new value, not the dev one.
 
 ### 3.4 Sign in flow
 

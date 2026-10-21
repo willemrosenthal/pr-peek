@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { KEY_BYTES } from "./crypto";
 
 const schema = z.object({
   NODE_ENV: z
@@ -12,6 +13,15 @@ const schema = z.object({
   DATABASE_URL: z.url(),
   // Max connections per pool. Kept small to stay under Supabase's free plan limit.
   DB_POOL_MAX: z.coerce.number().int().positive().default(5),
+  // Signs the session cookie. Generate with: openssl rand -base64 32
+  SESSION_SECRET: z.string().min(32),
+  // Encrypts GitHub tokens. Generate with: openssl rand -base64 32
+  TOKEN_ENC_KEY: z
+    .base64()
+    .transform((value) => Buffer.from(value, "base64"))
+    .refine((key) => key.length === KEY_BYTES, {
+      message: `Must be ${KEY_BYTES} bytes, base64 encoded`,
+    }),
   // Set by Render on every deploy.
   RENDER_GIT_COMMIT: z.string().optional(),
 });

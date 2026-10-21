@@ -7,12 +7,17 @@ import { pinoHttp } from "pino-http";
 import request from "supertest";
 import { afterAll, describe, expect, it } from "vitest";
 import { createApp, errorHandler, type AppDeps } from "./app";
+import { sessionMiddleware } from "./session";
+
+const APP_URL = "https://git-buddy.example";
 
 function makeApp(overrides: Partial<AppDeps> = {}) {
   return createApp({
     logger: pino({ level: "silent" }),
     version: "test",
     checkDb: () => Promise.resolve(),
+    appUrl: APP_URL,
+    session: sessionMiddleware({ secret: "x".repeat(32), secure: false }),
     ...overrides,
   });
 }
@@ -31,6 +36,35 @@ describe("GET /api/health", () => {
     const res = await request(app).get("/api/health");
     expect(res.status).toBe(503);
     expect(res.body).toEqual({ ok: false, version: "test" });
+  });
+});
+
+describe("cross-site request protection", () => {
+  it("blocks a POST from another site", async () => {
+    const res = await request(makeApp())
+      .post("/api/health")
+      .set("Origin", "https://evil.example");
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: { code: "forbidden" } });
+  });
+
+  it("blocks a POST with no Origin header", async () => {
+    const res = await request(makeApp()).post("/api/health");
+    expect(res.status).toBe(403);
+  });
+
+  it("lets a POST from our own site through", async () => {
+    const res = await request(makeApp())
+      .post("/api/nope")
+      .set("Origin", APP_URL);
+    expect(res.status).toBe(404);
+  });
+
+  it("allows GET from anywhere, since it doesn't change data", async () => {
+    const res = await request(makeApp())
+      .get("/api/health")
+      .set("Origin", "https://evil.example");
+    expect(res.status).toBe(200);
   });
 });
 
