@@ -78,7 +78,7 @@ Hosting names are `git-buddy` on both Supabase and Render. The code and repo kee
 - [x] **(You)** Copy the **session pooler** connection string: Supabase dashboard, Connect, then "Session pooler". It looks like `postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`.
   - Use the session pooler, not the transaction pooler (port 6543). pg-boss and the live updates in plan 06 need a steady connection per client, which the transaction pooler doesn't give.
   - The session pooler works over IPv4. Supabase's direct connection may need IPv6, which Render may not support.
-- [ ] **(You)** Add `?sslmode=require` to the end of the string if it isn't there, before pasting it into Render. Supabase requires encrypted connections.
+- [x] **(You)** Add `?sslmode=require` to the end of the string if it isn't there, before pasting it into Render. Supabase requires encrypted connections.
 - [x] Keep connection counts small. `DB_POOL_MAX` (default 5) sets both Prisma's and pg-boss's pool size, so two services stay well under the free plan's limit.
 
 **Render Blueprint**
@@ -99,7 +99,7 @@ Hosting names are `git-buddy` on both Supabase and Render. The code and repo kee
     - `DATABASE_URL` and `APP_URL` with `sync: false`, so their values are never stored in the repo. Render did **not** ask for them when creating the Blueprint, so they were added by hand in Environment Groups, `git-buddy-env`. Do the same for secrets in later plans.
 - [x] Build filters, so changes only under `apps/desktop` or `docs` don't trigger a deploy.
 - [x] Plans: `starter` for both. Render free web services sleep when idle, and background workers and pre deploy commands need a paid plan. Check Render's current pricing; change `plan` in `render.yaml` if you want a different tier.
-- [ ] **(You)** In Render, create a new Blueprint from the repo, paste `DATABASE_URL` and `APP_URL` when asked, and approve the services.
+- [x] **(You)** In Render, create a new Blueprint from the repo, add `DATABASE_URL` and `APP_URL` to `git-buddy-env`, and approve the services.
 
 ### 2.8 Local dev scripts
 
@@ -110,5 +110,5 @@ Hosting names are `git-buddy` on both Supabase and Render. The code and repo kee
 
 - [x] `docker compose up -d && pnpm dev` starts the server and worker locally, and `curl localhost:3000/api/health` returns `ok: true`.
 - [x] Tests (Vitest + Supertest) cover `/api/health`, API errors (including hidden 500 details), PWA serving and missing files, config checks, and log redaction.
-- [ ] Merging `main` into `prod` deploys both services on Render, the migration runs against Supabase, and the public `/api/health` returns `ok: true`.
-- [ ] Worker logs on Render show the heartbeat job every minute.
+- [x] Merging `main` into `prod` deploys both services on Render, the migration runs against Supabase, and the public `/api/health` returns `ok: true`. Checked at `https://git-buddy-web.onrender.com/api/health` on commit `93672e7`.
+- [ ] **(You)** Worker logs on Render show the heartbeat job every minute.

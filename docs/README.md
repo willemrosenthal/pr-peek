@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                       |
-| ------------------ | ----------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [02. Server foundation](02-server-foundation.md), part B of 2: Supabase (free plan) and Render deploy |
-| **Branch**         | `plan-02-3-render-build-fix`                                                                          |
-| **PR**             | [#5](https://github.com/willemrosenthal/pr-peek/pull/5) (build fix). Parts A and B merged as #3, #4   |
-| **Last step done** | Blueprint created. First deploys failed: `corepack enable` can't write to `/usr/bin` on Render        |
-| **Next step**      | You: merge the fix, update `prod`. Me: check the deploy, then finish plan 02                          |
-| **Waiting on you** | Merge the build fix. Update `prod`. Branch protection for `main` and `prod`                           |
+|                    |                                                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [02. Server foundation](completed/02-server-foundation.md), finishing. Next: [03. GitHub sign in](03-github-auth.md) |
+| **Branch**         | `plan-02-4-finish`                                                                                                   |
+| **PR**             | Opening now (finish plan 02). Earlier: #3, #4, #5                                                                    |
+| **Last step done** | Live at `https://git-buddy-web.onrender.com`. Health check passes against Supabase                                   |
+| **Next step**      | Start [plan 03](03-github-auth.md) once this merges                                                                  |
+| **Waiting on you** | Confirm the worker's heartbeat in Render logs. Merge this PR. Branch protection for `main` and `prod`                |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.
@@ -28,16 +28,16 @@ Plans can be edited while in progress when we learn something. Completed plans a
 
 ## Phase 1: server and PWA
 
-| #   | Plan                                                          | Result                                                                        |
-| --- | ------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| 01  | ✅ [Repo setup](completed/01-repo-setup.md)                   | Empty monorepo that builds, lints, and tests in CI                            |
-| 02  | [Server foundation and first deploy](02-server-foundation.md) | Express + Prisma live on Render with Supabase Postgres, deploying from `prod` |
-| 03  | [GitHub sign in](03-github-auth.md)                           | Users can sign in with GitHub. Tokens stored encrypted                        |
-| 04  | [GitHub sync engine](04-github-sync.md)                       | Worker pulls each user's PRs on a schedule and stores them                    |
-| 05  | [Rules and attention items](05-rules-engine.md)               | PR data turned into sorted "needs you" items, all 7 cases                     |
-| 06  | [API and live updates](06-api.md)                             | JSON API for items, repos, settings. SSE stream                               |
-| 07  | [Web app (PWA)](07-web-app.md)                                | The list (design A2), onboarding, settings. Installable                       |
-| 08  | [Push notifications](08-push-notifications.md)                | Web Push to phone and desktop, quiet hours, morning summary                   |
+| #   | Plan                                                                       | Result                                                                        |
+| --- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| 01  | ✅ [Repo setup](completed/01-repo-setup.md)                                | Empty monorepo that builds, lints, and tests in CI                            |
+| 02  | ✅ [Server foundation and first deploy](completed/02-server-foundation.md) | Express + Prisma live on Render with Supabase Postgres, deploying from `prod` |
+| 03  | [GitHub sign in](03-github-auth.md)                                        | Users can sign in with GitHub. Tokens stored encrypted                        |
+| 04  | [GitHub sync engine](04-github-sync.md)                                    | Worker pulls each user's PRs on a schedule and stores them                    |
+| 05  | [Rules and attention items](05-rules-engine.md)                            | PR data turned into sorted "needs you" items, all 7 cases                     |
+| 06  | [API and live updates](06-api.md)                                          | JSON API for items, repos, settings. SSE stream                               |
+| 07  | [Web app (PWA)](07-web-app.md)                                             | The list (design A2), onboarding, settings. Installable                       |
+| 08  | [Push notifications](08-push-notifications.md)                             | Web Push to phone and desktop, quiet hours, morning summary                   |
 
 **Milestone:** after plan 08, pr-peek is fully usable on phone and desktop browser, for you and others.
 
