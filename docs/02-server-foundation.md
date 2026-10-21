@@ -1,13 +1,13 @@
 # 02. Server foundation and first deploy
 
-**Goal:** an Express server with Prisma and Postgres, a background worker process, and both running on Render with auto deploy from `prod`. We deploy this early (with no features) so deploy problems show up while the app is still tiny.
+**Goal:** an Express server with Prisma and Postgres, a background worker process, and both running on Render with auto deploy from `prod`. The production database is on Supabase. We deploy this early (with no features) so deploy problems show up while the app is still tiny.
 
-**Needs:** plan 01. Docker (or another local Postgres). **(You)** A Render account.
+**Needs:** plan 01. Docker (or another local Postgres). **(You)** A Render account and a Supabase project.
 
 **Split into two PRs:**
 
 - **Part A** (`plan-02-1-local-server`): steps 2.1 to 2.6 and 2.8. Everything runs locally.
-- **Part B** (`plan-02-2-render`): step 2.7. The Render Blueprint and first deploy.
+- **Part B** (`plan-02-2-render`): step 2.7. Supabase, the Render Blueprint, and the first deploy.
 
 ## Changes from the original plan
 
@@ -22,6 +22,7 @@
 - **`NotificationLog` has an `eventId`** and is unique on `(itemId, eventId, channel)`, so the database itself stops duplicate alerts.
 - **`/api/health` returns 503** with `ok: false` when the database is down, so Render's health check catches it.
 - **Logs redact** cookie, authorization, and set-cookie headers.
+- **The production database is Supabase**, not Render Postgres. Render hosts only the web service and worker.
 
 ## Steps
 
@@ -60,7 +61,18 @@
 
 - [x] `tsup` bundles `src/index.ts` and `src/worker.ts` into `apps/server/dist/`, with `@pr-peek/core` bundled in.
 
-### 2.7 Render Blueprint (part B)
+### 2.7 Supabase and Render Blueprint (part B)
+
+**Supabase database**
+
+- [ ] **(You)** Create a Supabase project named `pr-peek`. Pick the region closest to the Render region you'll use (for example, Supabase "East US (North Virginia)" with Render "Virginia"). Same area means lower delay on every query.
+- [ ] **(You)** Copy the **session pooler** connection string: Supabase dashboard, Connect, then "Session pooler". It looks like `postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`.
+  - Use the session pooler, not the transaction pooler (port 6543). pg-boss and the live updates in plan 06 need a steady connection per client, which the transaction pooler doesn't give.
+  - The session pooler works over IPv4. Supabase's direct connection may need IPv6, which Render may not support.
+- [ ] Add `?sslmode=require` to the end of the string if it isn't there. Supabase requires encrypted connections.
+- [ ] Keep connection counts small. The session pooler has a limit per project (see Supabase, Database settings). Set Prisma's pool (`max` on `PrismaPg`) and pg-boss's pool (`max` in its options) to 5 each, from an env var, so two services stay well under the limit.
+
+**Render Blueprint**
 
 - [ ] `render.yaml` at the root, defining:
   - **`pr-peek-web`**, a Node web service:
@@ -70,11 +82,10 @@
     - Start: `node apps/server/dist/index.js`
     - Health check path `/api/health`.
   - **`pr-peek-worker`**, a background worker, same branch and build. Start: `node apps/server/dist/worker.js`.
-  - **`pr-peek-db`**, Postgres. `DATABASE_URL` from it is wired into both services.
-  - An env group `pr-peek-secrets` shared by both services for secrets added in later plans.
+  - An env group `pr-peek-secrets` shared by both services. `DATABASE_URL` and `APP_URL` go here (`sync: false`, so Render asks for the values instead of storing them in the repo). Later plans add more secrets.
 - [ ] Set build filters so changes only under `apps/desktop` or `docs` don't trigger a deploy.
 - [ ] Note: Render free web services sleep when idle, and background workers and pre deploy commands need a paid plan. Check Render's current pricing and pick the smallest paid plans for the web service and worker.
-- [ ] **(You)** In Render, create a new Blueprint from the repo and approve the services.
+- [ ] **(You)** In Render, create a new Blueprint from the repo, paste `DATABASE_URL` and `APP_URL` when asked, and approve the services.
 
 ### 2.8 Local dev scripts
 
@@ -85,5 +96,5 @@
 
 - [x] `docker compose up -d && pnpm dev` starts the server and worker locally, and `curl localhost:3000/api/health` returns `ok: true`.
 - [x] Tests (Vitest + Supertest) cover `/api/health`, API errors, PWA serving, config checks, and log redaction.
-- [ ] Merging `main` into `prod` deploys both services on Render, the migration runs, and the public `/api/health` returns `ok: true`.
+- [ ] Merging `main` into `prod` deploys both services on Render, the migration runs against Supabase, and the public `/api/health` returns `ok: true`.
 - [ ] Worker logs on Render show the heartbeat job every minute.

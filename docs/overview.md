@@ -53,8 +53,11 @@ This file describes **what** we are building and **how the pieces fit**. The ste
 |   - run rules                    - JSON API + live updates (SSE)|
 |   - send Web Push                - serves the built PWA         |
 |            \                       /                            |
-|             +------ Postgres -----+                             |
-+-----------------------------------------------------------------+
++-------------\---------------------/-----------------------------+
+               \                   /
+          +-----------------------------+
+          |  Supabase (Postgres)        |
+          +-----------------------------+
            |                     |                       |
      Web Push               HTTPS + SSE             HTTPS + SSE
            v                     v                       v
@@ -83,7 +86,8 @@ This file describes **what** we are building and **how the pieces fit**. The ste
 | PWA               | vite-plugin-pwa with a custom service worker                                                              |
 | Shared logic      | `packages/core`: types, rules, urgency score, formatting                                                  |
 | Desktop (phase 2) | Tauri 2 with tray, positioner, autostart, updater, notification, global shortcut, single instance plugins |
-| Hosting           | Render Blueprint (`render.yaml`): web service, background worker, Postgres. Auto deploy from `prod`       |
+| Hosting           | Render Blueprint (`render.yaml`): web service and background worker. Auto deploy from `prod`              |
+| Database          | Postgres on Supabase in production, Docker locally                                                        |
 | Desktop releases  | GitHub Actions with `tauri-action`, published to GitHub Releases, self updating                           |
 
 ## 4. Repo layout
@@ -126,5 +130,6 @@ Items close on their own when the condition goes away (you submitted the review,
 | Account                                       | When              | Why                                                              |
 | --------------------------------------------- | ----------------- | ---------------------------------------------------------------- |
 | GitHub OAuth Apps (one for dev, one for prod) | Plan 03           | "Sign in with GitHub"                                            |
-| Render                                        | Plan 02           | Hosting                                                          |
+| Render                                        | Plan 02           | Hosting the server and worker                                    |
+| Supabase (you already have a paid account)    | Plan 02           | The production Postgres database                                 |
 | Apple Developer Program (about $99 a year)    | Plan 09, optional | Signing the Mac app so other people can open it without warnings |
