@@ -14,6 +14,8 @@ const logger = createLogger(config);
 const pool = createPool(config);
 const db = createDb(pool);
 const PgStore = connectPgSimple(session);
+// The table comes from a Prisma migration.
+const sessionStore = new PgStore({ pool, tableName: "session" });
 
 const app = createApp({
   logger,
@@ -23,8 +25,7 @@ const app = createApp({
   session: sessionMiddleware({
     secret: config.SESSION_SECRET,
     secure: config.NODE_ENV === "production",
-    // The table comes from a Prisma migration.
-    store: new PgStore({ pool, tableName: "session" }),
+    store: sessionStore,
   }),
   // Same depth from src/ (tsx in dev) and dist/ (built), so this works for both.
   webDir: resolve(import.meta.dirname, "../../web/dist"),
@@ -37,5 +38,7 @@ const server = app.listen(config.PORT, () => {
 onShutdown(logger, async () => {
   await promisify(server.close.bind(server))();
   await db.$disconnect();
+  // Stops the store's expired-session cleanup timer before the pool closes.
+  sessionStore.close();
   await pool.end();
 });

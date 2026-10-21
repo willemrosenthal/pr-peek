@@ -60,6 +60,13 @@ describe("cross-site request protection", () => {
     expect(res.status).toBe(404);
   });
 
+  it("matches APP_URL even with a trailing slash", async () => {
+    const res = await request(makeApp({ appUrl: `${APP_URL}/` }))
+      .post("/api/nope")
+      .set("Origin", APP_URL);
+    expect(res.status).toBe(404);
+  });
+
   it("allows GET from anywhere, since it doesn't change data", async () => {
     const res = await request(makeApp())
       .get("/api/health")
