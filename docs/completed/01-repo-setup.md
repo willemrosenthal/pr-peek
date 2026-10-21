@@ -62,5 +62,5 @@
 ## Done when
 
 - [x] `pnpm install && pnpm lint && pnpm typecheck && pnpm test && pnpm build` all pass locally.
-- [ ] The same steps pass in GitHub Actions on a PR.
+- [x] The same steps pass in GitHub Actions on a PR (PR #2).
 - [x] `apps/server` can import something from `@pr-peek/core` and type checks.

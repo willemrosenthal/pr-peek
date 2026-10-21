@@ -8,9 +8,9 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ------------------------------------------------------------------------------- |
 | **Current plan**   | [01. Repo setup](completed/01-repo-setup.md), all steps done                    |
 | **Branch**         | `plan-01-repo-setup`                                                            |
-| **PR**             | Opening now                                                                     |
-| **Last step done** | 1.6 CI. Everything passes locally                                               |
-| **Next step**      | Confirm CI passes on the PR, then start [plan 02](02-server-foundation.md)      |
+| **PR**             | [#2](https://github.com/willemrosenthal/pr-peek/pull/2), CI green               |
+| **Last step done** | All of plan 01, including CI on the PR                                          |
+| **Next step**      | Start [plan 02](02-server-foundation.md) once PR #2 is merged                   |
 | **Waiting on you** | Merge the PR. Create the `prod` branch. Turn on branch protection (plan 01 1.6) |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
