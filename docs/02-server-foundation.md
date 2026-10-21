@@ -65,9 +65,14 @@
 
 ### 2.7 Supabase and Render Blueprint (part B)
 
-**Supabase database**
+**Supabase database (free plan)**
 
-- [ ] **(You)** Create a Supabase project named `pr-peek`. Pick the region closest to the Render region you'll use (for example, Supabase "East US (North Virginia)" with Render "Virginia"). Same area means lower delay on every query.
+- [ ] **(You)** In Supabase, create a new **free organization** (for example `pr-peek`). A project inside your paid organization is billed at that organization's rate, so it has to live in its own free one.
+- [ ] **(You)** In that organization, create a project named `pr-peek`. Save the database password somewhere safe. Pick the region closest to the Render region you'll use (for example, Supabase "East US (North Virginia)" with Render "Virginia"). Same area means lower delay on every query.
+- [ ] Free plan limits to know about (check Supabase's pricing page for current numbers):
+  - **No backups.** Fine while it's just you. Plan 10 covers backups before other people sign in.
+  - **Pauses after about a week with no activity.** The worker queries every minute, so this only happens if the worker is down for days. If it pauses, restore it from the Supabase dashboard.
+  - **Small storage and lower connection limits.** Both are plenty for us.
 - [ ] **(You)** Copy the **session pooler** connection string: Supabase dashboard, Connect, then "Session pooler". It looks like `postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`.
   - Use the session pooler, not the transaction pooler (port 6543). pg-boss and the live updates in plan 06 need a steady connection per client, which the transaction pooler doesn't give.
   - The session pooler works over IPv4. Supabase's direct connection may need IPv6, which Render may not support.

@@ -45,7 +45,10 @@
 
 ### 10.6 Data safety
 
-- [ ] **(You)** Confirm Supabase backups are on for your plan (and point-in-time recovery if you want it), and test restoring once.
+- [ ] **Backups before other people sign in.** The Supabase free plan has none. Pick one:
+  - Upgrade the project to a paid Supabase plan, which includes daily backups.
+  - Or add a scheduled GitHub Action that runs `pg_dump` every night and stores the file somewhere private (for example, a private storage bucket). Keep 7 to 14 days.
+- [ ] **(You)** Test restoring a backup into a fresh database once.
 - [ ] Prisma migrations only add or change in ways that work with the version currently running. Render runs migrations before swapping versions, so for a short time the old code runs against the new schema.
 
 ### 10.7 Polish for new users
