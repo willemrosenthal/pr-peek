@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                          |
-| ------------------ | -------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [03. GitHub sign in](03-github-auth.md), part A of 2: encryption, sessions, CSRF. Part B: sign in flow   |
-| **Branch**         | `plan-03-1-sessions`                                                                                     |
-| **PR**             | [#7](https://github.com/willemrosenthal/pr-peek/pull/7) (part A), CI green                               |
-| **Last step done** | 3.2 and 3.3: encryption, sessions, CSRF. Tested locally                                                  |
-| **Next step**      | Part B (`plan-03-2-sign-in`): 3.1, 3.4, 3.5 once part A merges                                           |
-| **Waiting on you** | Add `SESSION_SECRET` and `TOKEN_ENC_KEY` to Render before `prod`. Create the OAuth Apps. Heartbeat check |
+|                    |                                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| **Current plan**   | [03. GitHub sign in](03-github-auth.md), part B of 2: sign in flow, token refresh, GitHub client |
+| **Branch**         | `plan-03-2-sign-in`                                                                              |
+| **PR**             | Opening now (part B). Part A merged as #7                                                        |
+| **Last step done** | 3.1, 3.4, 3.5 built and tested (75 tests). Real sign in not tried yet                            |
+| **Next step**      | You: real sign in locally and on Render. Me: move plan 03 to `completed/`, then plan 04          |
+| **Waiting on you** | Merge part B, update `prod`. Sign in for real (see the PR). Heartbeat check                      |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.

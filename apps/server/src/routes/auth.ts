@@ -1,0 +1,141 @@
+import { randomBytes } from "node:crypto";
+import express, {
+  type RequestHandler,
+  type Response,
+  type Router,
+} from "express";
+import { rateLimit } from "express-rate-limit";
+import type { Db } from "../db";
+import type { User } from "../generated/prisma/client";
+import {
+  GitHubAuthError,
+  type GitHubOAuth,
+  type ScopeChoice,
+} from "../github/oauth";
+import {
+  destroySession,
+  regenerateSession,
+  saveSession,
+  SESSION_COOKIE,
+} from "../session";
+import { upsertGitHubUser } from "../users";
+
+export interface AuthDeps {
+  db: Db;
+  oauth: GitHubOAuth;
+  key: Buffer;
+  appUrl: string;
+}
+
+// Loads the signed in user, or answers 401. Use `currentUser(res)` in the route after it.
+export function requireUser(db: Db): RequestHandler {
+  return async (req, res, next) => {
+    const userId = req.session.userId;
+    const user =
+      userId && (await db.user.findUnique({ where: { id: userId } }));
+    if (!user) {
+      res.status(401).json({
+        error: { code: "unauthorized", message: "Sign in required" },
+      });
+      return;
+    }
+    res.locals.user = user;
+    next();
+  };
+}
+
+export function currentUser(res: Response): User {
+  return res.locals.user as User;
+}
+
+export function authRouter(deps: AuthDeps): Router {
+  const router = express.Router();
+  const callbackUrl = new URL(
+    "/api/auth/github/callback",
+    deps.appUrl,
+  ).toString();
+  // The browser lands on these app routes. They exist from plan 07.
+  const signInError = (code: string) => `/signin?error=${code}`;
+
+  // Slows down anyone hammering the sign in endpoints.
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 30,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+  });
+
+  router.get("/auth/github", limiter, async (req, res) => {
+    const scope: ScopeChoice = req.query.scope === "public" ? "public" : "full";
+    const state = randomBytes(16).toString("hex");
+    req.session.oauthState = state;
+    await saveSession(req);
+    res.redirect(
+      deps.oauth.authorizeUrl({ state, scope, redirectUri: callbackUrl }),
+    );
+  });
+
+  router.get("/auth/github/callback", limiter, async (req, res) => {
+    const { code, state, error } = req.query;
+    const expectedState = req.session.oauthState;
+    delete req.session.oauthState;
+
+    // The user clicked "Cancel" on GitHub.
+    if (error === "access_denied") return res.redirect(signInError("denied"));
+    if (
+      typeof code !== "string" ||
+      typeof state !== "string" ||
+      !expectedState ||
+      state !== expectedState
+    ) {
+      return res.redirect(signInError("state"));
+    }
+
+    try {
+      const tokens = await deps.oauth.exchangeCode(code, callbackUrl);
+      const githubUser = await deps.oauth.getUser(tokens.accessToken);
+      const { user, isNew } = await upsertGitHubUser(
+        deps.db,
+        githubUser,
+        tokens,
+        deps.key,
+      );
+
+      await regenerateSession(req);
+      req.session.userId = user.id;
+      await saveSession(req);
+      res.redirect(isNew ? "/onboarding" : "/");
+    } catch (err) {
+      req.log.warn({ err }, "GitHub sign in failed");
+      res.redirect(
+        signInError(err instanceof GitHubAuthError ? "github" : "server"),
+      );
+    }
+  });
+
+  router.post("/auth/signout", async (req, res) => {
+    await destroySession(req);
+    res.clearCookie(SESSION_COOKIE);
+    res.sendStatus(204);
+  });
+
+  router.get("/me", requireUser(deps.db), async (_req, res) => {
+    const user = currentUser(res);
+    const settings = await deps.db.userSettings.findUnique({
+      where: { userId: user.id },
+    });
+    res.json({
+      user: {
+        id: user.id,
+        login: user.login,
+        name: user.name,
+        avatarUrl: user.avatarUrl,
+        scopes: user.tokenScopes,
+      },
+      settings,
+      needsReauth: user.syncError === "reauth",
+    });
+  });
+
+  return router;
+}

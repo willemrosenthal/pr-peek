@@ -29,8 +29,12 @@ model User {
   login          String
   name           String?
   avatarUrl      String?
-  accessTokenEnc String?
-  tokenScopes    String[]
+  // GitHub tokens, encrypted (see crypto.ts). Access tokens expire after about 8 hours.
+  accessTokenEnc        String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenEnc       String?
+  refreshTokenExpiresAt DateTime?
+  tokenScopes           String[]
   lastSyncedAt   DateTime?
   syncError      String?
   createdAt      DateTime  @default(now())

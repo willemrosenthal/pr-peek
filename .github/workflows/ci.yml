@@ -15,9 +15,25 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      # For tests that use a real database. The test setup creates the test database in it.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
     env:
-      # Prisma's config needs a value to generate the client. CI never connects to it.
+      # Prisma's config needs a value to generate the client.
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      TEST_DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_test
     steps:
       - uses: actions/checkout@v4
 

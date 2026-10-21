@@ -8,6 +8,8 @@ const required = {
   DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
   SESSION_SECRET: "x".repeat(32),
   TOKEN_ENC_KEY: key.toString("base64"),
+  GITHUB_CLIENT_ID: "Iv1.test",
+  GITHUB_CLIENT_SECRET: "secret",
 };
 
 describe("loadConfig", () => {
@@ -32,7 +34,7 @@ describe("loadConfig", () => {
 
   it("names each missing variable", () => {
     expect(() => loadConfig({})).toThrow(
-      /APP_URL[\s\S]*DATABASE_URL[\s\S]*SESSION_SECRET[\s\S]*TOKEN_ENC_KEY/,
+      /APP_URL[\s\S]*DATABASE_URL[\s\S]*SESSION_SECRET[\s\S]*TOKEN_ENC_KEY[\s\S]*GITHUB_CLIENT_ID[\s\S]*GITHUB_CLIENT_SECRET/,
     );
   });
 
