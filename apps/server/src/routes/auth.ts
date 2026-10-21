@@ -45,7 +45,12 @@ export function requireUser(db: Db): RequestHandler {
 }
 
 export function currentUser(res: Response): User {
-  return res.locals.user as User;
+  const user = res.locals.user as User | undefined;
+  // Only happens if a route forgot `requireUser`. Fail loudly instead of acting as nobody.
+  if (!user) {
+    throw new Error("currentUser() used on a route without requireUser");
+  }
+  return user;
 }
 
 export function authRouter(deps: AuthDeps): Router {

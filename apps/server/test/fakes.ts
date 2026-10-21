@@ -10,7 +10,9 @@ import type {
 export const TEST_KEY = randomBytes(KEY_BYTES);
 
 export const NOW = new Date("2026-10-21T12:00:00Z");
-const hours = (n: number) => new Date(NOW.getTime() + n * 60 * 60 * 1000);
+// A time `n` hours after NOW (negative for before).
+export const hours = (n: number) =>
+  new Date(NOW.getTime() + n * 60 * 60 * 1000);
 
 export function githubUser(overrides: Partial<GitHubUser> = {}): GitHubUser {
   return {
@@ -55,5 +57,3 @@ export function fakeOAuth(overrides: Partial<GitHubOAuth> = {}) {
     ),
   };
 }
-
-export { hours };

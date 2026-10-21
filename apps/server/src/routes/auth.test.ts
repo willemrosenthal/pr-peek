@@ -64,6 +64,13 @@ describe("starting sign in", () => {
       expect.objectContaining({ scope: "public" }),
     );
   });
+
+  it("slows down too many attempts", async () => {
+    const { agent } = makeApp();
+    for (let i = 0; i < 30; i++) await agent.get("/api/auth/github");
+    const res = await agent.get("/api/auth/github");
+    expect(res.status).toBe(429);
+  });
 });
 
 describe("the GitHub callback", () => {

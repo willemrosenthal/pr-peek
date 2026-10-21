@@ -24,13 +24,21 @@ export default async function setup(): Promise<void> {
     await admin.end();
   }
 
-  execFileSync(
-    resolve(serverDir, "node_modules/.bin/prisma"),
-    ["migrate", "deploy"],
-    {
-      cwd: serverDir,
-      env: { ...process.env, DATABASE_URL: TEST_DATABASE_URL },
-      stdio: "ignore",
-    },
-  );
+  try {
+    execFileSync(
+      resolve(serverDir, "node_modules/.bin/prisma"),
+      ["migrate", "deploy"],
+      {
+        cwd: serverDir,
+        env: { ...process.env, DATABASE_URL: TEST_DATABASE_URL },
+        stdio: "pipe",
+      },
+    );
+  } catch (err) {
+    // Show Prisma's own message, so a broken migration is easy to spot.
+    const output = (err as { stderr?: Buffer; stdout?: Buffer }).stderr ?? "";
+    throw new Error(`Test database migration failed:\n${output.toString()}`, {
+      cause: err,
+    });
+  }
 }
