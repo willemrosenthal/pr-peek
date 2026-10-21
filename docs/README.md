@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ----------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [02. Server foundation](02-server-foundation.md), part B of 2: Supabase (free plan) and Render deploy |
 | **Branch**         | `plan-02-3-render-build-fix`                                                                          |
-| **PR**             | Opening now (build fix). Parts A and B merged as #3 and #4                                            |
+| **PR**             | [#5](https://github.com/willemrosenthal/pr-peek/pull/5) (build fix). Parts A and B merged as #3, #4   |
 | **Last step done** | Blueprint created. First deploys failed: `corepack enable` can't write to `/usr/bin` on Render        |
 | **Next step**      | You: merge the fix, update `prod`. Me: check the deploy, then finish plan 02                          |
 | **Waiting on you** | Merge the build fix. Update `prod`. Branch protection for `main` and `prod`                           |

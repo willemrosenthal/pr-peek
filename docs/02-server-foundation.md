@@ -88,6 +88,7 @@ Hosting names are `git-buddy` on both Supabase and Render. The code and repo kee
     - Branch `prod`, auto deploy on.
     - Build: `pnpm render:build`. The root `render:build` script runs `pnpm install --frozen-lockfile --prod=false && pnpm build`. `--prod=false` makes pnpm install dev dependencies (Prisma CLI, tsup) even though `NODE_ENV=production`.
     - No `corepack enable`. It fails on Render with "read-only file system" because it tries to replace `/usr/bin/pnpm`. Render already has pnpm installed.
+    - Render's pnpm may be newer than our pinned 9.15.4. pnpm 10+ skips dependency install scripts unless they're allowed, and Prisma needs its script to download the engine that runs migrations. The root `package.json` lists the allowed ones in `pnpm.onlyBuiltDependencies` (`@prisma/engines`, `esbuild`, `prisma`), so every pnpm version behaves the same. Add to that list if a new dependency needs an install script.
     - Pre deploy: `pnpm --filter @pr-peek/server db:deploy` (runs migrations before the new version goes live)
     - Start: `node apps/server/dist/index.js`
     - Health check path `/api/health`.
