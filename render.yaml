@@ -23,7 +23,8 @@ services:
     region: ohio
     branch: prod
     autoDeploy: true
-    buildCommand: corepack enable && pnpm render:build
+    # Render ships pnpm already. `corepack enable` fails there (read-only /usr/bin).
+    buildCommand: pnpm render:build
     # Both services migrate before starting, so neither runs new code on an old schema.
     # Prisma locks the database while migrating, so running it twice at once is safe.
     preDeployCommand: pnpm --filter @pr-peek/server db:deploy
@@ -43,7 +44,7 @@ services:
     region: ohio
     branch: prod
     autoDeploy: true
-    buildCommand: corepack enable && pnpm render:build
+    buildCommand: pnpm render:build
     preDeployCommand: pnpm --filter @pr-peek/server db:deploy
     startCommand: node apps/server/dist/worker.js
     buildFilter:

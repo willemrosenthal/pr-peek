@@ -7,11 +7,11 @@ Updated after every step. Read this first when picking work back up.
 |                    |                                                                                                       |
 | ------------------ | ----------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [02. Server foundation](02-server-foundation.md), part B of 2: Supabase (free plan) and Render deploy |
-| **Branch**         | `plan-02-2-render`                                                                                    |
-| **PR**             | [#4](https://github.com/willemrosenthal/pr-peek/pull/4) (part B), CI green. Part A merged as #3       |
-| **Last step done** | `render.yaml` and pool sizes done. Supabase project and Render account set up by you                  |
-| **Next step**      | You: merge, update `prod`, create the Blueprint. Me: check the deploy, then finish plan 02            |
-| **Waiting on you** | Merge part B. Update `prod`. Create the Render Blueprint. Branch protection for `main` and `prod`     |
+| **Branch**         | `plan-02-3-render-build-fix`                                                                          |
+| **PR**             | Opening now (build fix). Parts A and B merged as #3 and #4                                            |
+| **Last step done** | Blueprint created. First deploys failed: `corepack enable` can't write to `/usr/bin` on Render        |
+| **Next step**      | You: merge the fix, update `prod`. Me: check the deploy, then finish plan 02                          |
+| **Waiting on you** | Merge the build fix. Update `prod`. Branch protection for `main` and `prod`                           |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.
