@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------- |
-| **Current plan**   | [01. Repo setup](completed/01-repo-setup.md), all steps done                    |
-| **Branch**         | `plan-01-repo-setup`                                                            |
-| **PR**             | [#2](https://github.com/willemrosenthal/pr-peek/pull/2), CI green               |
-| **Last step done** | All of plan 01, including CI on the PR                                          |
-| **Next step**      | Start [plan 02](02-server-foundation.md) once PR #2 is merged                   |
-| **Waiting on you** | Merge the PR. Create the `prod` branch. Turn on branch protection (plan 01 1.6) |
+|                    |                                                                                                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [02. Server foundation](02-server-foundation.md), part A of 2 (local server). Part B is the Render deploy |
+| **Branch**         | `plan-02-1-local-server`                                                                                  |
+| **PR**             | Opening now (part A)                                                                                      |
+| **Last step done** | Part A done: steps 2.1 to 2.6 and 2.8. Server, worker, and health check run locally                       |
+| **Next step**      | Part B: step 2.7, Render Blueprint, on branch `plan-02-2-render` after part A merges                      |
+| **Waiting on you** | Merge part A. A Render account. Branch protection for `main` and `prod` (plan 01, step 1.6)               |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.

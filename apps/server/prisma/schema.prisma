@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ItemStatus {
+  open
+  resolved
+}
+
+model User {
+  id             String    @id @default(cuid())
+  githubId       Int       @unique
+  login          String
+  name           String?
+  avatarUrl      String?
+  accessTokenEnc String?
+  tokenScopes    String[]
+  lastSyncedAt   DateTime?
+  syncError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  settings          UserSettings?
+  watchedRepos      WatchedRepo[]
+  pullRequests      PullRequest[]
+  items             Item[]
+  ruleSettings      RuleSetting[]
+  pushSubscriptions PushSubscription[]
+  notificationLogs  NotificationLog[]
+}
+
+model UserSettings {
+  userId              String  @id
+  timezone            String  @default("UTC")
+  staleWarnHours      Int     @default(4)
+  staleLateHours      Int     @default(24)
+  workHoursOnly       Boolean @default(false)
+  // Times are "HH:MM" in the user's timezone.
+  quietStart          String?
+  quietEnd            String?
+  quietWeekends       Boolean @default(false)
+  digestTime          String?
+  includeTeamRequests Boolean @default(true)
+  hideBots            Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WatchedRepo {
+  id           String   @id @default(cuid())
+  userId       String
+  githubRepoId Int
+  owner        String
+  name         String
+  enabled      Boolean  @default(true)
+  muted        Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, githubRepoId])
+}
+
+model PullRequest {
+  id              String   @id @default(cuid())
+  userId          String
+  githubNodeId    String
+  repoOwner       String
+  repoName        String
+  number          Int
+  title           String
+  url             String
+  authorLogin     String
+  isDraft         Boolean
+  state           String
+  headSha         String
+  checkState      String?
+  githubUpdatedAt DateTime
+  snapshot        Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items Item[]
+
+  @@unique([userId, githubNodeId])
+}
+
+model Item {
+  id            String     @id @default(cuid())
+  userId        String
+  pullRequestId String
+  kind          String
+  dedupeKey     String
+  latestEventId String
+  eventCount    Int        @default(1)
+  actorLogin    String?
+  summary       String
+  occurredAt    DateTime
+  waitingSince  DateTime?
+  status        ItemStatus @default(open)
+  resolvedAt    DateTime?
+  seenAt        DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pullRequest      PullRequest       @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  notificationLogs NotificationLog[]
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, status])
+}
+
+model RuleSetting {
+  userId   String
+  ruleId   String
+  enabled  Boolean  @default(true)
+  severity String
+  channels String[]
+  options  Json     @default("{}")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, ruleId])
+}
+
+model PushSubscription {
+  id            String    @id @default(cuid())
+  userId        String
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  label         String?
+  platform      String?
+  lastSuccessAt DateTime?
+  failureCount  Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationLog {
+  id      String   @id @default(cuid())
+  userId  String
+  itemId  String
+  // The item's latestEventId when sent, so each event notifies once.
+  eventId String
+  channel String
+  status  String
+  sentAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, eventId, channel])
+}

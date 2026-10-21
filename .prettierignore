@@ -1,4 +1,6 @@
 dist
 coverage
 pnpm-lock.yaml
+apps/server/src/generated
+apps/server/prisma/migrations
 pr-description.md
