@@ -1,90 +1,102 @@
 # 02. Server foundation and first deploy
 
-**Goal:** an Express server with Prisma and Postgres, a background worker process, and both running on Render with auto deploy from `prod`. We deploy this early (with no features) so deploy problems show up while the app is still tiny.
+**Goal:** an Express server with Prisma and Postgres, a background worker process, and both running on Render with auto deploy from `prod`. The production database is on Supabase. We deploy this early (with no features) so deploy problems show up while the app is still tiny.
 
-**Needs:** plan 01. A local Postgres (Docker or Postgres.app). **(You)** A Render account.
+**Needs:** plan 01. Docker (or another local Postgres). **(You)** A Render account and a Supabase project.
+
+**Split into two PRs:**
+
+- **Part A** (`plan-02-1-local-server`): steps 2.1 to 2.6 and 2.8. Everything runs locally.
+- **Part B** (`plan-02-2-render`): step 2.7. Supabase, the Render Blueprint, and the first deploy.
+
+## Changes from the original plan
+
+- **Postgres runs on port 5433** in Docker, so it doesn't clash with a Postgres already on 5432.
+- **Prisma 7** works differently from earlier versions:
+  - Settings live in `apps/server/prisma.config.ts`, which also loads the root `.env` for CLI commands.
+  - The client is generated into `apps/server/src/generated/prisma` (gitignored) and talks to Postgres through `@prisma/adapter-pg`.
+  - `prisma generate` runs on `pnpm install` (a `postinstall` script), so builds and type checks always have the client.
+  - Prisma's npm `latest` tag points at an 8.0 release candidate, so all Prisma packages are pinned to `~7.10.1`.
+- **No `build:render` script.** The server reads the web build only at runtime, so build order doesn't matter. Render runs `pnpm build`.
+- **No `Session` model yet.** The session store in plan 03 creates its own table.
+- **`NotificationLog` has an `eventId`** and is unique on `(itemId, eventId, channel)`, so the database itself stops duplicate alerts.
+- **`/api/health` returns 503** with `ok: false` when the database is down, so Render's health check catches it.
+- **Logs redact** cookie, authorization, and set-cookie headers, and skip successful health checks (Render calls them every few seconds).
+- **Missing files get a 404**, not `index.html`, so a stale asset link fails clearly instead of loading HTML as JavaScript.
+- **Indexes on foreign keys** that the original schema left out (`Item.pullRequestId`, `PushSubscription.userId`, `NotificationLog.userId`), added in a second migration.
+- **The production database is Supabase**, not Render Postgres. Render hosts only the web service and worker.
 
 ## Steps
 
 ### 2.1 Local Postgres
 
-- [ ] Add `docker-compose.yml` at the root with one Postgres service, a named volume, and port `5432`. (Skip if you prefer Postgres.app.)
-- [ ] Add `DATABASE_URL` to `.env.example`.
+- [x] `docker-compose.yml` with one Postgres 17 service, a named volume, and port `5433`.
+- [x] `DATABASE_URL` and the other variables in `.env.example`.
 
 ### 2.2 Config
 
-- [ ] `apps/server/src/config.ts`: read `process.env` once at startup and check it with a Zod schema. If anything is missing or wrong, crash with a clear message. Export a typed `config` object.
-- [ ] Start with: `NODE_ENV`, `PORT`, `DATABASE_URL`, `APP_URL` (the public URL, e.g. `http://localhost:5173` in dev), `LOG_LEVEL`.
+- [x] `apps/server/src/config.ts`: `loadConfig()` checks env vars with Zod and throws a clear message naming each bad one.
+- [x] Variables: `NODE_ENV`, `PORT`, `DATABASE_URL`, `APP_URL`, `LOG_LEVEL`, plus Render's optional `RENDER_GIT_COMMIT` for the version.
 
 ### 2.3 Express app
 
-- [ ] `apps/server/src/app.ts` builds the app, `src/index.ts` starts it. Keeping them separate lets tests create the app without opening a port.
-- [ ] Middleware, in order:
-  - `pino-http` for request logs.
-  - `helmet` for safe default security headers.
-  - `express.json()` with a small body size limit.
-  - Our routes under `/api`.
-  - Static files for the built PWA, with a fallback to `index.html` for any non `/api` route so React Router can handle it. (The PWA build only exists from plan 07 on. Until then this serves nothing.)
-  - A final error handler that logs the error and returns `{ error: { code, message } }` JSON. Never leaks stack traces in production.
-- [ ] `GET /api/health` returns `{ ok: true, version }` and checks it can reach the database.
-- [ ] Graceful shutdown: on `SIGTERM`, stop taking new requests, finish open ones, close the database connection. Render sends `SIGTERM` on every deploy.
+- [x] `src/app.ts` builds the app from its dependencies (logger, version, database check, web folder). `src/index.ts` starts it. Tests build the app without a database or open port.
+- [x] Middleware in order: `pino-http`, `helmet`, `express.json()` (100kb limit), `/api` routes, JSON 404 for unknown `/api` routes, the PWA with `index.html` fallback (only if the build exists), and an error handler.
+- [x] The error handler returns `{ error: { code, message } }`. It never sends stack traces or internal messages.
+- [x] `GET /api/health` returns `{ ok: true, version }`, or 503 if the database is unreachable.
+- [x] Graceful shutdown (`src/shutdown.ts`, shared with the worker): on `SIGTERM` or `SIGINT`, stop taking requests, finish open ones, close the database. Forces exit after 10 seconds.
 
 ### 2.4 Prisma
 
-- [ ] Add Prisma to `apps/server`, schema at `apps/server/prisma/schema.prisma`.
-- [ ] Create the first models. Later plans add fields as needed, but sketching them now keeps the data model coherent:
-
-| Model              | Purpose                              | Key fields                                                                                                                                                                                                |
-| ------------------ | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `User`             | One per GitHub account               | `githubId` (unique), `login`, `name`, `avatarUrl`, `accessTokenEnc`, `tokenScopes`, `lastSyncedAt`, `syncError`                                                                                           |
-| `UserSettings`     | One per user                         | `timezone`, `staleWarnHours` (4), `staleLateHours` (24), `workHoursOnly`, `quietStart`, `quietEnd`, `quietWeekends`, `digestTime`, `includeTeamRequests`, `hideBots`                                      |
-| `WatchedRepo`      | Repos a user picked                  | `userId`, `githubRepoId`, `owner`, `name`, `enabled`, `muted`. Unique on `(userId, githubRepoId)`                                                                                                         |
-| `PullRequest`      | Our copy of a PR, per user           | `userId`, `githubNodeId`, `repoOwner`, `repoName`, `number`, `title`, `url`, `authorLogin`, `isDraft`, `state`, `headSha`, `checkState`, `githubUpdatedAt`, `snapshot` (JSON of the details we fetched)   |
-| `Item`             | One "needs your attention" thing     | `userId`, `pullRequestId`, `kind`, `dedupeKey` (unique per user), `latestEventId`, `eventCount`, `actorLogin`, `summary`, `occurredAt`, `waitingSince`, `status` (open, resolved), `resolvedAt`, `seenAt` |
-| `RuleSetting`      | A user's choices per rule            | `userId`, `ruleId`, `enabled`, `severity`, `channels` (array), `options` (JSON)                                                                                                                           |
-| `PushSubscription` | One per device that accepted push    | `userId`, `endpoint` (unique), `p256dh`, `auth`, `label`, `platform`, `lastSuccessAt`, `failureCount`                                                                                                     |
-| `NotificationLog`  | What we sent, so we never send twice | `userId`, `itemId`, `channel`, `sentAt`, `status`                                                                                                                                                         |
-| `Session`          | Sign in sessions                     | managed by the session store in plan 03                                                                                                                                                                   |
-
-- [ ] Note: PRs are stored per user, not shared, because each user's token decides what they're allowed to see. We can share data between users later if it ever matters for speed.
-- [ ] Run the first migration (`prisma migrate dev`) and commit it.
-- [ ] A single shared `PrismaClient` in `src/db.ts`.
+- [x] Schema at `apps/server/prisma/schema.prisma` with `User`, `UserSettings`, `WatchedRepo`, `PullRequest`, `Item`, `RuleSetting`, `PushSubscription`, `NotificationLog`.
+- [x] PRs are stored per user, because each user's token decides what they can see.
+- [x] First migration (`init`) created and committed.
+- [x] `src/db.ts`: `createDb()` and `checkDb()`.
 
 ### 2.5 Worker process
 
-- [ ] Add pg-boss. It creates its own tables in a `pgboss` schema in the same Postgres.
-- [ ] `apps/server/src/worker.ts`: a second entry point that starts pg-boss, registers job handlers, and shuts down cleanly on `SIGTERM`.
-- [ ] One placeholder scheduled job (`heartbeat`, every minute) that logs a line. Real jobs arrive in plan 04.
+- [x] pg-boss 12. It creates its own tables in a `pgboss` schema.
+- [x] `src/worker.ts`: starts pg-boss, registers jobs, shuts down gracefully.
+- [x] A `heartbeat` job every minute that logs a line.
 
 ### 2.6 Build
 
-- [ ] Bundle the server with `tsup` (a zero config bundler built on esbuild) into `apps/server/dist/index.js` and `dist/worker.js`. Bundling pulls in `@pr-peek/core` source so there's nothing extra to build.
-- [ ] Root script `build:render` that builds core consumers in order: web (once it exists), then server.
+- [x] `tsup` bundles `src/index.ts` and `src/worker.ts` into `apps/server/dist/`, with `@pr-peek/core` bundled in.
 
-### 2.7 Render Blueprint
+### 2.7 Supabase and Render Blueprint (part B)
+
+**Supabase database**
+
+- [ ] **(You)** Create a Supabase project named `pr-peek`. Pick the region closest to the Render region you'll use (for example, Supabase "East US (North Virginia)" with Render "Virginia"). Same area means lower delay on every query.
+- [ ] **(You)** Copy the **session pooler** connection string: Supabase dashboard, Connect, then "Session pooler". It looks like `postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`.
+  - Use the session pooler, not the transaction pooler (port 6543). pg-boss and the live updates in plan 06 need a steady connection per client, which the transaction pooler doesn't give.
+  - The session pooler works over IPv4. Supabase's direct connection may need IPv6, which Render may not support.
+- [ ] Add `?sslmode=require` to the end of the string if it isn't there. Supabase requires encrypted connections.
+- [ ] Keep connection counts small. The session pooler has a limit per project (see Supabase, Database settings). Set Prisma's pool (`max` on `PrismaPg`) and pg-boss's pool (`max` in its options) to 5 each, from an env var, so two services stay well under the limit.
+
+**Render Blueprint**
 
 - [ ] `render.yaml` at the root, defining:
   - **`pr-peek-web`**, a Node web service:
     - Branch `prod`, auto deploy on.
-    - Build: `corepack enable && pnpm install --frozen-lockfile && pnpm build:render && pnpm --filter @pr-peek/server exec prisma generate`
-    - Pre deploy: `pnpm --filter @pr-peek/server exec prisma migrate deploy` (runs migrations before the new version goes live)
+    - Build: `corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm build`. `--prod=false` makes pnpm install dev dependencies (Prisma CLI, tsup) even though `NODE_ENV=production`.
+    - Pre deploy: `pnpm --filter @pr-peek/server db:deploy` (runs migrations before the new version goes live)
     - Start: `node apps/server/dist/index.js`
     - Health check path `/api/health`.
   - **`pr-peek-worker`**, a background worker, same branch and build. Start: `node apps/server/dist/worker.js`.
-  - **`pr-peek-db`**, Postgres. `DATABASE_URL` from it is wired into both services.
-  - An env group `pr-peek-secrets` shared by both services for secrets added in later plans.
+  - An env group `pr-peek-secrets` shared by both services. `DATABASE_URL` and `APP_URL` go here (`sync: false`, so Render asks for the values instead of storing them in the repo). Later plans add more secrets.
 - [ ] Set build filters so changes only under `apps/desktop` or `docs` don't trigger a deploy.
 - [ ] Note: Render free web services sleep when idle, and background workers and pre deploy commands need a paid plan. Check Render's current pricing and pick the smallest paid plans for the web service and worker.
-- [ ] **(You)** In Render, create a new Blueprint from the repo and approve the services.
+- [ ] **(You)** In Render, create a new Blueprint from the repo, paste `DATABASE_URL` and `APP_URL` when asked, and approve the services.
 
 ### 2.8 Local dev scripts
 
-- [ ] `pnpm dev` in `apps/server` runs `tsx watch src/index.ts`, and `pnpm dev:worker` runs `tsx watch src/worker.ts`.
-- [ ] Root `pnpm dev` runs server, worker, and (later) web together.
+- [x] `apps/server`: `dev` runs `dev:server` and `dev:worker` together, each with `tsx watch` and the root `.env`.
+- [x] Root `pnpm dev` runs every package's `dev` (server and worker now, web from plan 07).
 
 ## Done when
 
-- [ ] `docker compose up -d && pnpm dev` starts the server and worker locally, and `curl localhost:3000/api/health` returns `ok: true`.
-- [ ] A test (Vitest + Supertest) calls `/api/health` against the app.
-- [ ] Merging `main` into `prod` deploys both services on Render, the migration runs, and the public `/api/health` returns `ok: true`.
+- [x] `docker compose up -d && pnpm dev` starts the server and worker locally, and `curl localhost:3000/api/health` returns `ok: true`.
+- [x] Tests (Vitest + Supertest) cover `/api/health`, API errors (including hidden 500 details), PWA serving and missing files, config checks, and log redaction.
+- [ ] Merging `main` into `prod` deploys both services on Render, the migration runs against Supabase, and the public `/api/health` returns `ok: true`.
 - [ ] Worker logs on Render show the heartbeat job every minute.

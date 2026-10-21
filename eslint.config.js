@@ -7,7 +7,7 @@ import tseslint from "typescript-eslint";
 
 export default defineConfig(
   {
-    ignores: ["**/dist/**", "**/coverage/**"],
+    ignores: ["**/dist/**", "**/coverage/**", "apps/server/src/generated/**"],
   },
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
@@ -19,6 +19,12 @@ export default defineConfig(
         },
         tsconfigRootDir: import.meta.dirname,
       },
+    },
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
     },
   },
   {

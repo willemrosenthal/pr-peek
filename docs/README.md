@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------- |
-| **Current plan**   | [01. Repo setup](completed/01-repo-setup.md), all steps done                    |
-| **Branch**         | `plan-01-repo-setup`                                                            |
-| **PR**             | [#2](https://github.com/willemrosenthal/pr-peek/pull/2), CI green               |
-| **Last step done** | All of plan 01, including CI on the PR                                          |
-| **Next step**      | Start [plan 02](02-server-foundation.md) once PR #2 is merged                   |
-| **Waiting on you** | Merge the PR. Create the `prod` branch. Turn on branch protection (plan 01 1.6) |
+|                    |                                                                                                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [02. Server foundation](02-server-foundation.md), part A of 2 (local server). Part B is the Render deploy |
+| **Branch**         | `plan-02-1-local-server`                                                                                  |
+| **PR**             | [#3](https://github.com/willemrosenthal/pr-peek/pull/3) (part A), CI green                                |
+| **Last step done** | Part A done: steps 2.1 to 2.6 and 2.8. Server, worker, and health check run locally                       |
+| **Next step**      | Part B: step 2.7, Supabase and Render Blueprint, on branch `plan-02-2-render` after part A merges         |
+| **Waiting on you** | Merge part A. A Render account. A Supabase project and its session pooler URL. Branch protection          |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.
@@ -28,16 +28,16 @@ Plans can be edited while in progress when we learn something. Completed plans a
 
 ## Phase 1: server and PWA
 
-| #   | Plan                                                          | Result                                                            |
-| --- | ------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 01  | ✅ [Repo setup](completed/01-repo-setup.md)                   | Empty monorepo that builds, lints, and tests in CI                |
-| 02  | [Server foundation and first deploy](02-server-foundation.md) | Express + Prisma + Postgres live on Render, deploying from `prod` |
-| 03  | [GitHub sign in](03-github-auth.md)                           | Users can sign in with GitHub. Tokens stored encrypted            |
-| 04  | [GitHub sync engine](04-github-sync.md)                       | Worker pulls each user's PRs on a schedule and stores them        |
-| 05  | [Rules and attention items](05-rules-engine.md)               | PR data turned into sorted "needs you" items, all 7 cases         |
-| 06  | [API and live updates](06-api.md)                             | JSON API for items, repos, settings. SSE stream                   |
-| 07  | [Web app (PWA)](07-web-app.md)                                | The list (design A2), onboarding, settings. Installable           |
-| 08  | [Push notifications](08-push-notifications.md)                | Web Push to phone and desktop, quiet hours, morning summary       |
+| #   | Plan                                                          | Result                                                                        |
+| --- | ------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| 01  | ✅ [Repo setup](completed/01-repo-setup.md)                   | Empty monorepo that builds, lints, and tests in CI                            |
+| 02  | [Server foundation and first deploy](02-server-foundation.md) | Express + Prisma live on Render with Supabase Postgres, deploying from `prod` |
+| 03  | [GitHub sign in](03-github-auth.md)                           | Users can sign in with GitHub. Tokens stored encrypted                        |
+| 04  | [GitHub sync engine](04-github-sync.md)                       | Worker pulls each user's PRs on a schedule and stores them                    |
+| 05  | [Rules and attention items](05-rules-engine.md)               | PR data turned into sorted "needs you" items, all 7 cases                     |
+| 06  | [API and live updates](06-api.md)                             | JSON API for items, repos, settings. SSE stream                               |
+| 07  | [Web app (PWA)](07-web-app.md)                                | The list (design A2), onboarding, settings. Installable                       |
+| 08  | [Push notifications](08-push-notifications.md)                | Web Push to phone and desktop, quiet hours, morning summary                   |
 
 **Milestone:** after plan 08, pr-peek is fully usable on phone and desktop browser, for you and others.
 

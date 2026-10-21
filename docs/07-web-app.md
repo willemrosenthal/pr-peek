@@ -32,6 +32,7 @@
 
 - [ ] TanStack Query for all server data. One small `api.ts` wrapper around `fetch` that uses the shared types from `packages/core`, sends cookies, and turns error JSON into thrown errors.
 - [ ] If `/api/me` returns 401, send the user to `/signin`.
+- [ ] Keep dots out of route paths. The server treats any path with a file extension as a file and returns 404 if it's missing (plan 02). A repo name like `next.js` belongs in a query string, not the path.
 
 ### 7.3 Styling and components
 
