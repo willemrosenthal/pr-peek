@@ -17,8 +17,16 @@ describe("loadConfig", () => {
     });
   });
 
-  it("turns PORT into a number", () => {
-    expect(loadConfig({ ...required, PORT: "8080" }).PORT).toBe(8080);
+  it("turns number settings into numbers", () => {
+    const config = loadConfig({ ...required, PORT: "8080", DB_POOL_MAX: "3" });
+    expect(config.PORT).toBe(8080);
+    expect(config.DB_POOL_MAX).toBe(3);
+  });
+
+  it("rejects a pool size of zero", () => {
+    expect(() => loadConfig({ ...required, DB_POOL_MAX: "0" })).toThrow(
+      /DB_POOL_MAX/,
+    );
   });
 
   it("names each missing variable", () => {

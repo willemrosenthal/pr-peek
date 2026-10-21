@@ -70,7 +70,7 @@
 Hosting names are `git-buddy` on both Supabase and Render. The code and repo keep the `pr-peek` name.
 
 - [x] **(You)** In Supabase, create a new **free organization**. A project inside your paid organization is billed at that organization's rate, so it has to live in its own free one.
-- [x] **(You)** In that organization, create a project named `git-buddy`. Save the database password somewhere safe. Pick the region closest to the Render region (Render's `virginia` in `render.yaml` matches Supabase "East US (North Virginia)"). Same area means lower delay on every query.
+- [x] **(You)** In that organization, create a project named `git-buddy`. Save the database password somewhere safe. The project is in Supabase "US East (Ohio)", so `render.yaml` uses Render's `ohio` region. Same area means lower delay on every query.
 - [x] Free plan limits to know about (check Supabase's pricing page for current numbers):
   - **No backups.** Fine while it's just you. Plan 10 covers backups before other people sign in.
   - **Pauses after about a week with no activity.** The worker queries every minute, so this only happens if the worker is down for days. If it pauses, restore it from the Supabase dashboard.
@@ -84,15 +84,17 @@ Hosting names are `git-buddy` on both Supabase and Render. The code and repo kee
 **Render Blueprint**
 
 - [x] `render.yaml` at the root, defining:
-  - **`git-buddy-web`**, a Node web service on the `starter` plan in `virginia`:
+  - **`git-buddy-web`**, a Node web service on the `starter` plan in `ohio`:
     - Branch `prod`, auto deploy on.
-    - Build: `corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm build`. `--prod=false` makes pnpm install dev dependencies (Prisma CLI, tsup) even though `NODE_ENV=production`. If `corepack enable` fails on Render, swap it for `npm install -g pnpm@9.15.4`.
+    - Build: `corepack enable && pnpm render:build`. The root `render:build` script runs `pnpm install --frozen-lockfile --prod=false && pnpm build`. `--prod=false` makes pnpm install dev dependencies (Prisma CLI, tsup) even though `NODE_ENV=production`. If `corepack enable` fails on Render, swap it for `npm install -g pnpm@9.15.4`.
     - Pre deploy: `pnpm --filter @pr-peek/server db:deploy` (runs migrations before the new version goes live)
     - Start: `node apps/server/dist/index.js`
     - Health check path `/api/health`.
-  - **`git-buddy-worker`**, a background worker, same plan, region, branch, and build. Start: `node apps/server/dist/worker.js`.
-  - An env group `git-buddy-secrets` shared by both services. `DATABASE_URL` and `APP_URL` go here (`sync: false`, so Render asks for the values instead of storing them in the repo). Later plans add more secrets.
-  - Both services set `NODE_VERSION=24` and `NODE_ENV=production`.
+  - **`git-buddy-worker`**, a background worker, same plan, region, branch, build, and pre deploy. Start: `node apps/server/dist/worker.js`.
+    - It migrates too, because Render deploys both services at once. Without it, new worker code could start before the web service's migration runs. Prisma locks the database while migrating, so two runs at once are safe.
+  - An env group `git-buddy-env` shared by both services:
+    - `NODE_VERSION=24` and `NODE_ENV=production`.
+    - `DATABASE_URL` and `APP_URL` with `sync: false`, so Render asks for the values instead of storing them in the repo. Later plans add more secrets.
 - [x] Build filters, so changes only under `apps/desktop` or `docs` don't trigger a deploy.
 - [x] Plans: `starter` for both. Render free web services sleep when idle, and background workers and pre deploy commands need a paid plan. Check Render's current pricing; change `plan` in `render.yaml` if you want a different tier.
 - [ ] **(You)** In Render, create a new Blueprint from the repo, paste `DATABASE_URL` and `APP_URL` when asked, and approve the services.
