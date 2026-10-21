@@ -99,6 +99,8 @@ After the PR is up, send a short message with:
 
 - Run git and gh from the repo root as plain `git ...` or `gh ...`. Don't use `git -C <path>`. It stops the permission allow list from matching.
 - Keep commit messages on one line with `-m`, and add the co-author trailer with a second `-m`.
+- The user wants as few permission prompts as possible. Before running a command, check it matches a rule in `.claude/settings.local.json` or `~/.claude/settings.json`. If it doesn't, prefer a form that does: a `pnpm` script, or a plain command without pipes, `&&`, `$VARS`, or `$(...)`. These always prompt.
+- Don't probe for tools outside the repo (`ls /opt/...`, `echo $PATH`). If a tool is missing, tell the user.
 
 ## Branches
 
