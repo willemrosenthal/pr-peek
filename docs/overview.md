@@ -8,20 +8,20 @@ This file describes **what** we are building and **how the pieces fit**. The ste
 
 ### Other people's PRs
 
-| Case | What you see |
-| --- | --- |
-| You've been asked to review a PR | Row in "Needs my review" |
-| How long the request has been waiting | A pill like `3h` or `2d`, orange then red as it ages |
-| Someone re-requested your review | Row marked "Re-requested", sorted to the top |
-| Someone replied to your comment on their PR | Row in "Replies to me" |
+| Case                                        | What you see                                         |
+| ------------------------------------------- | ---------------------------------------------------- |
+| You've been asked to review a PR            | Row in "Needs my review"                             |
+| How long the request has been waiting       | A pill like `3h` or `2d`, orange then red as it ages |
+| Someone re-requested your review            | Row marked "Re-requested", sorted to the top         |
+| Someone replied to your comment on their PR | Row in "Replies to me"                               |
 
 ### Your PRs
 
-| Case | What you see |
-| --- | --- |
-| Someone reviewed your PR | Row showing "Approved" or "Changes requested" |
-| Someone commented on your PR | Row with a short preview |
-| A check failed on your PR | Red row with the failing check's name |
+| Case                         | What you see                                  |
+| ---------------------------- | --------------------------------------------- |
+| Someone reviewed your PR     | Row showing "Approved" or "Changes requested" |
+| Someone commented on your PR | Row with a short preview                      |
+| A check failed on your PR    | Red row with the failing check's name         |
 
 ### Everywhere
 
@@ -69,22 +69,22 @@ This file describes **what** we are building and **how the pieces fit**. The ste
 
 ## 3. Tech stack
 
-| Area | Choice |
-| --- | --- |
-| Repo | pnpm workspaces monorepo, TypeScript (strict), Node 24 LTS |
-| Code quality | ESLint, Prettier, Vitest, GitHub Actions CI |
-| Server | Express, Prisma, Postgres, Zod, pino (logging) |
-| GitHub | Octokit (REST + GraphQL) with throttling and retry plugins |
-| Auth | GitHub OAuth App, cookie sessions stored in Postgres, tokens encrypted at rest |
-| Background jobs | pg-boss (job queue inside Postgres), run by a separate worker process |
-| Push | `web-push` with VAPID keys (the key pair that proves pushes come from us) |
-| Live updates | Server-Sent Events |
-| Web app | Vite, React, React Router, TanStack Query, Base UI, CSS Modules |
-| PWA | vite-plugin-pwa with a custom service worker |
-| Shared logic | `packages/core`: types, rules, urgency score, formatting |
+| Area              | Choice                                                                                                    |
+| ----------------- | --------------------------------------------------------------------------------------------------------- |
+| Repo              | pnpm workspaces monorepo, TypeScript (strict), Node 24 LTS                                                |
+| Code quality      | ESLint, Prettier, Vitest, GitHub Actions CI                                                               |
+| Server            | Express, Prisma, Postgres, Zod, pino (logging)                                                            |
+| GitHub            | Octokit (REST + GraphQL) with throttling and retry plugins                                                |
+| Auth              | GitHub OAuth App, cookie sessions stored in Postgres, tokens encrypted at rest                            |
+| Background jobs   | pg-boss (job queue inside Postgres), run by a separate worker process                                     |
+| Push              | `web-push` with VAPID keys (the key pair that proves pushes come from us)                                 |
+| Live updates      | Server-Sent Events                                                                                        |
+| Web app           | Vite, React, React Router, TanStack Query, Base UI, CSS Modules                                           |
+| PWA               | vite-plugin-pwa with a custom service worker                                                              |
+| Shared logic      | `packages/core`: types, rules, urgency score, formatting                                                  |
 | Desktop (phase 2) | Tauri 2 with tray, positioner, autostart, updater, notification, global shortcut, single instance plugins |
-| Hosting | Render Blueprint (`render.yaml`): web service, background worker, Postgres. Auto deploy from `prod` |
-| Desktop releases | GitHub Actions with `tauri-action`, published to GitHub Releases, self updating |
+| Hosting           | Render Blueprint (`render.yaml`): web service, background worker, Postgres. Auto deploy from `prod`       |
+| Desktop releases  | GitHub Actions with `tauri-action`, published to GitHub Releases, self updating                           |
 
 ## 4. Repo layout
 
@@ -103,15 +103,15 @@ pr-peek/
 
 ## 5. How each case is detected
 
-| Case | How |
-| --- | --- |
-| Review requested | GraphQL search `is:pr is:open review-requested:@me` limited to watched repos |
-| Staleness | Time since the latest `ReviewRequestedEvent` for you in the PR timeline (not the PR's "updated" time, which changes on every push) |
-| Re-requested | A `ReviewRequestedEvent` for you that is newer than your last submitted review |
-| Reply to your comment | In a review thread you commented in, a newer comment by someone else. Or a PR conversation comment after yours that mentions you |
-| Your PR was reviewed | New reviews by others on PRs from `author:@me` |
-| Comment on your PR | New conversation or review comments by others on PRs from `author:@me` |
-| Check failed | `statusCheckRollup` on the latest commit is `FAILURE` or `ERROR`. List the failing checks by name |
+| Case                  | How                                                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Review requested      | GraphQL search `is:pr is:open review-requested:@me` limited to watched repos                                                       |
+| Staleness             | Time since the latest `ReviewRequestedEvent` for you in the PR timeline (not the PR's "updated" time, which changes on every push) |
+| Re-requested          | A `ReviewRequestedEvent` for you that is newer than your last submitted review                                                     |
+| Reply to your comment | In a review thread you commented in, a newer comment by someone else. Or a PR conversation comment after yours that mentions you   |
+| Your PR was reviewed  | New reviews by others on PRs from `author:@me`                                                                                     |
+| Comment on your PR    | New conversation or review comments by others on PRs from `author:@me`                                                             |
+| Check failed          | `statusCheckRollup` on the latest commit is `FAILURE` or `ERROR`. List the failing checks by name                                  |
 
 Items close on their own when the condition goes away (you submitted the review, the check passed, the PR merged).
 
@@ -123,8 +123,8 @@ Items close on their own when the condition goes away (you submitted the review,
 
 ## 7. Accounts you will need
 
-| Account | When | Why |
-| --- | --- | --- |
-| GitHub OAuth Apps (one for dev, one for prod) | Plan 03 | "Sign in with GitHub" |
-| Render | Plan 02 | Hosting |
-| Apple Developer Program (about $99 a year) | Plan 09, optional | Signing the Mac app so other people can open it without warnings |
+| Account                                       | When              | Why                                                              |
+| --------------------------------------------- | ----------------- | ---------------------------------------------------------------- |
+| GitHub OAuth Apps (one for dev, one for prod) | Plan 03           | "Sign in with GitHub"                                            |
+| Render                                        | Plan 02           | Hosting                                                          |
+| Apple Developer Program (about $99 a year)    | Plan 09, optional | Signing the Mac app so other people can open it without warnings |

@@ -22,13 +22,13 @@
 - [ ] Vite dev server on `5173`, proxying `/api` to Express on `3000`. Same origin in dev and prod means cookies and CSRF checks behave the same.
 - [ ] React Router routes:
 
-| Route | Screen |
-| --- | --- |
-| `/signin` | Sign in with GitHub, with a clear note about permissions and a "public repos only" option |
-| `/onboarding` | Pick repos, set timezone, prompt to install and turn on notifications |
-| `/` | The list |
-| `/settings/:tab` | General, Repositories, Rules, Timing, Devices |
-| `/install` | How to install on iPhone, Android, Mac |
+| Route            | Screen                                                                                    |
+| ---------------- | ----------------------------------------------------------------------------------------- |
+| `/signin`        | Sign in with GitHub, with a clear note about permissions and a "public repos only" option |
+| `/onboarding`    | Pick repos, set timezone, prompt to install and turn on notifications                     |
+| `/`              | The list                                                                                  |
+| `/settings/:tab` | General, Repositories, Rules, Timing, Devices                                             |
+| `/install`       | How to install on iPhone, Android, Mac                                                    |
 
 - [ ] TanStack Query for all server data. One small `api.ts` wrapper around `fetch` that uses the shared types from `packages/core`, sends cookies, and turns error JSON into thrown errors.
 - [ ] If `/api/me` returns 401, send the user to `/signin`.
@@ -40,15 +40,15 @@
 - [ ] One `*.module.css` file next to each component.
 - [ ] Base UI (unstyled, accessible components from the MUI team) for anything interactive:
 
-| Need | Base UI part |
-| --- | --- |
-| Collapsible list sections | Collapsible or Accordion |
-| Settings toggles | Switch |
-| Settings dropdowns | Select |
-| Settings tabs | Tabs |
-| Confirm dialogs (remove repo, sign out) | Dialog / Alert Dialog |
-| Short messages ("New version available") | Toast |
-| Hover hints | Tooltip |
+| Need                                     | Base UI part             |
+| ---------------------------------------- | ------------------------ |
+| Collapsible list sections                | Collapsible or Accordion |
+| Settings toggles                         | Switch                   |
+| Settings dropdowns                       | Select                   |
+| Settings tabs                            | Tabs                     |
+| Confirm dialogs (remove repo, sign out)  | Dialog / Alert Dialog    |
+| Short messages ("New version available") | Toast                    |
+| Hover hints                              | Tooltip                  |
 
 - [ ] Note: Base UI's npm package was renamed around its 1.0 release (`@base-ui-components/react` became `@base-ui/react`). Check npm for the current name when installing.
 

@@ -18,6 +18,20 @@ Keep all writing short, simple, and clear. This covers PR descriptions, chat mes
 
 Follow these steps every time. Committing and opening a PR are required parts of this workflow.
 
+### 0. Pick up where we left off
+
+At the start of every session, before anything else:
+
+- Read the **Status** table at the top of [docs/README.md](docs/README.md).
+- Check it against reality: `git branch --show-current`, `git status --short`, and `gh pr list --author @me --state open`.
+- If they disagree, trust git and GitHub, fix the Status table, and tell the user what you found.
+- Continue from **Next step**.
+
+Keep the Status table current:
+
+- Update it after every numbered step, and whenever a PR opens, merges, or something is waiting on the user.
+- Commit it with the work on the plan branch, so it travels with the PR.
+
 ### 1. Start
 
 - Read the plan in `docs/` and the plans it depends on.
