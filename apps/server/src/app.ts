@@ -4,6 +4,7 @@ import express, {
   type ErrorRequestHandler,
   type Express,
   type RequestHandler,
+  type Router,
 } from "express";
 import helmet from "helmet";
 import type { Logger } from "pino";
@@ -21,6 +22,8 @@ export interface AppDeps {
   appUrl: string;
   // Session middleware (see session.ts). Runs on API routes only.
   session: RequestHandler;
+  // Feature routes mounted under /api, like sign in (routes/auth.ts).
+  routers?: Router[];
   // Folder with the built PWA. Skipped if it has no index.html.
   webDir?: string;
 }
@@ -45,6 +48,7 @@ export function createApp(deps: AppDeps): Express {
     deps.session,
     requireSameOrigin(deps.appUrl),
     apiRouter(deps),
+    ...(deps.routers ?? []),
     notFound,
   );
 

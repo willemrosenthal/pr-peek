@@ -5,7 +5,9 @@ import session from "express-session";
 import { createApp } from "./app";
 import { loadConfig } from "./config";
 import { checkDb, createDb, createPool } from "./db";
+import { createGitHubOAuth } from "./github/oauth";
 import { createLogger } from "./logger";
+import { authRouter } from "./routes/auth";
 import { sessionMiddleware } from "./session";
 import { onShutdown } from "./shutdown";
 
@@ -13,6 +15,10 @@ const config = loadConfig();
 const logger = createLogger(config);
 const pool = createPool(config);
 const db = createDb(pool);
+const oauth = createGitHubOAuth({
+  clientId: config.GITHUB_CLIENT_ID,
+  clientSecret: config.GITHUB_CLIENT_SECRET,
+});
 const PgStore = connectPgSimple(session);
 // The table comes from a Prisma migration.
 const sessionStore = new PgStore({ pool, tableName: "session" });
@@ -27,6 +33,14 @@ const app = createApp({
     secure: config.NODE_ENV === "production",
     store: sessionStore,
   }),
+  routers: [
+    authRouter({
+      db,
+      oauth,
+      key: config.TOKEN_ENC_KEY,
+      appUrl: config.APP_URL,
+    }),
+  ],
   // Same depth from src/ (tsx in dev) and dist/ (built), so this works for both.
   webDir: resolve(import.meta.dirname, "../../web/dist"),
 });

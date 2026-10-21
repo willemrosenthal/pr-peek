@@ -22,6 +22,9 @@ const schema = z.object({
     .refine((key) => key.length === KEY_BYTES, {
       message: `Must be ${KEY_BYTES} bytes, base64 encoded`,
     }),
+  // The GitHub OAuth App ("git-buddy (dev)" locally, "git-buddy" in production).
+  GITHUB_CLIENT_ID: z.string().min(1),
+  GITHUB_CLIENT_SECRET: z.string().min(1),
   // Set by Render on every deploy.
   RENDER_GIT_COMMIT: z.string().optional(),
 });

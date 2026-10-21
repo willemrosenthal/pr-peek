@@ -1,5 +1,5 @@
 import session, { type Store } from "express-session";
-import type { RequestHandler } from "express";
+import type { Request, RequestHandler } from "express";
 
 declare module "express-session" {
   interface SessionData {
@@ -11,6 +11,24 @@ declare module "express-session" {
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
+export const SESSION_COOKIE = "sid";
+
+// Promise versions of express-session's callback methods.
+function promisified(
+  req: Request,
+  method: "regenerate" | "save" | "destroy",
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session[method]((err?: Error) => (err ? reject(err) : resolve()));
+  });
+}
+
+// Gives the user a new session id, so an attacker can't plant a known one before sign in.
+export const regenerateSession = (req: Request) =>
+  promisified(req, "regenerate");
+export const saveSession = (req: Request) => promisified(req, "save");
+export const destroySession = (req: Request) => promisified(req, "destroy");
+
 export interface SessionOptions {
   secret: string;
   // Only send the cookie over HTTPS. On in production.
@@ -21,7 +39,7 @@ export interface SessionOptions {
 
 export function sessionMiddleware(options: SessionOptions): RequestHandler {
   return session({
-    name: "sid",
+    name: SESSION_COOKIE,
     secret: options.secret,
     ...(options.store && { store: options.store }),
     resave: false,

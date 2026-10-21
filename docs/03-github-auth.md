@@ -30,19 +30,25 @@ The `repo` scope is the main reason a GitHub App (plan 11) is a good upgrade lat
 - **One database pool** (`createPool` in `db.ts`) is shared by Prisma and the session store, to keep connections low on Supabase.
 - **Default `RuleSetting` rows come in plan 05**, where the rules are defined. New users get `UserSettings` now.
 - **Hosting names:** the prod OAuth App is `git-buddy`, and its secrets go in Render's `git-buddy-env` group.
+- **Tokens expire.** Both OAuth Apps have "Expire user access tokens" on. Access tokens last about 8 hours and come with a refresh token. `github/tokens.ts` refreshes them before they expire, while holding a lock on the user's row. GitHub only accepts each refresh token once, so without the lock the web service and worker could both refresh and one would fail.
+- **The dev OAuth App also allows the port 5173 callback**, so plan 07 doesn't need to change it.
+- **Tests use a real database** (`prpeek_test` locally, a Postgres service in CI). It's created and migrated automatically before the server tests run. Server test files run one at a time because they share it.
+- **After `db:migrate`, run `db:generate`.** Prisma 7's `migrate dev` no longer regenerates the client, so new columns don't show up in types until you do.
 
 ## Steps
 
 ### 3.1 Create the OAuth Apps (You)
 
-- [ ] **(You)** In GitHub, Settings, Developer settings, OAuth Apps, create **git-buddy (dev)**:
+- [x] **(You)** In GitHub, Settings, Developer settings, OAuth Apps, create **git-buddy (dev)**:
   - Homepage: `http://localhost:3000`
-  - Callback: `http://localhost:3000/api/auth/github/callback` (plan 07 changes both to port 5173)
-- [ ] **(You)** Create **git-buddy** for production:
+  - Callbacks: `http://localhost:3000/api/auth/github/callback` and `http://localhost:5173/api/auth/github/callback`
+  - "Expire user access tokens" on.
+- [x] **(You)** Create **git-buddy** for production:
   - Homepage: `https://git-buddy-web.onrender.com`
   - Callback: `https://git-buddy-web.onrender.com/api/auth/github/callback`
-- [ ] Add to `.env.example`: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`.
-- [ ] **(You)** Put the prod values in Render's `git-buddy-env` group.
+  - "Expire user access tokens" on.
+- [x] Add to `.env.example`: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`.
+- [x] **(You)** Put the prod values in Render's `git-buddy-env` group.
 
 ### 3.2 Token encryption (part A)
 
@@ -70,32 +76,35 @@ The `repo` scope is the main reason a GitHub App (plan 11) is a good upgrade lat
 
 ### 3.4 Sign in flow
 
-- [ ] `GET /api/auth/github?scope=full|public`:
+### 3.4 Sign in flow (part B)
+
+All in `src/routes/auth.ts`, with GitHub's endpoints in `src/github/oauth.ts` and saving users in `src/users.ts`.
+
+- [x] `GET /api/auth/github?scope=full|public`:
   1. Create a random `state` value (stops someone faking the callback) and save it in the session.
   2. Redirect to `https://github.com/login/oauth/authorize` with client id, scopes, state, and callback URL.
-- [ ] `GET /api/auth/github/callback`:
-  1. Check `state` matches the session. If not, show an error.
-  2. Exchange `code` for a token at `https://github.com/login/oauth/access_token`.
-  3. Call `GET /user` with the token to get id, login, name, and avatar.
-  4. Read the granted scopes from the `x-oauth-scopes` response header and save them.
-  5. Upsert (create or update) the `User` by `githubId`. Create `UserSettings` and default `RuleSetting` rows for new users.
-  6. Encrypt and save the token.
-  7. Regenerate the session (prevents session fixation, where an attacker plants a known session id) and store `userId`.
-  8. Redirect to `/onboarding` for new users, `/` otherwise.
-- [ ] `POST /api/auth/signout`: destroy the session.
-- [ ] `GET /api/me`: returns the user, their settings, and `needsReauth` if their token stopped working.
-- [ ] `requireUser` middleware for every other `/api` route. It returns 401 if there's no session.
-- [ ] Rate limit the auth routes with `express-rate-limit`.
+- [x] `GET /api/auth/github/callback`:
+  1. Check `state` matches the session, then forget it, so each state works once. If not, redirect to `/signin?error=state`.
+  2. Exchange `code` for tokens. The granted scopes come back with them.
+  3. Call `GET /user` to get id, login, name, and avatar.
+  4. Upsert (create or update) the `User` by `githubId`, with tokens encrypted. New users get `UserSettings`. Signing in again clears a "needs reauth" flag.
+  5. Regenerate the session (prevents session fixation, where an attacker plants a known session id) and store `userId`.
+  6. Redirect to `/onboarding` for new users, `/` otherwise.
+  7. Errors redirect to `/signin?error=denied` (user clicked Cancel), `github` (GitHub said no), or `server`.
+- [x] `POST /api/auth/signout`: destroys the session and clears the cookie.
+- [x] `GET /api/me`: returns the user (id, login, name, avatar, scopes), their settings, and `needsReauth`.
+- [x] `requireUser(db)` middleware, plus `currentUser(res)` for routes after it. It returns 401 if there's no session or the user is gone.
+- [x] Rate limit on the auth routes: 30 requests per 15 minutes per IP.
 
-### 3.5 GitHub client per user
+### 3.5 GitHub client per user (part B)
 
-- [ ] `apps/server/src/github/client.ts`: `getOctokit(user)` decrypts the token and returns an Octokit instance with the throttling and retry plugins.
-- [ ] If GitHub returns 401 (token revoked or expired), mark the user `syncError = "reauth"`, stop syncing them, and have `/api/me` report `needsReauth: true`.
+- [x] `src/github/tokens.ts`: `getAccessToken` returns a working token, refreshing it (under a row lock) if it expires within 5 minutes. A missing or expired refresh token, or GitHub rejecting it, marks the user `syncError = "reauth"`.
+- [x] `src/github/client.ts`: `getOctokit(deps, userId)` returns Octokit (with its built in retry and rate limit handling) acting as the user. A 401 from GitHub marks the user `syncError = "reauth"`, so `/api/me` reports `needsReauth: true`. Stopping syncs for those users comes in plan 04.
 
 ## Done when
 
-- [ ] Locally: click sign in, approve on GitHub, land back in the app, and `/api/me` returns your login.
-- [ ] The database row holds an encrypted token, never plain text. Grep the database dump for `gho_` to confirm.
-- [ ] Revoking the app in GitHub settings makes the next GitHub call mark the user `needsReauth`.
-- [ ] A cross origin `POST` to `/api/auth/signout` is rejected.
-- [ ] Works the same on the Render deployment with the prod OAuth App.
+- [ ] **(You)** Locally: open `http://localhost:3000/api/auth/github`, approve on GitHub, land back (on a 404 until plan 07), and `http://localhost:3000/api/me` returns your login.
+- [x] Tokens are stored encrypted, never as plain text (tested in `users.test.ts`). **(You)** can also check the real row after signing in.
+- [x] A 401 from GitHub marks the user `needsReauth` (tested in `client.test.ts`). **(You)** can also try it for real by revoking the app in GitHub settings, once plan 04 makes GitHub calls.
+- [x] A cross origin `POST` to `/api/auth/signout` is rejected (tested in `auth.test.ts`).
+- [ ] **(You)** Works the same on the Render deployment with the prod OAuth App.
