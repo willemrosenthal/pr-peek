@@ -61,7 +61,8 @@ function DeviceRow({
   isThis: boolean;
 }) {
   const reloadDevices = useReloadDevices();
-  // Reloads after a failure too, since a device that's gone is removed.
+  // Both reload after a failure too. A test can find the device gone, and a removal can
+  // fail after the server dropped the device.
   const test = useMutation({
     mutationFn: () =>
       api(`/push/subscriptions/${device.id}/test`, { method: "POST" }),
@@ -73,7 +74,7 @@ function DeviceRow({
       // Otherwise this browser keeps a subscription the server no longer knows.
       if (isThis) await unsubscribeThisDevice();
     },
-    onSuccess: reloadDevices,
+    onSettled: reloadDevices,
   });
   const name = device.label ?? "Unnamed device";
   const error = test.error ?? remove.error;

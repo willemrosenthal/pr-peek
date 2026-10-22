@@ -47,26 +47,32 @@ self.addEventListener("notificationclick", (event) => {
 // Opens the window before marking the item seen. Browsers can refuse to open one after
 // waiting on the network.
 async function openFromNotification(url: string, itemId?: string) {
-  const target = new URL(url, self.location.origin);
-  const windows = await self.clients.matchAll({
-    type: "window",
-    includeUncontrolled: true,
-  });
-  const appWindow = windows[0];
+  try {
+    await openWindow(new URL(url, self.location.origin));
+  } finally {
+    if (itemId) await markSeen(itemId);
+  }
+}
+
+// pr-peek links go to an open app window. Only windows this worker controls can be sent
+// somewhere else. Other links open a new window, so the app stays where it was.
+async function openWindow(target: URL) {
+  const [appWindow] = await self.clients.matchAll({ type: "window" });
   if (target.origin === self.location.origin && appWindow) {
     await appWindow.focus();
     await appWindow.navigate(target.href);
   } else {
     await self.clients.openWindow(target.href);
   }
-  if (itemId) {
-    await fetch("/api/items/seen", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: [itemId] }),
-    }).catch(() => undefined);
-  }
+}
+
+async function markSeen(itemId: string) {
+  await fetch("/api/items/seen", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: [itemId] }),
+  }).catch(() => undefined);
 }
 
 // The page asks for this when the user clicks Reload on "New version available".

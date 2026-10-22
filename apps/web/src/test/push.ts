@@ -33,7 +33,7 @@ export function stubPush({
 
   const pushManager = {
     getSubscription: vi.fn(() => Promise.resolve(current)),
-    subscribe: vi.fn(() => {
+    subscribe: vi.fn((_options: PushSubscriptionOptionsInit) => {
       current = subscriptionAt(THIS_ENDPOINT);
       return Promise.resolve(current);
     }),

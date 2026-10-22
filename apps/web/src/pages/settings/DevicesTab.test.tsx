@@ -56,11 +56,10 @@ describe("turning on notifications", () => {
       await screen.findByText("Notifications are on for this device."),
     ).toBeTruthy();
     expect(push.notification.requestPermission).toHaveBeenCalledOnce();
-    const [options] = push.pushManager.subscribe.mock.calls[0] as unknown as [
-      PushSubscriptionOptionsInit,
-    ];
+    const [options] = push.pushManager.subscribe.mock.calls[0]!;
     expect(options.userVisibleOnly).toBe(true);
-    expect(options.applicationServerKey).toBeInstanceOf(Uint8Array);
+    // A VAPID public key decodes to 65 bytes.
+    expect(options.applicationServerKey).toHaveLength(65);
     expect(sentBodies(fetch, "POST /api/push/subscriptions")).toEqual([
       {
         endpoint: THIS_ENDPOINT,
@@ -82,7 +81,7 @@ describe("turning on notifications", () => {
       "Notifications weren't allowed.",
     );
     expect(push.pushManager.subscribe).not.toHaveBeenCalled();
-    expect(callsTo(fetch, "/api/push/subscriptions")).toHaveLength(1);
+    expect(sentBodies(fetch, "POST /api/push/subscriptions")).toEqual([]);
   });
 
   it("asks for a reload when no service worker runs", async () => {
