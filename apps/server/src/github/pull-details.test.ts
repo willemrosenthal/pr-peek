@@ -46,6 +46,8 @@ describe("fetchPrDetails", () => {
             author: { login: "jlee", isBot: false },
             state: "APPROVED",
             submittedAt: "2026-10-21T09:00:00Z",
+            bodyPreview: "Looks good, @sam",
+            mentions: ["sam"],
           },
         ],
         threads: [

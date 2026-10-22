@@ -27,6 +27,10 @@ export const prReview = z.object({
   author: prActor,
   state: z.enum(["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"]),
   submittedAt: z.string(),
+  // The review's summary text, like a comment's. Missing in snapshots stored before
+  // they were added.
+  bodyPreview: z.string().optional(),
+  mentions: z.array(z.string()).optional(),
 });
 export type PrReview = z.infer<typeof prReview>;
 

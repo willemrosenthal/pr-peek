@@ -44,6 +44,23 @@ describe("mentioned me", () => {
     expect(detect(pr)[0]).toMatchObject({ latestEventId: "body:PR_1" });
   });
 
+  it("finds mentions in a review's summary", () => {
+    const pr = snapshot({
+      reviews: [
+        {
+          ...review("R_1", "jlee", 10, "CHANGES_REQUESTED"),
+          bodyPreview: "@me thoughts?",
+          mentions: [VIEWER],
+        },
+      ],
+    });
+    expect(detect(pr)[0]).toMatchObject({
+      latestEventId: "R_1",
+      summary: 'jlee: "@me thoughts?"',
+      occurredAt: at(10),
+    });
+  });
+
   it("finds mentions in review threads you're not in", () => {
     const pr = snapshot({ threads: [thread([mentioning("C_1", "jlee", 10)])] });
     expect(detect(pr)[0]).toMatchObject({ latestEventId: "C_1" });

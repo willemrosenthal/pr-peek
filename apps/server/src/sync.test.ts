@@ -411,6 +411,7 @@ describe("items", () => {
       id: "R_3",
       state: "COMMENTED",
       submittedAt: "2026-10-21T10:30:00Z",
+      bodyText: "",
       author: { __typename: "User", login: "octocat" },
     });
     const later = hours(1);

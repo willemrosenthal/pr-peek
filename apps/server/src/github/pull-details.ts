@@ -38,7 +38,7 @@ const DETAILS_QUERY = `query ($ids: [ID!]!) {
           ... on ReviewRequestRemovedEvent { id createdAt ${REVIEWER} }
         }
       }
-      reviews(last: 20) { nodes { id state submittedAt ${ACTOR} } }
+      reviews(last: 20) { nodes { id state submittedAt bodyText ${ACTOR} } }
       reviewThreads(last: 30) {
         nodes { id isResolved comments(last: 20) { nodes { ${COMMENT} replyTo { id } } } }
       }
@@ -136,6 +136,7 @@ const rawPr = z.object({
       id: z.string(),
       state: z.enum([...prReview.shape.state.options, "PENDING"]),
       submittedAt: z.string().nullable(),
+      bodyText: z.string(),
       author: rawActor.nullable(),
     }),
   ),
@@ -288,6 +289,8 @@ function toSnapshot(raw: RawPr): PrSnapshot {
             author: toActor(review.author),
             state: review.state,
             submittedAt: review.submittedAt,
+            bodyPreview: preview(review.bodyText),
+            mentions: mentionsIn(review.bodyText),
           },
     ),
     description: toComment({

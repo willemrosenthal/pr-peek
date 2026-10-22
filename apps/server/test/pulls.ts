@@ -73,6 +73,7 @@ export function githubPr(overrides: Record<string, unknown> = {}) {
           id: "R_1",
           state: "APPROVED",
           submittedAt: "2026-10-21T09:00:00Z",
+          bodyText: "Looks good, @sam",
           author: user("jlee"),
         },
         // The viewer's unsent draft review.
@@ -80,6 +81,7 @@ export function githubPr(overrides: Record<string, unknown> = {}) {
           id: "R_2",
           state: "PENDING",
           submittedAt: null,
+          bodyText: "",
           author: user("octocat"),
         },
       ],
