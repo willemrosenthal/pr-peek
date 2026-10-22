@@ -11,7 +11,7 @@ export function SignedIn() {
   useLiveUpdates();
   const total = useSummary().data?.total;
   useEffect(() => {
-    if (total !== undefined) setBadge(total);
+    if (total !== undefined) void setBadge(total);
   }, [total]);
 
   const reloadDevices = useReloadDevices();

@@ -19,7 +19,7 @@ export function GeneralTab() {
     mutationFn: () => api("/auth/signout", { method: "POST" }),
     onSuccess: async () => {
       queryClient.clear();
-      setBadge(0);
+      void setBadge(0);
       await navigate("/signin", { replace: true });
     },
   });

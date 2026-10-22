@@ -17,6 +17,17 @@ export interface WaitSettings {
 
 export type StaleLevel = "fresh" | "warn" | "late";
 
+// Lower is more severe.
+export const SEVERITY_RANK: Record<Severity, number> = {
+  high: 0,
+  normal: 1,
+  low: 2,
+};
+
+// True if `severity` is `min` or more severe.
+export const isAtLeast = (severity: Severity, min: Severity) =>
+  SEVERITY_RANK[severity] <= SEVERITY_RANK[min];
+
 // Points for each part of the urgency score. Higher scores sort first.
 export const URGENCY_WEIGHTS = {
   severity: { high: 300, normal: 200, low: 100 },

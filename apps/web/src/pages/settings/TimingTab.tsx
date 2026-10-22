@@ -74,13 +74,19 @@ function TimingSettings({ settings }: { settings: UserSettingsDto }) {
       </SettingsGroup>
       <SettingsGroup
         title="Notifications"
-        hint="For push notifications, once they arrive."
+        hint="Notifications held during quiet times are left for the morning summary."
       >
         <QuietHoursRow settings={settings} />
         <SettingSwitch
           settings={settings}
           field="quietWeekends"
           label="Quiet all weekend"
+        />
+        <SettingSwitch
+          settings={settings}
+          field="highBreaksQuiet"
+          label="Let high urgency through"
+          hint="High urgency notifications still arrive during quiet times."
         />
         <SummaryRow settings={settings} />
       </SettingsGroup>

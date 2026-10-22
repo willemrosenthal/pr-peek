@@ -6,6 +6,7 @@ import {
   precacheAndRoute,
 } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
+import { setBadge } from "../badge";
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -26,15 +27,18 @@ type NotificationData = Pick<PushPayload, "url" | "itemId">;
 self.addEventListener("push", (event) => {
   const payload = event.data?.json() as PushPayload | undefined;
   if (!payload) return;
-  const { url, itemId } = payload;
+  const { url, itemId, badge } = payload;
   const data: NotificationData = { url, ...(itemId && { itemId }) };
   event.waitUntil(
-    self.registration.showNotification(payload.title, {
-      body: payload.body,
-      tag: payload.tag,
-      icon: "/pwa-192x192.png",
-      data,
-    }),
+    Promise.all([
+      self.registration.showNotification(payload.title, {
+        body: payload.body,
+        tag: payload.tag,
+        icon: "/pwa-192x192.png",
+        data,
+      }),
+      badge !== undefined && setBadge(badge),
+    ]),
   );
 });
 

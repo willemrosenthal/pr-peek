@@ -29,7 +29,7 @@ export function RulesTab() {
     <>
       <TabHeading title="Rules">
         Each rule decides what shows on your list. Urgency sorts the list.
-        Notify sends a push notification, once those arrive.
+        Notify sends a push notification to your devices.
       </TabHeading>
       {settings.isPending && <p className={styles.hint}>Loading</p>}
       {settings.isError && <Alert>{settings.error.message}</Alert>}

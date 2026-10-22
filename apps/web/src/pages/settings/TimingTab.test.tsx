@@ -164,6 +164,16 @@ describe("quiet hours", () => {
     );
     expect(patches(fetch)).toEqual([{ quietWeekends: true }]);
   });
+
+  it("lets high urgency through", async () => {
+    const fetch = timingApi({}, { highBreaksQuiet: true });
+    renderApp("/settings/timing");
+
+    await userEvent.click(
+      await screen.findByRole("switch", { name: "Let high urgency through" }),
+    );
+    expect(patches(fetch)).toEqual([{ highBreaksQuiet: true }]);
+  });
 });
 
 it("turns on the morning summary at 9am", async () => {

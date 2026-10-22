@@ -2,13 +2,13 @@ import {
   byUrgency,
   formatAge,
   ITEM_GROUPS,
+  SEVERITY_RANK,
   staleLevel,
   waitingFor,
   type IdlePrDto,
   type ItemDto,
   type ItemGroups,
   type ItemKind,
-  type Severity,
   type SummaryResponse,
 } from "@pr-peek/core";
 import type { Db } from "./db";
@@ -96,7 +96,6 @@ const KIND_RANK: Record<ItemKind, number> = {
   mention: 5,
   commented: 6,
 };
-const SEVERITY_RANK: Record<Severity, number> = { high: 0, normal: 1, low: 2 };
 
 const byRowRank = (a: ItemDto, b: ItemDto) =>
   SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] ||

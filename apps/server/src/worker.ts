@@ -11,6 +11,8 @@ import {
   SYNC_USER,
 } from "./jobs";
 import { createLogger } from "./logger";
+import { notifyItem } from "./notify";
+import { vapidFrom, webPushSender } from "./push";
 import { onShutdown } from "./shutdown";
 import { dueUserIds, runSync } from "./sync-schedule";
 
@@ -77,10 +79,13 @@ await boss.work<{ userId: string }>(
   },
 );
 
-// Plan 08 sends push notifications here. For now it only logs.
-await boss.work<{ itemId: string }>(NOTIFY_ITEM, ([job]) => {
-  if (job) logger.info({ itemId: job.data.itemId }, "notify item");
-  return Promise.resolve();
+const vapid = vapidFrom(config);
+const send = vapid ? webPushSender(vapid) : null;
+await boss.work<{ itemId: string }>(NOTIFY_ITEM, async ([job]) => {
+  if (!job) return;
+  const { itemId } = job.data;
+  const outcome = await notifyItem({ db, send, logger }, itemId);
+  logger.info({ itemId, outcome }, "notify item");
 });
 
 logger.info("worker started");

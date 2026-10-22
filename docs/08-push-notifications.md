@@ -60,22 +60,25 @@ No third party account is needed. The `web-push` npm package handles the encrypt
 
 The `notify:item` job from plan 05.5:
 
-- [ ] Load the item, its rule setting, the user's settings, and their devices.
-- [ ] Skip if:
+- [x] Load the item, its rule setting, the user's settings, and their devices.
+- [x] Skip if:
   - The rule's channels don't include push.
   - The item isn't open.
   - The item's repo is muted.
   - `NotificationLog` already has this `(itemId, latestEventId)`.
+  - Also: the user already saw the item, or no device takes its severity.
+  - (`notifyItem` in `apps/server/src/notify.ts`. It claims the log row before sending, so a retry or a second run never sends twice.)
 - [ ] **Staleness reminders:** a scheduled job finds review requests that just crossed the warn or late threshold and notifies once per threshold. It repeats at the user's "remind every" interval.
-- [ ] **Quiet hours:** inside quiet hours (or on a quiet weekend), don't send. Leave it for the morning summary. High severity can optionally break through quiet hours, as a setting, off by default.
+- [x] **Quiet hours:** inside quiet hours (or on a quiet weekend), don't send. Leave it for the morning summary. High severity can optionally break through quiet hours, as a setting, off by default. (`isQuiet` in core. The setting is `highBreaksQuiet`, "Let high urgency through" on the Timing tab.)
 - [ ] **Batching:** if 3 or more notifications for the same user would go out within 30 seconds (like after a long offline period), send one "5 new things need you" push instead.
 
 ### 8.4 Sending
 
-- [ ] For each device whose `minSeverity` allows it, send with `web-push`. Use a payload like `{ title, body, url, tag, itemId }`.
+- [x] For each device whose `minSeverity` allows it, send with `web-push`. Use a payload like `{ title, body, url, tag, itemId }`.
   - `tag` is the item id, so a newer alert for the same item replaces the old one instead of stacking.
   - Set a TTL (how long the push service keeps trying, e.g. 12 hours) and urgency (`high` for high severity).
-- [ ] Write a `NotificationLog` row per send.
+  - The title is the item's summary ("jlee asked for your review"). The body is the PR title, then the repo and number.
+- [x] Write a `NotificationLog` row per send. One row per item event, `pending` until the send ends, then `sent` or `failed`.
 - [x] If the push service returns 404 or 410 (subscription gone), delete the subscription. On other errors, bump `failureCount` and remove after 5 in a row. (`pushToDevice` in `apps/server/src/push.ts`.)
 
 ### 8.5 Service worker
@@ -83,7 +86,7 @@ The `notify:item` job from plan 05.5:
 - [x] In `apps/web/src/sw/sw.ts`:
   - `push` event: show the notification with title, body, icon, `tag`, and `data.url`.
   - `notificationclick` event: links to pr-peek itself focus an open pr-peek window and go there. Links to GitHub open in a new window, so the app stays where it was. Then mark the item seen through the API.
-- [ ] Update the app badge with a count in the payload. Moved to part 3, which sends the count.
+- [x] Update the app badge with a count in the payload.
 - [x] No action buttons on notifications for now. Tapping one opens the PR.
 
 ### 8.6 Morning summary
@@ -95,6 +98,7 @@ The `notify:item` job from plan 05.5:
 ### 8.7 Tests
 
 - [ ] Unit tests for the decision logic: dedupe, quiet hours across midnight and timezones, weekend rule, severity per device, batching.
+  - All but batching are done (`quiet-hours.test.ts`, `notify.test.ts`). Batching comes in part 4.
 - [x] A test with a fake `web-push` sender: a 410 deletes the subscription.
 
 ### 8.8 Database enums

@@ -79,4 +79,6 @@ export interface PushPayload {
   // A newer notification with the same tag replaces the old one.
   tag: string;
   itemId?: string;
+  // The count for the app's icon.
+  badge?: number;
 }

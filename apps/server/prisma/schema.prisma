@@ -57,6 +57,14 @@ enum Channel {
   push
 }
 
+// "pending" until the send ends. A crash mid-send leaves it pending, and it isn't sent
+// again. "sent" if any device got it.
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}
+
 model User {
   id                    String     @id @default(cuid())
   githubId              Int        @unique
@@ -106,6 +114,8 @@ model UserSettings {
   quietStart          String?
   quietEnd            String?
   quietWeekends       Boolean @default(false)
+  // High severity notifications still arrive during quiet hours.
+  highBreaksQuiet     Boolean @default(false)
   digestTime          String?
   includeTeamRequests Boolean @default(true)
   hideBots            Boolean @default(false)
@@ -216,14 +226,14 @@ model PushSubscription {
 }
 
 model NotificationLog {
-  id      String   @id @default(cuid())
+  id      String             @id @default(cuid())
   userId  String
   itemId  String
   // The item's latestEventId when sent, so each event notifies once.
   eventId String
-  channel String
-  status  String
-  sentAt  DateTime @default(now())
+  channel Channel
+  status  NotificationStatus @default(pending)
+  sentAt  DateTime           @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)

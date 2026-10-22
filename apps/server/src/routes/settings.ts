@@ -36,6 +36,7 @@ function toSettingsDto(row: UserSettings): UserSettingsDto {
     quietStart: row.quietStart,
     quietEnd: row.quietEnd,
     quietWeekends: row.quietWeekends,
+    highBreaksQuiet: row.highBreaksQuiet,
     digestTime: row.digestTime,
     hideBots: row.hideBots,
     includeTeamRequests: row.includeTeamRequests,

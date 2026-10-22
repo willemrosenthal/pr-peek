@@ -29,6 +29,7 @@ export const updateSettingsBody = z
     quietStart: timeOfDay.nullable(),
     quietEnd: timeOfDay.nullable(),
     quietWeekends: z.boolean(),
+    highBreaksQuiet: z.boolean(),
     digestTime: timeOfDay.nullable(),
     hideBots: z.boolean(),
     includeTeamRequests: z.boolean(),
@@ -45,6 +46,8 @@ export interface UserSettingsDto {
   quietStart: string | null;
   quietEnd: string | null;
   quietWeekends: boolean;
+  // High severity notifications still arrive during quiet hours.
+  highBreaksQuiet: boolean;
   digestTime: string | null;
   hideBots: boolean;
   includeTeamRequests: boolean;
