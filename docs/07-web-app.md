@@ -15,6 +15,7 @@
   - **3d** (`plan-07-3d-update-branch`): 7.10, "Update branch" doesn't count as acting on your PR.
   - **3e** (`plan-07-3e-mentions`): 7.11, mentions.
   - **3f** (`plan-07-3f-one-row`): 7.11, one row per PR.
+  - **3g** (`plan-07-3g-heal`): 7.12, every sync runs the rules on every tracked PR.
 - **Part 4**, 7.6 onboarding and settings, in two PRs:
   - **4a** (`plan-07-4a-repos`): the settings tabs, the Repositories tab, and onboarding.
   - **4b** (`plan-07-4b-settings`): the rest of General, Rules, and a Devices placeholder.
@@ -192,7 +193,7 @@
 - [x] Re-running rules after a settings change uses every open tracked PR.
 - [x] Your own PRs are spotted by their stored author, not by which search found them, so a tracked PR's check changes are still fetched.
 - [x] Tests: one search missing an open PR keeps its items. Merged, closed, gone, and paused-repo PRs resolve theirs. A row with open items lives past 7 days.
-- After the deploy: a PR the last old sync wrongly dropped stays off the list until it next changes on GitHub. Rare, and it fixes itself.
+- After the deploy: a PR the last old sync wrongly dropped stayed off the list until it next changed on GitHub. It wasn't rare. Part 3g fixes it.
 
 ### 7.10 "Update branch" doesn't count (part 3d)
 
@@ -215,7 +216,7 @@ Part 3e:
   - It looks in each review's summary text too, like "@you thoughts?". Reviews in the snapshot get optional `bodyPreview` and `mentions`.
 - [x] "New comment on my PR" now counts "Comment" reviews with summary text. Before, a review that was only a summary didn't show up at all. Approvals and change requests stay with "My PR was reviewed".
   - The reply rule now only counts replies in review threads you commented in. The mention rule skips those threads, so one comment never makes two items.
-- After the deploy: tracked PRs get mention items, and their reply items lose the mentions, when they next change on GitHub.
+- After the deploy: tracked PRs get mention items, and their reply items lose the mentions, on the next sync (part 3g).
 
 Part 3f:
 
@@ -226,6 +227,18 @@ Part 3f:
 - [x] The row is unseen if any of the PR's items is, and marking seen covers all of them (`otherIds` on each row).
 - [x] The row shows the top item's summary, plus "+N more" when the PR has other open items. The count stays when a long summary is cut off.
 - [x] Notifications stay one per event (plan 08). Which kinds push is already a per-rule setting (`channels`). The Rules tab (4b) shows it.
+
+### 7.12 Every sync runs every rule (part 3g)
+
+**Why:** the rules only ran on PRs that changed on GitHub. An item resolved by mistake stayed resolved until someone touched the PR. A paused repo, a bug, or a deploy changeover could leave whole sections empty. Production lost "My PRs" and "Replies to me" this way, and changing a setting brought them back.
+
+- [x] Every sync runs the rules on every tracked PR. Changed PRs use their fresh details, and the rest use their stored snapshots. No extra GitHub calls.
+  - Measured with 19 tracked PRs: 87 KB read in about 70 ms, and about 3 ms for the rules.
+- [x] Saving items writes only what changed, and resolves gone items in one query. A sync where nothing changed writes nothing and sends no live event.
+- [x] A reopened item keeps its event, so it doesn't notify again.
+- [x] The user's team list is kept for an hour, since PRs that ask a team to review are now checked every sync.
+- [x] Re-running rules after a settings change sends a live event only if something changed.
+- [x] Tests: an item resolved by mistake reopens on the next sync without a new fetch or notification. A rule turned back on reaches unchanged PRs. A sync with no changes writes nothing. Teams are asked for once an hour.
 
 ## Done when
 
