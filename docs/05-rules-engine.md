@@ -105,7 +105,7 @@ All in `packages/core/src/urgency.ts`.
 
 - [x] `waitingFor(waitingSince, now, settings)` returns a duration in milliseconds. When `workHoursOnly` is on, it counts only Monday to Friday, 9 to 6, in the user's timezone. Use `date-fns` with `@date-fns/tz`.
 - [x] `staleLevel(duration, settings)` returns `fresh`, `warn` (orange), or `late` (red).
-- [x] `formatAge(duration)` returns `12m`, `3h`, `2d`, rounded down. The label always shows real time passed (`now - waitingSince`), so `1d` is 24 hours. "Work hours only" changes only the stale level, not the label.
+- [x] `formatAge(since, now)` returns `12m`, `3h`, `2d`, rounded down. The label always shows real time passed, so `1d` is 24 hours. "Work hours only" changes only the stale level, not the label.
 - [x] `urgencyScore(item, settings, now)`, higher means more urgent:
   - Severity: high 300, normal 200, low 100.
   - Plus staleness: warn +50, late +100.

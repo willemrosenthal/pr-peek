@@ -41,7 +41,8 @@ function workTimeBetween(start: Date, end: Date, timeZone: string): number {
   return total;
 }
 
-// How long an item has waited, in milliseconds. Only work hours count if the user chose that.
+// How long an item has waited, in milliseconds, for its stale level.
+// Only work hours count if the user chose that.
 export function waitingFor(
   waitingSince: string | Date,
   now: Date,
@@ -63,10 +64,11 @@ export function staleLevel(
   return "fresh";
 }
 
-// Like "12m", "3h", or "2d", rounded down. Pass the real time passed, not work hours.
-export function formatAge(waitedMs: number): string {
+// The real time since `since`, like "12m", "3h", or "2d", rounded down. Ignores work hours.
+export function formatAge(since: string | Date, now: Date): string {
+  const waitedMs = Math.max(now.getTime() - new Date(since).getTime(), 0);
   const minutes = Math.floor(waitedMs / 60_000);
-  if (minutes < 60) return `${Math.max(minutes, 0)}m`;
+  if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h`;
   return `${Math.floor(hours / 24)}d`;

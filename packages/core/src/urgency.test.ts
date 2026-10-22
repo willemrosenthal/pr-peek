@@ -115,7 +115,10 @@ describe("staleLevel", () => {
 });
 
 describe("formatAge", () => {
+  const now = date("2026-10-21T12:00:00Z");
+
   it.each([
+    [-MINUTE, "0m"],
     [0, "0m"],
     [59 * 1000, "0m"],
     [12 * MINUTE, "12m"],
@@ -123,8 +126,8 @@ describe("formatAge", () => {
     [3 * HOUR, "3h"],
     [24 * HOUR - 1, "23h"],
     [2 * 24 * HOUR + 5 * HOUR, "2d"],
-  ] as const)("%i ms is %s", (waited, text) => {
-    expect(formatAge(waited)).toBe(text);
+  ] as const)("%i ms ago is %s", (ago, text) => {
+    expect(formatAge(new Date(now.getTime() - ago), now)).toBe(text);
   });
 });
 
@@ -150,6 +153,14 @@ describe("urgency", () => {
   it("adds points as the wait gets long", () => {
     expect(score({ waitingSince: "2026-10-21T07:00:00Z" })).toBe(250);
     expect(score({ waitingSince: "2026-10-20T12:00:00Z" })).toBe(300);
+  });
+
+  it("counts only work hours toward staleness when chosen", () => {
+    // Friday 5pm to Monday 10am: 65 real hours, but 2 work hours.
+    const waited = item({ waitingSince: "2026-10-23T17:00:00Z" });
+    const monday = date("2026-10-26T10:00:00Z");
+    expect(urgencyScore(waited, settings(), monday)).toBe(300);
+    expect(urgencyScore(waited, workHours(), monday)).toBe(200);
   });
 
   it("treats items with no wait as fresh", () => {
