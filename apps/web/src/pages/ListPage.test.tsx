@@ -53,6 +53,16 @@ describe("sections", () => {
     const again = await sectionButton(/Needs my review/);
     expect(again.getAttribute("aria-expanded")).toBe("false");
   });
+
+  it("ignores a bad saved collapse state", async () => {
+    localStorage.setItem("pr-peek:collapsed", "42");
+    fakeApi(
+      listApi({ "GET /api/items": () => json(groups({ review: [item()] })) }),
+    );
+    renderApp("/");
+    const review = await sectionButton(/Needs my review/);
+    expect(review.getAttribute("aria-expanded")).toBe("true");
+  });
 });
 
 describe("empty and error states", () => {
@@ -138,10 +148,7 @@ describe("the header", () => {
       listApi({
         "GET /api/sync/status": () =>
           json(syncStatus({ lastSyncedAt: synced })),
-        "POST /api/sync": () => {
-          synced = minutesAgo(0);
-          return json({ queued: true }, 202);
-        },
+        "POST /api/sync": () => json({ queued: true }, 202),
       }),
     );
     renderApp("/");
@@ -149,7 +156,13 @@ describe("the header", () => {
 
     const refresh = screen.getByRole("button", { name: "Refresh" });
     await userEvent.click(refresh);
-    expect(await screen.findByText("Updated just now")).toBeTruthy();
+    expect(refresh.getAttribute("aria-busy")).toBe("true");
+
+    // The worker finishes. The next check, 2 seconds later, sees it.
+    synced = minutesAgo(0);
+    expect(
+      await screen.findByText("Updated just now", {}, { timeout: 4000 }),
+    ).toBeTruthy();
     expect(refresh.getAttribute("aria-busy")).toBe("false");
   });
 

@@ -16,6 +16,10 @@ const SECTIONS: { group: ItemGroup; title: string }[] = [
   { group: "mine", title: "My PRs" },
 ];
 
+const isGroupList = (value: unknown): value is ItemGroup[] =>
+  Array.isArray(value) &&
+  value.every((group) => SECTIONS.some((section) => section.group === group));
+
 export function ListPage() {
   const me = useMe();
   const sync = useSync();
@@ -66,6 +70,7 @@ function Sections({ groups }: { groups: ItemsResponse }) {
   const [collapsed, setCollapsed] = useStoredState<ItemGroup[]>(
     "pr-peek:collapsed",
     [],
+    isGroupList,
   );
   const setOpen = (group: ItemGroup, open: boolean) =>
     setCollapsed(
@@ -86,7 +91,7 @@ function Sections({ groups }: { groups: ItemsResponse }) {
 }
 
 function EmptyList() {
-  const repos = useRepos(true);
+  const repos = useRepos();
   if (repos.isPending) return null;
   if (repos.data?.repos.length === 0) {
     return (

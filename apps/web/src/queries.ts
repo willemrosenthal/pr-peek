@@ -35,11 +35,10 @@ export function useItems() {
   });
 }
 
-export function useRepos(enabled: boolean) {
+export function useRepos() {
   return useQuery({
     queryKey: queryKeys.repos,
     queryFn: () => api<WatchedReposResponse>("/repos"),
-    enabled,
   });
 }
 
