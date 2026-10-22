@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                          |
-| ------------------ | -------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [04. GitHub sync](04-github-sync.md), part 0: token sign in. A (repos) merged. B: fetch PRs. C: schedule |
-| **Branch**         | `plan-04-0-token-sign-in`                                                                                |
-| **PR**             | [#11](https://github.com/willemrosenthal/pr-peek/pull/11) (part 0), draft. Part A merged as #10          |
-| **Last step done** | 4.0 Sign in with a personal access token, tested (110 tests)                                             |
-| **Next step**      | Part B (`plan-04-2-fetch`): 4.2 to 4.4 once part 0 merges                                                |
-| **Waiting on you** | Token test for #11 (see PR). Confirm the plan 02 worker heartbeat. Branch protection for `main`, `prod`  |
+|                    |                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [04. GitHub sync](04-github-sync.md), part B: fetch PRs. Parts 0 (#11) and A (#10) merged. C: schedule  |
+| **Branch**         | `plan-04-2-fetch`                                                                                       |
+| **PR**             | [#12](https://github.com/willemrosenthal/pr-peek/pull/12) (part B), draft                               |
+| **Last step done** | 4.2 to 4.4 Search, skip unchanged, fetch details. Tested (131 tests)                                    |
+| **Next step**      | Part C (`plan-04-3-schedule`): 4.5 to 4.7 once part B merges                                            |
+| **Waiting on you** | Try `sync:once` on a real repo (see PR). Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.

@@ -1,5 +1,6 @@
 import type { Octokit } from "octokit";
 import { z } from "zod";
+import { isNotFound } from "./errors";
 
 export interface GitHubRepo {
   githubRepoId: number;
@@ -120,10 +121,4 @@ export async function findRepo(
     if (isNotFound(err)) return null;
     throw err;
   }
-}
-
-// GitHub answers an unknown or hidden repo with a GraphQL error of type NOT_FOUND.
-function isNotFound(err: unknown): boolean {
-  const errors = (err as { errors?: { type?: string }[] }).errors;
-  return Array.isArray(errors) && errors.some((e) => e.type === "NOT_FOUND");
 }

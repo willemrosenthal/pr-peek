@@ -28,6 +28,10 @@ We use GitHub's **GraphQL API** because one request can fetch a PR plus its revi
 - **Fake GitHub with an injected `fetch`, not MSW.** Same approach as plan 03. `test/github.ts` has `fakeGraphQL`.
 - **Octokit spaces out GraphQL calls** (its throttling treats them as writes, about one per second). Fine for a few calls per sync, but keep the number of calls per sync low. Tests turn throttling off.
 - **Added `GET /api/repos`** to list the watch list. The settings screen needs it.
+- **No separate check fetch.** The searches return each PR's latest check state too, so seeing whether your PR's checks changed costs no extra call.
+- **`nodes(ids:)` instead of aliases** to fetch a batch of PRs in one query. Simpler, and GitHub returns the others when one PR is gone.
+- **Review events come from `reviews`, not the timeline.** The timeline only fetches review request events. Fetching reviews in both places would double the cost.
+- **New `PullRequest` columns:** `lastSeenAt` (for deleting PRs after 7 days, and for plan 05 to resolve their items) and `githubRepoId`.
 - **Added step 4.0, token sign in.** Many company orgs block OAuth Apps until an org owner approves them. Our app can sign people in, but GitHub hides the org's private repos from it. A **personal access token** (PAT, a password-like key the user makes in their own GitHub settings) acts as the user and isn't affected by that block, unless the org also bans classic tokens. Added after part A.
 
 ## Steps
@@ -58,34 +62,45 @@ We use GitHub's **GraphQL API** because one request can fetch a PR plus its revi
 - [x] Request and response shapes in `packages/core/src/api/repos.ts`, shared with the web app later.
 - [x] `HttpError` (`src/http-error.ts`) for clear 4xx answers. `NeedsReauthError` is one, so a revoked token becomes a 401 with code `reauth`.
 
-### 4.2 Finding relevant PRs
+### 4.2 Finding relevant PRs (part B)
 
-- [ ] Build search queries scoped to the user's enabled repos (`repo:owner/name` for each). If the query gets too long, split repos into batches.
-- [ ] Run three GraphQL searches, each returning PR id, number, repo, and `updatedAt`:
-  - `is:pr is:open review-requested:@me` (use `user-review-requested:@me` if the user turned off team requests)
-  - `is:pr is:open author:@me`
-  - `is:pr is:open commenter:@me -author:@me` (for "replies to me")
-- [ ] Merge the results into one set keyed by PR node id, remembering which searches matched (the "reasons").
-- [ ] Keep only PRs in enabled watched repos. Match on the repo's `databaseId` (our `githubRepoId`), not its name, so a renamed repo keeps syncing.
+All in `src/github/pull-search.ts`.
 
-### 4.3 Skipping unchanged PRs
+- [x] Three GraphQL searches across all of GitHub (see "Search once" above), newest first, following pages up to 10 (GitHub's 1000 result limit):
+  - `review-requested:@me` (`user-review-requested:@me` if the user turned off team requests)
+  - `author:@me`
+  - `commenter:@me -author:@me` (for "replies to me")
+  - Each starts with `is:pr is:open archived:false sort:updated-desc`.
+- [x] Each result has the PR id, repo `databaseId`, `updatedAt`, and the latest commit's check state.
+- [x] Results merge into one map keyed by PR node id, remembering which searches matched (the "reasons").
+- [x] The sync keeps only PRs in enabled watched repos (muted ones included), matched on `githubRepoId`, so a renamed repo keeps syncing.
 
-- [ ] Compare each PR's `updatedAt` with our stored `githubUpdatedAt`. Only fetch details for PRs that are new or changed.
-- [ ] Exception: check results can change without `updatedAt` changing. For the user's own PRs, always do a cheap check fetch (the latest commit's `statusCheckRollup.state` only).
-- [ ] PRs that dropped out of all searches (merged, closed, review no longer requested) get their open items resolved in plan 05. Delete them from storage after 7 days.
+### 4.3 Skipping unchanged PRs (part B)
 
-### 4.4 Fetching details
+All in `src/sync.ts`. `syncUser(deps, userId)` runs one full sync.
 
-- [ ] One GraphQL query per batch of up to about 10 changed PRs (use aliases to fetch several in one request). For each PR fetch:
-  - Basics: title, url, author, draft state, head commit sha, `updatedAt`.
-  - `reviewRequests` (who's currently asked, users and teams).
-  - `timelineItems` of types `ReviewRequestedEvent`, `ReviewRequestRemovedEvent`, `PullRequestReview` (latest 50). This gives exact request times for staleness and re-requests.
-  - `reviews` (latest 20): author, state, submitted time.
+- [x] Details are fetched only for PRs that are new, or whose `updatedAt` differs from our `githubUpdatedAt`.
+- [x] Exception: checks can change without `updatedAt` changing. For the user's own PRs, a changed check state (from the search) also means a fetch.
+- [x] Every PR found gets `lastSeenAt` set to now. PRs not seen for 7 days are deleted (their items go with them). Plan 05 resolves items for PRs whose `lastSeenAt` is older than the latest sync.
+- [x] No watched repos means no GitHub calls at all.
+- [x] Sets `User.lastSyncedAt`. Returns counts (found, fetched, failed, deleted) for logging.
+- [x] `pnpm --filter @pr-peek/server sync:once <login>` runs one sync by hand, until part C's worker does it on a schedule.
+- [ ] **(You)** Add a watched repo with open PRs that involve you, run `sync:once`, and check the `PullRequest` rows (see the part B PR for the exact commands).
+
+### 4.4 Fetching details (part B)
+
+All in `src/github/pull-details.ts`.
+
+- [x] One GraphQL `nodes(ids: [...])` query per batch of up to 10 changed PRs. For each PR:
+  - Basics: title, url, author, draft state, head commit sha and date, `updatedAt`.
+  - `reviewRequests` (who's asked right now, users and teams).
+  - `timelineItems` of types `ReviewRequestedEvent` and `ReviewRequestRemovedEvent` (latest 50), for exact request times.
+  - `reviews` (latest 20): author, state, submitted time. Unsent (pending) reviews are skipped.
   - `reviewThreads` (latest 30), each with its comments (latest 20): author, body preview, created time, reply to.
   - `comments` (conversation comments, latest 30): author, body preview, created time.
   - Latest commit `statusCheckRollup`: overall state, plus each failing check run or status context with name and link.
-- [ ] Put the queries in `apps/server/src/github/queries/*.graphql` and generate TypeScript types with GraphQL Code Generator. That way a typo in a field name fails the build.
-- [ ] Save a trimmed, normalized version as `PullRequest.snapshot`. Define the snapshot type in `packages/core` so the rules (plan 05) can be tested without GitHub.
+- [x] Each response is checked with Zod. Body previews are cut to 200 characters on one line. Each comment also lists the logins it @mentions, taken from the full text first, so plan 05's "mentions you" rule works for long comments. Bots are marked with `isBot`. Deleted accounts become `ghost`.
+- [x] Saved as `PullRequest.snapshot`. The `PrSnapshot` type and Zod schema are in `packages/core/src/pr-snapshot.ts`, so plan 05 can read snapshots back and test rules without GitHub.
 
 ### 4.5 Scheduling
 
@@ -104,13 +119,13 @@ We use GitHub's **GraphQL API** because one request can fetch a PR plus its revi
 
 - [ ] On failure, save `syncError` and back off: 2, 4, 8 minutes, up to 30.
 - [ ] 401 from GitHub sets `syncError = "reauth"` (see plan 03).
-- [ ] One PR failing to parse shouldn't fail the whole sync. Log it and move on.
+- [x] One PR failing to parse, or gone, doesn't fail the whole sync. It's skipped and listed in the sync result's `failed` (done in part B). The worker logs it in part C.
 
 ### 4.8 Tests
 
-- [ ] Record real GraphQL responses (with personal details replaced) as fixtures in `apps/server/test/fixtures/`.
-- [ ] Mock GitHub with MSW (Mock Service Worker, a library that intercepts network calls in tests).
-- [ ] Test: change detection, batching, a PR dropping out, rate limit retry, and 401 handling.
+- [x] GitHub-shaped test data in `apps/server/test/pulls.ts`, served by `fakeGraphQL`. Written by hand, since real responses would contain other people's data. The queries were run once against real GitHub to confirm every field exists.
+- [x] Tests for change detection, check changes, batching, a PR dropping out and being deleted, partial "not found" answers, and the snapshot shape (part B).
+- [ ] Tests for rate limit retry and 401 handling (part C).
 
 ## Done when
 
