@@ -1,6 +1,8 @@
 import type {
   ItemsResponse,
   MeResponse,
+  PushKeyResponse,
+  PushSubscriptionsResponse,
   SearchReposResponse,
   SettingsResponse,
   SummaryResponse,
@@ -13,7 +15,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { api, isUnauthorized } from "./api";
+import { api, ApiError, isUnauthorized } from "./api";
+import { thisDeviceEndpoint } from "./push";
 
 export const queryKeys = {
   me: ["me"],
@@ -23,6 +26,9 @@ export const queryKeys = {
   repos: ["repos"],
   githubRepos: ["github-repos"],
   settings: ["settings"],
+  pushKey: ["push-key"],
+  devices: ["devices"],
+  thisDevice: ["this-device"],
 } as const;
 
 // Ages and stale colors change with time, so lists refetch this often.
@@ -92,6 +98,46 @@ export function useSettings() {
     queryKey: queryKeys.settings,
     queryFn: () => api<SettingsResponse>("/settings"),
   });
+}
+
+// The VAPID public key. A 503 means push is off on this server, which retrying won't fix.
+export function usePushKey(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.pushKey,
+    queryFn: () => api<PushKeyResponse>("/push/key"),
+    enabled,
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+export const isPushOff = (err: unknown) =>
+  err instanceof ApiError && err.code === "push_off";
+
+// Devices that get the user's notifications.
+export function useDevices() {
+  return useQuery({
+    queryKey: queryKeys.devices,
+    queryFn: () => api<PushSubscriptionsResponse>("/push/subscriptions"),
+  });
+}
+
+// This browser's push endpoint, or null.
+export function useThisDevice() {
+  return useQuery({
+    queryKey: queryKeys.thisDevice,
+    queryFn: thisDeviceEndpoint,
+  });
+}
+
+// Reloads the device list after a change, and which one is this browser.
+export function useReloadDevices() {
+  const queryClient = useQueryClient();
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.devices }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.thisDevice }),
+    ]);
 }
 
 export function useSyncStatus(

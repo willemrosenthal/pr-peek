@@ -1,3 +1,4 @@
+import type { PushPayload } from "@pr-peek/core";
 import { clientsClaim } from "workbox-core";
 import {
   cleanupOutdatedCaches,
@@ -19,6 +20,60 @@ registerRoute(
     denylist: [/^\/api\//],
   }),
 );
+
+type NotificationData = Pick<PushPayload, "url" | "itemId">;
+
+self.addEventListener("push", (event) => {
+  const payload = event.data?.json() as PushPayload | undefined;
+  if (!payload) return;
+  const { url, itemId } = payload;
+  const data: NotificationData = { url, ...(itemId && { itemId }) };
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      tag: payload.tag,
+      icon: "/pwa-192x192.png",
+      data,
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const { url, itemId } = event.notification.data as NotificationData;
+  event.waitUntil(openFromNotification(url, itemId));
+});
+
+// Opens the window before marking the item seen. Browsers can refuse to open one after
+// waiting on the network.
+async function openFromNotification(url: string, itemId?: string) {
+  try {
+    await openWindow(new URL(url, self.location.origin));
+  } finally {
+    if (itemId) await markSeen(itemId);
+  }
+}
+
+// pr-peek links go to an open app window. Only windows this worker controls can be sent
+// somewhere else. Other links open a new window, so the app stays where it was.
+async function openWindow(target: URL) {
+  const [appWindow] = await self.clients.matchAll({ type: "window" });
+  if (target.origin === self.location.origin && appWindow) {
+    await appWindow.focus();
+    await appWindow.navigate(target.href);
+  } else {
+    await self.clients.openWindow(target.href);
+  }
+}
+
+async function markSeen(itemId: string) {
+  await fetch("/api/items/seen", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: [itemId] }),
+  }).catch(() => undefined);
+}
 
 // The page asks for this when the user clicks Reload on "New version available".
 self.addEventListener("message", (event) => {

@@ -26,8 +26,10 @@ No third party account is needed. The `web-push` npm package handles the encrypt
 ## PRs
 
 1. Push API (server): 8.1, the device routes, and sending with the 404/410 rule from 8.4.
-2. Devices (web): 8.2 and 8.5.
-   - Then a small PR that turns fixed-value text columns into database enums: severity, channels, `PullRequest.state`, and `User.syncError`. It drops the unused `PushSubscription.platform`. Each migration converts the column in place, so no data is lost.
+2. Devices (web), in two PRs:
+   - 2a: 8.5, the "Turn on notifications" button in Settings, Devices, and the device list with Send test and Remove.
+   - 2b: the rest of 8.2: the button in onboarding, per-device severity, renaming, re-checking on open, and the repo Mute switch.
+   - Then a small PR for step 8.8: database enums.
 3. Notify: 8.3 except staleness and batching, plus the rest of 8.4.
 4. Schedules: staleness reminders, batching, and 8.6.
 
@@ -47,8 +49,9 @@ No third party account is needed. The `web-push` npm package handles the encrypt
   1. Calls `Notification.requestPermission()`.
   2. Calls `registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })`.
   3. Sends the subscription to `POST /api/push/subscriptions` with a device label ("iPhone", "Mac, Safari") guessed from the user agent and editable.
-- [ ] On iPhone, if the app isn't installed to the Home Screen, show the install steps instead of the button.
-- [ ] Settings, Devices lists each subscription with its label, last success time, a "Send test" button, and Remove.
+  - Done in Settings, Devices (part 2a, `components/TurnOnNotifications.tsx`). Onboarding and editing the label are part 2b.
+- [x] On iPhone, if the app isn't installed to the Home Screen, show the install steps instead of the button.
+- [x] Settings, Devices lists each subscription with its label, last success time, a "Send test" button, and Remove. Removing this browser's device also unsubscribes it.
 - [ ] Each device can choose which severities it gets. For example: phone gets high only, Mac gets everything. Add a `minSeverity` field to `PushSubscription`. (The field and API are in part 1.)
 - [ ] Re-check the subscription each time the app opens. If the browser changed it, update it on the server.
 - [ ] Add a Mute switch to each repo in Settings, Repositories (`components/WatchedRepos.tsx`, plan 07 part 4a). `PATCH /api/repos/:id` already takes `muted`.
@@ -77,10 +80,11 @@ The `notify:item` job from plan 05.5:
 
 ### 8.5 Service worker
 
-- [ ] In `apps/web/src/sw/sw.ts`:
-  - `push` event: show the notification with title, body, icon, `tag`, and `data.url`. Also update the app badge with the count in the payload.
-  - `notificationclick` event: focus an open pr-peek window if there is one, otherwise open one. Then go to the PR URL, or open it on GitHub. Mark the item seen through the API.
-- [ ] No action buttons on notifications for now. Tapping one opens the PR.
+- [x] In `apps/web/src/sw/sw.ts`:
+  - `push` event: show the notification with title, body, icon, `tag`, and `data.url`.
+  - `notificationclick` event: links to pr-peek itself focus an open pr-peek window and go there. Links to GitHub open in a new window, so the app stays where it was. Then mark the item seen through the API.
+- [ ] Update the app badge with a count in the payload. Moved to part 3, which sends the count.
+- [x] No action buttons on notifications for now. Tapping one opens the PR.
 
 ### 8.6 Morning summary
 
@@ -92,6 +96,18 @@ The `notify:item` job from plan 05.5:
 
 - [ ] Unit tests for the decision logic: dedupe, quiet hours across midnight and timezones, weekend rule, severity per device, batching.
 - [x] A test with a fake `web-push` sender: a 410 deletes the subscription.
+
+### 8.8 Database enums
+
+After part 2b, before part 3. Text columns that only ever hold a few fixed values become Postgres enums, so the database refuses anything else.
+
+- [ ] `Severity` enum for `RuleSetting.severity` and `PushSubscription.minSeverity`. Then remove the `as Severity` cast in `routes/push.ts`.
+- [ ] `Channel` enum list for `RuleSetting.channels`.
+- [ ] Enums for `PullRequest.state` (open, merged, closed, gone, unwatched) and `User.syncError`.
+- [ ] Drop the unused `PushSubscription.platform` column.
+- [ ] Edit each generated migration to convert the column in place (`ALTER COLUMN ... TYPE ... USING ...`). Prisma's default drops and re-adds the column, which loses the data.
+- [ ] Leave `Item.kind` and `PullRequest.checkState` as text. New rules and GitHub's own values would otherwise need a migration.
+- In part 3, `NotificationLog.channel` and `status` start out as enums.
 
 ## Done when
 
