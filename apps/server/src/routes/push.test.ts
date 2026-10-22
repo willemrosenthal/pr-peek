@@ -262,7 +262,8 @@ describe("POST /api/push/subscriptions/:id/test", () => {
     });
     expect(device.failureCount).toBe(MAX_PUSH_FAILURES - 1);
 
-    await sendTest(agent, id);
+    const last = await sendTest(agent, id);
+    expect(last.status).toBe(410);
     expect(await db.pushSubscription.count()).toBe(0);
   });
 

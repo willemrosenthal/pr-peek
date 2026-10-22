@@ -86,23 +86,23 @@ export function pushRouter(deps: PushRouteDeps): Router {
     const existing = await db.pushSubscription.findUnique({
       where: { endpoint },
     });
+    const isMine = existing?.userId === userId;
     const fresh = { userId, label, ...keys };
     const saved = await db.pushSubscription.upsert({
       where: { endpoint },
       create: { endpoint, ...fresh },
       // Someone else signed in on this browser: start over as their device.
-      update:
-        existing?.userId === userId
-          ? keys
-          : {
-              ...fresh,
-              minSeverity: "low",
-              lastSuccessAt: null,
-              failureCount: 0,
-            },
+      update: isMine
+        ? keys
+        : {
+            ...fresh,
+            minSeverity: "low",
+            lastSuccessAt: null,
+            failureCount: 0,
+          },
     });
     const body: PushSubscriptionResponse = { subscription: toDto(saved) };
-    res.status(existing?.userId === userId ? 200 : 201).json(body);
+    res.status(isMine ? 200 : 201).json(body);
   });
 
   router.patch("/push/subscriptions/:id", async (req, res) => {
@@ -138,11 +138,11 @@ export function pushRouter(deps: PushRouteDeps): Router {
       TEST_PUSH,
       { ttlSeconds: 60, urgency: "high" },
     );
-    if (result === "gone") {
+    if (result === "removed") {
       throw new HttpError(
         410,
         "device_gone",
-        "This device turned notifications off, so it was removed",
+        "This device stopped taking notifications, so it was removed",
       );
     }
     if (result === "failed") {

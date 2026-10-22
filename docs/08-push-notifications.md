@@ -27,6 +27,7 @@ No third party account is needed. The `web-push` npm package handles the encrypt
 
 1. Push API (server): 8.1, the device routes, and sending with the 404/410 rule from 8.4.
 2. Devices (web): 8.2 and 8.5.
+   - Then a small PR that turns fixed-value text columns into database enums: severity, channels, `PullRequest.state`, and `User.syncError`. It drops the unused `PushSubscription.platform`. Each migration converts the column in place, so no data is lost.
 3. Notify: 8.3 except staleness and batching, plus the rest of 8.4.
 4. Schedules: staleness reminders, batching, and 8.6.
 

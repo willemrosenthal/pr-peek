@@ -63,7 +63,7 @@ export interface PushDeps {
   logger: Logger;
 }
 
-export type PushResult = "sent" | "gone" | "failed";
+export type PushResult = "sent" | "failed" | "removed";
 
 // The push service's answer when a device unsubscribed or its subscription expired.
 const isGone = (err: unknown) =>
@@ -78,24 +78,27 @@ export async function pushToDevice(
   payload: PushPayload,
   options: PushOptions,
 ): Promise<PushResult> {
-  const { db } = deps;
+  const { db, logger } = deps;
   const where = { id: device.id };
   try {
     await deps.send(device, payload, options);
   } catch (err) {
     if (isGone(err)) {
       await db.pushSubscription.deleteMany({ where });
-      return "gone";
+      logger.info({ deviceId: device.id }, "push device gone, removed");
+      return "removed";
     }
-    deps.logger.warn({ err, deviceId: device.id }, "push failed");
+    logger.warn({ err, deviceId: device.id }, "push failed");
     await db.pushSubscription.updateMany({
       where,
       data: { failureCount: { increment: 1 } },
     });
-    await db.pushSubscription.deleteMany({
+    const { count } = await db.pushSubscription.deleteMany({
       where: { ...where, failureCount: { gte: MAX_PUSH_FAILURES } },
     });
-    return "failed";
+    if (count === 0) return "failed";
+    logger.info({ deviceId: device.id }, "push device kept failing, removed");
+    return "removed";
   }
   // updateMany, since the user may have removed the device while it sent.
   await db.pushSubscription.updateMany({
