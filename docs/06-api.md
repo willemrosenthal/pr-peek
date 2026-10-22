@@ -4,18 +4,32 @@
 
 **Needs:** plan 05.
 
+**Split into three PRs:**
+
+- **Part A** (`plan-06-1-items`): 6.1, plus the items, seen, and summary endpoints.
+- **Part B** (`plan-06-2-settings`): the settings, rules, and sync endpoints, and re-running rules when settings change.
+- **Part C** (`plan-06-3-stream`): 6.3 live updates, the `.http` file, and the last tests.
+
+## Changes from the original plan
+
+- **Item sections** come from each item's kind (`ITEM_GROUPS` in `packages/core/src/api/items.ts`): review requests and re-requests are `review`, replies are `replies`, and the rest are `mine`.
+- **`age`** is the real time since `waitingSince`, or since the latest event for items without one. **`staleLevel`** is only set for review requests.
+- **Muted repos' items are still listed.** Muting only stops notifications (plan 08).
+- **`POST /items/seen`** skips ids that aren't the user's, without an error, and keeps the first seen time.
+- **The urgency sort takes `unseen`**, not `seenAt`, so it can sort the API's items directly.
+
 ## Steps
 
-### 6.1 Shared API types
+### 6.1 Shared API types (part A)
 
-- [ ] Define request and response shapes as Zod schemas in `packages/core/src/api/`. The server uses them to validate input. The web app uses the inferred TypeScript types. This way both sides always agree.
-- [ ] Every error response uses `{ error: { code, message } }`.
+- [x] Define request and response shapes as Zod schemas in `packages/core/src/api/`. The server uses them to validate input. The web app uses the inferred TypeScript types. This way both sides always agree. Items: `api/items.ts`.
+- [x] Every error response uses `{ error: { code, message } }` (done since plan 04, `HttpError`).
 
 ### 6.2 Endpoints
 
 All under `/api`. All require sign in except auth and health.
 
-**Items**
+**Items** (part A, done: `routes/items.ts` and `item-list.ts`)
 
 | Method and path    | What it does                                                                                                                                                                        |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -45,7 +59,7 @@ Rules only run when a PR changes on GitHub (plan 05). So after `PATCH /settings`
 | `POST /sync`       | "Refresh now". Enqueues a sync for this user right away. Rate limited to once per 30 seconds |
 | `GET /sync/status` | `lastSyncedAt`, `syncError`, and whether a sync is running                                   |
 
-**Counts (for badges)**
+**Counts (for badges)** (part A, done)
 
 | Method and path | What it does                                                                                                |
 | --------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -60,7 +74,7 @@ Rules only run when a PR changes on GitHub (plan 05). So after `PATCH /settings`
 
 ### 6.4 Tests
 
-- [ ] Supertest tests for each endpoint: auth required, validation errors, happy path, and one user can't touch another user's items.
+- [ ] Supertest tests for each endpoint: auth required, validation errors, happy path, and one user can't touch another user's items. Items, seen, and summary done in part A.
 - [ ] A test that publishing a change sends an SSE event to the right user only.
 
 ## Done when

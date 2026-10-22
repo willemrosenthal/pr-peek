@@ -9,6 +9,7 @@ import { createGitHubOAuth } from "./github/oauth";
 import { createLogger } from "./logger";
 import { getOctokit } from "./github/client";
 import { authRouter } from "./routes/auth";
+import { itemsRouter } from "./routes/items";
 import { reposRouter } from "./routes/repos";
 import { sessionMiddleware } from "./session";
 import { onShutdown } from "./shutdown";
@@ -47,6 +48,7 @@ const app = createApp({
       github: (userId) =>
         getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY }, userId),
     }),
+    itemsRouter({ db }),
   ],
   // Same depth from src/ (tsx in dev) and dist/ (built), so this works for both.
   webDir: resolve(import.meta.dirname, "../../web/dist"),

@@ -74,13 +74,13 @@ export function formatAge(since: string | Date, now: Date): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-// The item fields the score needs. Dates are ISO strings.
+// The item fields the score needs. Dates are ISO strings. An `ItemDto` has them all.
 export interface UrgencyInput {
   kind: ItemKind;
   severity: Severity;
   waitingSince: string | null;
   occurredAt: string;
-  seenAt: string | null;
+  unseen: boolean;
 }
 
 export function urgencyScore(
@@ -95,7 +95,7 @@ export function urgencyScore(
     URGENCY_WEIGHTS.severity[item.severity] +
     URGENCY_WEIGHTS.stale[stale] +
     (item.kind === "re_requested" ? URGENCY_WEIGHTS.reRequested : 0) +
-    (item.seenAt === null ? URGENCY_WEIGHTS.unseen : 0)
+    (item.unseen ? URGENCY_WEIGHTS.unseen : 0)
   );
 }
 
