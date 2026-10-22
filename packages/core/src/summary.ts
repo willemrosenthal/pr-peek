@@ -1,11 +1,12 @@
 import { TZDate } from "@date-fns/tz";
-import { format } from "date-fns";
+import { format, subMinutes } from "date-fns";
 import { minutesOf } from "./quiet-hours";
 import type { ItemKind } from "./rules";
 import { formatAge } from "./urgency";
 
 // How long after the summary time it can still go out, if the worker was down.
 const SUMMARY_WINDOW_MINUTES = 60;
+const DAY_MINUTES = 24 * 60;
 
 // The item fields the summary needs. An `ItemDto` has them all.
 export interface SummaryItem {
@@ -63,18 +64,20 @@ export interface SummarySettings {
   lastSummaryDate: string | null;
 }
 
-// Today's local date if the summary is due now, or null. It's due in the hour after the
-// summary time, once a day.
+// The local date of the summary that's due now, or null. It's due in the hour after the
+// summary time, once a day. That hour can run past midnight, so the date is the one the
+// summary time fell on.
 export function summaryDueDate(
   settings: SummarySettings,
   now: Date,
 ): string | null {
   if (settings.digestTime === null) return null;
   const local = new TZDate(now, settings.timezone);
-  const today = format(local, "yyyy-MM-dd");
-  if (settings.lastSummaryDate === today) return null;
-
+  const minute = local.getHours() * 60 + local.getMinutes();
   const since =
-    local.getHours() * 60 + local.getMinutes() - minutesOf(settings.digestTime);
-  return since >= 0 && since < SUMMARY_WINDOW_MINUTES ? today : null;
+    (minute - minutesOf(settings.digestTime) + DAY_MINUTES) % DAY_MINUTES;
+  if (since >= SUMMARY_WINDOW_MINUTES) return null;
+
+  const date = format(subMinutes(local, since), "yyyy-MM-dd");
+  return date === settings.lastSummaryDate ? null : date;
 }

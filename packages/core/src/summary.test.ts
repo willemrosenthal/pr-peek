@@ -66,6 +66,20 @@ describe("summaryDueDate", () => {
     expect(summaryDueDate(sent, at("09:15"))).toBe(null);
   });
 
+  it("dates a late summary by its time, even after midnight", () => {
+    const late = settings({ digestTime: "23:50" });
+    // The first run after 23:50 is at midnight.
+    expect(summaryDueDate(late, new Date("2026-10-24T00:00:00Z"))).toBe(
+      "2026-10-23",
+    );
+    // Sent at 23:45 for a 23:40 summary, so not again at midnight.
+    const sent = settings({
+      digestTime: "23:40",
+      lastSummaryDate: "2026-10-23",
+    });
+    expect(summaryDueDate(sent, new Date("2026-10-24T00:00:00Z"))).toBe(null);
+  });
+
   it("is never due with the summary off", () => {
     expect(summaryDueDate(settings({ digestTime: null }), at("09:00"))).toBe(
       null,
