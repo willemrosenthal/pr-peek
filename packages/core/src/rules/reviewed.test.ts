@@ -26,6 +26,7 @@ describe("my PR was reviewed", () => {
         latestEventId: "R_1",
         eventCount: 1,
         actorLogin: "jlee",
+        actorIsBot: false,
         summary: "jlee approved",
         occurredAt: at(10),
         waitingSince: null,
@@ -112,11 +113,11 @@ describe("my PR was reviewed", () => {
     expect(detect(pr)).toHaveLength(1);
   });
 
-  it("ignores bots when they're hidden", () => {
+  it("marks a bot's review, and ignores bots when they're hidden", () => {
     const pr = myPr({
       reviews: [review("R_1", actor("ci-bot", true), 10, "APPROVED")],
     });
-    expect(detect(pr)).toHaveLength(1);
+    expect(detect(pr)).toMatchObject([{ actorIsBot: true }]);
     expect(detect(pr, ctx({ settings: { hideBots: true } }))).toEqual([]);
   });
 

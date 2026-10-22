@@ -30,6 +30,7 @@ describe("new comment on my PR", () => {
         latestEventId: "C_2",
         eventCount: 2,
         actorLogin: "jlee",
+        actorIsBot: false,
         summary: 'jlee: "Comment C_2" (+1 more)',
         occurredAt: at(20),
         waitingSince: null,
@@ -42,9 +43,9 @@ describe("new comment on my PR", () => {
     expect(detect(pr)).toEqual([]);
   });
 
-  it("ignores bots when they're hidden", () => {
+  it("marks a bot's comment, and ignores bots when they're hidden", () => {
     const pr = myPr({ comments: [comment("C_1", actor("ci-bot", true), 10)] });
-    expect(detect(pr)).toHaveLength(1);
+    expect(detect(pr)).toMatchObject([{ actorIsBot: true }]);
     expect(detect(pr, ctx({ settings: { hideBots: true } }))).toEqual([]);
   });
 

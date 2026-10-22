@@ -64,6 +64,7 @@ function requestItem(
     latestEventId: eventId,
     eventCount: 1,
     actorLogin: null,
+    actorIsBot: false,
     summary: team ? `${summary} from ${team}` : summary,
     occurredAt: event?.createdAt ?? snapshot.updatedAt,
     waitingSince: event?.createdAt ?? null,

@@ -1,6 +1,7 @@
 import type { ItemDto, ItemKind, StaleLevel } from "@pr-peek/core";
 import {
   AtSign,
+  BotMessageSquare,
   CircleCheck,
   CircleX,
   Eye,
@@ -33,7 +34,9 @@ const AGE_TONES: Record<StaleLevel, string | undefined> = {
 
 // One item, as two lines: what PR and how long, then what happened and where.
 export function ItemRow({ item }: { item: ItemDto }) {
-  const { Icon, tone } = KIND_ICONS[item.kind];
+  const { Icon: KindIcon, tone } = KIND_ICONS[item.kind];
+  // Keeps the kind's color, so a bot's approval still reads as an approval.
+  const Icon = item.actorIsBot ? BotMessageSquare : KindIcon;
   // Only review requests have a stale level.
   const ageTone = item.staleLevel ? AGE_TONES[item.staleLevel] : styles.muted;
 

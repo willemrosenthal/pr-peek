@@ -61,6 +61,7 @@ export async function openItems(
           kind: item.kind,
           summary: item.summary,
           actorLogin: item.actorLogin,
+          actorIsBot: item.actorIsBot,
           occurredAt: item.occurredAt.toISOString(),
           waitingSince: item.waitingSince?.toISOString() ?? null,
           age: formatAge(item.waitingSince ?? item.occurredAt, now),

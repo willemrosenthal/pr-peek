@@ -63,6 +63,7 @@ export const item = (fields: Partial<ItemDto> = {}): ItemDto => {
     kind: "review_requested",
     summary: "jlee asked for your review",
     actorLogin: "jlee",
+    actorIsBot: false,
     occurredAt: "2026-10-21T10:00:00.000Z",
     waitingSince: "2026-10-21T10:00:00.000Z",
     age: "2h",

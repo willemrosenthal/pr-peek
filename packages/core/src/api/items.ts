@@ -29,6 +29,7 @@ export interface ItemDto {
   kind: ItemKind;
   summary: string;
   actorLogin: string | null;
+  actorIsBot: boolean;
   occurredAt: string;
   waitingSince: string | null;
   // Real time since the wait started (or the event), like "3h".

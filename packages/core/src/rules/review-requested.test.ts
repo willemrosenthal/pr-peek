@@ -35,6 +35,7 @@ describe("review requested", () => {
         latestEventId: "RR_1",
         eventCount: 1,
         actorLogin: null,
+        actorIsBot: false,
         summary: "Review requested",
         occurredAt: at(5),
         waitingSince: at(5),
