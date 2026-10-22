@@ -1,8 +1,8 @@
 import { formatAge } from "@pr-peek/core";
+import { RotateCw, Settings } from "lucide-react";
 import { Link } from "react-router";
 import { cx } from "../cx";
 import { useNow } from "../hooks/useNow";
-import { Icon } from "./Icon";
 import styles from "./ListHeader.module.css";
 
 export function ListHeader({
@@ -28,10 +28,10 @@ export function ListHeader({
         disabled={refreshing}
         onClick={onRefresh}
       >
-        <Icon name="refresh" className={cx(refreshing && styles.spin)} />
+        <RotateCw className={cx(refreshing && styles.spin)} />
       </button>
       <Link to="/settings" className={styles.iconButton} aria-label="Settings">
-        <Icon name="settings" />
+        <Settings />
       </Link>
     </header>
   );
