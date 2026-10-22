@@ -6,13 +6,13 @@ import { renderApp } from "../test/render";
 
 it("shows the page when signed in", async () => {
   fakeApi({ "GET /api/me": () => json(me()) });
-  renderApp("/");
+  renderApp("/settings");
   expect(await screen.findByText("Signed in as octocat")).toBeTruthy();
 });
 
 it("sends signed out users to sign in", async () => {
   fakeApi({ "GET /api/me": signedOut });
-  const { router } = renderApp("/");
+  const { router } = renderApp("/settings");
   await screen.findByRole("link", { name: "Sign in with GitHub" });
   expect(router.state.location.pathname).toBe("/signin");
 });
@@ -23,7 +23,7 @@ it("offers a retry when the server can't be reached", async () => {
     "GET /api/me": () =>
       down ? apiError(503, "unavailable", "Server is down") : json(me()),
   });
-  renderApp("/");
+  renderApp("/settings");
 
   expect(await screen.findByText("Server is down")).toBeTruthy();
   down = false;

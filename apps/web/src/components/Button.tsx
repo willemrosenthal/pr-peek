@@ -1,4 +1,5 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
+import { cx } from "../cx";
 import styles from "./Button.module.css";
 
 interface Look {
@@ -7,9 +8,11 @@ interface Look {
 }
 
 const classes = ({ variant = "secondary", wide = false }: Look) =>
-  [styles.button, variant === "primary" && styles.primary, wide && styles.wide]
-    .filter(Boolean)
-    .join(" ");
+  cx(
+    styles.button,
+    variant === "primary" && styles.primary,
+    wide && styles.wide,
+  );
 
 export function Button({
   variant,

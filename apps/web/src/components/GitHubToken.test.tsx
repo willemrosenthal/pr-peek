@@ -28,7 +28,7 @@ it("adds a token", async () => {
       return json({ githubToken });
     },
   });
-  renderApp("/");
+  renderApp("/settings");
 
   await saveToken("ghp_abc");
   expect(await screen.findByText(/Syncs use your token/)).toBeTruthy();
@@ -44,7 +44,7 @@ it("shows the server's message when the token is refused", async () => {
     "PUT /api/github-token": () =>
       apiError(400, "wrong_account", "This token belongs to someone-else."),
   });
-  renderApp("/");
+  renderApp("/settings");
 
   await saveToken("ghp_other");
   expect((await screen.findByRole("alert")).textContent).toBe(
@@ -56,7 +56,7 @@ it("asks for a new token when the saved one stopped working", async () => {
   fakeApi({
     "GET /api/me": () => json(me({ githubToken: { ...TOKEN, invalid: true } })),
   });
-  renderApp("/");
+  renderApp("/settings");
 
   expect(await screen.findByText("Your token stopped working")).toBeTruthy();
   expect(screen.getByLabelText("Personal access token")).toBeTruthy();
@@ -67,7 +67,7 @@ it("replaces the token", async () => {
     "GET /api/me": () => json(me({ githubToken: TOKEN })),
     "PUT /api/github-token": () => json({ githubToken: TOKEN }),
   });
-  renderApp("/");
+  renderApp("/settings");
 
   await userEvent.click(await screen.findByRole("button", { name: "Replace" }));
   await saveToken("ghp_new");
@@ -76,7 +76,7 @@ it("replaces the token", async () => {
 
 it("can cancel replacing the token", async () => {
   fakeApi({ "GET /api/me": () => json(me({ githubToken: TOKEN })) });
-  renderApp("/");
+  renderApp("/settings");
 
   await userEvent.click(await screen.findByRole("button", { name: "Replace" }));
   await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -85,7 +85,7 @@ it("can cancel replacing the token", async () => {
 
 it("has no cancel when there's no working token", async () => {
   fakeApi({ "GET /api/me": () => json(me()) });
-  renderApp("/");
+  renderApp("/settings");
   await screen.findByLabelText("Personal access token");
   expect(screen.queryByRole("button", { name: "Cancel" })).toBe(null);
 });
@@ -99,7 +99,7 @@ it("removes the token", async () => {
       return new Response(null, { status: 204 });
     },
   });
-  renderApp("/");
+  renderApp("/settings");
 
   await userEvent.click(await screen.findByRole("button", { name: "Remove" }));
   expect(await screen.findByText("Use a personal access token")).toBeTruthy();
