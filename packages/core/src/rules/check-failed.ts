@@ -19,9 +19,7 @@ export const checkFailed: Rule = {
     const { state, failing } = snapshot.checks;
     const headFailed = isFailure(state);
     const updatedAfterFailure =
-      push.sha !== snapshot.headSha &&
-      state !== "SUCCESS" &&
-      isFailure(push.checkState);
+      push.sha !== snapshot.headSha && state !== "SUCCESS" && push.checksFailed;
     if (!headFailed && !updatedAfterFailure) return [];
 
     return [

@@ -89,7 +89,8 @@ export const prSnapshot = z.object({
     .object({
       sha: z.string(),
       committedAt: z.string(),
-      checkState: checkState.nullable(),
+      // A check failed. Cancelled runs, like ones a newer commit stopped, don't count.
+      checksFailed: z.boolean(),
     })
     .optional(),
 });

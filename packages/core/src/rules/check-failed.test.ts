@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CheckState, PrSnapshot } from "../pr-snapshot";
+import type { PrSnapshot } from "../pr-snapshot";
 import { checkFailed } from "./check-failed";
 import { at, branchUpdate, ctx, myPr, snapshot } from "./test-helpers";
 
@@ -56,10 +56,8 @@ describe("check failed on my PR", () => {
   });
 
   describe("after Update branch", () => {
-    const updated = (
-      checks: PrSnapshot["checks"],
-      pushChecks: CheckState = "FAILURE",
-    ) => myPr({ ...branchUpdate(20, pushChecks), checks });
+    const updated = (checks: PrSnapshot["checks"], pushChecksFailed = true) =>
+      myPr({ ...branchUpdate(20, pushChecksFailed), checks });
 
     it.each(["PENDING", null] as const)(
       "keeps the push's failure while checks are %s",
@@ -91,8 +89,8 @@ describe("check failed on my PR", () => {
       expect(detect(updated({ state: "SUCCESS", failing: [] }))).toEqual([]);
     });
 
-    it("makes no item when the push's checks passed", () => {
-      const pr = updated({ state: "PENDING", failing: [] }, "SUCCESS");
+    it("makes no item when the push's checks didn't fail, like a cancelled run", () => {
+      const pr = updated({ state: "PENDING", failing: [] }, false);
       expect(detect(pr)).toEqual([]);
     });
   });

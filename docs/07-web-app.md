@@ -196,7 +196,8 @@
 **Why:** "Update branch" on GitHub adds a merge commit to your PR. The rules treat any new commit as you acting on it, so it clears "changes requested", new comments, and failed checks. A merge from the base branch doesn't fix any of those.
 
 - [x] The details query also reads the last 20 commits: sha, time, parent count, and check state.
-- [x] The snapshot gets `lastPush`: the latest commit that isn't a merge (one parent), with its sha, time, and check state. It's optional, so stored snapshots still read. Without it, the rules use the head commit, as before.
+- [x] The snapshot gets `lastPush`: the latest commit that isn't a merge (one parent), with its sha, time, and whether a check failed. It's optional, so stored snapshots still read. Without it, the rules use the head commit, as before.
+  - "A check failed" comes from GitHub's count of runs by result, not its overall state. The overall state counts cancelled runs as failures, and "Update branch" often cancels the last push's run.
 - [x] "My PR was reviewed" and "New comment on my PR" use `lastPush` time, not the head commit's.
 - [x] "Check failed" keys on the `lastPush` sha, so a failure after "Update branch" is the same item, with no new notification. While the merge commit's checks run (or if it has none), the item stays if the `lastPush` commit's checks failed, with the summary "Checks failed before the branch update". Passing checks clear it.
 - [x] Limit: "Update with rebase" rewrites the commits, so it still counts as a push.

@@ -92,7 +92,7 @@ describe("fetchPrDetails", () => {
         lastPush: {
           sha: "abc123",
           committedAt: "2026-10-21T07:00:00Z",
-          checkState: "FAILURE",
+          checksFailed: true,
         },
       },
     ]);
@@ -135,8 +135,38 @@ describe("fetchPrDetails", () => {
     expect(snapshots[0]?.lastPush).toEqual({
       sha: "push",
       committedAt: "2026-10-21T07:00:00Z",
-      checkState: "FAILURE",
+      checksFailed: true,
     });
+  });
+
+  it.each([
+    ["a cancelled run", "CANCELLED", false],
+    ["a passing run", "SUCCESS", false],
+    ["no checks", null, false],
+    ["a timed out run", "TIMED_OUT", true],
+  ])(
+    "says whether the last push's checks failed, for %s",
+    async (_, checkRun, failed) => {
+      const pr = githubPr({
+        recentCommits: {
+          nodes: [recentCommit("push", "2026-10-21T07:00:00Z", checkRun)],
+        },
+      });
+      const { octokit } = fakeGraphQL(prGitHub({ prs: { PR_1: pr } }));
+      const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
+      expect(snapshots[0]?.lastPush?.checksFailed).toBe(failed);
+    },
+  );
+
+  it("counts a failed status as a failed check on the last push", async () => {
+    const push = recentCommit("push", "2026-10-21T07:00:00Z", "SUCCESS");
+    push.commit.statusCheckRollup!.contexts.statusContextCountsByState = [
+      { state: "ERROR", count: 1 },
+    ];
+    const pr = githubPr({ recentCommits: { nodes: [push] } });
+    const { octokit } = fakeGraphQL(prGitHub({ prs: { PR_1: pr } }));
+    const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
+    expect(snapshots[0]?.lastPush?.checksFailed).toBe(true);
   });
 
   it("leaves the last push out when every recent commit is a merge", async () => {

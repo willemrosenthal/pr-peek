@@ -4,18 +4,29 @@ const user = (login: string) => ({ __typename: "User", login });
 const bot = (login: string) => ({ __typename: "Bot", login });
 const team = (combinedSlug: string) => ({ __typename: "Team", combinedSlug });
 
-// One of a PR's recent commits. A merge has two parents.
+// One of a PR's recent commits, with one check run that ended `checkRun`, or no checks.
+// A merge has two parents.
 export const recentCommit = (
   oid: string,
   committedDate: string,
-  checkState: string | null,
+  checkRun: string | null,
   parents = 1,
 ) => ({
   commit: {
     oid,
     committedDate,
     parents: { totalCount: parents },
-    statusCheckRollup: checkState ? { state: checkState } : null,
+    statusCheckRollup: checkRun
+      ? {
+          contexts: {
+            checkRunCountsByState: [
+              { state: checkRun, count: 1 },
+              { state: "SUCCESS", count: 0 },
+            ],
+            statusContextCountsByState: [{ state: "FAILURE", count: 0 }],
+          },
+        }
+      : null,
   },
 });
 

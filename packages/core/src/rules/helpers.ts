@@ -53,7 +53,7 @@ export const lastPushOf = (snapshot: PrSnapshot) =>
   snapshot.lastPush ?? {
     sha: snapshot.headSha,
     committedAt: snapshot.headCommittedAt,
-    checkState: snapshot.checks.state,
+    checksFailed: snapshot.checks.failing.length > 0,
   };
 
 // " (+2 more)" when there's more than one, or nothing.

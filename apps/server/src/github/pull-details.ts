@@ -44,7 +44,17 @@ const DETAILS_QUERY = `query ($ids: [ID!]!) {
       }
       comments(last: 30) { nodes { ${COMMENT} } }
       recentCommits: commits(last: 20) {
-        nodes { commit { oid committedDate parents { totalCount } statusCheckRollup { state } } }
+        nodes {
+          commit {
+            oid committedDate parents { totalCount }
+            statusCheckRollup {
+              contexts {
+                checkRunCountsByState { state count }
+                statusContextCountsByState { state count }
+              }
+            }
+          }
+        }
       }
       commits(last: 1) {
         nodes {
@@ -87,6 +97,16 @@ const rawComment = z.object({
 
 const nodesOf = <T extends z.ZodType>(item: T) =>
   z.object({ nodes: z.array(item) });
+
+const stateCount = z.object({ state: z.string(), count: z.number() });
+
+// How many check runs and statuses ended each way.
+const checkCounts = z.object({
+  contexts: z.object({
+    checkRunCountsByState: z.array(stateCount),
+    statusContextCountsByState: z.array(stateCount),
+  }),
+});
 
 const rawPr = z.object({
   id: z.string(),
@@ -131,7 +151,7 @@ const rawPr = z.object({
         oid: z.string(),
         committedDate: z.string(),
         parents: z.object({ totalCount: z.number() }),
-        statusCheckRollup: z.object({ state: checkState }).nullable(),
+        statusCheckRollup: checkCounts.nullable(),
       }),
     }),
   ),
@@ -174,6 +194,18 @@ const FAILED_CONCLUSIONS = new Set([
   "ACTION_REQUIRED",
 ]);
 const FAILED_STATES = new Set(["FAILURE", "ERROR"]);
+
+// True if a check run or status failed. GitHub's overall state can't tell: it counts
+// cancelled runs, like ones a newer commit stopped, as failures.
+function checksFailed(rollup: z.infer<typeof checkCounts> | null): boolean {
+  if (!rollup) return false;
+  const any = (counts: z.infer<typeof stateCount>[], failed: Set<string>) =>
+    counts.some((c) => failed.has(c.state) && c.count > 0);
+  return (
+    any(rollup.contexts.checkRunCountsByState, FAILED_CONCLUSIONS) ||
+    any(rollup.contexts.statusContextCountsByState, FAILED_STATES)
+  );
+}
 
 const toActor = (actor: z.infer<typeof rawActor> | null): PrActor =>
   actor
@@ -282,7 +314,7 @@ function toSnapshot(raw: RawPr): PrSnapshot {
       lastPush: {
         sha: push.oid,
         committedAt: push.committedDate,
-        checkState: push.statusCheckRollup?.state ?? null,
+        checksFailed: checksFailed(push.statusCheckRollup),
       },
     }),
   };
