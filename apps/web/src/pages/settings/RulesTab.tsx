@@ -1,9 +1,10 @@
 import type { RuleGroup, RuleSettingDto, Severity } from "@pr-peek/core";
 import type { ReactNode } from "react";
 import { Alert } from "../../components/Alert";
-import { Card, CardRow } from "../../components/Card";
+import { CardRow } from "../../components/Card";
 import { Select } from "../../components/Field";
 import { RowText } from "../../components/RowText";
+import { SettingsGroup } from "../../components/SettingsGroup";
 import { Switch } from "../../components/Switch";
 import { useSaveRule } from "../../hooks/useSaveSettings";
 import { useSettings } from "../../queries";
@@ -34,16 +35,13 @@ export function RulesTab() {
       {settings.isError && <Alert>{settings.error.message}</Alert>}
       {settings.data &&
         GROUPS.map(({ group, title }) => (
-          <section key={group} className={styles.group}>
-            <h3 className={styles.groupTitle}>{title}</h3>
-            <Card label={title}>
-              {settings.data.rules
-                .filter((rule) => rule.group === group)
-                .map((rule) => (
-                  <RuleRow key={rule.id} rule={rule} />
-                ))}
-            </Card>
-          </section>
+          <SettingsGroup key={group} title={title}>
+            {settings.data.rules
+              .filter((rule) => rule.group === group)
+              .map((rule) => (
+                <RuleRow key={rule.id} rule={rule} />
+              ))}
+          </SettingsGroup>
         ))}
     </>
   );

@@ -7,6 +7,7 @@ import { Button } from "../components/Button";
 import { RepoPicker } from "../components/RepoPicker";
 import { SelectField } from "../components/Field";
 import { WatchedRepos } from "../components/WatchedRepos";
+import { detectedTimezone, timezoneOptions } from "../timezones";
 import styles from "./Onboarding.module.css";
 
 const STEPS = ["repos", "timezone", "done"] as const;
@@ -58,8 +59,8 @@ function ReposStep({ onNext }: { onNext: () => void }) {
 }
 
 function TimezoneStep({ onNext }: { onNext: () => void }) {
-  const [zones] = useState(timezones);
-  const [timezone, setTimezone] = useState(zones.detected);
+  const [timezone, setTimezone] = useState(detectedTimezone);
+  const [zones] = useState(() => timezoneOptions(timezone));
   const save = useMutation({
     mutationFn: () => api("/settings", { method: "PATCH", body: { timezone } }),
     onSuccess: onNext,
@@ -80,7 +81,7 @@ function TimezoneStep({ onNext }: { onNext: () => void }) {
         value={timezone}
         onChange={(e) => setTimezone(e.target.value)}
       >
-        {zones.all.map((zone) => (
+        {zones.map((zone) => (
           <option key={zone}>{zone}</option>
         ))}
       </SelectField>
@@ -110,12 +111,4 @@ function DoneStep() {
       </div>
     </section>
   );
-}
-
-// The browser's timezone, and every one it knows. Adds the detected one if the list
-// lacks it, like "UTC".
-function timezones() {
-  const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const all = Intl.supportedValuesOf("timeZone");
-  return { detected, all: all.includes(detected) ? all : [detected, ...all] };
 }

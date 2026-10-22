@@ -151,8 +151,11 @@
   - [x] **General:** hide bots, team requests, personal access token (`GitHubToken`), sign out. Count style moved to plan 09.
   - [x] **Repositories:** add, remove, enable. Mute moved to plan 08.
   - [x] **Rules:** toggle, severity ("Urgency"), channels ("Notify" turns push on or off, and the list always shows the rule), and "Include draft PRs" on review requested. Grouped by other people's PRs and mine.
-  - [ ] **Timing** (part 4c): staleness hours, work hours only, quiet hours, weekends, morning summary time.
+  - [x] **Timing** (part 4c): staleness hours, work hours only, quiet hours, weekends, morning summary time.
     - Describe "work hours only" as changing only when rows turn orange or red, like "Only count weekdays, 9 to 6, toward overdue". Age labels always show real time.
+    - Also the timezone, since onboarding was the only place to set it.
+    - Hours save when you leave the box. Orange must come before red, and both are whole hours, 1 to 720.
+    - Quiet hours and the morning summary each have a switch. Turning one on starts at 6pm to 9am, or 9am.
   - [x] **Devices:** placeholder, filled in by plan 08.
 - [x] Each switch and dropdown saves on its own and shows the new value while it saves. After a save, the list and its counts reload, since these settings change what's on it.
 
