@@ -7,7 +7,6 @@ import {
   type PushSubscriptionDto,
   type PushSubscriptionResponse,
   type PushSubscriptionsResponse,
-  type Severity,
 } from "@pr-peek/core";
 import express, { type Router } from "express";
 import type { Db } from "../db";
@@ -34,7 +33,7 @@ function toDto(row: PushSubscription): PushSubscriptionDto {
     id: row.id,
     endpoint: row.endpoint,
     label: row.label,
-    minSeverity: row.minSeverity as Severity,
+    minSeverity: row.minSeverity,
     lastSuccessAt: row.lastSuccessAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };

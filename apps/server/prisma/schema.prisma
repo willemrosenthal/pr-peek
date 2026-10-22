@@ -29,6 +29,34 @@ enum AuthMethod {
   pat
 }
 
+// Why syncs are failing. "reauth" and "token" stop syncs until the user acts. "failed"
+// retries after a wait.
+enum SyncError {
+  reauth
+  token
+  failed
+}
+
+// "open" while the sync tracks a PR. The others say why it stopped.
+enum PrState {
+  open
+  merged
+  closed
+  gone
+  unwatched
+}
+
+enum Severity {
+  low
+  normal
+  high
+}
+
+enum Channel {
+  list
+  push
+}
+
 model User {
   id                    String     @id @default(cuid())
   githubId              Int        @unique
@@ -48,8 +76,7 @@ model User {
   patExpiresAt          DateTime?
   patScopes             String[]
   lastSyncedAt          DateTime?
-  // "reauth" stops syncs until the user signs in again. Other errors retry after a wait.
-  syncError             String?
+  syncError             SyncError?
   // Failed syncs in a row, and when to try again (see sync-schedule.ts).
   syncFailures          Int        @default(0)
   syncRetryAt           DateTime?
@@ -113,8 +140,7 @@ model PullRequest {
   url             String
   authorLogin     String
   isDraft         Boolean
-  // "open" while the sync tracks it. Then "merged", "closed", "gone", or "unwatched".
-  state           String
+  state           PrState
   headSha         String
   checkState      String?
   githubUpdatedAt DateTime
@@ -161,10 +187,10 @@ model Item {
 model RuleSetting {
   userId   String
   ruleId   String
-  enabled  Boolean  @default(true)
-  severity String
-  channels String[]
-  options  Json     @default("{}")
+  enabled  Boolean   @default(true)
+  severity Severity
+  channels Channel[]
+  options  Json      @default("{}")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -178,9 +204,8 @@ model PushSubscription {
   p256dh        String
   auth          String
   label         String?
-  platform      String?
-  // The lowest severity this device gets: "low", "normal", or "high".
-  minSeverity   String    @default("low")
+  // The lowest severity this device gets.
+  minSeverity   Severity  @default(low)
   lastSuccessAt DateTime?
   failureCount  Int       @default(0)
   createdAt     DateTime  @default(now())

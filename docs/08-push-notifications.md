@@ -101,12 +101,13 @@ The `notify:item` job from plan 05.5:
 
 After part 2b, before part 3. Text columns that only ever hold a few fixed values become Postgres enums, so the database refuses anything else.
 
-- [ ] `Severity` enum for `RuleSetting.severity` and `PushSubscription.minSeverity`. Then remove the `as Severity` cast in `routes/push.ts`.
-- [ ] `Channel` enum list for `RuleSetting.channels`.
-- [ ] Enums for `PullRequest.state` (open, merged, closed, gone, unwatched) and `User.syncError`.
-- [ ] Drop the unused `PushSubscription.platform` column.
-- [ ] Edit each generated migration to convert the column in place (`ALTER COLUMN ... TYPE ... USING ...`). Prisma's default drops and re-adds the column, which loses the data.
-- [ ] Leave `Item.kind` and `PullRequest.checkState` as text. New rules and GitHub's own values would otherwise need a migration.
+- [x] `Severity` enum for `RuleSetting.severity` and `PushSubscription.minSeverity`. Then remove the `as Severity` cast in `routes/push.ts`.
+- [x] `Channel` enum list for `RuleSetting.channels`.
+- [x] Enums for `PullRequest.state` (open, merged, closed, gone, unwatched) and `User.syncError`.
+- [x] Drop the unused `PushSubscription.platform` column.
+- [x] Edit each generated migration to convert the column in place (`ALTER COLUMN ... TYPE ... USING ...`). Prisma's default drops and re-adds the column, which loses the data.
+  - The migration first fixes any value the app never writes, so a cast can't fail.
+- [x] Leave `Item.kind` and `PullRequest.checkState` as text. New rules and GitHub's own values would otherwise need a migration.
 - In part 3, `NotificationLog.channel` and `status` start out as enums.
 
 ## Done when

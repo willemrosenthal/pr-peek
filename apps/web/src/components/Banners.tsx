@@ -1,4 +1,4 @@
-import type { MeResponse } from "@pr-peek/core";
+import type { MeResponse, SyncStatusResponse } from "@pr-peek/core";
 import { Link } from "react-router";
 import styles from "./Banners.module.css";
 
@@ -8,7 +8,7 @@ export function Banners({
   syncError,
 }: {
   me: MeResponse | undefined;
-  syncError: string | null | undefined;
+  syncError: SyncStatusResponse["syncError"] | undefined;
 }) {
   if (me?.needsReauth) {
     return (

@@ -11,7 +11,11 @@ import {
 } from "../test/fakes";
 import { fakeGraphQL, type GraphQLRequest } from "../test/github";
 import { githubPr, prGitHub, searchHit } from "../test/pulls";
-import { encryptPersonalToken, NeedsReauthError } from "./github/tokens";
+import {
+  encryptPersonalToken,
+  NeedsReauthError,
+  STOP_REASONS,
+} from "./github/tokens";
 import { createLogger } from "./logger";
 import { backoffMs, dueUserIds, runSync } from "./sync-schedule";
 import { upsertGitHubUser } from "./users";
@@ -66,7 +70,7 @@ describe("dueUserIds", () => {
     expect(await dueUserIds(db, NOW)).toHaveLength(1);
   });
 
-  it.each(["reauth", "token"])(
+  it.each(STOP_REASONS)(
     "skips users stopped with %s until they fix it",
     async (syncError) => {
       await makeUser({ syncError });

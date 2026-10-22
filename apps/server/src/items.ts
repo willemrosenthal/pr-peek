@@ -3,7 +3,6 @@ import {
   prSnapshot,
   ruleOptions,
   rules,
-  severity,
   type Channel,
   type DetectedItem,
   type PrSnapshot,
@@ -57,11 +56,12 @@ export async function loadRuleSettings(
   const byId = new Map(rows.map((row) => [row.ruleId, row]));
   return rules.map((rule) => {
     const row = byId.get(rule.id);
-    // Missing or unknown values fall back to the rule's defaults.
+    // Missing or invalid values fall back to the rule's defaults. The database allows an
+    // empty or repeated channel list.
     return {
       rule,
       enabled: row?.enabled ?? true,
-      severity: severity.catch(rule.defaultSeverity).parse(row?.severity),
+      severity: row?.severity ?? rule.defaultSeverity,
       channels: channels.catch(rule.defaultChannels).parse(row?.channels),
       options: ruleOptions.catch({}).parse(row?.options ?? {}),
     };
