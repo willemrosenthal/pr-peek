@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Current plan**   | [07. Web app](07-web-app.md), part 3e: mentions. Parts 1 to 4a, 3c, and 3d (#20 to #26) merged                                                                                       |
 | **Branch**         | `plan-07-3e-mentions`                                                                                                                                                                |
-| **PR**             | Part 3e, draft                                                                                                                                                                       |
+| **PR**             | [#27](https://github.com/willemrosenthal/pr-peek/pull/27) (part 3e), draft                                                                                                           |
 | **Last step done** | Mentions: a fourth search, the mention rule, the PR description, and the `@` icon                                                                                                    |
 | **Next step**      | 3f (one row per PR), then 4b                                                                                                                                                         |
 | **Waiting on you** | Add repos, then the part 3b stream check in DevTools (PR #23, steps 3 and 4). Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
