@@ -24,14 +24,16 @@ export function streamRouter(deps: StreamDeps): Router {
   // Server-Sent Events. Sends the new summary each time the user's items change.
   router.get("/stream", requireUser(deps.db), (req, res) => {
     const userId = currentUser(res).id;
-    let closed = false;
+    // Skips writes once the stream has ended or the client has left.
+    const write = (text: string) => {
+      if (!res.writableEnded && !res.destroyed) res.write(text);
+    };
     // Sends one update at a time, so an older summary never arrives last.
     let sending = Promise.resolve();
 
     const sendSummary = async () => {
       const summary = summarize(await openItems(deps.db, userId, now()));
-      if (closed) return;
-      res.write(
+      write(
         `event: ${ITEMS_CHANGED_EVENT}\ndata: ${JSON.stringify(summary)}\n\n`,
       );
     };
@@ -41,14 +43,12 @@ export function streamRouter(deps: StreamDeps): Router {
       });
     });
     const keepAlive = setInterval(
-      () => res.write(": ping\n\n"),
+      () => write(": ping\n\n"),
       deps.keepAliveMs ?? KEEP_ALIVE_MS,
     );
     const end = () => res.end();
-    deps.signal?.addEventListener("abort", end);
 
     res.on("close", () => {
-      closed = true;
       clearInterval(keepAlive);
       unsubscribe();
       deps.signal?.removeEventListener("abort", end);
@@ -61,6 +61,9 @@ export function streamRouter(deps: StreamDeps): Router {
       "X-Accel-Buffering": "no",
     });
     res.flushHeaders();
+
+    if (deps.signal?.aborted) end();
+    else deps.signal?.addEventListener("abort", end);
   });
 
   return router;

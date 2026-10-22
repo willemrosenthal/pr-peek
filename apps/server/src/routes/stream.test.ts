@@ -1,7 +1,7 @@
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { ITEMS_CHANGED_EVENT, type SummaryResponse } from "@pr-peek/core";
-import { afterAll, afterEach, beforeEach, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { makeTestApp, signIn } from "../../test/app";
 import { createTestDb, resetDb, TEST_DATABASE_URL } from "../../test/db";
 import { NOW } from "../../test/fakes";
@@ -17,8 +17,14 @@ const { makePr, makeItem } = itemRows(db);
 
 let listener: ItemsListener;
 let server: Server | undefined;
+let shutdown: AbortController;
+// Streams still subscribed to the listener.
+let listening = 0;
+
 beforeEach(async () => {
   await resetDb(db);
+  shutdown = new AbortController();
+  listening = 0;
   listener = await listenForItemChanges({
     connectionString: TEST_DATABASE_URL,
     logger: createLogger({ LOG_LEVEL: "silent" }),
@@ -27,17 +33,25 @@ beforeEach(async () => {
 afterEach(async () => {
   server?.closeAllConnections();
   server?.close();
+  server = undefined;
   await listener.stop();
 });
 
-let shutdown: AbortController;
 function makeApp(keepAliveMs = 60_000) {
-  shutdown = new AbortController();
   return makeTestApp(db, {
     routers: [
       streamRouter({
         db,
-        listener,
+        listener: {
+          subscribe(userId, handler) {
+            listening++;
+            const unsubscribe = listener.subscribe(userId, handler);
+            return () => {
+              listening--;
+              unsubscribe();
+            };
+          },
+        },
         signal: shutdown.signal,
         keepAliveMs,
         now: () => NOW,
@@ -57,8 +71,10 @@ async function openStream(keepAliveMs?: number) {
   server = app.listen(0);
   const { port } = server.address() as AddressInfo;
 
+  const client = new AbortController();
   const res = await fetch(`http://localhost:${port}/api/stream`, {
     headers: { cookie },
+    signal: client.signal,
   });
   const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
   let text = "";
@@ -77,7 +93,7 @@ async function openStream(keepAliveMs?: number) {
   }
 
   const user = await db.user.findFirstOrThrow();
-  return { headers: res.headers, next, user };
+  return { headers: res.headers, next, user, leave: () => client.abort() };
 }
 
 const publish = (userId: string) =>
@@ -110,7 +126,7 @@ it("sends the new summary to the right user only", async () => {
   // If the other user's change leaked, the second message would still say 0.
   await publish(other.id);
   await publish(stream.user.id);
-  expect(await stream.next()).toBe(itemsChanged({ total: 0 }));
+  expect(await stream.next()).toBe(itemsChanged({}));
 
   const pr = await makePr(stream.user.id);
   await makeItem(stream.user.id, pr.id, "reply");
@@ -123,8 +139,23 @@ it("sends a keep-alive comment while quiet", async () => {
   expect(await stream.next()).toBe(": ping\n\n");
 });
 
+it("stops listening when the client leaves", async () => {
+  const stream = await openStream();
+  expect(listening).toBe(1);
+  stream.leave();
+  await vi.waitFor(() => expect(listening).toBe(0));
+});
+
 it("ends open streams on shutdown", async () => {
   const stream = await openStream();
   shutdown.abort();
   await expect(stream.next()).rejects.toThrow("The stream ended");
+  await vi.waitFor(() => expect(listening).toBe(0));
+});
+
+it("ends a stream that opens after shutdown started", async () => {
+  shutdown.abort();
+  const stream = await openStream();
+  await expect(stream.next()).rejects.toThrow("The stream ended");
+  await vi.waitFor(() => expect(listening).toBe(0));
 });

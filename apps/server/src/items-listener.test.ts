@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createTestDb, TEST_DATABASE_URL } from "../test/db";
-import { publishItemsChanged } from "./items";
+import { ITEMS_CHANNEL, publishItemsChanged } from "./items";
 import { listenForItemChanges, type ItemsListener } from "./items-listener";
 import { createLogger } from "./logger";
 
@@ -52,7 +52,7 @@ it("reconnects after losing its connection and tells every subscriber", async ()
 
   await db.$executeRaw`
     SELECT pg_terminate_backend(pid) FROM pg_stat_activity
-    WHERE query = 'LISTEN user_items_changed'`;
+    WHERE query = ${`LISTEN ${ITEMS_CHANNEL}`}`;
   await vi.waitFor(() => expect(handler).toHaveBeenCalledOnce());
 
   await publish("me");
