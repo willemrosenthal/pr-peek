@@ -32,6 +32,18 @@ describe("loadConfig", () => {
     expect(loadConfig(required).TOKEN_ENC_KEY.equals(key)).toBe(true);
   });
 
+  it("leaves push off when the VAPID settings are missing or empty", () => {
+    expect(loadConfig(required).VAPID_PUBLIC_KEY).toBeUndefined();
+    const empty = {
+      VAPID_PUBLIC_KEY: "",
+      VAPID_PRIVATE_KEY: "",
+      VAPID_SUBJECT: "",
+    };
+    expect(
+      loadConfig({ ...required, ...empty }).VAPID_PUBLIC_KEY,
+    ).toBeUndefined();
+  });
+
   it("names each missing variable", () => {
     expect(() => loadConfig({})).toThrow(
       /APP_URL[\s\S]*DATABASE_URL[\s\S]*SESSION_SECRET[\s\S]*TOKEN_ENC_KEY[\s\S]*GITHUB_CLIENT_ID[\s\S]*GITHUB_CLIENT_SECRET/,
@@ -46,6 +58,20 @@ describe("loadConfig", () => {
       "a token key of the wrong length",
       { TOKEN_ENC_KEY: randomBytes(16).toString("base64") },
       /TOKEN_ENC_KEY/,
+    ],
+    [
+      "only some of the VAPID settings",
+      { VAPID_PUBLIC_KEY: "public", VAPID_PRIVATE_KEY: "private" },
+      /VAPID_SUBJECT, or none/,
+    ],
+    [
+      "a VAPID subject that isn't a contact",
+      {
+        VAPID_PUBLIC_KEY: "public",
+        VAPID_PRIVATE_KEY: "private",
+        VAPID_SUBJECT: "you@example.com",
+      },
+      /VAPID_SUBJECT/,
     ],
   ])("rejects %s", (_name, overrides, error) => {
     expect(() => loadConfig({ ...required, ...overrides })).toThrow(error);

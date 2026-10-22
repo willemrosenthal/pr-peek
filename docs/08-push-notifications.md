@@ -23,14 +23,22 @@ No third party account is needed. The `web-push` npm package handles the encrypt
 | Android         | Works in Chrome, installed or not                                                                                        |
 | Mac             | Works in Safari (including "Add to Dock" apps), Chrome, Edge, Firefox. Chrome and Edge must be running to receive pushes |
 
+## PRs
+
+1. Push API (server): 8.1, the device routes, and sending with the 404/410 rule from 8.4.
+2. Devices (web): 8.2 and 8.5.
+3. Notify: 8.3 except staleness and batching, plus the rest of 8.4.
+4. Schedules: staleness reminders, batching, and 8.6.
+
 ## Steps
 
 ### 8.1 Keys and config
 
-- [ ] Generate VAPID keys once with `npx web-push generate-vapid-keys`.
-- [ ] Add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (a `mailto:` contact address) to config and `.env.example`.
+- [ ] **(You)** Generate VAPID keys once with `pnpm --filter @pr-peek/server exec web-push generate-vapid-keys`. One pair for your `.env`, another for production.
+- [x] Add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (a `mailto:` contact address) to config and `.env.example`. They're optional: with none set, push is off and the push routes answer 503.
 - [ ] **(You)** Add the prod keys to the Render env group. Never change them later: existing subscriptions would stop working.
-- [ ] `GET /api/push/key` returns the public key for the browser.
+- [x] `GET /api/push/key` returns the public key for the browser.
+- [x] Device routes: `GET`, `POST`, `PATCH`, `DELETE /api/push/subscriptions`, and `POST /api/push/subscriptions/:id/test`. Posting a device that's already saved updates its keys. Endpoints must be a known push service (Google, Mozilla, Apple, Microsoft), since the server sends requests to them. Up to 20 devices per user.
 
 ### 8.2 Subscribing a device
 
@@ -40,7 +48,7 @@ No third party account is needed. The `web-push` npm package handles the encrypt
   3. Sends the subscription to `POST /api/push/subscriptions` with a device label ("iPhone", "Mac, Safari") guessed from the user agent and editable.
 - [ ] On iPhone, if the app isn't installed to the Home Screen, show the install steps instead of the button.
 - [ ] Settings, Devices lists each subscription with its label, last success time, a "Send test" button, and Remove.
-- [ ] Each device can choose which severities it gets. For example: phone gets high only, Mac gets everything. Add a `minSeverity` field to `PushSubscription`.
+- [ ] Each device can choose which severities it gets. For example: phone gets high only, Mac gets everything. Add a `minSeverity` field to `PushSubscription`. (The field and API are in part 1.)
 - [ ] Re-check the subscription each time the app opens. If the browser changed it, update it on the server.
 - [ ] Add a Mute switch to each repo in Settings, Repositories (`components/WatchedRepos.tsx`, plan 07 part 4a). `PATCH /api/repos/:id` already takes `muted`.
 
@@ -64,11 +72,11 @@ The `notify:item` job from plan 05.5:
   - `tag` is the item id, so a newer alert for the same item replaces the old one instead of stacking.
   - Set a TTL (how long the push service keeps trying, e.g. 12 hours) and urgency (`high` for high severity).
 - [ ] Write a `NotificationLog` row per send.
-- [ ] If the push service returns 404 or 410 (subscription gone), delete the subscription. On other errors, bump `failureCount` and remove after 5 in a row.
+- [x] If the push service returns 404 or 410 (subscription gone), delete the subscription. On other errors, bump `failureCount` and remove after 5 in a row. (`pushToDevice` in `apps/server/src/push.ts`.)
 
 ### 8.5 Service worker
 
-- [ ] In `src/sw.ts`:
+- [ ] In `apps/web/src/sw/sw.ts`:
   - `push` event: show the notification with title, body, icon, `tag`, and `data.url`. Also update the app badge with the count in the payload.
   - `notificationclick` event: focus an open pr-peek window if there is one, otherwise open one. Then go to the PR URL, or open it on GitHub. Mark the item seen through the API.
 - [ ] No action buttons on notifications for now. Tapping one opens the PR.
@@ -82,7 +90,7 @@ The `notify:item` job from plan 05.5:
 ### 8.7 Tests
 
 - [ ] Unit tests for the decision logic: dedupe, quiet hours across midnight and timezones, weekend rule, severity per device, batching.
-- [ ] A test with a fake `web-push` sender: a 410 deletes the subscription.
+- [x] A test with a fake `web-push` sender: a 410 deletes the subscription.
 
 ## Done when
 
