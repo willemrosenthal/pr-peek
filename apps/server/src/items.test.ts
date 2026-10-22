@@ -58,11 +58,21 @@ describe("loadRuleSettings", () => {
     expect(includeDraftsFrom(settings)).toBe(false);
   });
 
-  it("ignores options it doesn't understand", async () => {
+  it("ignores values it doesn't understand", async () => {
     const user = await makeUser();
     await db.ruleSetting.updateMany({
-      data: { options: { includeDrafts: "yes" } },
+      data: {
+        severity: "urgent",
+        channels: ["email"],
+        options: { includeDrafts: "yes" },
+      },
     });
-    expect(includeDraftsFrom(await loadRuleSettings(db, user.id))).toBe(false);
+
+    const settings = await loadRuleSettings(db, user.id);
+    expect(settings.find((s) => s.rule.id === "commented")).toMatchObject({
+      severity: "low",
+      channels: ["list"],
+    });
+    expect(includeDraftsFrom(settings)).toBe(false);
   });
 });

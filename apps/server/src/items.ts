@@ -14,6 +14,9 @@ import type { Prisma } from "./generated/prisma/client";
 // Postgres NOTIFY channel. The payload is the user id. Plan 06 listens for SSE.
 export const ITEMS_CHANNEL = "user_items_changed";
 
+const severity = z.enum(["low", "normal", "high"]);
+const channels = z.array(z.enum(["list", "push"]));
+
 // Options a rule setting can hold. Only the review request rules use one so far.
 const ruleOptions = z
   .object({ includeDrafts: z.boolean() })
@@ -37,12 +40,12 @@ export async function loadRuleSettings(
   const byId = new Map(rows.map((row) => [row.ruleId, row]));
   return rules.map((rule) => {
     const row = byId.get(rule.id);
+    // Missing or unknown values fall back to the rule's defaults.
     return {
       rule,
       enabled: row?.enabled ?? true,
-      severity: (row?.severity as Severity | undefined) ?? rule.defaultSeverity,
-      channels:
-        (row?.channels as Channel[] | undefined) ?? rule.defaultChannels,
+      severity: severity.catch(rule.defaultSeverity).parse(row?.severity),
+      channels: channels.catch(rule.defaultChannels).parse(row?.channels),
       options: ruleOptions.parse(row?.options ?? {}),
     };
   });

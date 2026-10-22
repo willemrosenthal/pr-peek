@@ -389,6 +389,30 @@ describe("items", () => {
     expect(await itemOf("reply")).toMatchObject({ eventCount: 1 });
   });
 
+  it("makes an item when one of the user's teams is asked to review", async () => {
+    const user = await makeUser();
+    const frontend = { __typename: "Team", combinedSlug: "acme/frontend" };
+    const pr = githubPr({
+      reviewRequests: { nodes: [{ requestedReviewer: frontend }] },
+      timelineItems: {
+        nodes: [
+          {
+            __typename: "ReviewRequestedEvent",
+            id: "RRE_team",
+            createdAt: "2026-10-21T08:15:00Z",
+            requestedReviewer: frontend,
+          },
+        ],
+      },
+    });
+    await sync(user.id, { ...asked(pr), teams: ["acme/frontend"] });
+
+    expect(await itemOf("review_requested")).toMatchObject({
+      dedupeKey: "rr:PR_1:RRE_team",
+      summary: "Review requested from acme/frontend",
+    });
+  });
+
   it("asks for the user's teams only when a team is asked to review", async () => {
     const user = await makeUser();
     const { requests } = await sync(user.id, asked());
