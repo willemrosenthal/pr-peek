@@ -19,6 +19,8 @@ const MAX_HOURS = 24 * 30;
 const QUIET_FROM = "18:00";
 const QUIET_TO = "09:00";
 const SUMMARY_AT = "09:00";
+// Choices for reminders after red.
+const REMIND_HOURS = [1, 2, 4, 8, 24];
 
 export function TimingTab() {
   const settings = useSettings();
@@ -70,6 +72,7 @@ function TimingSettings({ settings }: { settings: UserSettingsDto }) {
           label="Only count work hours"
           hint="Only weekdays, 9 to 6, count toward orange and red. Ages always show real time."
         />
+        <RemindRow settings={settings} />
         <TimezoneRow settings={settings} />
       </SettingsGroup>
       <SettingsGroup
@@ -147,6 +150,37 @@ function HoursRow({
       {(mistake ?? save.error) && (
         <Alert>{mistake ?? save.error?.message}</Alert>
       )}
+    </CardRow>
+  );
+}
+
+function RemindRow({ settings }: { settings: UserSettingsDto }) {
+  const { save, shown } = useSettingsSaver(settings);
+
+  return (
+    <CardRow>
+      <RowText
+        label="Remind me again every"
+        hint="You get a notification when a review turns orange, and when it turns red. After red, this often again. Counts work hours only if that's on."
+      />
+      <Select
+        aria-label="Remind me again every"
+        value={shown.remindEveryHours ?? ""}
+        onChange={(e) =>
+          save.mutate({
+            remindEveryHours: e.target.value ? Number(e.target.value) : null,
+          })
+        }
+        disabled={save.isPending}
+      >
+        <option value="">Never</option>
+        {REMIND_HOURS.map((hours) => (
+          <option key={hours} value={hours}>
+            {hours === 1 ? "1 hour" : `${hours} hours`}
+          </option>
+        ))}
+      </Select>
+      {save.isError && <Alert>{save.error.message}</Alert>}
     </CardRow>
   );
 }

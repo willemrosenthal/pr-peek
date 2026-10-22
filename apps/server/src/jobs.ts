@@ -5,6 +5,7 @@ export const SYNC_DISPATCH = "sync-dispatch";
 export const SYNC_USER = "sync-user";
 export const NOTIFY_ITEM = "notify-item";
 export const SUMMARY_DISPATCH = "summary-dispatch";
+export const REMINDER_DISPATCH = "reminder-dispatch";
 
 // A sync running longer than this is given up on.
 export const SYNC_TIMEOUT_SECONDS = 10 * 60;
@@ -35,6 +36,7 @@ export async function createQueues(boss: PgBoss): Promise<void> {
   });
   await boss.createQueue(NOTIFY_ITEM);
   await boss.createQueue(SUMMARY_DISPATCH);
+  await boss.createQueue(REMINDER_DISPATCH);
 }
 
 // Queues a sync for the user. False if one was already queued or running.

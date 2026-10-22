@@ -75,6 +75,25 @@ export function staleLevel(
   return "fresh";
 }
 
+export interface ReminderSettings extends WaitSettings {
+  // Hours between reminders once a request is red, or null for none.
+  remindEveryHours: number | null;
+}
+
+// Which reminder a review request is due: "warn" when it turns orange, "late" when it
+// turns red, then "late+1", "late+2", and so on, once per interval. Null while fresh.
+export function reminderStage(
+  waitedMs: number,
+  settings: ReminderSettings,
+): string | null {
+  const level = staleLevel(waitedMs, settings);
+  if (level !== "late") return level === "warn" ? "warn" : null;
+  if (settings.remindEveryHours === null) return "late";
+  const pastLate = waitedMs - settings.staleLateHours * HOUR_MS;
+  const repeats = Math.floor(pastLate / (settings.remindEveryHours * HOUR_MS));
+  return repeats === 0 ? "late" : `late+${repeats}`;
+}
+
 // The real time since `since`, like "12m", "3h", or "2d", rounded down. Ignores work hours.
 export function formatAge(since: string | Date, now: Date): string {
   const waitedMs = Math.max(now.getTime() - new Date(since).getTime(), 0);

@@ -26,6 +26,11 @@ export const updateSettingsBody = z
     staleWarnHours: staleHours,
     staleLateHours: staleHours,
     workHoursOnly: z.boolean(),
+    remindEveryHours: z
+      .int()
+      .min(1)
+      .max(24 * 7)
+      .nullable(),
     quietStart: timeOfDay.nullable(),
     quietEnd: timeOfDay.nullable(),
     quietWeekends: z.boolean(),
@@ -43,6 +48,8 @@ export interface UserSettingsDto {
   staleWarnHours: number;
   staleLateHours: number;
   workHoursOnly: boolean;
+  // Hours between reminders once a review request is red. Null for none.
+  remindEveryHours: number | null;
   quietStart: string | null;
   quietEnd: string | null;
   quietWeekends: boolean;

@@ -176,6 +176,21 @@ describe("quiet hours", () => {
   });
 });
 
+it("sets and clears how often to remind after red", async () => {
+  const fetch = timingApi({ remindEveryHours: 4 }, { remindEveryHours: null });
+  renderApp("/settings/timing");
+
+  const select = await screen.findByLabelText("Remind me again every");
+  expect(select).toHaveProperty("value", "4");
+  await userEvent.selectOptions(select, "Never");
+  await waitFor(() => expect(select).toHaveProperty("value", ""));
+  await userEvent.selectOptions(select, "8 hours");
+  expect(patches(fetch)).toEqual([
+    { remindEveryHours: null },
+    { remindEveryHours: 8 },
+  ]);
+});
+
 it("turns on the morning summary at 9am", async () => {
   const fetch = timingApi({}, { digestTime: "09:00" });
   renderApp("/settings/timing");

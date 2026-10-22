@@ -71,7 +71,9 @@ The `notify:item` job from plan 05.5:
   - `NotificationLog` already has this `(itemId, latestEventId)`.
   - Also: the user already saw the item, or no device takes its severity.
   - (`notifyItem` in `apps/server/src/notify.ts`. It claims the log row before sending, so a retry or a second run never sends twice.)
-- [ ] **Staleness reminders:** a scheduled job finds review requests that just crossed the warn or late threshold and notifies once per threshold. It repeats at the user's "remind every" interval.
+- [x] **Staleness reminders:** a scheduled job finds review requests that just crossed the warn or late threshold and notifies once per threshold. It repeats at the user's "remind every" interval.
+  - Every 5 minutes (`sendDueReminders` in `apps/server/src/reminders.ts`). The stage ("warn", "late", "late+1", ...) is part of the logged event id, so each stage sends once. The interval only repeats after red, and counts work hours only if that setting is on.
+  - It sends the current stage, so on first deploy each request already past orange gets one reminder.
 - [x] **Quiet hours:** inside quiet hours (or on a quiet weekend), don't send. Leave it for the morning summary. High severity can optionally break through quiet hours, as a setting, off by default. (`isQuiet` in core. The setting is `highBreaksQuiet`, "Let high urgency through" on the Timing tab.)
 - [ ] **Batching:** if 3 or more notifications for the same user would go out within 30 seconds (like after a long offline period), send one "5 new things need you" push instead.
 
