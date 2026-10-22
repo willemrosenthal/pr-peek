@@ -76,6 +76,9 @@ export const prSnapshot = z.object({
   reviews: z.array(prReview),
   threads: z.array(prThread),
   comments: z.array(prComment),
+  // The PR's description, as a comment by its author when the PR was opened. Missing in
+  // snapshots stored before it was added.
+  description: prComment.optional(),
   checks: z.object({
     // Null when the commit has no checks.
     state: checkState.nullable(),

@@ -1,4 +1,4 @@
-import type { PrActor, PrComment, PrSnapshot } from "../pr-snapshot";
+import type { PrActor, PrComment, PrSnapshot, PrThread } from "../pr-snapshot";
 import type { DetectedItem, ItemKind, RuleContext } from "./types";
 
 // GitHub logins aren't case sensitive.
@@ -24,6 +24,14 @@ export function latestBy<T>(items: T[], time: (item: T) => string) {
     undefined,
   );
 }
+
+// A review thread the viewer commented in.
+export const isViewerThread = (thread: PrThread, ctx: RuleContext) =>
+  thread.comments.some((comment) => isViewer(comment.author, ctx));
+
+// True if the comment @mentions the viewer.
+export const mentionsViewer = (comment: PrComment, ctx: RuleContext) =>
+  comment.mentions.some((login) => sameLogin(login, ctx.viewerLogin));
 
 // Conversation comments and review thread comments together.
 const allComments = (snapshot: PrSnapshot) => [

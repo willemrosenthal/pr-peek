@@ -5,6 +5,7 @@ export type ItemKind =
   | "review_requested"
   | "re_requested"
   | "reply"
+  | "mention"
   | "reviewed"
   | "commented"
   | "check_failed";

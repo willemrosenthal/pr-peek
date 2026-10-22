@@ -27,7 +27,7 @@ const COMMENT = `id ${ACTOR} bodyText createdAt`;
 const DETAILS_QUERY = `query ($ids: [ID!]!) {
   nodes(ids: $ids) {
     ... on PullRequest {
-      id number title url isDraft updatedAt
+      id number title url isDraft updatedAt createdAt bodyText
       repository { name owner { login } }
       ${ACTOR}
       reviewRequests(first: 50) { nodes { ${REVIEWER} } }
@@ -115,6 +115,8 @@ const rawPr = z.object({
   url: z.string(),
   isDraft: z.boolean(),
   updatedAt: z.string(),
+  createdAt: z.string(),
+  bodyText: z.string(),
   repository: z.object({
     name: z.string(),
     owner: z.object({ login: z.string() }),
@@ -288,6 +290,12 @@ function toSnapshot(raw: RawPr): PrSnapshot {
             submittedAt: review.submittedAt,
           },
     ),
+    description: toComment({
+      id: `body:${raw.id}`,
+      author: raw.author,
+      bodyText: raw.bodyText,
+      createdAt: raw.createdAt,
+    }),
     threads: raw.reviewThreads.nodes.map((thread) => ({
       id: thread.id,
       isResolved: thread.isResolved,

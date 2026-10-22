@@ -118,7 +118,7 @@ describe("syncUser", () => {
 
     expect(result).toMatchObject({ found: 1, fetched: 0 });
     expect(detailIds(requests)).toEqual([]);
-    expect(searchQueries(requests)).toHaveLength(3);
+    expect(searchQueries(requests)).toHaveLength(4);
     const row = await db.pullRequest.findFirstOrThrow();
     expect(row.lastSeenAt).toEqual(later);
   });
@@ -317,6 +317,8 @@ const items = () => db.item.findMany({ orderBy: { kind: "asc" } });
 const openItemCount = () => db.item.count({ where: { status: "open" } });
 const itemOf = async (kind: string) =>
   db.item.findFirstOrThrow({ where: { kind } });
+// The items `asked` makes: a review request, a reply, and a mention.
+const ASKED_ITEMS = 3;
 // GitHub with PR_1 asking octocat to review. See `githubPr` for what else it has.
 const asked = (pr = githubPr(), updatedAt = "2026-10-21T10:00:00Z") => ({
   reviewRequested: [searchHit("PR_1", { repoId: WATCHED, updatedAt })],
@@ -330,21 +332,28 @@ describe("items", () => {
 
     const pr = await db.pullRequest.findFirstOrThrow();
     const saved = await items();
-    // The fixture asks octocat to review, and has a bot reply and a mention after
-    // octocat's thread comment.
+    // The fixture asks octocat to review, and has a bot reply to octocat's thread
+    // comment and a mention after it.
     expect(saved).toMatchObject([
       {
         userId: user.id,
         pullRequestId: pr.id,
-        kind: "reply",
-        dedupeKey: "reply:PR_1",
+        kind: "mention",
+        dedupeKey: "mention:PR_1",
         latestEventId: "IC_1",
-        eventCount: 2,
+        eventCount: 1,
         actorLogin: "ghost",
         occurredAt: new Date("2026-10-21T09:30:00Z"),
         waitingSince: null,
         status: "open",
         seenAt: null,
+      },
+      {
+        kind: "reply",
+        dedupeKey: "reply:PR_1",
+        latestEventId: "C_2",
+        eventCount: 1,
+        actorLogin: "renovate",
       },
       {
         kind: "review_requested",
@@ -362,13 +371,13 @@ describe("items", () => {
   it("notifies only about new events", async () => {
     const user = await makeUser();
     await sync(user.id, asked());
-    const reply = await itemOf("reply");
+    const mention = await itemOf("mention");
     await db.item.updateMany({ data: { seenAt: NOW } });
 
     // The PR changed on GitHub, but nothing new for the user.
     const same = await sync(user.id, asked(githubPr(), "2026-10-21T11:00:00Z"));
     expect(same.result.newEventItemIds).toEqual([]);
-    expect((await itemOf("reply")).seenAt).toEqual(NOW);
+    expect((await itemOf("mention")).seenAt).toEqual(NOW);
 
     const pr = githubPr({
       comments: {
@@ -383,11 +392,11 @@ describe("items", () => {
         ],
       },
     });
-    const replied = await sync(user.id, asked(pr, "2026-10-21T12:00:00Z"));
-    expect(replied.result.newEventItemIds).toEqual([reply.id]);
-    expect(await itemOf("reply")).toMatchObject({
+    const pinged = await sync(user.id, asked(pr, "2026-10-21T12:00:00Z"));
+    expect(pinged.result.newEventItemIds).toEqual([mention.id]);
+    expect(await itemOf("mention")).toMatchObject({
       latestEventId: "IC_2",
-      eventCount: 3,
+      eventCount: 2,
       seenAt: null,
     });
   });
@@ -408,6 +417,7 @@ describe("items", () => {
     await sync(user.id, asked(pr, "2026-10-21T10:30:00Z"), later);
 
     expect(await items()).toMatchObject([
+      { kind: "mention", status: "resolved", resolvedAt: later },
       { kind: "reply", status: "resolved", resolvedAt: later },
       { kind: "review_requested", status: "resolved", resolvedAt: later },
     ]);
@@ -423,7 +433,7 @@ describe("items", () => {
       hours(1),
     );
     expect(result.ended).toBe(0);
-    expect(await openItemCount()).toBe(2);
+    expect(await openItemCount()).toBe(ASKED_ITEMS);
   });
 
   it.each([
@@ -447,7 +457,7 @@ describe("items", () => {
     await sync(user.id, { statuses: closed }, hours(1));
 
     const { result } = await sync(user.id, asked(), hours(2));
-    expect(await openItemCount()).toBe(2);
+    expect(await openItemCount()).toBe(ASKED_ITEMS);
     expect(result.newEventItemIds).toEqual([]);
     expect((await db.pullRequest.findFirstOrThrow()).state).toBe("open");
   });
@@ -467,8 +477,26 @@ describe("items", () => {
 
     await db.watchedRepo.updateMany({ data: { enabled: true } });
     const back = await sync(user.id, asked(), hours(2));
-    expect(await openItemCount()).toBe(2);
+    expect(await openItemCount()).toBe(ASKED_ITEMS);
     expect(back.result.newEventItemIds).toEqual([]);
+  });
+
+  it("lists a PR only the mentions search finds", async () => {
+    const user = await makeUser();
+    const pr = githubPr({
+      reviewRequests: { nodes: [] },
+      reviewThreads: { nodes: [] },
+      bodyText: "cc @octocat",
+    });
+    await sync(user.id, {
+      mentioned: [searchHit("PR_1", { repoId: WATCHED })],
+      prs: { PR_1: pr },
+    });
+    expect((await items()).map((item) => item.kind)).toEqual(["mention"]);
+    expect(await itemOf("mention")).toMatchObject({
+      latestEventId: "IC_1",
+      eventCount: 2,
+    });
   });
 
   it("skips rules the user turned off", async () => {
@@ -478,7 +506,10 @@ describe("items", () => {
       data: { enabled: false },
     });
     await sync(user.id, asked());
-    expect((await items()).map((item) => item.kind)).toEqual(["reply"]);
+    expect((await items()).map((item) => item.kind)).toEqual([
+      "mention",
+      "reply",
+    ]);
   });
 
   it("includes drafts only when the user opts in", async () => {
@@ -509,7 +540,8 @@ describe("items", () => {
       data: { hideBots: true },
     });
     await sync(user.id, asked());
-    expect(await itemOf("reply")).toMatchObject({ eventCount: 1 });
+    // The fixture's only reply is from a bot.
+    expect(await db.item.count({ where: { kind: "reply" } })).toBe(0);
   });
 
   it("makes an item when one of the user's teams is asked to review", async () => {
@@ -604,7 +636,8 @@ describe("rerunRules", () => {
     });
 
     await rerun(user.id);
-    expect(await itemOf("reply")).toMatchObject({ eventCount: 1 });
+    // The fixture's only reply is from a bot.
+    expect((await itemOf("reply")).status).toBe("resolved");
   });
 
   it("leaves PRs that ended alone", async () => {

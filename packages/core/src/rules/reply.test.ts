@@ -58,17 +58,6 @@ describe("reply to my comment", () => {
     });
   });
 
-  it("makes an item for a later comment that mentions you", () => {
-    const pr = snapshot({
-      comments: [
-        comment("C_1", VIEWER, 5),
-        comment("C_2", "sam", 10, { mentions: ["me"] }),
-        comment("C_3", "jlee", 15),
-      ],
-    });
-    expect(detect(pr)[0]).toMatchObject({ latestEventId: "C_2" });
-  });
-
   it("ignores threads you're not in", () => {
     const pr = snapshot({
       comments: [comment("C_0", VIEWER, 1)],
@@ -77,9 +66,12 @@ describe("reply to my comment", () => {
     expect(detect(pr)).toEqual([]);
   });
 
-  it("ignores mentions on a PR you haven't commented on", () => {
+  it("leaves conversation mentions to the mention rule", () => {
     const pr = snapshot({
-      comments: [comment("C_1", "sam", 10, { mentions: ["me"] })],
+      comments: [
+        comment("C_1", VIEWER, 5),
+        comment("C_2", "sam", 10, { mentions: ["me"] }),
+      ],
     });
     expect(detect(pr)).toEqual([]);
   });

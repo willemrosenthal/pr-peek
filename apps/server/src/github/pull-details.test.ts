@@ -82,6 +82,14 @@ describe("fetchPrDetails", () => {
             replyToId: null,
           },
         ],
+        description: {
+          id: "body:PR_1",
+          author: { login: "sam", isBot: false },
+          bodyPreview: "Adds a login page.",
+          mentions: [],
+          createdAt: "2026-10-21T06:00:00Z",
+          replyToId: null,
+        },
         checks: {
           state: "FAILURE",
           failing: [

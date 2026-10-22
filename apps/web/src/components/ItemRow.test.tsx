@@ -37,6 +37,7 @@ it.each<[ItemKind, string]>([
   ["review_requested", "accent"],
   ["re_requested", "accent"],
   ["reply", "reply"],
+  ["mention", "reply"],
   ["reviewed", "success"],
   ["commented", "muted"],
   ["check_failed", "danger"],

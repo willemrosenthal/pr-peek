@@ -39,6 +39,8 @@ export function githubPr(overrides: Record<string, unknown> = {}) {
     url: "https://github.com/acme/web-app/pull/7",
     isDraft: false,
     updatedAt: "2026-10-21T10:00:00Z",
+    createdAt: "2026-10-21T06:00:00Z",
+    bodyText: "Adds a login page.",
     repository: { name: "web-app", owner: { login: "acme" } },
     author: user("sam"),
     reviewRequests: {
@@ -203,6 +205,7 @@ export interface FakePrGitHub {
   reviewRequested?: unknown[];
   authored?: unknown[];
   commented?: unknown[];
+  mentioned?: unknown[];
   // Details by PR id. Missing ids answer null, like a deleted PR.
   prs?: Record<string, unknown>;
   // Status by PR id, for tracked PRs the searches miss (see `searchHit`). Missing ids
@@ -225,11 +228,14 @@ export function prGitHub(fake: FakePrGitHub) {
     }
     if (request.query.includes("search(")) {
       const q = String(request.variables.q);
+      // Each search's own qualifier, since they all also have `-author:@me` or `author:@me`.
       const nodes = q.includes("review-requested:@me")
         ? fake.reviewRequested
         : q.includes("commenter:@me")
           ? fake.commented
-          : fake.authored;
+          : q.includes("mentions:@me")
+            ? fake.mentioned
+            : fake.authored;
       return {
         data: {
           search: {

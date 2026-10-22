@@ -6,6 +6,7 @@ describe("rules", () => {
     expect(rules.map((rule) => rule.id).sort()).toEqual([
       "check_failed",
       "commented",
+      "mention",
       "re_requested",
       "reply",
       "review_requested",

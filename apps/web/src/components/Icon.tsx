@@ -15,6 +15,13 @@ const PATHS = {
     </>
   ),
   reply: <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />,
+  // An @ sign.
+  mention: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.9 7.9" />
+    </>
+  ),
   reviewed: (
     <>
       <circle cx="12" cy="12" r="9" />

@@ -3,13 +3,13 @@ import {
   isAfter,
   isOther,
   isViewer,
-  sameLogin,
+  isViewerThread,
   viewerLastActivity,
 } from "./helpers";
 import type { Rule } from "./types";
 
-// Replies in open threads you commented in, and conversation comments that mention you.
-// Only those after your latest comment or review count.
+// Replies in open review threads you commented in, after your latest comment or review.
+// @mentions elsewhere are the "mention" rule's.
 export const reply: Rule = {
   id: "reply",
   name: "Reply to my comment",
@@ -22,20 +22,13 @@ export const reply: Rule = {
     const since = viewerLastActivity(snapshot, ctx);
     if (since === null) return [];
 
-    const inYourThreads = snapshot.threads
+    const replies = snapshot.threads
+      .filter((thread) => !thread.isResolved && isViewerThread(thread, ctx))
+      .flatMap((thread) => thread.comments)
       .filter(
-        (thread) =>
-          !thread.isResolved &&
-          thread.comments.some((comment) => isViewer(comment.author, ctx)),
-      )
-      .flatMap((thread) => thread.comments);
-    const mentioningYou = snapshot.comments.filter((comment) =>
-      comment.mentions.some((login) => sameLogin(login, ctx.viewerLogin)),
-    );
-    const replies = [...inYourThreads, ...mentioningYou].filter(
-      (comment) =>
-        isOther(comment.author, ctx) && isAfter(comment.createdAt, since),
-    );
+        (comment) =>
+          isOther(comment.author, ctx) && isAfter(comment.createdAt, since),
+      );
     return commentsItem("reply", `reply:${snapshot.id}`, replies);
   },
 };
