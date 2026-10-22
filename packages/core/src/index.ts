@@ -4,3 +4,4 @@ export * from "./api/auth";
 export * from "./api/repos";
 export * from "./pr-snapshot";
 export * from "./rules";
+export * from "./urgency";

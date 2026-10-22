@@ -93,6 +93,7 @@
   - **Repositories:** add, remove, enable, mute.
   - **Rules:** toggle, severity, channels.
   - **Timing:** staleness hours, work hours only, quiet hours, weekends, morning summary time.
+    - Describe "work hours only" as changing only when rows turn orange or red, like "Only count weekdays, 9 to 6, toward overdue". Age labels always show real time.
   - **Devices:** placeholder, filled in by plan 08.
 
 ### 7.7 Making it a PWA

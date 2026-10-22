@@ -99,21 +99,25 @@ There are no snooze or done buttons. An item stays in the list until you act on 
 
 - [x] Each rule returns no item once its "clears when" condition is true. Step 5.5 then resolves it.
 
-### 5.4 Staleness and urgency (`packages/core`)
+### 5.4 Staleness and urgency (`packages/core`, part B)
 
-- [ ] `waitingFor(waitingSince, now, settings)` returns a duration. When `workHoursOnly` is on, it counts only Monday to Friday, 9 to 6, in the user's timezone. Use `date-fns` with `@date-fns/tz`.
-- [ ] `staleLevel(duration, settings)` returns `fresh`, `warn` (orange), or `late` (red).
-- [ ] `formatAge(duration)` returns `12m`, `3h`, `2d`.
-- [ ] `urgencyScore(item, settings, now)`, higher means more urgent:
+All in `packages/core/src/urgency.ts`.
+
+- [x] `waitingFor(waitingSince, now, settings)` returns a duration in milliseconds. When `workHoursOnly` is on, it counts only Monday to Friday, 9 to 6, in the user's timezone. Use `date-fns` with `@date-fns/tz`.
+- [x] `staleLevel(duration, settings)` returns `fresh`, `warn` (orange), or `late` (red).
+- [x] `formatAge(since, now)` returns `12m`, `3h`, `2d`, rounded down. The label always shows real time passed, so `1d` is 24 hours. "Work hours only" changes only the stale level, not the label.
+- [x] `urgencyScore(item, settings, now)`, higher means more urgent:
   - Severity: high 300, normal 200, low 100.
   - Plus staleness: warn +50, late +100.
   - Plus re-requested +40.
   - Plus unseen +25.
   - Ties broken by newest event.
 
-  Keep the weights in one object so they're easy to tune.
+  Keep the weights in one object (`URGENCY_WEIGHTS`) so they're easy to tune. `byUrgency(settings, now)` is a sort function that applies the score and the tie break.
 
-- [ ] Unit tests for all of the above, including work hours across a weekend and a timezone change.
+  The item's severity isn't on the `Item` table. It comes from the user's `RuleSetting` for that kind (part C and plan 06 join them). Items with no `waitingSince` count as fresh.
+
+- [x] Unit tests for all of the above, including work hours across a weekend and the clocks changing (New York, Nov 1, 2026).
 
 ### 5.5 Applying rules on the server
 
