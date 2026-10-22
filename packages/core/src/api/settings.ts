@@ -93,3 +93,11 @@ export interface SettingsResponse {
   settings: UserSettingsDto;
   rules: RuleSettingDto[];
 }
+
+export interface UpdateSettingsResponse {
+  settings: UserSettingsDto;
+}
+
+export interface UpdateRuleResponse {
+  rule: RuleSettingDto;
+}

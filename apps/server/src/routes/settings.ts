@@ -5,6 +5,8 @@ import {
   updateSettingsBody,
   type RuleSettingDto,
   type SettingsResponse,
+  type UpdateRuleResponse,
+  type UpdateSettingsResponse,
   type UserSettingsDto,
 } from "@pr-peek/core";
 import express, { type Request, type Router } from "express";
@@ -107,7 +109,8 @@ export function settingsRouter(deps: SettingsDeps): Router {
       updated.hideBots !== current.hideBots ||
       updated.includeTeamRequests !== current.includeTeamRequests;
     if (affectsRules) await rerun(req, userId);
-    res.json({ settings: toSettingsDto(updated) });
+    const body: UpdateSettingsResponse = { settings: toSettingsDto(updated) };
+    res.json(body);
   });
 
   router.patch("/rules/:ruleId", async (req, res) => {
@@ -139,10 +142,12 @@ export function settingsRouter(deps: SettingsDeps): Router {
     if (changes.enabled !== undefined || changes.options) {
       await rerun(req, userId);
     }
+    // Every rule is in the list, so this always finds it.
     const saved = (await loadRuleSettings(db, userId)).find(
       (s) => s.rule.id === rule.id,
-    );
-    res.json({ rule: saved && toRuleDto(saved) });
+    )!;
+    const body: UpdateRuleResponse = { rule: toRuleDto(saved) };
+    res.json(body);
   });
 
   return router;
