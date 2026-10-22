@@ -45,7 +45,7 @@ describe("upsertGitHubUser", () => {
     expect(user.tokenScopes).toEqual(["repo", "read:org", "notifications"]);
   });
 
-  it("updates the same user on a later sign in and clears the reauth flag", async () => {
+  it("updates the same user on a later sign in and clears sync errors", async () => {
     const first = await upsertGitHubUser(
       db,
       githubUser(),
@@ -55,7 +55,7 @@ describe("upsertGitHubUser", () => {
     );
     await db.user.update({
       where: { id: first.user.id },
-      data: { syncError: "reauth" },
+      data: { syncError: "reauth", syncFailures: 3, syncRetryAt: new Date() },
     });
 
     const second = await upsertGitHubUser(
@@ -71,6 +71,8 @@ describe("upsertGitHubUser", () => {
     expect(second.user).toMatchObject({
       login: "octocat-renamed",
       syncError: null,
+      syncFailures: 0,
+      syncRetryAt: null,
     });
     expect(decrypt(second.user.accessTokenEnc ?? "", TEST_KEY)).toBe("ghu_new");
     expect(await db.userSettings.count()).toBe(1);

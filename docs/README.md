@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [04. GitHub sync](04-github-sync.md), part B: fetch PRs. Parts 0 (#11) and A (#10) merged. C: schedule  |
-| **Branch**         | `plan-04-2-fetch`                                                                                       |
-| **PR**             | [#12](https://github.com/willemrosenthal/pr-peek/pull/12) (part B), draft                               |
-| **Last step done** | 4.2 to 4.4 Search, skip unchanged, fetch details. Tested (131 tests)                                    |
-| **Next step**      | Part C (`plan-04-3-schedule`): 4.5 to 4.7 once part B merges                                            |
-| **Waiting on you** | Try `sync:once` on a real repo (see PR). Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
+|                    |                                                                                                            |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [04. GitHub sync](completed/04-github-sync.md), part C: schedule. Parts 0, A, B merged (#10 to #12)        |
+| **Branch**         | `plan-04-3-schedule`                                                                                       |
+| **PR**             | [#13](https://github.com/willemrosenthal/pr-peek/pull/13) (part C), draft                                  |
+| **Last step done** | 4.5 to 4.8 Worker schedule, backoff, rate limits. Plan 04 finished and moved to `completed/`               |
+| **Next step**      | [05. Rules engine](05-rules-engine.md) once part C merges                                                  |
+| **Waiting on you** | Plan 04 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.
@@ -33,7 +33,7 @@ Plans can be edited while in progress when we learn something. Completed plans a
 | 01  | ✅ [Repo setup](completed/01-repo-setup.md)                                | Empty monorepo that builds, lints, and tests in CI                            |
 | 02  | ✅ [Server foundation and first deploy](completed/02-server-foundation.md) | Express + Prisma live on Render with Supabase Postgres, deploying from `prod` |
 | 03  | ✅ [GitHub sign in](completed/03-github-auth.md)                           | Users can sign in with GitHub. Tokens stored encrypted                        |
-| 04  | [GitHub sync engine](04-github-sync.md)                                    | Worker pulls each user's PRs on a schedule and stores them                    |
+| 04  | ✅ [GitHub sync engine](completed/04-github-sync.md)                       | Worker pulls each user's PRs on a schedule and stores them                    |
 | 05  | [Rules and attention items](05-rules-engine.md)                            | PR data turned into sorted "needs you" items, all 7 cases                     |
 | 06  | [API and live updates](06-api.md)                                          | JSON API for items, repos, settings. SSE stream                               |
 | 07  | [Web app (PWA)](07-web-app.md)                                             | The list (design A2), onboarding, settings. Installable                       |

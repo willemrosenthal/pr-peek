@@ -43,7 +43,13 @@ model User {
   refreshTokenExpiresAt DateTime?
   tokenScopes           String[]
   lastSyncedAt          DateTime?
+  // "reauth" stops syncs until the user signs in again. Other errors retry after a wait.
   syncError             String?
+  // Failed syncs in a row, and when to try again (see sync-schedule.ts).
+  syncFailures          Int        @default(0)
+  syncRetryAt           DateTime?
+  // The last time the user opened the app. Idle users sync less often.
+  lastActiveAt          DateTime   @default(now())
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 

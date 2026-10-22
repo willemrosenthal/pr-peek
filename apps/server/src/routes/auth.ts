@@ -20,7 +20,7 @@ import {
   saveSession,
   SESSION_COOKIE,
 } from "../session";
-import { upsertGitHubUser } from "../users";
+import { markActive, upsertGitHubUser } from "../users";
 
 export interface AuthDeps {
   db: Db;
@@ -41,6 +41,7 @@ export function requireUser(db: Db): RequestHandler {
       });
       return;
     }
+    await markActive(db, user);
     res.locals.user = user;
     next();
   };

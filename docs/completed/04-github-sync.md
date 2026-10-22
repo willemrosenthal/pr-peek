@@ -32,6 +32,10 @@ We use GitHub's **GraphQL API** because one request can fetch a PR plus its revi
 - **`nodes(ids:)` instead of aliases** to fetch a batch of PRs in one query. Simpler, and GitHub returns the others when one PR is gone.
 - **Review events come from `reviews`, not the timeline.** The timeline only fetches review request events. Fetching reviews in both places would double the cost.
 - **New `PullRequest` columns:** `lastSeenAt` (for deleting PRs after 7 days, and for plan 05 to resolve their items) and `githubRepoId`.
+- **Queue names `sync-dispatch` and `sync-user`.** pg-boss doesn't allow colons in names.
+- **A fixed sync interval:** 1 minute for active users, 15 for idle ones. There's no per-user interval setting yet.
+- **Failed syncs retry.** The plan said due users have "no `syncError`", but then a failed user would never sync again. Only `reauth` stops syncs. Other errors set `syncError = "failed"` and retry after the backoff. New `User` columns: `syncFailures`, `syncRetryAt`, and `lastActiveAt`.
+- **Skipped the `GET /notifications` speed up** (optional in 4.6). Search costs are low enough for now.
 - **Added step 4.0, token sign in.** Many company orgs block OAuth Apps until an org owner approves them. Our app can sign people in, but GitHub hides the org's private repos from it. A **personal access token** (PAT, a password-like key the user makes in their own GitHub settings) acts as the user and isn't affected by that block, unless the org also bans classic tokens. Added after part A.
 
 ## Steps
@@ -102,34 +106,37 @@ All in `src/github/pull-details.ts`.
 - [x] Each response is checked with Zod. Body previews are cut to 200 characters on one line. Each comment also lists the logins it @mentions, taken from the full text first, so plan 05's "mentions you" rule works for long comments. Bots are marked with `isBot`. Deleted accounts become `ghost`.
 - [x] Saved as `PullRequest.snapshot`. The `PrSnapshot` type and Zod schema are in `packages/core/src/pr-snapshot.ts`, so plan 05 can read snapshots back and test rules without GitHub.
 
-### 4.5 Scheduling
+### 4.5 Scheduling (part C)
 
-- [ ] A pg-boss scheduled job `sync:dispatch` runs every minute. It finds users who are due (based on `lastSyncedAt`, their interval, and no `syncError`) and enqueues one `sync:user` job each.
-- [ ] `sync:user` jobs use a `singletonKey` of the user id so the same user never syncs twice at once.
-- [ ] Run several jobs at once (start with 5) so one slow user doesn't hold up everyone.
-- [ ] Users who haven't opened the app in 14 days drop to a sync every 15 minutes. Their next visit brings them back to normal right away.
+Wired up in `src/worker.ts`. The logic is in `src/sync-schedule.ts`.
 
-### 4.6 Being a good API citizen
+- [x] A pg-boss scheduled job `sync-dispatch` runs every minute. `dueUserIds` finds users who are due: an enabled watched repo, `syncError` not `reauth`, `syncRetryAt` passed, and `lastSyncedAt` older than their interval. It enqueues one `sync-user` job each.
+- [x] The `sync-user` queue uses the `exclusive` policy with a `singletonKey` of the user id, so a user never has two syncs queued or running. pg-boss retries are off, since `runSync` backs off itself.
+- [x] 5 jobs run at once, so one slow user doesn't hold up everyone.
+- [x] Users who haven't opened the app in 14 days (`lastActiveAt`, saved at most hourly by `requireUser`) drop to a sync every 15 minutes. Their next visit brings them back to normal right away.
+- [x] pg-boss shares the worker's database pool with Prisma.
 
-- [ ] The Octokit throttling plugin waits and retries when GitHub says we hit a limit.
-- [ ] Log the remaining GraphQL points after each sync. If a user gets low, slow down their schedule.
-- [ ] Optional speed up: call `GET /notifications` with `If-Modified-Since` first. If GitHub returns 304 (nothing new) and no check fetch is due, skip the searches. Needs the `notifications` scope.
+### 4.6 Being a good API citizen (part C)
 
-### 4.7 Errors
+- [x] The Octokit throttling plugin (built into the `octokit` package) retries once when GitHub says we hit a limit, but only if the wait is 60 seconds or less. Longer waits fail the sync, which then waits for the reset.
+- [x] Log the remaining GraphQL points after each sync (read from GitHub's `x-ratelimit-*` headers). Under 500 points, the next sync waits for the limit to reset.
+- Skipped: the optional `GET /notifications` speed up (see Changes above).
 
-- [ ] On failure, save `syncError` and back off: 2, 4, 8 minutes, up to 30.
-- [ ] 401 from GitHub sets `syncError = "reauth"` (see plan 03).
-- [x] One PR failing to parse, or gone, doesn't fail the whole sync. It's skipped and listed in the sync result's `failed` (done in part B). The worker logs it in part C.
+### 4.7 Errors (part C)
+
+- [x] On failure, `runSync` sets `syncError = "failed"` and backs off: 2, 4, 8, 16, then 30 minutes. If GitHub's rate limit resets later than that, it waits for the reset. A good sync clears it all, and so does signing in again.
+- [x] 401 from GitHub sets `syncError = "reauth"` (see plan 03), and the user isn't synced again until they sign in.
+- [x] One PR failing to parse, or gone, doesn't fail the whole sync. It's skipped and listed in the sync result's `failed`, which the worker logs.
 
 ### 4.8 Tests
 
 - [x] GitHub-shaped test data in `apps/server/test/pulls.ts`, served by `fakeGraphQL`. Written by hand, since real responses would contain other people's data. The queries were run once against real GitHub to confirm every field exists.
 - [x] Tests for change detection, check changes, batching, a PR dropping out and being deleted, partial "not found" answers, and the snapshot shape (part B).
-- [ ] Tests for rate limit retry and 401 handling (part C).
+- [x] Tests for who is due, backoff, rate limit retry and waiting, 401 handling, and `lastActiveAt` (part C).
 
 ## Done when
 
-- [ ] Add your real repos locally and watch the worker fill `PullRequest` rows within 2 minutes.
-- [ ] A second sync with nothing changed makes only the search calls (and check calls for your PRs), visible in logs.
-- [ ] Pushing a commit to one of your PRs updates its `headSha` and `checkState` on the next sync.
-- [ ] Tests pass for all cases in 4.8.
+- [ ] **(You)** Add your real repos locally and watch the worker (`pnpm dev`) fill `PullRequest` rows within 2 minutes.
+- [ ] **(You)** A second sync with nothing changed shows `fetched: 0` in the worker's "sync done" log line.
+- [ ] **(You)** Pushing a commit to one of your PRs updates its `headSha` and `checkState` on the next sync.
+- [x] Tests pass for all cases in 4.8.

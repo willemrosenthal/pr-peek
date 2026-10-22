@@ -59,6 +59,44 @@ describe("getOctokit", () => {
     expect(await syncError()).toBe("reauth");
   });
 
+  describe("when GitHub's rate limit runs out", () => {
+    const limited = (resetInSeconds: number) =>
+      Response.json(
+        { message: "API rate limit exceeded" },
+        {
+          status: 403,
+          headers: {
+            "x-ratelimit-remaining": "0",
+            "x-ratelimit-reset": String(
+              Math.floor(Date.now() / 1000) + resetInSeconds,
+            ),
+          },
+        },
+      );
+
+    it("waits and retries once if the reset is soon", async () => {
+      const github = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(limited(0))
+        .mockResolvedValueOnce(Response.json({ login: "octocat" }));
+      const { octokit } = await setup(github);
+
+      const { data } = await octokit.rest.users.getAuthenticated();
+      expect(data.login).toBe("octocat");
+      expect(github).toHaveBeenCalledTimes(2);
+    });
+
+    it("fails right away if the reset is far off", async () => {
+      const github = vi.fn<typeof fetch>().mockResolvedValue(limited(60 * 60));
+      const { octokit } = await setup(github);
+
+      await expect(octokit.rest.users.getAuthenticated()).rejects.toMatchObject(
+        { status: 403 },
+      );
+      expect(github).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("leaves the user alone on other errors", async () => {
     const { octokit, syncError } = await setup(
       fakeGitHub(404, { message: "Not Found" }),
