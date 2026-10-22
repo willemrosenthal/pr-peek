@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [07. Web app](07-web-app.md), part 1 of 4: setup and sign in. Plan 06 done (#19)                                                                      |
 | **Branch**         | `plan-07-1-setup`                                                                                                                                     |
-| **PR**             | Part 1, draft                                                                                                                                         |
+| **PR**             | [#20](https://github.com/willemrosenthal/pr-peek/pull/20) (part 1), draft                                                                             |
 | **Last step done** | Vite + React app, sign in with GitHub or a token, design tokens from A2                                                                               |
 | **Next step**      | Part 2 (`plan-07-2-list`): the list, once part 1 merges                                                                                               |
 | **Waiting on you** | Set `APP_URL=http://localhost:5173` in `.env`. Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
