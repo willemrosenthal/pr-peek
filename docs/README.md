@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ----------------------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [06. API and live updates](06-api.md), part A: items. B: settings. C: live updates                                |
 | **Branch**         | `plan-06-1-items`                                                                                                 |
-| **PR**             | Not open yet                                                                                                      |
+| **PR**             | [#17](https://github.com/willemrosenthal/pr-peek/pull/17) (part A), draft                                         |
 | **Last step done** | 6.1 and the items, seen, and summary endpoints                                                                    |
 | **Next step**      | Part B (`plan-06-2-settings`) once part A merges                                                                  |
 | **Waiting on you** | Plan 04 and 05 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
