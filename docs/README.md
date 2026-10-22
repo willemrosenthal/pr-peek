@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Current plan**   | [07. Web app](07-web-app.md), part 4c: the Timing tab. Parts 1 to 4b and 3g (#20 to #30) merged                                                                                      |
 | **Branch**         | `plan-07-4c-timing`                                                                                                                                                                  |
-| **PR**             | Part 4c, draft                                                                                                                                                                       |
+| **PR**             | [#31](https://github.com/willemrosenthal/pr-peek/pull/31) (part 4c), draft                                                                                                           |
 | **Last step done** | The Timing tab: overdue hours, work hours, timezone, quiet hours, weekends, morning summary                                                                                          |
 | **Next step**      | Part 5 (PWA and the Playwright smoke test)                                                                                                                                           |
 | **Waiting on you** | Add repos, then the part 3b stream check in DevTools (PR #23, steps 3 and 4). Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
