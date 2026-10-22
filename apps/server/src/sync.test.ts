@@ -234,6 +234,39 @@ describe("syncUser", () => {
     expect(result.ended).toBe(0);
   });
 
+  it("fetches a missed PR that changed", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+
+    const updatedAt = "2026-10-21T11:00:00Z";
+    const { requests } = await sync(
+      user.id,
+      {
+        statuses: { PR_1: searchHit("PR_1", { updatedAt }) },
+        prs: { PR_1: githubPr({ title: "Add login v2", updatedAt }) },
+      },
+      hours(1),
+    );
+    expect(detailIds(requests)).toEqual(["PR_1"]);
+    expect((await db.pullRequest.findFirstOrThrow()).title).toBe(
+      "Add login v2",
+    );
+  });
+
+  it("stops tracking a PR moved to a repo the user doesn't watch", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+
+    const moved = searchHit("PR_1", { repoId: UNWATCHED });
+    const { result } = await sync(
+      user.id,
+      { reviewRequested: [moved], statuses: { PR_1: moved } },
+      hours(1),
+    );
+    expect(result.ended).toBe(1);
+    expect((await db.pullRequest.findFirstOrThrow()).state).toBe("unwatched");
+  });
+
   it("reports PRs it couldn't read and saves the rest", async () => {
     const user = await makeUser();
     const { result } = await sync(user.id, {

@@ -146,9 +146,10 @@ async function fetchFromGitHub(
   );
   const searchedIds = found.map((pr) => pr.id);
 
+  const searched = new Set(searchedIds);
   const missedIds = tracked
     .filter(
-      (pr) => watchedIds.has(pr.githubRepoId) && !all.has(pr.githubNodeId),
+      (pr) => watchedIds.has(pr.githubRepoId) && !searched.has(pr.githubNodeId),
     )
     .map((pr) => pr.githubNodeId);
   const open = [...found];
@@ -156,6 +157,8 @@ async function fetchFromGitHub(
     if (!status) ended.set(id, "gone");
     else if (status.state === "MERGED") ended.set(id, "merged");
     else if (status.state === "CLOSED") ended.set(id, "closed");
+    // Moved to a repo the user doesn't watch.
+    else if (!watchedIds.has(status.githubRepoId)) ended.set(id, "unwatched");
     else open.push(status);
   }
 

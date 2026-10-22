@@ -189,6 +189,7 @@
 - [x] Re-running rules after a settings change uses every open tracked PR.
 - [x] Your own PRs are spotted by their stored author, not by which search found them, so a tracked PR's check changes are still fetched.
 - [x] Tests: one search missing an open PR keeps its items. Merged, closed, gone, and paused-repo PRs resolve theirs. A row with open items lives past 7 days.
+- After the deploy: a PR the last old sync wrongly dropped stays off the list until it next changes on GitHub. Rare, and it fixes itself.
 
 ### 7.10 "Update branch" doesn't count (part 3d)
 
