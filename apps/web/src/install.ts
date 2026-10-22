@@ -71,9 +71,7 @@ export function detectPlatform(): Platform {
   // Chrome and Edge also say "Safari", so check for them first. Android browsers
   // all install from their menu, like Chrome.
   if (/Chrome|Chromium|Edg\/|Android/.test(ua)) return "chromium";
-  if (/Macintosh/.test(ua) && /Safari/.test(ua) && !/Firefox/.test(ua)) {
-    return "mac-safari";
-  }
+  if (/Macintosh/.test(ua) && /Safari/.test(ua)) return "mac-safari";
   return "other";
 }
 
