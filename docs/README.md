@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ---------------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [05. Rules engine](05-rules-engine.md), part A: rules. B: urgency. C: apply on the server                  |
 | **Branch**         | `plan-05-1-rules`                                                                                          |
-| **PR**             | Not open yet                                                                                               |
+| **PR**             | [#14](https://github.com/willemrosenthal/pr-peek/pull/14) (part A), draft                                  |
 | **Last step done** | 5.1 to 5.3 Rule types and the six rules, in `packages/core`                                                |
 | **Next step**      | Part B (`plan-05-2-urgency`): 5.4 once part A merges                                                       |
 | **Waiting on you** | Plan 04 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
