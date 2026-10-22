@@ -1,10 +1,14 @@
 import type { ItemGroup, ItemsResponse } from "@pr-peek/core";
+import { useMemo } from "react";
 import { Link } from "react-router";
 import { Alert } from "../components/Alert";
 import { Banners } from "../components/Banners";
 import { Button } from "../components/Button";
 import { ItemSection } from "../components/ItemSection";
 import { ListHeader } from "../components/ListHeader";
+import { cx } from "../cx";
+import { useIsTray } from "../hooks/useIsTray";
+import { useMarkSeen } from "../hooks/useMarkSeen";
 import { useStoredState } from "../hooks/useStoredState";
 import { useSync } from "../hooks/useSync";
 import { useItems, useMe, useRepos } from "../queries";
@@ -23,9 +27,10 @@ const isGroupList = (value: unknown): value is ItemGroup[] =>
 export function ListPage() {
   const me = useMe();
   const sync = useSync();
+  const tray = useIsTray();
 
   return (
-    <main className={styles.page}>
+    <main className={cx(styles.page, tray && styles.tray)}>
       <div className={styles.panel}>
         <div className={styles.top}>
           <ListHeader
@@ -41,6 +46,14 @@ export function ListPage() {
           )}
         </div>
         <ListBody />
+        {tray && (
+          <footer className={styles.footer}>
+            {/* Quit comes with the menu bar app in plan 09. */}
+            <a href="/" target="_blank" rel="noopener noreferrer">
+              Open in browser
+            </a>
+          </footer>
+        )}
       </div>
     </main>
   );
@@ -76,6 +89,16 @@ function Sections({ groups }: { groups: ItemsResponse }) {
     setCollapsed(
       open ? collapsed.filter((g) => g !== group) : [...collapsed, group],
     );
+
+  const unseenIds = useMemo(
+    () =>
+      SECTIONS.filter(({ group }) => !collapsed.includes(group))
+        .flatMap(({ group }) => groups[group])
+        .filter((item) => item.unseen)
+        .map((item) => item.id),
+    [groups, collapsed],
+  );
+  useMarkSeen(unseenIds);
 
   return SECTIONS.filter(({ group }) => groups[group].length > 0).map(
     ({ group, title }) => (

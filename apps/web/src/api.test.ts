@@ -14,6 +14,7 @@ describe("api", () => {
     expect(fetch).toHaveBeenCalledWith("/api/repos", {
       method: "POST",
       credentials: "same-origin",
+      keepalive: false,
       headers: { "Content-Type": "application/json" },
       body: '{"owner":"acme"}',
     });

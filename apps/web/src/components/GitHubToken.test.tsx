@@ -2,7 +2,14 @@ import type { GitHubTokenDto } from "@pr-peek/core";
 import { screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
-import { apiError, fakeApi, json, me } from "../test/fake-api";
+import {
+  apiError,
+  fakeApi,
+  json,
+  me,
+  noContent,
+  signedInApi,
+} from "../test/fake-api";
 import { renderApp } from "../test/render";
 
 const TOKEN: GitHubTokenDto = {
@@ -10,6 +17,9 @@ const TOKEN: GitHubTokenDto = {
   scopes: ["repo", "read:org"],
   invalid: false,
 };
+
+const settingsApi = (handlers: Record<string, () => Response>) =>
+  fakeApi(signedInApi(handlers));
 
 async function saveToken(token: string) {
   await userEvent.type(
@@ -21,7 +31,7 @@ async function saveToken(token: string) {
 
 it("adds a token", async () => {
   let githubToken: GitHubTokenDto | null = null;
-  const fetch = fakeApi({
+  const fetch = settingsApi({
     "GET /api/me": () => json(me({ githubToken })),
     "PUT /api/github-token": () => {
       githubToken = TOKEN;
@@ -39,8 +49,7 @@ it("adds a token", async () => {
 });
 
 it("shows the server's message when the token is refused", async () => {
-  fakeApi({
-    "GET /api/me": () => json(me()),
+  settingsApi({
     "PUT /api/github-token": () =>
       apiError(400, "wrong_account", "This token belongs to someone-else."),
   });
@@ -53,7 +62,7 @@ it("shows the server's message when the token is refused", async () => {
 });
 
 it("asks for a new token when the saved one stopped working", async () => {
-  fakeApi({
+  settingsApi({
     "GET /api/me": () => json(me({ githubToken: { ...TOKEN, invalid: true } })),
   });
   renderApp("/settings");
@@ -63,7 +72,7 @@ it("asks for a new token when the saved one stopped working", async () => {
 });
 
 it("replaces the token", async () => {
-  fakeApi({
+  settingsApi({
     "GET /api/me": () => json(me({ githubToken: TOKEN })),
     "PUT /api/github-token": () => json({ githubToken: TOKEN }),
   });
@@ -75,7 +84,7 @@ it("replaces the token", async () => {
 });
 
 it("can cancel replacing the token", async () => {
-  fakeApi({ "GET /api/me": () => json(me({ githubToken: TOKEN })) });
+  settingsApi({ "GET /api/me": () => json(me({ githubToken: TOKEN })) });
   renderApp("/settings");
 
   await userEvent.click(await screen.findByRole("button", { name: "Replace" }));
@@ -84,7 +93,7 @@ it("can cancel replacing the token", async () => {
 });
 
 it("has no cancel when there's no working token", async () => {
-  fakeApi({ "GET /api/me": () => json(me()) });
+  settingsApi({});
   renderApp("/settings");
   await screen.findByLabelText("Personal access token");
   expect(screen.queryByRole("button", { name: "Cancel" })).toBe(null);
@@ -92,11 +101,11 @@ it("has no cancel when there's no working token", async () => {
 
 it("removes the token", async () => {
   let githubToken: GitHubTokenDto | null = TOKEN;
-  fakeApi({
+  settingsApi({
     "GET /api/me": () => json(me({ githubToken })),
     "DELETE /api/github-token": () => {
       githubToken = null;
-      return new Response(null, { status: 204 });
+      return noContent();
     },
   });
   renderApp("/settings");

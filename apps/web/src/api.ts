@@ -13,16 +13,19 @@ export class ApiError extends Error {
 interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
+  // Lets the request finish after the page closes.
+  keepalive?: boolean;
 }
 
 // Calls `/api<path>` and returns the JSON answer. Throws ApiError for error answers.
 export async function api<T>(
   path: string,
-  { method = "GET", body }: RequestOptions = {},
+  { method = "GET", body, keepalive = false }: RequestOptions = {},
 ): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
     credentials: "same-origin",
+    keepalive,
     ...(body === undefined
       ? {}
       : {

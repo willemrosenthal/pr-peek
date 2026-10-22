@@ -1,18 +1,27 @@
 import { screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
-import { fakeApi, json, me, signedOut } from "../test/fake-api";
+import {
+  fakeApi,
+  json,
+  me,
+  noContent,
+  signedInApi,
+  signedOut,
+} from "../test/fake-api";
 import { renderApp } from "../test/render";
 
 it("signs out and goes to sign in", async () => {
   let signedIn = true;
-  fakeApi({
-    "GET /api/me": () => (signedIn ? json(me()) : signedOut()),
-    "POST /api/auth/signout": () => {
-      signedIn = false;
-      return new Response(null, { status: 204 });
-    },
-  });
+  fakeApi(
+    signedInApi({
+      "GET /api/me": () => (signedIn ? json(me()) : signedOut()),
+      "POST /api/auth/signout": () => {
+        signedIn = false;
+        return noContent();
+      },
+    }),
+  );
   const { router } = renderApp("/settings");
 
   await userEvent.click(

@@ -25,7 +25,7 @@ export function itemsRouter(deps: ItemDeps): Router {
     res.json(summarize(items));
   });
 
-  // Called when the list is opened. Items the user can't see are skipped.
+  // Called when the user leaves the list. Items the user can't see are skipped.
   router.post("/items/seen", async (req, res) => {
     const { ids } = parseInput(markSeenBody, req.body);
     await deps.db.item.updateMany({

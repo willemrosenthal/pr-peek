@@ -2,6 +2,7 @@ import type {
   ItemDto,
   ItemsResponse,
   MeResponse,
+  SummaryResponse,
   SyncStatusResponse,
 } from "@pr-peek/core";
 import { vi } from "vitest";
@@ -23,6 +24,10 @@ export function fakeApi(handlers: Record<string, () => Response>) {
   vi.stubGlobal("fetch", fetch);
   return fetch;
 }
+
+// The calls the fake got for `url`.
+export const callsTo = (fetch: ReturnType<typeof fakeApi>, url: string) =>
+  fetch.mock.calls.filter(([calledUrl]) => calledUrl === url);
 
 export const json = (body: unknown, status = 200) =>
   Response.json(body, { status });
@@ -75,12 +80,36 @@ export const syncStatus = (
   ...fields,
 });
 
+export const summary = (
+  fields: Partial<SummaryResponse> = {},
+): SummaryResponse => ({
+  total: 0,
+  review: 0,
+  replies: 0,
+  mine: 0,
+  hasStale: false,
+  hasFailing: false,
+  ...fields,
+});
+
+export const noContent = () => new Response(null, { status: 204 });
+
+// What every signed in page asks for.
+export const signedInApi = (
+  overrides: Record<string, () => Response> = {},
+): Record<string, () => Response> => ({
+  "GET /api/me": () => json(me()),
+  "GET /api/summary": () => json(summary()),
+  ...overrides,
+});
+
 // What the list page asks for: a signed in user with nothing to show.
 export const listApi = (
   overrides: Record<string, () => Response> = {},
 ): Record<string, () => Response> => ({
-  "GET /api/me": () => json(me()),
+  ...signedInApi(),
   "GET /api/items": () => json(groups()),
+  "POST /api/items/seen": noContent,
   "GET /api/sync/status": () => json(syncStatus()),
   "GET /api/repos": () => json({ repos: [{ id: "r1" }] }),
   ...overrides,

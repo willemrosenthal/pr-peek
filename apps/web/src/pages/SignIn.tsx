@@ -18,7 +18,8 @@ export function SignIn() {
   const [params] = useSearchParams();
   const [publicOnly, setPublicOnly] = useState(false);
 
-  if (me.data && !me.data.needsReauth) return <Navigate to="/" replace />;
+  // A failed check keeps the old data, so check it succeeded.
+  if (me.isSuccess && !me.data.needsReauth) return <Navigate to="/" replace />;
 
   const errorCode = params.get("error");
   const error = errorCode
