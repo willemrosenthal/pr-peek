@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [07. Web app](07-web-app.md), part 3b: live updates. Parts 1 (#20), 2 (#21), and 3a (#22) merged                                                  |
 | **Branch**         | `plan-07-3b-live`                                                                                                                                 |
-| **PR**             | Part 3b, draft                                                                                                                                    |
+| **PR**             | [#23](https://github.com/willemrosenthal/pr-peek/pull/23) (part 3b), draft                                                                        |
 | **Last step done** | Live updates, marking seen when you leave the list, the app badge, tray mode                                                                      |
 | **Next step**      | Part 4 (`plan-07-4-settings`): onboarding and settings, once 3b merges                                                                            |
 | **Waiting on you** | Check the stream in DevTools (see the PR). Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
