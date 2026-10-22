@@ -28,8 +28,6 @@ export interface RepoOption {
   owner: string;
   name: string;
   isPrivate: boolean;
-  // Already in the user's watch list.
-  watched: boolean;
 }
 
 export interface SearchReposResponse {
@@ -49,4 +47,9 @@ export interface WatchedRepoDto {
 
 export interface WatchedReposResponse {
   repos: WatchedRepoDto[];
+}
+
+// From POST /api/repos.
+export interface AddRepoResponse {
+  repo: WatchedRepoDto;
 }

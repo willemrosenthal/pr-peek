@@ -1,0 +1,103 @@
+.page {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 760px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+/* Desktop: the tab list on the left, as in the mockup. */
+.body {
+  display: flex;
+  gap: var(--space-5);
+}
+
+.tabs {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+  width: 180px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.tab:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.active {
+  background: var(--color-surface-muted);
+  font-weight: 600;
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.tabTitle {
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--color-text-secondary);
+}
+
+/* Phone: the tabs become a row that scrolls sideways. */
+@media (max-width: 600px) {
+  .page {
+    padding: var(--space-4);
+  }
+
+  .body {
+    flex-direction: column;
+  }
+
+  .tabs {
+    flex-direction: row;
+    width: auto;
+    overflow-x: auto;
+  }
+
+  .tab {
+    flex: none;
+    min-height: var(--touch-target);
+  }
+}

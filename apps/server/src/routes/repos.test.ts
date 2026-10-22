@@ -69,28 +69,15 @@ const add = (agent: Awaited<ReturnType<typeof setup>>["agent"], name: string) =>
   agent.post("/api/repos").set("Origin", APP_URL).send({ owner: "acme", name });
 
 describe("GET /api/github/repos", () => {
-  it("lists the user's repos, skipping archived ones and marking watched ones", async () => {
+  it("lists the user's repos, skipping archived ones", async () => {
     const { agent } = await setup();
-    await add(agent, "web-app");
 
     const res = await agent.get("/api/github/repos");
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       repos: [
-        {
-          githubRepoId: 1,
-          owner: "acme",
-          name: "web-app",
-          isPrivate: false,
-          watched: true,
-        },
-        {
-          githubRepoId: 3,
-          owner: "acme",
-          name: "api",
-          isPrivate: true,
-          watched: false,
-        },
+        { githubRepoId: 1, owner: "acme", name: "web-app", isPrivate: false },
+        { githubRepoId: 3, owner: "acme", name: "api", isPrivate: true },
       ],
       nextCursor: "cursor-2",
     });

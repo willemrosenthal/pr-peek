@@ -1,18 +1,7 @@
+import type { RepoOption, SearchReposResponse } from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import { isNotFound } from "./errors";
-
-export interface GitHubRepo {
-  githubRepoId: number;
-  owner: string;
-  name: string;
-  isPrivate: boolean;
-}
-
-export interface GitHubRepoPage {
-  repos: GitHubRepo[];
-  nextCursor: string | null;
-}
 
 const PAGE_SIZE = 20;
 
@@ -37,7 +26,7 @@ const page = z.object({
 
 type RepoNode = z.infer<typeof repoNode>;
 
-function toGitHubRepo(node: RepoNode): GitHubRepo {
+function toRepoOption(node: RepoNode): RepoOption {
   return {
     githubRepoId: node.databaseId,
     owner: node.owner.login,
@@ -46,11 +35,11 @@ function toGitHubRepo(node: RepoNode): GitHubRepo {
   };
 }
 
-function toPage(raw: z.infer<typeof page>): GitHubRepoPage {
+function toPage(raw: z.infer<typeof page>): SearchReposResponse {
   const repos = raw.nodes
     .filter((node): node is RepoNode => !!node && "databaseId" in node)
     .filter((node) => !node.isArchived)
-    .map(toGitHubRepo);
+    .map(toRepoOption);
   return {
     repos,
     nextCursor: raw.pageInfo.hasNextPage ? raw.pageInfo.endCursor : null,
@@ -61,7 +50,7 @@ function toPage(raw: z.infer<typeof page>): GitHubRepoPage {
 export async function searchRepos(
   octokit: Octokit,
   options: { query?: string | undefined; cursor?: string | undefined },
-): Promise<GitHubRepoPage> {
+): Promise<SearchReposResponse> {
   const cursor = options.cursor ?? null;
 
   if (!options.query) {
@@ -106,7 +95,7 @@ export async function findRepo(
   octokit: Octokit,
   owner: string,
   name: string,
-): Promise<GitHubRepo | null> {
+): Promise<RepoOption | null> {
   try {
     const data = await octokit.graphql(
       `query ($owner: String!, $name: String!) {
@@ -114,7 +103,7 @@ export async function findRepo(
       }`,
       { owner, name },
     );
-    return toGitHubRepo(
+    return toRepoOption(
       z.object({ repository: repoNode }).parse(data).repository,
     );
   } catch (err) {

@@ -2,16 +2,22 @@ import type {
   ItemDto,
   ItemsResponse,
   MeResponse,
+  RepoOption,
+  SearchReposResponse,
   SummaryResponse,
   SyncStatusResponse,
+  WatchedRepoDto,
 } from "@pr-peek/core";
 import { vi } from "vitest";
 
 // Requests with no fake. Checked after each test (setup.ts), since the app catches the error.
 export const unknownRequests: string[] = [];
 
-// Fakes the API. Keys look like "GET /api/me".
-export function fakeApi(handlers: Record<string, () => Response>) {
+// Fake answers, keyed like "GET /api/me". A promise holds the request open.
+export type Handlers = Record<string, () => Response | Promise<Response>>;
+
+// Fakes the API.
+export function fakeApi(handlers: Handlers) {
   const fetch = vi.fn((url: string, init: RequestInit = {}) => {
     const key = `${init.method ?? "GET"} ${url}`;
     const handler = handlers[key];
@@ -28,6 +34,12 @@ export function fakeApi(handlers: Record<string, () => Response>) {
 // The calls the fake got for `url`.
 export const callsTo = (fetch: ReturnType<typeof fakeApi>, url: string) =>
   fetch.mock.calls.filter(([calledUrl]) => calledUrl === url);
+
+// The JSON bodies the fake got for `key`, like "POST /api/repos".
+export const sentBodies = (fetch: ReturnType<typeof fakeApi>, key: string) =>
+  fetch.mock.calls
+    .filter(([url, init = {}]) => `${init.method ?? "GET"} ${url}` === key)
+    .map(([, init]) => JSON.parse(init!.body as string) as unknown);
 
 export const json = (body: unknown, status = 200) =>
   Response.json(body, { status });
@@ -71,6 +83,39 @@ export const groups = (fields: Partial<ItemsResponse> = {}): ItemsResponse => ({
   ...fields,
 });
 
+let repoCount = 0;
+
+export const watchedRepo = (
+  fields: Partial<WatchedRepoDto> = {},
+): WatchedRepoDto => {
+  repoCount += 1;
+  return {
+    id: `repo-${repoCount}`,
+    githubRepoId: repoCount,
+    owner: "acme",
+    name: `repo-${repoCount}`,
+    enabled: true,
+    muted: false,
+    ...fields,
+  };
+};
+
+export const repoOption = (fields: Partial<RepoOption> = {}): RepoOption => {
+  repoCount += 1;
+  return {
+    githubRepoId: repoCount,
+    owner: "acme",
+    name: `repo-${repoCount}`,
+    isPrivate: false,
+    ...fields,
+  };
+};
+
+export const searchResults = (
+  repos: RepoOption[] = [],
+  nextCursor: string | null = null,
+): SearchReposResponse => ({ repos, nextCursor });
+
 export const syncStatus = (
   fields: Partial<SyncStatusResponse> = {},
 ): SyncStatusResponse => ({
@@ -95,23 +140,19 @@ export const summary = (
 export const noContent = () => new Response(null, { status: 204 });
 
 // What every signed in page asks for.
-export const signedInApi = (
-  overrides: Record<string, () => Response> = {},
-): Record<string, () => Response> => ({
+export const signedInApi = (overrides: Handlers = {}): Handlers => ({
   "GET /api/me": () => json(me()),
   "GET /api/summary": () => json(summary()),
   ...overrides,
 });
 
 // What the list page asks for: a signed in user with nothing to show.
-export const listApi = (
-  overrides: Record<string, () => Response> = {},
-): Record<string, () => Response> => ({
+export const listApi = (overrides: Handlers = {}): Handlers => ({
   ...signedInApi(),
   "GET /api/items": () => json(groups()),
   "POST /api/items/seen": noContent,
   "GET /api/sync/status": () => json(syncStatus()),
-  "GET /api/repos": () => json({ repos: [{ id: "r1" }] }),
+  "GET /api/repos": () => json({ repos: [watchedRepo()] }),
   ...overrides,
 });
 

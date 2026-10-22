@@ -9,6 +9,7 @@ import {
   me,
   noContent,
   signedInApi,
+  type Handlers,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
 
@@ -18,8 +19,7 @@ const TOKEN: GitHubTokenDto = {
   invalid: false,
 };
 
-const settingsApi = (handlers: Record<string, () => Response>) =>
-  fakeApi(signedInApi(handlers));
+const settingsApi = (handlers: Handlers) => fakeApi(signedInApi(handlers));
 
 async function saveToken(token: string) {
   await userEvent.type(

@@ -122,7 +122,7 @@ function EmptyList() {
         <p className={styles.emptyTitle}>You're not watching any repos yet</p>
         <p>
           Pick the repos pr-peek should watch in{" "}
-          <Link to="/settings">settings</Link>.
+          <Link to="/settings/repos">settings</Link>.
         </p>
       </div>
     );

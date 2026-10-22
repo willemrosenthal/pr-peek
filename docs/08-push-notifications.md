@@ -42,6 +42,7 @@ No third party account is needed. The `web-push` npm package handles the encrypt
 - [ ] Settings, Devices lists each subscription with its label, last success time, a "Send test" button, and Remove.
 - [ ] Each device can choose which severities it gets. For example: phone gets high only, Mac gets everything. Add a `minSeverity` field to `PushSubscription`.
 - [ ] Re-check the subscription each time the app opens. If the browser changed it, update it on the server.
+- [ ] Add a Mute switch to each repo in Settings, Repositories (`components/WatchedRepos.tsx`, plan 07 part 4a). `PATCH /api/repos/:id` already takes `muted`.
 
 ### 8.3 Deciding whether to notify
 

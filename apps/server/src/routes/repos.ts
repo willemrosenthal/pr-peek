@@ -3,7 +3,7 @@ import {
   MAX_WATCHED_REPOS,
   searchReposQuery,
   updateRepoBody,
-  type SearchReposResponse,
+  type AddRepoResponse,
   type WatchedRepoDto,
   type WatchedReposResponse,
 } from "@pr-peek/core";
@@ -44,27 +44,9 @@ export function reposRouter(deps: RepoDeps): Router {
 
   // Repos the user could add, for the picker.
   router.get("/github/repos", async (req, res) => {
-    const user = currentUser(res);
     const { query, cursor } = parseInput(searchReposQuery, req.query);
-    const page = await searchRepos(await deps.github(user.id), {
-      query,
-      cursor,
-    });
-
-    const watched = await deps.db.watchedRepo.findMany({
-      where: { userId: user.id },
-      select: { githubRepoId: true },
-    });
-    const watchedIds = new Set(watched.map((repo) => repo.githubRepoId));
-
-    const body: SearchReposResponse = {
-      repos: page.repos.map((repo) => ({
-        ...repo,
-        watched: watchedIds.has(repo.githubRepoId),
-      })),
-      nextCursor: page.nextCursor,
-    };
-    res.json(body);
+    const octokit = await deps.github(currentUser(res).id);
+    res.json(await searchRepos(octokit, { query, cursor }));
   });
 
   router.get("/repos", async (_req, res) => {
@@ -115,7 +97,8 @@ export function reposRouter(deps: RepoDeps): Router {
         }
         throw err;
       });
-    res.status(201).json({ repo: toDto(created) });
+    const body: AddRepoResponse = { repo: toDto(created) };
+    res.status(201).json(body);
   });
 
   router.patch("/repos/:id", async (req, res) => {
