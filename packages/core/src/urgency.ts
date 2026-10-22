@@ -63,7 +63,7 @@ export function staleLevel(
   return "fresh";
 }
 
-// Like "12m", "3h", or "2d", rounded down.
+// Like "12m", "3h", or "2d", rounded down. Pass the real time passed, not work hours.
 export function formatAge(waitedMs: number): string {
   const minutes = Math.floor(waitedMs / 60_000);
   if (minutes < 60) return `${Math.max(minutes, 0)}m`;
