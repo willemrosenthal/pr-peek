@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                                                                                                      |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Current plan**   | [07. Web app](07-web-app.md), part 4c: the Timing tab. Parts 1 to 4b and 3g (#20 to #30) merged                                                                                      |
-| **Branch**         | `plan-07-4c-timing`                                                                                                                                                                  |
-| **PR**             | [#31](https://github.com/willemrosenthal/pr-peek/pull/31) (part 4c), draft                                                                                                           |
-| **Last step done** | The Timing tab: overdue hours, work hours, timezone, quiet hours, weekends, morning summary                                                                                          |
-| **Next step**      | Part 5 (PWA and the Playwright smoke test)                                                                                                                                           |
-| **Waiting on you** | Add repos, then the part 3b stream check in DevTools (PR #23, steps 3 and 4). Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
+|                    |                                                                                                                                                                                                                                                 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [07. Web app](07-web-app.md), part 5a: installable PWA. Parts 1 to 4c (#20 to #31) merged                                                                                                                                                       |
+| **Branch**         | `plan-07-5a-pwa`                                                                                                                                                                                                                                |
+| **PR**             | [#32](https://github.com/willemrosenthal/pr-peek/pull/32) (part 5a), draft                                                                                                                                                                      |
+| **Last step done** | Manifest, icons, service worker, the update prompt, and cache headers                                                                                                                                                                           |
+| **Next step**      | Part 5b (the `/install` page), then 5c (Playwright smoke test)                                                                                                                                                                                  |
+| **Waiting on you** | Install checks after deploying PR #32 (its "How to test"). Add repos, then the part 3b stream check in DevTools (PR #23, steps 3 and 4). Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.

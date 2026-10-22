@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { extname, join } from "node:path";
+import { extname, join, sep } from "node:path";
 import express, {
   type ErrorRequestHandler,
   type Express,
@@ -14,6 +14,10 @@ import { HttpError } from "./http-error";
 
 const API = "/api";
 const HEALTH = "/health";
+// Built files in /assets have a hash in their name, so a new build gets new names.
+const CACHE_FOREVER = "public, max-age=31536000, immutable";
+// Everything else (index.html, sw.js, the manifest, icons) is checked with us each time.
+const NO_CACHE = "no-cache";
 
 export interface AppDeps {
   logger: Logger;
@@ -55,10 +59,21 @@ export function createApp(deps: AppDeps): Express {
 
   const { webDir } = deps;
   if (webDir && existsSync(join(webDir, "index.html"))) {
-    app.use(express.static(webDir));
+    const assetsDir = join(webDir, "assets") + sep;
+    app.use(
+      express.static(webDir, {
+        setHeaders: (res, path) => {
+          res.set(
+            "Cache-Control",
+            path.startsWith(assetsDir) ? CACHE_FOREVER : NO_CACHE,
+          );
+        },
+      }),
+    );
     // App routes get index.html. Missing files (e.g. an old asset) fall through to a 404.
     app.get("/{*path}", (req, res, next) => {
       if (extname(req.path)) return next();
+      res.set("Cache-Control", NO_CACHE);
       res.sendFile(join(webDir, "index.html"));
     });
   }

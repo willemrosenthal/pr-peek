@@ -151,6 +151,7 @@ describe("serving the PWA", () => {
   writeFileSync(join(webDir, "index.html"), "<h1>pr-peek</h1>");
   mkdirSync(join(webDir, "assets"));
   writeFileSync(join(webDir, "assets", "app.js"), "console.log(1);");
+  writeFileSync(join(webDir, "sw.js"), "console.log(2);");
   afterAll(() => {
     rmSync(webDir, { recursive: true, force: true });
     rmSync(emptyDir, { recursive: true, force: true });
@@ -167,6 +168,22 @@ describe("serving the PWA", () => {
     expect(res.status).toBe(200);
     expect(res.type).toBe("text/javascript");
   });
+
+  it("keeps built assets forever, since their names change each build", async () => {
+    const res = await request(makeApp({ webDir })).get("/assets/app.js");
+    expect(res.headers["cache-control"]).toBe(
+      "public, max-age=31536000, immutable",
+    );
+  });
+
+  it.each(["/", "/index.html", "/settings/rules", "/sw.js"])(
+    "checks %s for a new version on every load",
+    async (path) => {
+      const res = await request(makeApp({ webDir })).get(path);
+      expect(res.status).toBe(200);
+      expect(res.headers["cache-control"]).toBe("no-cache");
+    },
+  );
 
   it("returns 404, not index.html, for missing files", async () => {
     const res = await request(makeApp({ webDir })).get("/assets/old.js");
