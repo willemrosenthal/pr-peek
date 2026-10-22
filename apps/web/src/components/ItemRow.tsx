@@ -1,19 +1,28 @@
 import type { ItemDto, ItemKind, StaleLevel } from "@pr-peek/core";
+import {
+  AtSign,
+  CircleCheck,
+  CircleX,
+  Eye,
+  MessageCircle,
+  MessageSquareText,
+  RefreshCw,
+  type LucideIcon,
+} from "lucide-react";
 import { cx } from "../cx";
-import { Icon, type IconName } from "./Icon";
 import styles from "./ItemRow.module.css";
 
 const KIND_ICONS: Record<
   ItemKind,
-  { icon: IconName; tone: string | undefined }
+  { Icon: LucideIcon; tone: string | undefined }
 > = {
-  review_requested: { icon: "eye", tone: styles.accent },
-  re_requested: { icon: "again", tone: styles.accent },
-  reply: { icon: "reply", tone: styles.reply },
-  mention: { icon: "mention", tone: styles.reply },
-  reviewed: { icon: "reviewed", tone: styles.success },
-  commented: { icon: "comment", tone: styles.muted },
-  check_failed: { icon: "failed", tone: styles.danger },
+  review_requested: { Icon: Eye, tone: styles.accent },
+  re_requested: { Icon: RefreshCw, tone: styles.accent },
+  reply: { Icon: MessageCircle, tone: styles.reply },
+  mention: { Icon: AtSign, tone: styles.reply },
+  reviewed: { Icon: CircleCheck, tone: styles.success },
+  commented: { Icon: MessageSquareText, tone: styles.muted },
+  check_failed: { Icon: CircleX, tone: styles.danger },
 };
 
 const AGE_TONES: Record<StaleLevel, string | undefined> = {
@@ -24,7 +33,7 @@ const AGE_TONES: Record<StaleLevel, string | undefined> = {
 
 // One item, as two lines: what PR and how long, then what happened and where.
 export function ItemRow({ item }: { item: ItemDto }) {
-  const { icon, tone } = KIND_ICONS[item.kind];
+  const { Icon, tone } = KIND_ICONS[item.kind];
   // Only review requests have a stale level.
   const ageTone = item.staleLevel ? AGE_TONES[item.staleLevel] : styles.muted;
 
@@ -36,7 +45,7 @@ export function ItemRow({ item }: { item: ItemDto }) {
       rel="noopener noreferrer"
     >
       <span className={cx(styles.icon, tone)}>
-        <Icon name={icon} />
+        <Icon />
       </span>
       <span className={styles.title}>
         {item.unseen && <span className="visually-hidden">New: </span>}

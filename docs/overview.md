@@ -82,7 +82,7 @@ This file describes **what** we are building and **how the pieces fit**. The ste
 | Background jobs   | pg-boss (job queue inside Postgres), run by a separate worker process                                     |
 | Push              | `web-push` with VAPID keys (the key pair that proves pushes come from us)                                 |
 | Live updates      | Server-Sent Events                                                                                        |
-| Web app           | Vite, React, React Router, TanStack Query, Base UI, CSS Modules                                           |
+| Web app           | Vite, React, React Router, TanStack Query, Base UI, CSS Modules, Lucide icons                             |
 | PWA               | vite-plugin-pwa with a custom service worker                                                              |
 | Shared logic      | `packages/core`: types, rules, urgency score, formatting                                                  |
 | Desktop (phase 2) | Tauri 2 with tray, positioner, autostart, updater, notification, global shortcut, single instance plugins |
