@@ -10,7 +10,8 @@ export interface QuietSettings {
   quietWeekends: boolean;
 }
 
-const minutesOf = (time: string) => {
+// Minutes since midnight, from "HH:MM".
+export const minutesOf = (time: string) => {
   const [hours = 0, minutes = 0] = time.split(":").map(Number);
   return hours * 60 + minutes;
 };

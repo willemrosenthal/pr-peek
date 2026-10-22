@@ -31,7 +31,10 @@ No third party account is needed. The `web-push` npm package handles the encrypt
    - 2b: the rest of 8.2: the button in onboarding, per-device severity, renaming, re-checking on open, and the repo Mute switch.
    - Then a small PR for step 8.8: database enums.
 3. Notify: 8.3 except staleness and batching, plus the rest of 8.4. Also drop "once those arrive" from the Rules tab and the Notifications group on the Timing tab.
-4. Schedules: staleness reminders, batching, and 8.6.
+4. Schedules, in three PRs:
+   - 4a: the morning summary (8.6).
+   - 4b: staleness reminders, with a "remind every" setting.
+   - 4c: batching.
 
 ## Steps
 
@@ -91,9 +94,11 @@ The `notify:item` job from plan 05.5:
 
 ### 8.6 Morning summary
 
-- [ ] A scheduled job runs every 15 minutes. It finds users whose `digestTime` (in their timezone) just passed and who haven't had today's summary.
-- [ ] It sends one push like "3 reviews waiting (oldest 2d), 1 failing check, 1 approval". Clicking it opens the list.
-- [ ] Skip it if there's nothing open.
+- [x] A scheduled job runs every 15 minutes. It finds users whose `digestTime` (in their timezone) just passed and who haven't had today's summary.
+  - "Just passed" means within the hour after, so a worker that was briefly down still sends it. `UserSettings.lastSummaryDate` (the user's local date) is claimed before sending, so it goes once a day.
+- [x] It sends one push like "3 reviews waiting (oldest 2d), 1 failing check, 1 approval". Clicking it opens the list.
+  - It goes to every device, whatever its severity setting, and ignores quiet hours: the user picked the time.
+- [x] Skip it if there's nothing open.
 
 ### 8.7 Tests
 
