@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ---------------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [05. Rules engine](05-rules-engine.md), part B: urgency. Part A merged (#14). C: apply on the server       |
 | **Branch**         | `plan-05-2-urgency`                                                                                        |
-| **PR**             | Not open yet                                                                                               |
+| **PR**             | [#15](https://github.com/willemrosenthal/pr-peek/pull/15) (part B), draft                                  |
 | **Last step done** | 5.4 Waiting time, work hours, stale levels, urgency score                                                  |
 | **Next step**      | Part C (`plan-05-3-apply`): 5.5 to 5.7 once part B merges                                                  |
 | **Waiting on you** | Plan 04 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
