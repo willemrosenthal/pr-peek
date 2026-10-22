@@ -209,9 +209,10 @@ export async function syncUser(
     const itemIds = await saveItems(tx, userId, saved, detect, now);
 
     // Rows stay, so the items reopen without notifying if the PR comes back.
-    for (const [githubNodeId, state] of ended) {
-      await tx.pullRequest.update({
-        where: { userId_githubNodeId: { userId, githubNodeId } },
+    for (const state of new Set(ended.values())) {
+      const ids = [...ended].filter(([, s]) => s === state).map(([id]) => id);
+      await tx.pullRequest.updateMany({
+        where: { userId, githubNodeId: { in: ids } },
         data: { state },
       });
     }
