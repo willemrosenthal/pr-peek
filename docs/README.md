@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Current plan**   | [07. Web app](07-web-app.md), part 3f: one row per PR. Parts 1 to 4a and 3c to 3e (#20 to #27) merged                                                                                |
 | **Branch**         | `plan-07-3f-one-row`                                                                                                                                                                 |
-| **PR**             | Part 3f, draft                                                                                                                                                                       |
+| **PR**             | [#28](https://github.com/willemrosenthal/pr-peek/pull/28) (part 3f), draft                                                                                                           |
 | **Last step done** | One row per PR, with "+N more" and marking seen across the PR's items                                                                                                                |
 | **Next step**      | 4b: the rest of General, Rules, Timing, Devices                                                                                                                                      |
 | **Waiting on you** | Add repos, then the part 3b stream check in DevTools (PR #23, steps 3 and 4). Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
