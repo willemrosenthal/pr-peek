@@ -9,6 +9,20 @@ export const tokenSignInBody = z.object({
 });
 export type TokenSignInBody = z.infer<typeof tokenSignInBody>;
 
+export interface MeResponse {
+  user: {
+    id: string;
+    login: string;
+    name: string | null;
+    avatarUrl: string | null;
+    // "oauth" (the GitHub button) or "pat" (a pasted token).
+    authMethod: string;
+    scopes: string[];
+  };
+  // The GitHub token stopped working. Sign in again, or paste a new token.
+  needsReauth: boolean;
+}
+
 export interface TokenSignInResponse {
   // True the first time this GitHub account signs in. The app shows onboarding.
   isNew: boolean;
