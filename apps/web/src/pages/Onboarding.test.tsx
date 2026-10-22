@@ -7,12 +7,13 @@ import {
   fakeApi,
   json,
   listApi,
+  type Handlers,
   searchResults,
   sentBodies,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
 
-const onboardingApi = (overrides: Record<string, () => Response> = {}) =>
+const onboardingApi = (overrides: Handlers = {}) =>
   fakeApi(
     listApi({
       "GET /api/github/repos": () => json(searchResults()),

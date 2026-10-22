@@ -1,11 +1,13 @@
 import type { RepoOption, WatchedRepoDto } from "@pr-peek/core";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
   apiError,
+  callsTo,
   fakeApi,
   json,
+  type Handlers,
   noContent,
   repoOption,
   searchResults,
@@ -23,7 +25,7 @@ const optionList = () =>
 function reposApi(
   watched: WatchedRepoDto[],
   options: RepoOption[] = [],
-  overrides: Record<string, () => Response> = {},
+  overrides: Handlers = {},
 ) {
   return fakeApi(
     signedInApi({
@@ -92,16 +94,24 @@ describe("watched repos", () => {
 });
 
 describe("adding repos", () => {
-  it("lists your repos and adds one", async () => {
+  it("lists your repos and adds one, showing progress", async () => {
     const option = repoOption({ owner: "acme", name: "api", isPrivate: true });
+    const added = watchedRepo({
+      owner: "acme",
+      name: "api",
+      githubRepoId: option.githubRepoId,
+    });
     const watched: WatchedRepoDto[] = [];
+    let finishAdd = () => {};
     const fetch = reposApi(watched, [option], {
       "GET /api/repos": () => json({ repos: watched }),
-      "POST /api/repos": () => {
-        option.watched = true;
-        watched.push(watchedRepo({ owner: "acme", name: "api" }));
-        return json({ repo: watched[0] }, 201);
-      },
+      "POST /api/repos": () =>
+        new Promise((resolve) => {
+          finishAdd = () => {
+            watched.push(added);
+            resolve(json({ repo: added }, 201));
+          };
+        }),
     });
     renderApp("/settings/repos");
 
@@ -110,11 +120,63 @@ describe("adding repos", () => {
     await userEvent.click(
       within(options).getByRole("button", { name: "Add acme/api" }),
     );
+    expect(within(options).getByRole("status").textContent).toBe("Adding");
+
+    act(() => finishAdd());
     expect(await within(options).findByText("Watching")).toBeTruthy();
     expect(within(await watchedList()).getByText("acme/api")).toBeTruthy();
     expect(sentBodies(fetch, "POST /api/repos")).toEqual([
       { owner: "acme", name: "api" },
     ]);
+    // The row flips without searching GitHub again.
+    expect(callsTo(fetch, "/api/github/repos")).toHaveLength(1);
+  });
+
+  it("lets other repos be added while one is adding", async () => {
+    reposApi(
+      [],
+      [repoOption({ name: "slow" }), repoOption({ name: "other" })],
+      { "POST /api/repos": () => new Promise<Response>(() => {}) },
+    );
+    renderApp("/settings/repos");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Add acme/slow" }),
+    );
+    expect(
+      screen
+        .getByRole("button", { name: "Add acme/other" })
+        .hasAttribute("disabled"),
+    ).toBe(false);
+  });
+
+  it("marks a removed repo as addable again", async () => {
+    const option = repoOption({ owner: "acme", name: "web", watched: true });
+    let watched = [
+      watchedRepo({
+        owner: "acme",
+        name: "web",
+        githubRepoId: option.githubRepoId,
+      }),
+    ];
+    const fetch = reposApi(watched, [option], {
+      "GET /api/repos": () => json({ repos: watched }),
+      [`DELETE /api/repos/${watched[0]!.id}`]: () => {
+        watched = [];
+        return noContent();
+      },
+    });
+    renderApp("/settings/repos");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Remove acme/web" }),
+    );
+    expect(
+      await within(await optionList()).findByRole("button", {
+        name: "Add acme/web",
+      }),
+    ).toBeTruthy();
+    expect(callsTo(fetch, "/api/github/repos")).toHaveLength(1);
   });
 
   it("searches once typing pauses", async () => {
@@ -144,12 +206,13 @@ describe("adding repos", () => {
     );
     const options = await optionList();
     expect(within(options).getByText("acme/secret")).toBeTruthy();
-    await userEvent.click(within(options).getByRole("button", { name: "Add" }));
-    await waitFor(() =>
-      expect(sentBodies(fetch, "POST /api/repos")).toEqual([
-        { owner: "acme", name: "secret" },
-      ]),
+    await userEvent.click(
+      within(options).getByRole("button", { name: "Add acme/secret" }),
     );
+    expect(await within(options).findByText("Watching")).toBeTruthy();
+    expect(sentBodies(fetch, "POST /api/repos")).toEqual([
+      { owner: "acme", name: "secret" },
+    ]);
   });
 
   it("shows why a repo couldn't be added", async () => {

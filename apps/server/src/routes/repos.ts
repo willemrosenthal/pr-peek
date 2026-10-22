@@ -3,6 +3,7 @@ import {
   MAX_WATCHED_REPOS,
   searchReposQuery,
   updateRepoBody,
+  type AddRepoResponse,
   type SearchReposResponse,
   type WatchedRepoDto,
   type WatchedReposResponse,
@@ -115,7 +116,8 @@ export function reposRouter(deps: RepoDeps): Router {
         }
         throw err;
       });
-    res.status(201).json({ repo: toDto(created) });
+    const body: AddRepoResponse = { repo: toDto(created) };
+    res.status(201).json(body);
   });
 
   router.patch("/repos/:id", async (req, res) => {

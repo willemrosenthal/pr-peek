@@ -1,14 +1,15 @@
-import type { AddRepoBody, RepoOption } from "@pr-peek/core";
+import type { AddRepoBody, AddRepoResponse } from "@pr-peek/core";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../api";
 import { useDebounced } from "../hooks/useDebounced";
-import { useInvalidateRepos, useRepoSearch } from "../queries";
+import { useRepoSearch, useWatchListChanged } from "../queries";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import { Card, CardRow } from "./Card";
-import styles from "./Repos.module.css";
 import { TextField } from "./Field";
+import styles from "./Repos.module.css";
+import { Spinner } from "./Spinner";
 
 // Waits for typing to pause before searching GitHub.
 export const SEARCH_DELAY_MS = 300;
@@ -21,12 +22,6 @@ export function RepoPicker() {
   const [query, setQuery] = useState("");
   const search = useDebounced(query.trim(), SEARCH_DELAY_MS);
   const results = useRepoSearch(search);
-  const invalidateRepos = useInvalidateRepos();
-  const add = useMutation({
-    mutationFn: (repo: AddRepoBody) =>
-      api("/repos", { method: "POST", body: repo }),
-    onSuccess: invalidateRepos,
-  });
 
   const options = results.data?.pages.flatMap((page) => page.repos) ?? [];
   const typed = FULL_NAME.exec(search);
@@ -44,30 +39,23 @@ export function RepoPicker() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      {add.isError && <Alert>{add.error.message}</Alert>}
       {results.isError && <Alert>{results.error.message}</Alert>}
       {results.isPending && <p className={styles.hint}>Loading</p>}
       {(options.length > 0 || typedMissing) && (
         <Card label="Repos you can add">
           {typedMissing && (
-            <CardRow>
-              <span className={styles.name}>{typed[0]}</span>
-              <Button
-                onClick={() =>
-                  add.mutate({ owner: typed[1]!, name: typed[2]! })
-                }
-                disabled={add.isPending}
-              >
-                Add
-              </Button>
-            </CardRow>
+            <AddRepoRow
+              key={typed[0]}
+              repo={{ owner: typed[1]!, name: typed[2]! }}
+              watched={false}
+            />
           )}
           {options.map((repo) => (
-            <RepoOptionRow
+            <AddRepoRow
               key={repo.githubRepoId}
               repo={repo}
-              onAdd={() => add.mutate({ owner: repo.owner, name: repo.name })}
-              adding={add.isPending}
+              isPrivate={repo.isPrivate}
+              watched={repo.watched}
             />
           ))}
         </Card>
@@ -86,29 +74,47 @@ export function RepoPicker() {
   );
 }
 
-function RepoOptionRow({
+// One repo, with its own Add button, so several can be added at once.
+function AddRepoRow({
   repo,
-  onAdd,
-  adding,
+  isPrivate = false,
+  watched,
 }: {
-  repo: RepoOption;
-  onAdd: () => void;
-  adding: boolean;
+  repo: AddRepoBody;
+  isPrivate?: boolean;
+  watched: boolean;
 }) {
+  const watchList = useWatchListChanged();
+  const add = useMutation({
+    mutationFn: () =>
+      api<AddRepoResponse>("/repos", {
+        method: "POST",
+        body: { owner: repo.owner, name: repo.name },
+      }),
+    onSuccess: ({ repo: added }) =>
+      watchList.setWatched(added.githubRepoId, true),
+  });
   const name = `${repo.owner}/${repo.name}`;
+
   return (
     <CardRow>
       <span className={styles.name}>
         {name}
-        {repo.isPrivate && <span className={styles.hint}>Private</span>}
+        {isPrivate && <span className={styles.hint}>Private</span>}
       </span>
-      {repo.watched ? (
+      {watched || add.isSuccess ? (
         <span className={styles.hint}>Watching</span>
+      ) : add.isPending ? (
+        <span className={styles.adding} role="status">
+          <Spinner />
+          Adding
+        </span>
       ) : (
-        <Button aria-label={`Add ${name}`} onClick={onAdd} disabled={adding}>
+        <Button aria-label={`Add ${name}`} onClick={() => add.mutate()}>
           Add
         </Button>
       )}
+      {add.isError && <Alert>{add.error.message}</Alert>}
     </CardRow>
   );
 }

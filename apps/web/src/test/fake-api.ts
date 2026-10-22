@@ -13,8 +13,11 @@ import { vi } from "vitest";
 // Requests with no fake. Checked after each test (setup.ts), since the app catches the error.
 export const unknownRequests: string[] = [];
 
-// Fakes the API. Keys look like "GET /api/me".
-export function fakeApi(handlers: Record<string, () => Response>) {
+// Fake answers, keyed like "GET /api/me". A promise holds the request open.
+export type Handlers = Record<string, () => Response | Promise<Response>>;
+
+// Fakes the API.
+export function fakeApi(handlers: Handlers) {
   const fetch = vi.fn((url: string, init: RequestInit = {}) => {
     const key = `${init.method ?? "GET"} ${url}`;
     const handler = handlers[key];
@@ -138,18 +141,14 @@ export const summary = (
 export const noContent = () => new Response(null, { status: 204 });
 
 // What every signed in page asks for.
-export const signedInApi = (
-  overrides: Record<string, () => Response> = {},
-): Record<string, () => Response> => ({
+export const signedInApi = (overrides: Handlers = {}): Handlers => ({
   "GET /api/me": () => json(me()),
   "GET /api/summary": () => json(summary()),
   ...overrides,
 });
 
 // What the list page asks for: a signed in user with nothing to show.
-export const listApi = (
-  overrides: Record<string, () => Response> = {},
-): Record<string, () => Response> => ({
+export const listApi = (overrides: Handlers = {}): Handlers => ({
   ...signedInApi(),
   "GET /api/items": () => json(groups()),
   "POST /api/items/seen": noContent,

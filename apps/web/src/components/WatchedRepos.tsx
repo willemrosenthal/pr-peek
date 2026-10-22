@@ -1,7 +1,7 @@
 import type { WatchedRepoDto } from "@pr-peek/core";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "../api";
-import { useInvalidateRepos, useRepos } from "../queries";
+import { useRepos, useWatchListChanged } from "../queries";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import { Card, CardRow } from "./Card";
@@ -27,15 +27,15 @@ export function WatchedRepos() {
 }
 
 function WatchedRepo({ repo }: { repo: WatchedRepoDto }) {
-  const invalidateRepos = useInvalidateRepos();
+  const watchList = useWatchListChanged();
   const update = useMutation({
     mutationFn: (enabled: boolean) =>
       api(`/repos/${repo.id}`, { method: "PATCH", body: { enabled } }),
-    onSettled: invalidateRepos,
+    onSettled: watchList.reload,
   });
   const remove = useMutation({
     mutationFn: () => api(`/repos/${repo.id}`, { method: "DELETE" }),
-    onSuccess: invalidateRepos,
+    onSuccess: () => watchList.setWatched(repo.githubRepoId, false),
   });
   const name = `${repo.owner}/${repo.name}`;
   // Shows the new state while it saves.
