@@ -31,7 +31,6 @@ async function makeUser() {
     githubUser(),
     githubTokens(),
     TEST_KEY,
-    "oauth",
   );
   await db.watchedRepo.createMany({
     data: [

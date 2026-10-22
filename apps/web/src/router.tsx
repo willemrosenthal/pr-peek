@@ -11,7 +11,7 @@ export const routes = [
     element: <RequireAuth />,
     children: [
       { path: "/", element: <Home /> },
-      // Onboarding comes in plan 07 part 3.
+      // Onboarding comes in plan 07 part 4.
       { path: "/onboarding", element: <Navigate to="/" replace /> },
     ],
   },

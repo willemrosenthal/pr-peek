@@ -1,36 +1,50 @@
 # Manual API requests, for the VS Code REST Client extension.
-# Run `pnpm dev`, then send "Sign in" first. REST Client keeps the session cookie.
+# 1. Run `pnpm dev` and sign in at http://localhost:5173.
+# 2. In the browser's dev tools, copy the value of the `sid` cookie.
+# 3. Put it in apps/server/.env (ignored by git) as: PR_PEEK_SID=<value>
 
-@baseUrl = http://localhost:3000/api
+@baseUrl = http://localhost:5173/api
 # Must match APP_URL in .env.
 @origin = http://localhost:5173
+@cookie = sid={{$dotenv PR_PEEK_SID}}
 
 ### Health
 GET {{baseUrl}}/health
 
-### Sign in with a personal access token (needs the repo scope)
+### Who am I
+GET {{baseUrl}}/me
+Cookie: {{cookie}}
+
+### Add or replace a personal access token (needs the repo scope)
 # @prompt token GitHub personal access token
-POST {{baseUrl}}/auth/token
+PUT {{baseUrl}}/github-token
+Cookie: {{cookie}}
 Origin: {{origin}}
 Content-Type: application/json
 
 { "token": "{{token}}" }
 
-### Who am I
-GET {{baseUrl}}/me
+### Remove the personal access token
+DELETE {{baseUrl}}/github-token
+Cookie: {{cookie}}
+Origin: {{origin}}
 
 ### Sign out
 POST {{baseUrl}}/auth/signout
+Cookie: {{cookie}}
 Origin: {{origin}}
 
 ### Search your GitHub repos
 GET {{baseUrl}}/github/repos?query=web
+Cookie: {{cookie}}
 
 ### Watched repos
 GET {{baseUrl}}/repos
+Cookie: {{cookie}}
 
 ### Watch a repo
 POST {{baseUrl}}/repos
+Cookie: {{cookie}}
 Origin: {{origin}}
 Content-Type: application/json
 
@@ -39,6 +53,7 @@ Content-Type: application/json
 ### Mute a watched repo (id from "Watched repos")
 # @prompt id Watched repo id
 PATCH {{baseUrl}}/repos/{{id}}
+Cookie: {{cookie}}
 Origin: {{origin}}
 Content-Type: application/json
 
@@ -47,14 +62,17 @@ Content-Type: application/json
 ### Stop watching a repo
 # @prompt id Watched repo id
 DELETE {{baseUrl}}/repos/{{id}}
+Cookie: {{cookie}}
 Origin: {{origin}}
 
 ### Items, grouped and sorted by urgency
 GET {{baseUrl}}/items
+Cookie: {{cookie}}
 
 ### Mark items as seen (ids from "Items")
 # @prompt ids Item ids, quoted and comma separated
 POST {{baseUrl}}/items/seen
+Cookie: {{cookie}}
 Origin: {{origin}}
 Content-Type: application/json
 
@@ -62,12 +80,15 @@ Content-Type: application/json
 
 ### Counts for badges
 GET {{baseUrl}}/summary
+Cookie: {{cookie}}
 
 ### Settings and rules
 GET {{baseUrl}}/settings
+Cookie: {{cookie}}
 
 ### Change settings
 PATCH {{baseUrl}}/settings
+Cookie: {{cookie}}
 Origin: {{origin}}
 Content-Type: application/json
 
@@ -75,6 +96,7 @@ Content-Type: application/json
 
 ### Change a rule
 PATCH {{baseUrl}}/rules/commented
+Cookie: {{cookie}}
 Origin: {{origin}}
 Content-Type: application/json
 
@@ -82,12 +104,15 @@ Content-Type: application/json
 
 ### Refresh now
 POST {{baseUrl}}/sync
+Cookie: {{cookie}}
 Origin: {{origin}}
 
 ### Sync status
 GET {{baseUrl}}/sync/status
+Cookie: {{cookie}}
 
 ### Live updates
 # REST Client waits for the response to end, which a stream never does. Use curl:
-#   curl -N -b <cookie file> http://localhost:3000/api/stream
+#   curl -N -H "Cookie: sid=<value>" http://localhost:5173/api/stream
 GET {{baseUrl}}/stream
+Cookie: {{cookie}}

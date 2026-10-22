@@ -11,7 +11,7 @@ import {
 } from "../test/fakes";
 import { fakeGraphQL, type GraphQLRequest } from "../test/github";
 import { githubPr, prGitHub, searchHit } from "../test/pulls";
-import { NeedsReauthError } from "./github/tokens";
+import { encryptPersonalToken, NeedsReauthError } from "./github/tokens";
 import { createLogger } from "./logger";
 import { backoffMs, dueUserIds, runSync } from "./sync-schedule";
 import { upsertGitHubUser } from "./users";
@@ -31,7 +31,6 @@ async function makeUser(
     githubUser(),
     githubTokens(),
     TEST_KEY,
-    "oauth",
   );
   await db.watchedRepo.create({
     data: { userId: user.id, githubRepoId: 1, owner: "acme", name: "web-app" },
@@ -67,10 +66,13 @@ describe("dueUserIds", () => {
     expect(await dueUserIds(db, NOW)).toHaveLength(1);
   });
 
-  it("skips users who need to sign in again", async () => {
-    await makeUser({ syncError: "reauth" });
-    expect(await dueUserIds(db, NOW)).toEqual([]);
-  });
+  it.each(["reauth", "token"])(
+    "skips users stopped with %s until they fix it",
+    async (syncError) => {
+      await makeUser({ syncError });
+      expect(await dueUserIds(db, NOW)).toEqual([]);
+    },
+  );
 
   it("waits until a failed user's retry time", async () => {
     await makeUser({ syncError: "failed", syncRetryAt: minutes(1) });
@@ -204,16 +206,30 @@ describe("runSync", () => {
     });
   });
 
-  it("treats a 401 from GitHub as needing to sign in again", async () => {
-    const user = await makeUser();
-    await run(user.id, () =>
-      Response.json({ message: "Bad credentials" }, { status: 401 }),
-    );
+  describe("when GitHub answers 401", () => {
+    const badCredentials = () =>
+      Response.json({ message: "Bad credentials" }, { status: 401 });
 
-    expect(await reload(user.id)).toMatchObject({
-      syncError: "reauth",
-      syncFailures: 0,
-      syncRetryAt: null,
+    it("asks the user to sign in again", async () => {
+      const user = await makeUser();
+      await run(user.id, badCredentials);
+
+      expect(await reload(user.id)).toMatchObject({
+        syncError: "reauth",
+        syncFailures: 0,
+        syncRetryAt: null,
+      });
+    });
+
+    it("asks for a new token when the user added one", async () => {
+      const user = await makeUser(
+        encryptPersonalToken(
+          { token: "ghp_token", expiresAt: null, scopes: ["repo"] },
+          TEST_KEY,
+        ),
+      );
+      await run(user.id, badCredentials);
+      expect((await reload(user.id)).syncError).toBe("token");
     });
   });
 

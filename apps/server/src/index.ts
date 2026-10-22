@@ -11,6 +11,7 @@ import { getOctokit } from "./github/client";
 import { listenForItemChanges } from "./items-listener";
 import { createBoss, createQueues, queueSync } from "./jobs";
 import { authRouter } from "./routes/auth";
+import { githubTokenRouter } from "./routes/github-token";
 import { itemsRouter } from "./routes/items";
 import { reposRouter } from "./routes/repos";
 import { settingsRouter } from "./routes/settings";
@@ -62,6 +63,7 @@ const app = createApp({
       key: config.TOKEN_ENC_KEY,
       appUrl: config.APP_URL,
     }),
+    githubTokenRouter({ db, oauth, key: config.TOKEN_ENC_KEY }),
     reposRouter({ db, github }),
     itemsRouter({ db }),
     settingsRouter({ db, github }),

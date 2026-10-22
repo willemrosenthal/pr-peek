@@ -5,7 +5,8 @@ export interface RequestSyncResponse {
 
 export interface SyncStatusResponse {
   lastSyncedAt: string | null;
-  // "reauth" means sign in again. "failed" means it will retry on its own.
+  // "reauth": sign in with GitHub again. "token": add a new personal access token.
+  // "failed": it will retry on its own.
   syncError: string | null;
   running: boolean;
 }

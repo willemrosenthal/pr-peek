@@ -10,20 +10,18 @@ import {
 } from "../../test/fakes";
 import { upsertGitHubUser } from "../users";
 import { GitHubAuthError } from "./oauth";
-import { getAccessToken, NeedsReauthError } from "./tokens";
+import {
+  encryptPersonalToken,
+  getAccessToken,
+  NeedsReauthError,
+} from "./tokens";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
 async function userWith(tokens = githubTokens()) {
-  const { user } = await upsertGitHubUser(
-    db,
-    githubUser(),
-    tokens,
-    TEST_KEY,
-    "oauth",
-  );
+  const { user } = await upsertGitHubUser(db, githubUser(), tokens, TEST_KEY);
   return user;
 }
 
@@ -100,21 +98,42 @@ describe("getAccessToken", () => {
     ).toBe("reauth");
   });
 
-  it("asks for a new token when a personal access token is about to expire", async () => {
-    const user = await userWith(
-      githubTokens({
-        accessToken: "ghp_token",
-        accessTokenExpiresAt: hours(0.05),
-        refreshToken: null,
-        refreshTokenExpiresAt: null,
-      }),
-    );
-    const oauth = fakeOAuth();
+  describe("with a personal access token", () => {
+    // A user whose sign in token has expired, plus a personal access token.
+    async function userWithPat(expiresAt: Date | null) {
+      const user = await userWith(
+        githubTokens({ accessTokenExpiresAt: hours(-1) }),
+      );
+      await db.user.update({
+        where: { id: user.id },
+        data: encryptPersonalToken(
+          { token: "ghp_token", expiresAt, scopes: ["repo"] },
+          TEST_KEY,
+        ),
+      });
+      return user;
+    }
 
-    await expect(getAccessToken(deps(oauth), user.id)).rejects.toBeInstanceOf(
-      NeedsReauthError,
-    );
-    expect(oauth.refresh).not.toHaveBeenCalled();
+    it("uses it instead of the sign in token", async () => {
+      const user = await userWithPat(null);
+      const oauth = fakeOAuth();
+      expect(await getAccessToken(deps(oauth), user.id)).toBe("ghp_token");
+      expect(oauth.refresh).not.toHaveBeenCalled();
+    });
+
+    it("asks for a new one when it's about to expire, without falling back", async () => {
+      const user = await userWithPat(hours(0.05));
+      const oauth = fakeOAuth();
+
+      await expect(getAccessToken(deps(oauth), user.id)).rejects.toMatchObject({
+        reason: "token",
+        code: "token_invalid",
+      });
+      expect(oauth.refresh).not.toHaveBeenCalled();
+      expect(
+        (await db.user.findUniqueOrThrow({ where: { id: user.id } })).syncError,
+      ).toBe("token");
+    });
   });
 
   it("asks the user to sign in again when GitHub rejects the refresh", async () => {

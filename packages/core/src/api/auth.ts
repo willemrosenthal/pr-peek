@@ -1,13 +1,27 @@
 import { z } from "zod";
 
 // A GitHub personal access token, classic (`ghp_...`) or fine-grained (`github_pat_...`).
-export const tokenSignInBody = z.object({
+export const githubTokenBody = z.object({
   token: z
     .string()
     .trim()
     .regex(/^\w{1,255}$/, "Doesn't look like a GitHub token"),
 });
-export type TokenSignInBody = z.infer<typeof tokenSignInBody>;
+export type GitHubTokenBody = z.infer<typeof githubTokenBody>;
+
+// A personal access token the user added. Syncs use it instead of the sign in token.
+export interface GitHubTokenDto {
+  // Null when the token never expires.
+  expiresAt: string | null;
+  // Empty for fine-grained tokens, which have no scopes.
+  scopes: string[];
+  // GitHub stopped accepting it. Syncs wait for a new one.
+  invalid: boolean;
+}
+
+export interface GitHubTokenResponse {
+  githubToken: GitHubTokenDto;
+}
 
 export interface MeResponse {
   user: {
@@ -15,15 +29,11 @@ export interface MeResponse {
     login: string;
     name: string | null;
     avatarUrl: string | null;
-    // "oauth" (the GitHub button) or "pat" (a pasted token).
-    authMethod: string;
+    // Scopes of the GitHub sign in.
     scopes: string[];
   };
-  // The GitHub token stopped working. Sign in again, or paste a new token.
+  // Null when the user hasn't added one.
+  githubToken: GitHubTokenDto | null;
+  // The GitHub sign in stopped working. Sign in again.
   needsReauth: boolean;
-}
-
-export interface TokenSignInResponse {
-  // True the first time this GitHub account signs in. The app shows onboarding.
-  isNew: boolean;
 }

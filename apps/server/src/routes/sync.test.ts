@@ -65,13 +65,16 @@ describe("POST /api/sync", () => {
     expect(requestSync).toHaveBeenCalledOnce();
   });
 
-  it("asks the user to sign in again when their token stopped working", async () => {
+  it.each([
+    ["reauth", "reauth"],
+    ["token", "token_invalid"],
+  ])("refuses while syncs are stopped with %s", async (syncError, code) => {
     const { agent, requestSync } = await setup();
-    await db.user.updateMany({ data: { syncError: "reauth" } });
+    await db.user.updateMany({ data: { syncError } });
 
     const res = await refresh(agent);
     expect(res.status).toBe(401);
-    expect(res.body).toMatchObject({ error: { code: "reauth" } });
+    expect(res.body).toMatchObject({ error: { code } });
     expect(requestSync).not.toHaveBeenCalled();
   });
 });

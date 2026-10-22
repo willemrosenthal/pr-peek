@@ -14,7 +14,6 @@ async function makeUser() {
     githubUser(),
     githubTokens(),
     TEST_KEY,
-    "oauth",
   );
   return user;
 }

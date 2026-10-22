@@ -2,10 +2,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { api } from "../api";
 import { Button } from "../components/Button";
-import { PageMessage } from "../components/PageMessage";
+import { GitHubToken } from "../components/GitHubToken";
 import { useMe } from "../queries";
+import styles from "./Home.module.css";
 
-// Stands in for the list until plan 07 part 2.
+// Stands in for the list until plan 07 part 3. The token moves to settings in part 4.
 export function Home() {
   const { data } = useMe();
   const queryClient = useQueryClient();
@@ -19,11 +20,15 @@ export function Home() {
   });
 
   return (
-    <PageMessage title={`Signed in as ${data?.user.login ?? ""}`}>
-      <p>The list is coming next.</p>
-      <Button onClick={() => signOut.mutate()} disabled={signOut.isPending}>
-        Sign out
-      </Button>
-    </PageMessage>
+    <main className={styles.page}>
+      <div className={styles.panel}>
+        <h1 className={styles.title}>Signed in as {data?.user.login}</h1>
+        <p className={styles.hint}>The list is coming next.</p>
+        <GitHubToken />
+        <Button onClick={() => signOut.mutate()} disabled={signOut.isPending}>
+          Sign out
+        </Button>
+      </div>
+    </main>
   );
 }

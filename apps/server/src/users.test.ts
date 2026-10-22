@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb, resetDb } from "../test/db";
 import { githubTokens, githubUser, TEST_KEY } from "../test/fakes";
 import { decrypt } from "./crypto";
+import { encryptPersonalToken } from "./github/tokens";
 import { upsertGitHubUser } from "./users";
 
 const db = createTestDb();
@@ -15,7 +16,6 @@ describe("upsertGitHubUser", () => {
       githubUser(),
       githubTokens(),
       TEST_KEY,
-      "oauth",
     );
 
     expect(isNew).toBe(true);
@@ -55,7 +55,6 @@ describe("upsertGitHubUser", () => {
       githubUser(),
       githubTokens(),
       TEST_KEY,
-      "oauth",
     );
 
     expect(user.accessTokenEnc).not.toContain("ghu_access");
@@ -70,7 +69,6 @@ describe("upsertGitHubUser", () => {
       githubUser(),
       githubTokens(),
       TEST_KEY,
-      "oauth",
     );
     await db.user.update({
       where: { id: first.user.id },
@@ -82,7 +80,6 @@ describe("upsertGitHubUser", () => {
       githubUser({ login: "octocat-renamed" }),
       githubTokens({ accessToken: "ghu_new" }),
       TEST_KEY,
-      "oauth",
     );
 
     expect(second.isNew).toBe(false);
@@ -95,5 +92,34 @@ describe("upsertGitHubUser", () => {
     });
     expect(decrypt(second.user.accessTokenEnc ?? "", TEST_KEY)).toBe("ghu_new");
     expect(await db.userSettings.count()).toBe(1);
+  });
+
+  it("keeps the personal access token, and its error, on a later sign in", async () => {
+    const first = await upsertGitHubUser(
+      db,
+      githubUser(),
+      githubTokens(),
+      TEST_KEY,
+    );
+    await db.user.update({
+      where: { id: first.user.id },
+      data: {
+        ...encryptPersonalToken(
+          { token: "ghp_token", expiresAt: null, scopes: ["repo"] },
+          TEST_KEY,
+        ),
+        syncError: "token",
+      },
+    });
+
+    const { user } = await upsertGitHubUser(
+      db,
+      githubUser(),
+      githubTokens(),
+      TEST_KEY,
+    );
+    expect(decrypt(user.patEnc ?? "", TEST_KEY)).toBe("ghp_token");
+    // The token is still broken, so syncs wait for a new one.
+    expect(user.syncError).toBe("token");
   });
 });

@@ -2,7 +2,7 @@ import type { RequestSyncResponse, SyncStatusResponse } from "@pr-peek/core";
 import express, { type Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import type { Db } from "../db";
-import { NeedsReauthError } from "../github/tokens";
+import { NeedsReauthError, STOP_REASONS } from "../github/tokens";
 import { SYNC_TIMEOUT_SECONDS } from "../jobs";
 import { currentUser, requireUser } from "./auth";
 
@@ -35,7 +35,8 @@ export function syncRouter(deps: SyncRouteDeps): Router {
   // "Refresh now". Runs even while a failed sync is waiting to retry.
   router.post("/sync", limiter, async (_req, res) => {
     const user = currentUser(res);
-    if (user.syncError === "reauth") throw new NeedsReauthError(user.id);
+    const stopped = STOP_REASONS.find((reason) => reason === user.syncError);
+    if (stopped) throw new NeedsReauthError(user.id, stopped);
     const body: RequestSyncResponse = {
       queued: await deps.requestSync(user.id),
     };

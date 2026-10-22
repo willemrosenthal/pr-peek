@@ -40,7 +40,6 @@ async function otherUser() {
     githubUser({ id: 43, login: "other" }),
     githubTokens(),
     TEST_KEY,
-    "oauth",
   );
   return user;
 }

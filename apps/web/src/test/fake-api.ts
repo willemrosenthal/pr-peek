@@ -28,15 +28,17 @@ export const apiError = (status: number, code: string, message: string) =>
 export const signedOut = () =>
   apiError(401, "unauthorized", "Sign in required");
 
-export const me = (fields: Partial<MeResponse["user"]> = {}): MeResponse => ({
+export const me = (
+  fields: Partial<Omit<MeResponse, "user">> = {},
+): MeResponse => ({
   user: {
     id: "u1",
     login: "octocat",
     name: "The Octocat",
     avatarUrl: null,
-    authMethod: "oauth",
     scopes: ["repo", "read:org"],
-    ...fields,
   },
+  githubToken: null,
   needsReauth: false,
+  ...fields,
 });
