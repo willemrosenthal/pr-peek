@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                                                                   |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [07. Web app](07-web-app.md), part 3b: live updates. Parts 1 (#20), 2 (#21), and 3a (#22) merged                                                  |
-| **Branch**         | `plan-07-3b-live`                                                                                                                                 |
-| **PR**             | [#23](https://github.com/willemrosenthal/pr-peek/pull/23) (part 3b), draft                                                                        |
-| **Last step done** | Live updates, marking seen when you leave the list, the app badge, tray mode                                                                      |
-| **Next step**      | Part 4 (`plan-07-4-settings`): onboarding and settings, once 3b merges                                                                            |
-| **Waiting on you** | Check the stream in DevTools (see the PR). Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
+|                    |                                                                                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Current plan**   | [07. Web app](07-web-app.md), part 4a: settings tabs, repos, onboarding. Parts 1 to 3b (#20 to #23) merged                                                                           |
+| **Branch**         | `plan-07-4a-repos`                                                                                                                                                                   |
+| **PR**             | Part 4a, draft                                                                                                                                                                       |
+| **Last step done** | Settings tabs, the Repositories tab, onboarding                                                                                                                                      |
+| **Next step**      | Part 4b (`plan-07-4b-settings`): the rest of General, Rules, Timing, Devices, once 4a merges                                                                                         |
+| **Waiting on you** | Add repos, then the part 3b stream check in DevTools (PR #23, steps 3 and 4). Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.

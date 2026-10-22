@@ -11,7 +11,9 @@
 - **Part 3**, the list, in two PRs:
   - **3a** (`plan-07-3a-list`): sections, rows, header and refresh, banners, empty and error states, phone and desktop layouts, and their tests.
   - **3b** (`plan-07-3b-live`): live updates, marking items seen, the app badge, and tray mode.
-- **Part 4** (`plan-07-4-settings`): 7.6 onboarding and settings.
+- **Part 4**, 7.6 onboarding and settings, in two PRs:
+  - **4a** (`plan-07-4a-repos`): the settings tabs, the Repositories tab, and onboarding.
+  - **4b** (`plan-07-4b-settings`): the rest of General, Rules, Timing, and Devices.
 - **Part 5** (`plan-07-5-pwa`): 7.7 PWA, and the Playwright smoke test.
 
 ## Changes from the original plan
@@ -28,10 +30,14 @@
   - A token GitHub stops accepting sets `syncError` to `"token"`. Syncs stop until the user adds a new one. `"reauth"` still means sign in with GitHub again.
   - `/api/me` has `githubToken` (expiry, scopes, `invalid`) instead of `authMethod`. The `authMethod` column stays for now, so old servers keep working during a deploy. Drop it in a later migration.
   - The migration moves tokens pasted at sign in into the new columns. Those users sign in with GitHub next time.
-  - The token form (`components/GitHubToken.tsx`) is on the first settings page until part 4 adds the tabs.
+  - The token form (`components/GitHubToken.tsx`) is on the General tab.
 - **`api.http` signs in with your browser's session cookie**, since token sign in is gone. Steps at the top of the file.
-- **Onboarding** sends you to the list until part 4 builds it.
-- **A first `/settings` page** (part 3a) holds the token form and sign out, so the header's settings link goes somewhere. Part 4 turns it into tabs. The "not watching any repos" empty state links there, though the repo picker comes in part 4.
+- **Settings tabs are links** (part 4a), like `/settings/repos`, with the tab list on the left as in the mockup, and a row that scrolls sideways on phones. Each tab has its own URL, so they use the router, not Base UI Tabs. `/settings` and unknown tabs open General.
+- **Repositories tab:** the watch list, with a switch to pause each repo and a Remove button. Below it, search. With nothing typed, it lists your repos, most recently pushed first. Typing `owner/name` offers that repo even when search doesn't find it, like a repo in an org that blocks pr-peek. Search waits for typing to pause (300 ms).
+  - **No confirm on Remove.** Adding the repo back restores everything on the next sync.
+  - **Mute comes with plan 08.** It only stops notifications, so a switch would do nothing yet.
+- **Onboarding** has three steps: repos, timezone, and "You're set". Leaving the repo step starts a first sync, so the list fills in sooner. The timezone is a native dropdown, not Base UI Select, since it has about 400 options. Installing and notifications join the last step in plans 07 part 5 and 08.
+- **Count style moves to plan 09.** It only changes the menu bar title, and the server doesn't store it.
 - **The list refetches every minute** (items and sync status), since ages, stale colors, and "Updated 3m ago" change with time. The live stream (3b) refetches right away when something changes.
 - **Empty sections are hidden.** When all three are empty, the list says "Nothing needs you right now", or asks for repos if none are watched.
 - **Unseen rows** have a bold title and a dot, and screen readers hear "New".
@@ -43,7 +49,7 @@
 - **A stream the server refuses** (signed out, or a deploy in progress) is closed by the browser for good. The app checks `/api/me`, which sends a signed out user to sign in, and opens a new stream 30 seconds later.
 - **Fixed: a signed out check looped** between `/signin` and `/`, because a failed `/api/me` check keeps the old data. Also, a failed check other than 401 no longer replaces the page with an error once you're signed in.
 - **Tray mode** (`?shell=tray`) is kept in `sessionStorage`, so it holds on other pages. The footer has "Open in browser". Quit comes in plan 09, since it needs the desktop app.
-- **Base UI** is only used for the collapsible sections so far.
+- **Base UI** is used for the collapsible sections and switches so far.
 - **Showing GitHub avatars needs a CSP change.** Helmet only allows images from our own site. Add `https://avatars.githubusercontent.com` to `img-src` when the first avatar appears.
 
 ## Steps
@@ -130,13 +136,13 @@
 
 ### 7.6 Onboarding and settings
 
-- [ ] Onboarding:
+- [x] Onboarding:
   1. Repo picker, using search from plan 04.1.
   2. Timezone, detected from the browser and confirmable.
   3. Install and notification prompt (filled in by plan 08).
-- [ ] Settings tabs, matching the mockup:
-  - **General:** count style, hide bots, team requests, personal access token (`GitHubToken`), sign out.
-  - **Repositories:** add, remove, enable, mute.
+- [ ] Settings tabs, matching the mockup (the tabs and Repositories in part 4a, the rest in 4b):
+  - **General:** hide bots, team requests, personal access token (`GitHubToken`), sign out. Count style moved to plan 09.
+  - [x] **Repositories:** add, remove, enable. Mute moved to plan 08.
   - **Rules:** toggle, severity, channels.
   - **Timing:** staleness hours, work hours only, quiet hours, weekends, morning summary time.
     - Describe "work hours only" as changing only when rows turn orange or red, like "Only count weekdays, 9 to 6, toward overdue". Age labels always show real time.

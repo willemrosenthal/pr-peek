@@ -30,6 +30,7 @@ The Tauri window loads the **hosted web app** (`https://<your-domain>/?shell=tra
 - [ ] Hide the window when it loses focus, like a real menu.
 - [ ] Right click shows a small native menu: Refresh, Open in browser, Settings, Launch at login (checkbox), Check for updates, Quit.
 - [ ] A global shortcut (default Option+Command+P, changeable) toggles the window.
+- [ ] A "Menu bar count" setting (total, split like `3 · 1 · 3`, or dot only), moved here from plan 07's General tab. Keep it on the Mac, since only the tray uses it.
 - [ ] The single instance plugin stops a second copy from launching.
 
 ### 9.3 Bridge between the web app and native code
