@@ -26,7 +26,7 @@ export function latestBy<T>(items: T[], time: (item: T) => string) {
 }
 
 // Conversation comments and review thread comments together.
-export const allComments = (snapshot: PrSnapshot) => [
+const allComments = (snapshot: PrSnapshot) => [
   ...snapshot.comments,
   ...snapshot.threads.flatMap((thread) => thread.comments),
 ];

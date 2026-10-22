@@ -4,6 +4,7 @@ import type {
   PrReview,
   PrReviewRequestEvent,
   PrSnapshot,
+  PrThread,
 } from "../pr-snapshot";
 import type { RuleContext } from "./types";
 
@@ -61,6 +62,15 @@ export function snapshot(overrides: Partial<PrSnapshot> = {}): PrSnapshot {
   };
 }
 
+// A PR by the viewer, last pushed at minute 0.
+export const myPr = (overrides: Partial<PrSnapshot> = {}) =>
+  snapshot({ author: actor(VIEWER), ...overrides });
+
+export const thread = (
+  comments: PrComment[],
+  isResolved = false,
+): PrThread => ({ id: "T_1", isResolved, comments });
+
 export const requested = (
   id: string,
   minutes: number,
@@ -72,14 +82,18 @@ export const requested = (
   createdAt: at(minutes),
 });
 
+// Pass a login, or an actor for bots.
+const toActor = (author: string | PrActor) =>
+  typeof author === "string" ? actor(author) : author;
+
 export const review = (
   id: string,
-  login: string,
+  author: string | PrActor,
   minutes: number,
   state: PrReview["state"] = "COMMENTED",
 ): PrReview => ({
   id,
-  author: actor(login),
+  author: toActor(author),
   state,
   submittedAt: at(minutes),
 });
@@ -91,7 +105,7 @@ export const comment = (
   overrides: Partial<PrComment> = {},
 ): PrComment => ({
   id,
-  author: typeof author === "string" ? actor(author) : author,
+  author: toActor(author),
   bodyPreview: `Comment ${id}`,
   mentions: [],
   createdAt: at(minutes),

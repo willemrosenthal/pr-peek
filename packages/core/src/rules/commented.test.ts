@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { PrSnapshot } from "../pr-snapshot";
 import { commented } from "./commented";
-import { actor, at, comment, ctx, snapshot, VIEWER } from "./test-helpers";
-
-// Your PR, last pushed at minute 0.
-const myPr = (overrides: Partial<PrSnapshot> = {}) =>
-  snapshot({ author: actor(VIEWER), ...overrides });
+import {
+  actor,
+  at,
+  comment,
+  ctx,
+  myPr,
+  snapshot,
+  thread,
+  VIEWER,
+} from "./test-helpers";
 
 const detect = (pr: PrSnapshot, context = ctx()) =>
   commented.detect(pr, context);
@@ -14,13 +19,7 @@ describe("new comment on my PR", () => {
   it("makes one item for conversation and thread comments", () => {
     const pr = myPr({
       comments: [comment("C_1", "sam", 10)],
-      threads: [
-        {
-          id: "T_1",
-          isResolved: false,
-          comments: [comment("C_2", "jlee", 20)],
-        },
-      ],
+      threads: [thread([comment("C_2", "jlee", 20)])],
     });
     expect(detect(pr)).toEqual([
       {
@@ -71,9 +70,7 @@ describe("new comment on my PR", () => {
 
   it("ignores resolved threads", () => {
     const pr = myPr({
-      threads: [
-        { id: "T_1", isResolved: true, comments: [comment("C_1", "sam", 10)] },
-      ],
+      threads: [thread([comment("C_1", "sam", 10)], true)],
     });
     expect(detect(pr)).toEqual([]);
   });

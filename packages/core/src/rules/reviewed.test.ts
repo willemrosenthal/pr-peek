@@ -6,16 +6,14 @@ import {
   at,
   comment,
   ctx,
+  myPr,
   review,
   snapshot,
   VIEWER,
 } from "./test-helpers";
 
-// Your PR, last pushed at minute 0.
-const myPr = (overrides: Partial<PrSnapshot> = {}) =>
-  snapshot({ author: actor(VIEWER), ...overrides });
-
-const detect = (pr: PrSnapshot) => reviewed.detect(pr, ctx());
+const detect = (pr: PrSnapshot, context = ctx()) =>
+  reviewed.detect(pr, context);
 
 describe("my PR was reviewed", () => {
   it("makes an item for an approval", () => {
@@ -103,6 +101,14 @@ describe("my PR was reviewed", () => {
       comments: [comment("C_1", VIEWER, 30)],
     });
     expect(detect(pr)).toHaveLength(1);
+  });
+
+  it("ignores bots when they're hidden", () => {
+    const pr = myPr({
+      reviews: [review("R_1", actor("ci-bot", true), 10, "APPROVED")],
+    });
+    expect(detect(pr)).toHaveLength(1);
+    expect(detect(pr, ctx({ settings: { hideBots: true } }))).toEqual([]);
   });
 
   it("ignores other people's PRs", () => {

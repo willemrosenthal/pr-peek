@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
-import type { PrComment, PrSnapshot } from "../pr-snapshot";
+import type { PrSnapshot } from "../pr-snapshot";
 import { reply } from "./reply";
-import { actor, at, comment, ctx, snapshot, VIEWER } from "./test-helpers";
-
-const thread = (comments: PrComment[], isResolved = false) => ({
-  id: "T_1",
-  isResolved,
-  comments,
-});
+import {
+  actor,
+  at,
+  comment,
+  ctx,
+  myPr,
+  snapshot,
+  thread,
+  VIEWER,
+} from "./test-helpers";
 
 const detect = (pr: PrSnapshot, context = ctx()) => reply.detect(pr, context);
 
@@ -112,8 +115,7 @@ describe("reply to my comment", () => {
   });
 
   it("leaves your own PR to the comment rule", () => {
-    const pr = snapshot({
-      author: actor(VIEWER),
+    const pr = myPr({
       threads: [thread([comment("C_1", VIEWER, 5), comment("C_2", "sam", 10)])],
     });
     expect(detect(pr)).toEqual([]);
