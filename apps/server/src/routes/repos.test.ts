@@ -56,8 +56,8 @@ function github(request: GraphQLRequest) {
   return { data: { repository: repo(1, String(request.variables.name)) } };
 }
 
-async function setup(answer = github) {
-  const fake = fakeGraphQL(answer);
+async function setup(answer = github, delayMs = 0) {
+  const fake = fakeGraphQL(answer, delayMs);
   const { agent } = makeTestApp(db, {
     routers: [reposRouter({ db, github: () => Promise.resolve(fake.octokit) })],
   });
@@ -148,6 +148,15 @@ describe("POST /api/repos", () => {
     const res = await add(agent, "web-app");
     expect(res.status).toBe(409);
     expect(res.body).toMatchObject({ error: { code: "already_watched" } });
+  });
+
+  it("answers 409, not 500, when the same repo is added twice at once", async () => {
+    // Slow GitHub answers, so both requests pass the "already watched?" check together.
+    const { agent } = await setup(github, 50);
+    const statuses = (
+      await Promise.all([add(agent, "web-app"), add(agent, "web-app")])
+    ).map((res) => res.status);
+    expect(statuses.sort()).toEqual([201, 409]);
   });
 
   it("refuses a repo that doesn't exist or the user can't see", async () => {

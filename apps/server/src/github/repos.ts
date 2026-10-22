@@ -71,6 +71,8 @@ export async function searchRepos(
             first: ${PAGE_SIZE}
             after: $cursor
             affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]
+            # Without this, GitHub can leave out repos owned by the user's orgs.
+            ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]
             orderBy: { field: PUSHED_AT, direction: DESC }
           ) {
             nodes { ${REPO_FIELDS} }

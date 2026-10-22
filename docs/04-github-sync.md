@@ -46,6 +46,7 @@ We use GitHub's **GraphQL API** because one request can fetch a PR plus its revi
   - `is:pr is:open author:@me`
   - `is:pr is:open commenter:@me -author:@me` (for "replies to me")
 - [ ] Merge the results into one set keyed by PR node id, remembering which searches matched (the "reasons").
+- [ ] Keep only PRs in enabled watched repos. Match on the repo's `databaseId` (our `githubRepoId`), not its name, so a renamed repo keeps syncing.
 
 ### 4.3 Skipping unchanged PRs
 

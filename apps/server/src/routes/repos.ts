@@ -9,7 +9,7 @@ import {
 import express, { type Router } from "express";
 import type { Octokit } from "octokit";
 import type { Db } from "../db";
-import type { WatchedRepo } from "../generated/prisma/client";
+import { Prisma, type WatchedRepo } from "../generated/prisma/client";
 import { findRepo, searchRepos } from "../github/repos";
 import { HttpError, parseInput } from "../http-error";
 import { currentUser, requireUser } from "./auth";
@@ -32,6 +32,10 @@ function toDto(repo: WatchedRepo): WatchedRepoDto {
 }
 
 const notFound = () => new HttpError(404, "not_found", "Repo not found");
+
+// Prisma's code for "a row like this already exists".
+const isUniqueViolation = (err: unknown) =>
+  err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
 
 export function reposRouter(deps: RepoDeps): Router {
   const router = express.Router();
@@ -89,30 +93,26 @@ export function reposRouter(deps: RepoDeps): Router {
     const repo = await findRepo(await deps.github(user.id), owner, name);
     if (!repo) throw notFound();
 
-    const existing = await deps.db.watchedRepo.findUnique({
-      where: {
-        userId_githubRepoId: {
+    // The database's unique rule decides duplicates, so two adds at once can't both pass.
+    const created = await deps.db.watchedRepo
+      .create({
+        data: {
           userId: user.id,
           githubRepoId: repo.githubRepoId,
+          owner: repo.owner,
+          name: repo.name,
         },
-      },
-    });
-    if (existing) {
-      throw new HttpError(
-        409,
-        "already_watched",
-        "You already watch this repo",
-      );
-    }
-
-    const created = await deps.db.watchedRepo.create({
-      data: {
-        userId: user.id,
-        githubRepoId: repo.githubRepoId,
-        owner: repo.owner,
-        name: repo.name,
-      },
-    });
+      })
+      .catch((err: unknown) => {
+        if (isUniqueViolation(err)) {
+          throw new HttpError(
+            409,
+            "already_watched",
+            "You already watch this repo",
+          );
+        }
+        throw err;
+      });
     res.status(201).json({ repo: toDto(created) });
   });
 
