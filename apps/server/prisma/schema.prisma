@@ -92,6 +92,7 @@ model PullRequest {
   id              String   @id @default(cuid())
   userId          String
   githubNodeId    String
+  githubRepoId    Int
   repoOwner       String
   repoName        String
   number          Int
@@ -103,6 +104,8 @@ model PullRequest {
   headSha         String
   checkState      String?
   githubUpdatedAt DateTime
+  // The last sync that found this PR. PRs not found for 7 days are deleted.
+  lastSeenAt      DateTime @default(now())
   snapshot        Json
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
