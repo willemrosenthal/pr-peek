@@ -34,6 +34,8 @@ There are no done or snooze endpoints. Items clear on their own (see [plan 05](0
 | `PATCH /settings`      | Update user settings (timezone, staleness, quiet hours, digest time, bots, team requests) |
 | `PATCH /rules/:ruleId` | Update `enabled`, `severity`, `channels`                                                  |
 
+`PATCH /settings` must reject unknown timezones (check against `Intl.supportedValuesOf("timeZone")`). The waiting time code in `packages/core/src/urgency.ts` throws on one.
+
 **Sync**
 
 | Method and path    | What it does                                                                                 |
