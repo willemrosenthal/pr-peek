@@ -99,6 +99,7 @@ export function commentsItem(
       latestEventId: latest.id,
       eventCount: comments.length,
       actorLogin: latest.author.login,
+      actorIsBot: latest.author.isBot,
       summary: `${latest.author.login}: "${latest.bodyPreview}"${andMore(comments.length)}`,
       occurredAt: latest.createdAt,
       waitingSince: null,

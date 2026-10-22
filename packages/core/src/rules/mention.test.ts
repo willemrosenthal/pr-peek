@@ -32,6 +32,7 @@ describe("mentioned me", () => {
         latestEventId: "C_1",
         eventCount: 1,
         actorLogin: "sam",
+        actorIsBot: false,
         summary: 'sam: "@me can you look?"',
         occurredAt: at(10),
         waitingSince: null,

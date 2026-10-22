@@ -94,6 +94,7 @@ describe("GET /api/items", () => {
       kind: "review_requested",
       summary: "review_requested summary",
       actorLogin: null,
+      actorIsBot: false,
       occurredAt: hours(-5).toISOString(),
       waitingSince: hours(-5).toISOString(),
       age: "5h",

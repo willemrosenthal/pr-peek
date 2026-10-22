@@ -53,6 +53,7 @@ export const reviewed: Rule = {
         latestEventId: latest.id,
         eventCount: open.length,
         actorLogin: latest.author.login,
+        actorIsBot: latest.author.isBot,
         summary: `${latest.author.login} ${verb}${andMore(open.length)}`,
         occurredAt: latest.submittedAt,
         waitingSince: null,

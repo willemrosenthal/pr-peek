@@ -59,6 +59,16 @@ it.each<[ItemKind, string]>([
   expect(svg?.getAttribute("aria-hidden")).toBe("true");
 });
 
+it.each([
+  [true, "lucide-bot-message-square"],
+  [false, "lucide-message-circle"],
+])("shows the bot icon when a bot did it: %s", (actorIsBot, icon) => {
+  render(<ItemRow item={item({ kind: "reply", actorIsBot })} />);
+  const svg = screen.getByRole("link").querySelector("svg");
+  expect(svg?.classList).toContain(icon);
+  expect(svg?.parentElement?.className).toContain("reply");
+});
+
 it.each<[StaleLevel | null, string]>([
   ["fresh", "muted"],
   ["warn", "warning"],

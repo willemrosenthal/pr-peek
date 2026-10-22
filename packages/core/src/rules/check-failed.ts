@@ -30,6 +30,7 @@ export const checkFailed: Rule = {
         latestEventId: push.sha,
         eventCount: headFailed ? Math.max(failing.length, 1) : 1,
         actorLogin: null,
+        actorIsBot: false,
         summary: headFailed
           ? failing.map((check) => check.name).join(", ") || "Checks failed"
           : "Checks failed before the branch update",

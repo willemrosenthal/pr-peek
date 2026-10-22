@@ -139,6 +139,7 @@ model Item {
   latestEventId String
   eventCount    Int        @default(1)
   actorLogin    String?
+  actorIsBot    Boolean    @default(false)
   summary       String
   occurredAt    DateTime
   waitingSince  DateTime?

@@ -34,6 +34,7 @@ describe("reply to my comment", () => {
         latestEventId: "C_2",
         eventCount: 1,
         actorLogin: "sam",
+        actorIsBot: false,
         summary: 'sam: "Good call, moved it"',
         occurredAt: at(10),
         waitingSince: null,

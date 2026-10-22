@@ -38,6 +38,7 @@ export interface DetectedItem {
   latestEventId: string;
   eventCount: number;
   actorLogin: string | null;
+  actorIsBot: boolean;
   summary: string;
   occurredAt: string;
   // When the wait started, for review requests. Null for other kinds.

@@ -170,6 +170,7 @@ type ItemFields = Pick<
   | "latestEventId"
   | "eventCount"
   | "actorLogin"
+  | "actorIsBot"
   | "summary"
   | "occurredAt"
   | "waitingSince"
@@ -185,6 +186,7 @@ const isUnchanged = (stored: Item, fields: ItemFields) =>
   stored.latestEventId === fields.latestEventId &&
   stored.eventCount === fields.eventCount &&
   stored.actorLogin === fields.actorLogin &&
+  stored.actorIsBot === fields.actorIsBot &&
   stored.summary === fields.summary &&
   sameTime(stored.occurredAt, fields.occurredAt) &&
   sameTime(stored.waitingSince, fields.waitingSince);
@@ -214,6 +216,7 @@ export async function saveItems(
         latestEventId: item.latestEventId,
         eventCount: item.eventCount,
         actorLogin: item.actorLogin,
+        actorIsBot: item.actorIsBot,
         summary: item.summary,
         occurredAt: new Date(item.occurredAt),
         waitingSince: item.waitingSince ? new Date(item.waitingSince) : null,
