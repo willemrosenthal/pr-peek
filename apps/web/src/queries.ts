@@ -2,6 +2,7 @@ import type {
   ItemsResponse,
   MeResponse,
   SearchReposResponse,
+  SettingsResponse,
   SummaryResponse,
   SyncStatusResponse,
   WatchedReposResponse,
@@ -21,6 +22,7 @@ export const queryKeys = {
   syncStatus: ["sync-status"],
   repos: ["repos"],
   githubRepos: ["github-repos"],
+  settings: ["settings"],
 } as const;
 
 // Ages and stale colors change with time, so lists refetch this often.
@@ -82,6 +84,14 @@ export function useRepoSearch(query: string) {
 export function useReloadWatchList() {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: queryKeys.repos });
+}
+
+// The user's settings and every rule's.
+export function useSettings() {
+  return useQuery({
+    queryKey: queryKeys.settings,
+    queryFn: () => api<SettingsResponse>("/settings"),
+  });
 }
 
 export function useSyncStatus(

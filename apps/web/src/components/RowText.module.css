@@ -1,0 +1,16 @@
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.label {
+  font-weight: 600;
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}

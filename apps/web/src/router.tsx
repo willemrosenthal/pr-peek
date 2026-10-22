@@ -3,8 +3,10 @@ import { PageMessage } from "./components/PageMessage";
 import { RequireAuth } from "./components/RequireAuth";
 import { ListPage } from "./pages/ListPage";
 import { Onboarding } from "./pages/Onboarding";
+import { DevicesTab } from "./pages/settings/DevicesTab";
 import { GeneralTab } from "./pages/settings/GeneralTab";
 import { ReposTab } from "./pages/settings/ReposTab";
+import { RulesTab } from "./pages/settings/RulesTab";
 import { SettingsLayout } from "./pages/settings/SettingsLayout";
 import { SignIn } from "./pages/SignIn";
 
@@ -21,6 +23,8 @@ export const routes = [
         children: [
           { path: "general", element: <GeneralTab /> },
           { path: "repos", element: <ReposTab /> },
+          { path: "rules", element: <RulesTab /> },
+          { path: "devices", element: <DevicesTab /> },
           { index: true, element: <Navigate to="/settings/general" replace /> },
           { path: "*", element: <Navigate to="/settings/general" replace /> },
         ],
