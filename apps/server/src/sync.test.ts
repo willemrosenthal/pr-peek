@@ -10,6 +10,7 @@ import {
   prGitHub,
   searchHit,
   searchQueries,
+  statusIds,
   teamQueries,
   type FakePrGitHub,
 } from "../test/pulls";
@@ -145,14 +146,17 @@ describe("syncUser", () => {
 
   it("fetches the user's own PRs when their checks change", async () => {
     const user = await makeUser();
+    const own = {
+      PR_1: githubPr({ author: { __typename: "User", login: "OctoCat" } }),
+    };
     await sync(user.id, {
       authored: [searchHit("PR_1", { repoId: WATCHED, checkState: "FAILURE" })],
-      prs,
+      prs: own,
     });
 
     const { requests } = await sync(user.id, {
       authored: [searchHit("PR_1", { repoId: WATCHED, checkState: "SUCCESS" })],
-      prs,
+      prs: own,
     });
     expect(detailIds(requests)).toEqual(["PR_1"]);
   });
@@ -175,20 +179,92 @@ describe("syncUser", () => {
     expect(detailIds(requests)).toEqual([]);
   });
 
-  it("keeps PRs that left the searches for 7 days, then deletes them", async () => {
+  it("deletes PRs 7 days after the searches last found them, once nothing is open", async () => {
     const user = await makeUser();
     await sync(user.id, {
       reviewRequested: [searchHit("PR_1", { repoId: WATCHED })],
       prs,
     });
 
-    await sync(user.id, {}, hours(24 * 7 - 1));
+    // Merged, so its items are resolved.
+    const merged = {
+      statuses: { PR_1: searchHit("PR_1", { state: "MERGED" }) },
+    };
+    await sync(user.id, merged, hours(24 * 7 - 1));
     const row = await db.pullRequest.findFirstOrThrow();
-    expect(row.lastSeenAt).toEqual(NOW);
+    expect(row).toMatchObject({ lastSeenAt: NOW, state: "merged" });
 
-    const { result } = await sync(user.id, {}, hours(24 * 7 + 1));
+    const { result } = await sync(user.id, merged, hours(24 * 7 + 1));
     expect(result.deleted).toBe(1);
     expect(await db.pullRequest.count()).toBe(0);
+  });
+
+  it("keeps PRs with open items past 7 days", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+
+    // The searches stop finding it, but it's still open and still asks for a review.
+    const missed = { statuses: { PR_1: searchHit("PR_1") } };
+    const { result } = await sync(user.id, missed, hours(24 * 8));
+    expect(result.deleted).toBe(0);
+    expect(await db.pullRequest.count()).toBe(1);
+  });
+
+  it("checks only tracked PRs the searches missed", async () => {
+    const user = await makeUser();
+    await sync(user.id, {
+      reviewRequested: [
+        searchHit("PR_1", { repoId: WATCHED }),
+        searchHit("PR_2", { repoId: WATCHED }),
+      ],
+      prs: { PR_1: githubPr(), PR_2: githubPr({ id: "PR_2" }) },
+    });
+
+    const { requests, result } = await sync(
+      user.id,
+      {
+        reviewRequested: [searchHit("PR_1", { repoId: WATCHED })],
+        statuses: { PR_2: searchHit("PR_2") },
+      },
+      hours(1),
+    );
+    expect(statusIds(requests)).toEqual(["PR_2"]);
+    // Unchanged, so no details either.
+    expect(detailIds(requests)).toEqual([]);
+    expect(result.ended).toBe(0);
+  });
+
+  it("fetches a missed PR that changed", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+
+    const updatedAt = "2026-10-21T11:00:00Z";
+    const { requests } = await sync(
+      user.id,
+      {
+        statuses: { PR_1: searchHit("PR_1", { updatedAt }) },
+        prs: { PR_1: githubPr({ title: "Add login v2", updatedAt }) },
+      },
+      hours(1),
+    );
+    expect(detailIds(requests)).toEqual(["PR_1"]);
+    expect((await db.pullRequest.findFirstOrThrow()).title).toBe(
+      "Add login v2",
+    );
+  });
+
+  it("stops tracking a PR moved to a repo the user doesn't watch", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+
+    const moved = searchHit("PR_1", { repoId: UNWATCHED });
+    const { result } = await sync(
+      user.id,
+      { reviewRequested: [moved], statuses: { PR_1: moved } },
+      hours(1),
+    );
+    expect(result.ended).toBe(1);
+    expect((await db.pullRequest.findFirstOrThrow()).state).toBe("unwatched");
   });
 
   it("reports PRs it couldn't read and saves the rest", async () => {
@@ -230,6 +306,7 @@ describe("syncUser", () => {
       found: 0,
       fetched: 0,
       failed: [],
+      ended: 0,
       deleted: 0,
       newEventItemIds: [],
     });
@@ -237,6 +314,7 @@ describe("syncUser", () => {
 });
 
 const items = () => db.item.findMany({ orderBy: { kind: "asc" } });
+const openItemCount = () => db.item.count({ where: { status: "open" } });
 const itemOf = async (kind: string) =>
   db.item.findFirstOrThrow({ where: { kind } });
 // GitHub with PR_1 asking octocat to review. See `githubPr` for what else it has.
@@ -335,17 +413,62 @@ describe("items", () => {
     ]);
   });
 
-  it("resolves items when the PR leaves the searches, and reopens them if it comes back", async () => {
+  it("keeps items when a search misses a PR that's still open", async () => {
     const user = await makeUser();
     await sync(user.id, asked());
 
-    await sync(user.id, {}, hours(1));
-    expect(await db.item.count({ where: { status: "open" } })).toBe(0);
+    const { result } = await sync(
+      user.id,
+      { statuses: { PR_1: searchHit("PR_1") } },
+      hours(1),
+    );
+    expect(result.ended).toBe(0);
+    expect(await openItemCount()).toBe(2);
+  });
+
+  it.each([
+    ["merged", { PR_1: searchHit("PR_1", { state: "MERGED" }) }],
+    ["closed", { PR_1: searchHit("PR_1", { state: "CLOSED" }) }],
+    ["gone", {}],
+  ])("resolves items when the PR is %s", async (state, statuses) => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+
+    const { result } = await sync(user.id, { statuses }, hours(1));
+    expect(result.ended).toBe(1);
+    expect(await openItemCount()).toBe(0);
+    expect((await db.pullRequest.findFirstOrThrow()).state).toBe(state);
+  });
+
+  it("reopens items without notifying when a closed PR opens again", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    const closed = { PR_1: searchHit("PR_1", { state: "CLOSED" }) };
+    await sync(user.id, { statuses: closed }, hours(1));
 
     const { result } = await sync(user.id, asked(), hours(2));
-    expect(await db.item.count({ where: { status: "open" } })).toBe(2);
-    // Nothing new happened, so no new notification.
+    expect(await openItemCount()).toBe(2);
     expect(result.newEventItemIds).toEqual([]);
+    expect((await db.pullRequest.findFirstOrThrow()).state).toBe("open");
+  });
+
+  it("resolves items when the PR's repo is paused, and reopens them when it's back", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+
+    await db.watchedRepo.updateMany({
+      where: { githubRepoId: WATCHED },
+      data: { enabled: false },
+    });
+    const paused = await sync(user.id, {}, hours(1));
+    expect(paused.github).not.toHaveBeenCalled();
+    expect(await openItemCount()).toBe(0);
+    expect((await db.pullRequest.findFirstOrThrow()).state).toBe("unwatched");
+
+    await db.watchedRepo.updateMany({ data: { enabled: true } });
+    const back = await sync(user.id, asked(), hours(2));
+    expect(await openItemCount()).toBe(2);
+    expect(back.result.newEventItemIds).toEqual([]);
   });
 
   it("skips rules the user turned off", async () => {
@@ -484,13 +607,14 @@ describe("rerunRules", () => {
     expect(await itemOf("reply")).toMatchObject({ eventCount: 1 });
   });
 
-  it("leaves PRs the latest sync didn't find alone", async () => {
+  it("leaves PRs that ended alone", async () => {
     const user = await makeUser();
     await sync(user.id, asked());
+    // Gone from GitHub.
     await sync(user.id, {}, hours(1));
 
     await rerun(user.id);
-    expect(await db.item.count({ where: { status: "open" } })).toBe(0);
+    expect(await openItemCount()).toBe(0);
   });
 
   it("only asks GitHub for the user's teams, and only when needed", async () => {

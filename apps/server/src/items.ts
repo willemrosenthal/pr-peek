@@ -200,33 +200,29 @@ export async function saveItems(
   return newEventIds;
 }
 
-// Resolves open items on PRs this sync didn't find: merged, closed, or no longer involving
-// the user. Run after every found PR's `lastSeenAt` is set to `now`. Returns how many.
-export async function resolveUnseenItems(
+// Resolves the open items on the PRs with these GitHub ids. Returns how many.
+export async function resolveItemsOf(
   tx: Tx,
   userId: string,
+  githubNodeIds: string[],
   now: Date,
 ): Promise<number> {
+  if (githubNodeIds.length === 0) return 0;
   const { count } = await tx.item.updateMany({
     where: {
       userId,
       status: "open",
-      pullRequest: { lastSeenAt: { lt: now } },
+      pullRequest: { githubNodeId: { in: githubNodeIds } },
     },
     data: { status: "resolved", resolvedAt: now },
   });
   return count;
 }
 
-// The stored PRs the latest sync found. Older ones already had their items resolved.
-async function latestSyncedPrs(tx: Tx, userId: string): Promise<SavedPr[]> {
-  const { lastSyncedAt } = await tx.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { lastSyncedAt: true },
-  });
-  if (!lastSyncedAt) return [];
+// The PRs the sync tracks. Ended ones already had their items resolved.
+async function trackedPrs(tx: Tx, userId: string): Promise<SavedPr[]> {
   const rows = await tx.pullRequest.findMany({
-    where: { userId, lastSeenAt: { gte: lastSyncedAt } },
+    where: { userId, state: "open" },
     select: { id: true, snapshot: true },
   });
   return rows.flatMap((row): SavedPr[] => {
@@ -245,7 +241,7 @@ export async function rerunRules(
   now = new Date(),
 ): Promise<void> {
   // Read first only to prepare the rules, so GitHub isn't called inside the transaction.
-  const before = await latestSyncedPrs(db, userId);
+  const before = await trackedPrs(db, userId);
   if (before.length === 0) return;
   const detect = await prepareRules(
     db,
@@ -258,7 +254,7 @@ export async function rerunRules(
   await db.$transaction(async (tx) => {
     await lockUserItems(tx, userId);
     // Read again under the lock, in case a sync saved newer snapshots meanwhile.
-    const prs = await latestSyncedPrs(tx, userId);
+    const prs = await trackedPrs(tx, userId);
     await saveItems(tx, userId, prs, detect, now);
     await publishItemsChanged(tx, userId);
   }, ITEMS_TX);
