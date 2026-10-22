@@ -9,7 +9,8 @@
 ### 10.1 Privacy and trust
 
 - [ ] A plain English `/privacy` page covering:
-  - What we store: GitHub profile, encrypted token, PR titles and comment previews for watched repos, push subscriptions.
+  - What we store: GitHub profile, encrypted token (from the GitHub sign in, or the personal access token you pasted), PR titles and comment previews for watched repos, push subscriptions.
+  - That a pasted personal access token can do anything you can do on GitHub, and how to revoke it.
   - Why we store it.
   - How long we keep it.
   - That we never write to GitHub. (Until plan 11 adds actions. Then say exactly which.)

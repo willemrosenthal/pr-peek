@@ -22,14 +22,20 @@
 - [ ] Vite dev server on `5173`, proxying `/api` to Express on `3000`. Same origin in dev and prod means cookies and CSRF checks behave the same.
 - [ ] React Router routes:
 
-| Route            | Screen                                                                                    |
-| ---------------- | ----------------------------------------------------------------------------------------- |
-| `/signin`        | Sign in with GitHub, with a clear note about permissions and a "public repos only" option |
-| `/onboarding`    | Pick repos, set timezone, prompt to install and turn on notifications                     |
-| `/`              | The list                                                                                  |
-| `/settings/:tab` | General, Repositories, Rules, Timing, Devices                                             |
-| `/install`       | How to install on iPhone, Android, Mac                                                    |
+| Route            | Screen                                                                                                                            |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `/signin`        | Sign in with GitHub, with a clear note about permissions and a "public repos only" option. Plus "Use a token instead" (see below) |
+| `/onboarding`    | Pick repos, set timezone, prompt to install and turn on notifications                                                             |
+| `/`              | The list                                                                                                                          |
+| `/settings/:tab` | General, Repositories, Rules, Timing, Devices                                                                                     |
+| `/install`       | How to install on iPhone, Android, Mac                                                                                            |
 
+- [ ] "Use a token instead" on `/signin`, for users whose org blocks our OAuth App (plan 04, step 4.0). A text box that posts to `/api/auth/token`, then goes to `/onboarding` or `/` based on `isNew`. Show the error message from the server. Short steps above the box:
+  1. GitHub, Settings, Developer settings, Personal access tokens, **Tokens (classic)**, Generate new token (classic).
+  2. Tick the `repo` and `read:org` scopes. Pick an expiry you're happy with. You'll paste a new token when it runs out.
+  3. If your company uses single sign-on, click **Configure SSO**, then **Authorize** next to your org. Without this, work repos won't show up.
+  4. Copy the token and paste it here.
+- [ ] When `/api/me` says `needsReauth` and `authMethod` is `pat`, ask for a new token instead of showing the GitHub button.
 - [ ] TanStack Query for all server data. One small `api.ts` wrapper around `fetch` that uses the shared types from `packages/core`, sends cookies, and turns error JSON into thrown errors.
 - [ ] If `/api/me` returns 401, send the user to `/signin`.
 - [ ] Keep dots out of route paths. The server treats any path with a file extension as a file and returns 404 if it's missing (plan 02). A repo name like `next.js` belongs in a query string, not the path.

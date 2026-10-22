@@ -1,19 +1,21 @@
 import type { Db } from "./db";
-import type { User } from "./generated/prisma/client";
+import type { AuthMethod, User } from "./generated/prisma/client";
 import { encryptTokens } from "./github/tokens";
 import type { GitHubTokens, GitHubUser } from "./github/oauth";
 
-// Creates or updates the user after they sign in with GitHub.
+// Creates or updates the user after they sign in with GitHub or a personal access token.
 export async function upsertGitHubUser(
   db: Db,
   githubUser: GitHubUser,
   tokens: GitHubTokens,
   key: Buffer,
+  authMethod: AuthMethod = "oauth",
 ): Promise<{ user: User; isNew: boolean }> {
   const profile = {
     login: githubUser.login,
     name: githubUser.name,
     avatarUrl: githubUser.avatarUrl,
+    authMethod,
   };
   const tokenFields = encryptTokens(tokens, key);
 

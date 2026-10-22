@@ -94,6 +94,23 @@ describe("getAccessToken", () => {
     ).toBe("reauth");
   });
 
+  it("asks for a new token when a personal access token is about to expire", async () => {
+    const user = await userWith(
+      githubTokens({
+        accessToken: "ghp_token",
+        accessTokenExpiresAt: hours(0.05),
+        refreshToken: null,
+        refreshTokenExpiresAt: null,
+      }),
+    );
+    const oauth = fakeOAuth();
+
+    await expect(getAccessToken(deps(oauth), user.id)).rejects.toBeInstanceOf(
+      NeedsReauthError,
+    );
+    expect(oauth.refresh).not.toHaveBeenCalled();
+  });
+
   it("asks the user to sign in again when GitHub rejects the refresh", async () => {
     const user = await userWith(
       githubTokens({ accessTokenExpiresAt: hours(-1) }),
