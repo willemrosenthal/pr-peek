@@ -124,9 +124,3 @@ describe("the Rules tab", () => {
     expect(urgency.value).toBe("normal");
   });
 });
-
-it("has a Devices placeholder until push notifications arrive", async () => {
-  fakeApi(signedInApi());
-  renderApp("/settings/devices");
-  expect(await screen.findByRole("heading", { name: "Devices" })).toBeTruthy();
-});

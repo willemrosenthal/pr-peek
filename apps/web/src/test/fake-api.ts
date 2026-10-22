@@ -3,6 +3,7 @@ import {
   type ItemDto,
   type ItemsResponse,
   type MeResponse,
+  type PushSubscriptionDto,
   type RepoOption,
   type SearchReposResponse,
   type SettingsResponse,
@@ -111,6 +112,23 @@ export const repoOption = (fields: Partial<RepoOption> = {}): RepoOption => {
     owner: "acme",
     name: `repo-${repoCount}`,
     isPrivate: false,
+    ...fields,
+  };
+};
+
+let deviceCount = 0;
+
+export const device = (
+  fields: Partial<PushSubscriptionDto> = {},
+): PushSubscriptionDto => {
+  deviceCount += 1;
+  return {
+    id: `device-${deviceCount}`,
+    endpoint: `https://fcm.googleapis.com/fcm/send/device-${deviceCount}`,
+    label: `Device ${deviceCount}`,
+    minSeverity: "low",
+    lastSuccessAt: null,
+    createdAt: "2026-10-21T10:00:00.000Z",
     ...fields,
   };
 };
