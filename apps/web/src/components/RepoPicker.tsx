@@ -1,9 +1,9 @@
-import type { AddRepoBody, AddRepoResponse } from "@pr-peek/core";
+import type { AddRepoBody } from "@pr-peek/core";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../api";
 import { useDebounced } from "../hooks/useDebounced";
-import { useRepoSearch, useWatchListChanged } from "../queries";
+import { useReloadWatchList, useRepoSearch, useRepos } from "../queries";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import { Card, CardRow } from "./Card";
@@ -17,18 +17,28 @@ export const SEARCH_DELAY_MS = 300;
 // "owner/name", typed in full.
 const FULL_NAME = /^([\w.-]+)\/([\w.-]+)$/;
 
+// GitHub names ignore case.
+const fullName = (repo: AddRepoBody) =>
+  `${repo.owner}/${repo.name}`.toLowerCase();
+
 // Finds repos on GitHub and adds them to the watch list.
 export function RepoPicker() {
   const [query, setQuery] = useState("");
   const search = useDebounced(query.trim(), SEARCH_DELAY_MS);
   const results = useRepoSearch(search);
+  // The watch list decides "Watching", so adds and removes show without searching again.
+  const watched = new Set(
+    useRepos().data?.repos.map((repo) => fullName(repo)) ?? [],
+  );
 
   const options = results.data?.pages.flatMap((page) => page.repos) ?? [];
   const typed = FULL_NAME.exec(search);
   // Offers a typed owner/name that search didn't find, like a repo in an org that
   // blocks pr-peek.
+  const typedRepo = typed && { owner: typed[1]!, name: typed[2]! };
   const typedMissing =
-    typed && !options.some((repo) => `${repo.owner}/${repo.name}` === typed[0]);
+    typedRepo &&
+    !options.some((repo) => fullName(repo) === fullName(typedRepo));
 
   return (
     <div className={styles.picker}>
@@ -45,9 +55,9 @@ export function RepoPicker() {
         <Card label="Repos you can add">
           {typedMissing && (
             <AddRepoRow
-              key={typed[0]}
-              repo={{ owner: typed[1]!, name: typed[2]! }}
-              watched={false}
+              key={fullName(typedRepo)}
+              repo={typedRepo}
+              watched={watched.has(fullName(typedRepo))}
             />
           )}
           {options.map((repo) => (
@@ -55,7 +65,7 @@ export function RepoPicker() {
               key={repo.githubRepoId}
               repo={repo}
               isPrivate={repo.isPrivate}
-              watched={repo.watched}
+              watched={watched.has(fullName(repo))}
             />
           ))}
         </Card>
@@ -84,15 +94,15 @@ function AddRepoRow({
   isPrivate?: boolean;
   watched: boolean;
 }) {
-  const watchList = useWatchListChanged();
+  const reloadWatchList = useReloadWatchList();
   const add = useMutation({
     mutationFn: () =>
-      api<AddRepoResponse>("/repos", {
+      api("/repos", {
         method: "POST",
         body: { owner: repo.owner, name: repo.name },
       }),
-    onSuccess: ({ repo: added }) =>
-      watchList.setWatched(added.githubRepoId, true),
+    // Stays pending until the watch list shows the repo.
+    onSuccess: reloadWatchList,
   });
   const name = `${repo.owner}/${repo.name}`;
 
@@ -102,7 +112,7 @@ function AddRepoRow({
         {name}
         {isPrivate && <span className={styles.hint}>Private</span>}
       </span>
-      {watched || add.isSuccess ? (
+      {watched ? (
         <span className={styles.hint}>Watching</span>
       ) : add.isPending ? (
         <span className={styles.adding} role="status">

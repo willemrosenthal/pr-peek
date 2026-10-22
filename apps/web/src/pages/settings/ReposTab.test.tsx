@@ -21,7 +21,8 @@ const watchedList = () => screen.findByRole("list", { name: "Watched repos" });
 const optionList = () =>
   screen.findByRole("list", { name: "Repos you can add" });
 
-// A server holding a watch list, and `options` to search.
+// A server holding a watch list, and `options` to search. Tests change `watched` in
+// place to change what the server returns.
 function reposApi(
   watched: WatchedRepoDto[],
   options: RepoOption[] = [],
@@ -74,11 +75,10 @@ describe("watched repos", () => {
   });
 
   it("removes one", async () => {
-    let watched = [watchedRepo({ owner: "acme", name: "web" })];
+    const watched = [watchedRepo({ owner: "acme", name: "web" })];
     reposApi(watched, [], {
-      "GET /api/repos": () => json({ repos: watched }),
       [`DELETE /api/repos/${watched[0]!.id}`]: () => {
-        watched = [];
+        watched.splice(0);
         return noContent();
       },
     });
@@ -104,7 +104,6 @@ describe("adding repos", () => {
     const watched: WatchedRepoDto[] = [];
     let finishAdd = () => {};
     const fetch = reposApi(watched, [option], {
-      "GET /api/repos": () => json({ repos: watched }),
       "POST /api/repos": () =>
         new Promise((resolve) => {
           finishAdd = () => {
@@ -150,31 +149,36 @@ describe("adding repos", () => {
     ).toBe(false);
   });
 
-  it("marks a removed repo as addable again", async () => {
-    const option = repoOption({ owner: "acme", name: "web", watched: true });
-    let watched = [
-      watchedRepo({
-        owner: "acme",
-        name: "web",
-        githubRepoId: option.githubRepoId,
-      }),
-    ];
+  it("offers a repo again after it's added and then removed", async () => {
+    const option = repoOption({ owner: "acme", name: "web" });
+    const repo = watchedRepo({
+      owner: "acme",
+      name: "web",
+      githubRepoId: option.githubRepoId,
+    });
+    const watched: WatchedRepoDto[] = [];
     const fetch = reposApi(watched, [option], {
-      "GET /api/repos": () => json({ repos: watched }),
-      [`DELETE /api/repos/${watched[0]!.id}`]: () => {
-        watched = [];
+      "POST /api/repos": () => {
+        watched.push(repo);
+        return json({ repo }, 201);
+      },
+      [`DELETE /api/repos/${repo.id}`]: () => {
+        watched.splice(0);
         return noContent();
       },
     });
     renderApp("/settings/repos");
+    const options = await optionList();
 
+    await userEvent.click(
+      within(options).getByRole("button", { name: "Add acme/web" }),
+    );
+    await within(options).findByText("Watching");
     await userEvent.click(
       await screen.findByRole("button", { name: "Remove acme/web" }),
     );
     expect(
-      await within(await optionList()).findByRole("button", {
-        name: "Add acme/web",
-      }),
+      await within(options).findByRole("button", { name: "Add acme/web" }),
     ).toBeTruthy();
     expect(callsTo(fetch, "/api/github/repos")).toHaveLength(1);
   });
@@ -194,9 +198,13 @@ describe("adding repos", () => {
   });
 
   it("adds a repo typed as owner/name that search doesn't find", async () => {
-    const fetch = reposApi([], [], {
+    const watched: WatchedRepoDto[] = [];
+    const fetch = reposApi(watched, [], {
       "GET /api/github/repos?query=acme%2Fsecret": () => json(searchResults()),
-      "POST /api/repos": () => json({ repo: watchedRepo() }, 201),
+      "POST /api/repos": () => {
+        watched.push(watchedRepo({ owner: "acme", name: "secret" }));
+        return json({ repo: watched[0] }, 201);
+      },
     });
     renderApp("/settings/repos");
 

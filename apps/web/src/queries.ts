@@ -8,7 +8,6 @@ import type {
 } from "@pr-peek/core";
 import {
   keepPreviousData,
-  type InfiniteData,
   useInfiniteQuery,
   useQuery,
   useQueryClient,
@@ -79,34 +78,10 @@ export function useRepoSearch(query: string) {
   });
 }
 
-// Updates the app after the watch list changes.
-export function useWatchListChanged() {
+// Reloads the watch list after a change to it.
+export function useReloadWatchList() {
   const queryClient = useQueryClient();
-  // Reloads the watch list.
-  const reload = () =>
-    queryClient.invalidateQueries({ queryKey: queryKeys.repos });
-  return {
-    reload,
-    // Also flips the repo in the search results, so GitHub isn't searched again.
-    setWatched: (githubRepoId: number, watched: boolean) => {
-      queryClient.setQueriesData<InfiniteData<SearchReposResponse>>(
-        { queryKey: queryKeys.githubRepos },
-        (data) =>
-          data && {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              repos: page.repos.map((repo) =>
-                repo.githubRepoId === githubRepoId
-                  ? { ...repo, watched }
-                  : repo,
-              ),
-            })),
-          },
-      );
-      return reload();
-    },
-  };
+  return () => queryClient.invalidateQueries({ queryKey: queryKeys.repos });
 }
 
 export function useSyncStatus(
