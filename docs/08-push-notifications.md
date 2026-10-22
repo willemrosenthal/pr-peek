@@ -29,7 +29,7 @@ No third party account is needed. The `web-push` npm package handles the encrypt
 2. Devices (web), in two PRs:
    - 2a: 8.5, the "Turn on notifications" button in Settings, Devices, and the device list with Send test and Remove.
    - 2b: the rest of 8.2: the button in onboarding, per-device severity, renaming, re-checking on open, and the repo Mute switch.
-   - Then a small PR that turns fixed-value text columns into database enums: severity, channels, `PullRequest.state`, and `User.syncError`. It drops the unused `PushSubscription.platform`. Each migration converts the column in place, so no data is lost.
+   - Then a small PR for step 8.8: database enums.
 3. Notify: 8.3 except staleness and batching, plus the rest of 8.4.
 4. Schedules: staleness reminders, batching, and 8.6.
 
@@ -96,6 +96,18 @@ The `notify:item` job from plan 05.5:
 
 - [ ] Unit tests for the decision logic: dedupe, quiet hours across midnight and timezones, weekend rule, severity per device, batching.
 - [x] A test with a fake `web-push` sender: a 410 deletes the subscription.
+
+### 8.8 Database enums
+
+After part 2b, before part 3. Text columns that only ever hold a few fixed values become Postgres enums, so the database refuses anything else.
+
+- [ ] `Severity` enum for `RuleSetting.severity` and `PushSubscription.minSeverity`. Then remove the `as Severity` cast in `routes/push.ts`.
+- [ ] `Channel` enum list for `RuleSetting.channels`.
+- [ ] Enums for `PullRequest.state` (open, merged, closed, gone, unwatched) and `User.syncError`.
+- [ ] Drop the unused `PushSubscription.platform` column.
+- [ ] Edit each generated migration to convert the column in place (`ALTER COLUMN ... TYPE ... USING ...`). Prisma's default drops and re-adds the column, which loses the data.
+- [ ] Leave `Item.kind` and `PullRequest.checkState` as text. New rules and GitHub's own values would otherwise need a migration.
+- In part 3, `NotificationLog.channel` and `status` start out as enums.
 
 ## Done when
 
