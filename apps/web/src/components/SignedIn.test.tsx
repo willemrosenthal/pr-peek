@@ -1,6 +1,15 @@
 import { ITEMS_CHANGED_EVENT } from "@pr-peek/core";
 import { act, cleanup, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { userEvent } from "@testing-library/user-event";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  vi,
+} from "vitest";
 import { RECONNECT_MS } from "../hooks/useLiveUpdates";
 import {
   apiError,
@@ -9,6 +18,8 @@ import {
   json,
   listApi,
   me,
+  noContent,
+  signedInApi,
   signedOut,
   summary,
 } from "../test/fake-api";
@@ -89,7 +100,7 @@ describe("the live stream", () => {
 
   it("keeps the list up when the server is down", async () => {
     let down = false;
-    fakeApi(
+    const fetch = fakeApi(
       listApi({
         "GET /api/me": () =>
           down ? apiError(503, "unavailable", "Server is down") : json(me()),
@@ -97,13 +108,17 @@ describe("the live stream", () => {
     );
     renderApp("/");
     await screen.findByText("Nothing needs you right now");
+    const checks = callsTo(fetch, "/api/me").length;
 
     down = true;
     latestStream().readyState = FakeEventSource.CLOSED;
     await send(new Event("error"));
+    // The check, then its two retries.
     await waitFor(() =>
-      expect(screen.queryByText("Server is down")).toBe(null),
+      expect(callsTo(fetch, "/api/me")).toHaveLength(checks + 3),
     );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    expect(screen.queryByText("Server is down")).toBe(null);
     expect(screen.getByText("Nothing needs you right now")).toBeTruthy();
   });
 
@@ -122,9 +137,10 @@ describe("the live stream", () => {
 });
 
 describe("the app badge", () => {
-  const setAppBadge = vi.fn(() => Promise.resolve());
+  let setAppBadge: Mock<(count: number) => Promise<void>>;
 
   beforeEach(() => {
+    setAppBadge = vi.fn(() => Promise.resolve());
     Object.defineProperty(navigator, "setAppBadge", {
       value: setAppBadge,
       configurable: true,
@@ -133,7 +149,6 @@ describe("the app badge", () => {
 
   afterEach(() => {
     Reflect.deleteProperty(navigator, "setAppBadge");
-    setAppBadge.mockClear();
   });
 
   it("shows the count, and follows the live stream", async () => {
@@ -143,6 +158,26 @@ describe("the app badge", () => {
 
     await itemsChanged(5);
     await waitFor(() => expect(setAppBadge).toHaveBeenLastCalledWith(5));
+  });
+
+  it("clears the badge on sign out", async () => {
+    let signedIn = true;
+    fakeApi(
+      signedInApi({
+        "GET /api/me": () => (signedIn ? json(me()) : signedOut()),
+        "GET /api/summary": () => json(summary({ total: 4 })),
+        "POST /api/auth/signout": () => {
+          signedIn = false;
+          return noContent();
+        },
+      }),
+    );
+    renderApp("/settings");
+    await waitFor(() => expect(setAppBadge).toHaveBeenLastCalledWith(4));
+
+    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    await screen.findByRole("link", { name: "Sign in with GitHub" });
+    expect(setAppBadge).toHaveBeenLastCalledWith(0);
   });
 
   it("ignores a refused badge", async () => {
