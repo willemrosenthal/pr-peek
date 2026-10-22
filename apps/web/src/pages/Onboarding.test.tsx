@@ -1,11 +1,9 @@
-import type { PushSubscriptionDto } from "@pr-peek/core";
 import { screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import {
   apiError,
   callsTo,
-  device,
   fakeApi,
   json,
   listApi,
@@ -14,7 +12,7 @@ import {
   sentBodies,
 } from "../test/fake-api";
 import { stubUserAgent, USER_AGENTS } from "../test/install";
-import { PUBLIC_KEY, stubPush, THIS_ENDPOINT } from "../test/push";
+import { PUBLIC_KEY, stubPush } from "../test/push";
 import { renderApp } from "../test/render";
 
 const onboardingApi = (overrides: Handlers = {}) =>
@@ -38,24 +36,14 @@ async function finishSteps() {
   await screen.findByRole("heading", { name: "You're set" });
 }
 
+// Turning them on is tested in DevicesTab.test.tsx.
 it("offers to turn on notifications at the end", async () => {
   stubPush();
-  const devices: PushSubscriptionDto[] = [];
-  onboardingApi({
-    "GET /api/push/subscriptions": () => json({ subscriptions: devices }),
-    "POST /api/push/subscriptions": () => {
-      devices.push(device({ endpoint: THIS_ENDPOINT }));
-      return json({ subscription: devices[0] }, 201);
-    },
-  });
+  onboardingApi();
   renderApp("/onboarding");
   await finishSteps();
-
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Turn on notifications" }),
-  );
   expect(
-    await screen.findByText("Notifications are on for this device."),
+    await screen.findByRole("button", { name: "Turn on notifications" }),
   ).toBeTruthy();
 });
 
