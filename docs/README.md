@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                                                                                   |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [07. Web app](07-web-app.md), part 2 of 5: personal access token as an add-on. Part 1 merged (#20)                                                                |
-| **Branch**         | `plan-07-2-github-token`                                                                                                                                          |
-| **PR**             | [#21](https://github.com/willemrosenthal/pr-peek/pull/21) (part 2), draft                                                                                         |
-| **Last step done** | Sign in is GitHub only. Token added after sign in, used for syncs                                                                                                 |
-| **Next step**      | Part 3 (`plan-07-3-list`): the list, once part 2 merges                                                                                                           |
-| **Waiting on you** | Sign in with GitHub, then add your token on the home page. Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
+|                    |                                                                                                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [07. Web app](07-web-app.md), part 3a: the list. Parts 1 (#20) and 2 (#21) merged                                                                                      |
+| **Branch**         | `plan-07-3a-list`                                                                                                                                                      |
+| **PR**             | Part 3a, draft                                                                                                                                                         |
+| **Last step done** | The list: sections, rows, header and refresh, banners, empty and error states, phone and desktop layouts                                                               |
+| **Next step**      | Part 3b (`plan-07-3b-live`): live updates, marking seen, badge, tray mode, once 3a merges                                                                              |
+| **Waiting on you** | Try the list with real items. Your token is now under Settings. Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.
