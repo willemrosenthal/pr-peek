@@ -12,14 +12,25 @@ Ideas for after launch, roughly in order of value. Each would get its own detail
 - Far fewer API calls.
 - Read-only permissions instead of the broad `repo` scope.
 
+**Read-only permissions (required):**
+
+The App must only ask for read access. Orgs approve a read-only App far more easily, and that's a main reason to build it.
+
+- Repository: Pull requests, Checks, Commit statuses, and Metadata. All **Read-only**.
+- Organization: Members, **Read-only** (for team review requests).
+- No write permissions of any kind. If the actions below are ever built, they go in a separate opt-in step, never in the default install.
+
 **Notes:**
 
 - Needs an org admin to install it, so keep OAuth polling as the fallback for repos without the App.
+- Once the App is live, update the sign in screen and privacy page (plan 10.1) to say we only read.
 - Webhook handler: check the signature, enqueue a `sync:pr` job for each affected user, and reuse the plan 04 detail fetch and plan 05 rules.
 
 ## Actions from the app
 
 All are GitHub API calls through the user's token. Each needs a confirm step, and a privacy page update (plan 10.1).
+
+These need write access, so they must be opt-in. Users turn them on in Settings, and only then do we ask GitHub for the extra write permissions. Everyone else stays read-only.
 
 - Approve a PR or request changes, with a short comment.
 - Re-run failed checks.
