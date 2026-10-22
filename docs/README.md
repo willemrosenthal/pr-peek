@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ----------------------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [05. Rules engine](completed/05-rules-engine.md), part C: apply on the server. Parts A, B merged (#14, #15)       |
 | **Branch**         | `plan-05-3-apply`                                                                                                 |
-| **PR**             | Not open yet                                                                                                      |
+| **PR**             | [#16](https://github.com/willemrosenthal/pr-peek/pull/16) (part C), draft                                         |
 | **Last step done** | 5.5 to 5.7 Items saved each sync, rule settings, end to end tests. Plan 05 finished, moved to `completed/`        |
 | **Next step**      | [06. API and live updates](06-api.md) once part C merges                                                          |
 | **Waiting on you** | Plan 04 and 05 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
