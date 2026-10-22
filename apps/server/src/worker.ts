@@ -9,8 +9,10 @@ import { dueUserIds, runSync } from "./sync-schedule";
 
 const SYNC_DISPATCH = "sync-dispatch";
 const SYNC_USER = "sync-user";
-// Syncs running at once, so one slow user doesn't hold up everyone.
-const SYNC_CONCURRENCY = 5;
+const NOTIFY_ITEM = "notify-item";
+// Syncs running at once, so one slow user doesn't hold up everyone. Each holds a database
+// connection during its save, so keep this below DB_POOL_MAX to leave room for pg-boss.
+const SYNC_CONCURRENCY = 3;
 
 const config = loadConfig();
 const logger = createLogger(config);
@@ -44,6 +46,7 @@ await boss.createQueue(SYNC_USER, {
   retryLimit: 0,
   expireInSeconds: 10 * 60,
 });
+await boss.createQueue(NOTIFY_ITEM);
 
 await boss.schedule(SYNC_DISPATCH, "* * * * *");
 await boss.work(SYNC_DISPATCH, async () => {
@@ -71,11 +74,23 @@ await boss.work<{ userId: string }>(
         logger,
         github: (userId) =>
           getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY }, userId),
+        notifyItems: async (itemIds) => {
+          await boss.insert(
+            NOTIFY_ITEM,
+            itemIds.map((itemId) => ({ data: { itemId } })),
+          );
+        },
       },
       job.data.userId,
     );
   },
 );
+
+// Plan 08 sends push notifications here. For now it only logs.
+await boss.work<{ itemId: string }>(NOTIFY_ITEM, ([job]) => {
+  if (job) logger.info({ itemId: job.data.itemId }, "notify item");
+  return Promise.resolve();
+});
 
 logger.info("worker started");
 

@@ -28,6 +28,13 @@ Rules live in `packages/core`, so the web app can reuse their names, groups, and
   - Watch out in plan 08: `latestEventId` can go back to an older review. If jlee approves, then sam requests changes, then you push, sam's review clears and the id returns to jlee's. Only notify for an id not seen before.
 - **Comment and reply summaries** show the latest comment, plus "(+2 more)" when there are more.
 - **Check failed:** `occurredAt` is the commit time, since checks have no finish time. `latestEventId` is the commit sha, so more failures on the same commit don't notify again.
+- **Rules run on fetched PRs only** (new or changed), plus PRs back in the searches after the last sync missed them. So:
+  - PRs stored before this change get items on their next change on GitHub, not on deploy.
+  - Changing "hide bots", turning a rule off, or joining a team applies to each PR when it next changes. Plan 06 adds a way to re-run rules on stored PRs.
+  - If re-fetching a PR that came back fails, its items stay resolved until the PR changes. Rare.
+- **Teams are fetched only when a fetched PR asks a team to review**, and need the `read:org` scope. Without it, team requests are skipped.
+- **Names:** the job queue is `notify-item` (pg-boss doesn't allow colons). The `NOTIFY` channel is `user_items_changed`, with the user id as the message.
+- **3 syncs at once, not 5.** Each sync holds a database connection while it saves, and pg-boss shares the pool (`DB_POOL_MAX`, 5 by default).
 - **Default severity and channels**, which part C seeds into `RuleSetting`:
 
   | Rule                 | Severity | Channels   |
@@ -119,30 +126,32 @@ All in `packages/core/src/urgency.ts`.
 
 - [x] Unit tests for all of the above, including work hours across a weekend and the clocks changing (New York, Nov 1, 2026).
 
-### 5.5 Applying rules on the server
+### 5.5 Applying rules on the server (part C)
 
-- [ ] After each PR detail fetch in plan 04, run every enabled rule on it.
-- [ ] In one transaction:
-  - **Upsert** items by `(userId, dedupeKey)`. New ones start `open`. Existing ones update their summary, `latestEventId`, and `eventCount`.
+In `apps/server/src/items.ts`, called from `syncUser` in `sync.ts`.
+
+- [x] After each PR detail fetch in plan 04, run every enabled rule on it.
+- [x] In one transaction, together with saving the PR rows:
+  - **Upsert** items by `(userId, dedupeKey)`. New ones start `open`. Existing ones update their summary, `latestEventId`, and `eventCount`, and reopen if they were resolved. `seenAt` resets only when `latestEventId` changes.
   - **Resolve** open items for that PR that rules no longer produce (you reviewed, checks passed). Set `status = resolved` and `resolvedAt`.
-- [ ] PRs that left the search results (merged, closed): resolve all their items.
-- [ ] For every item that is new or has a changed `latestEventId`, enqueue a `notify:item` job. Plan 08 handles it. For now it just logs.
-- [ ] After changes, publish a "user items changed" message for SSE (plan 06). Postgres `NOTIFY` works for this, since the worker and web service are separate processes.
+- [x] PRs that left the search results (merged, closed): resolve all their items.
+- [x] For every item that is new or has a changed `latestEventId`, enqueue a `notify-item` job after the transaction. Plan 08 handles it. For now it just logs.
+- [x] After changes, `pg_notify('user_items_changed', <userId>)` inside the transaction, so it's sent on commit. Plan 06 listens for SSE.
 
-### 5.6 Rule settings
+### 5.6 Rule settings (part C)
 
-- [ ] When a user is created, seed `RuleSetting` rows from each rule's defaults.
-- [ ] Rules check `RuleSetting.enabled` before running. Severity and channels come from the user's setting, falling back to the rule's defaults.
+- [x] When a user is created, seed `RuleSetting` rows from each rule's defaults.
+- [x] Rules check `RuleSetting.enabled` before running. Severity and channels come from the user's setting, falling back to the rule's defaults (`loadRuleSettings`). Users without rows get the defaults.
 
 ### 5.7 Tests
 
 - [x] Snapshot fixtures for each case: plain request, re-request, team request, reply in thread, reply by mention, approval, changes requested, comment by bot (ignored), comment by you (ignored), failing check, check fixed (resolves). Built with `rules/test-helpers.ts`, one test file per rule (part A).
-- [ ] An end to end test: fixture snapshot in, then the expected `Item` rows in a test database.
+- [x] An end to end test: fixture snapshot in, then the expected `Item` rows in a test database (`sync.test.ts`, part C).
 
 ## Done when
 
-- [ ] Your real PRs produce the right items in the database for all 7 cases. Test each by hand on a sandbox repo with a friend or a second GitHub account.
-- [ ] Submitting a review resolves the "review requested" item on the next sync.
-- [ ] A re-request after your review shows up as `re_requested`.
-- [ ] Fixing a failing check resolves the item.
-- [ ] All rule and urgency tests pass.
+- [ ] **(You)** Your real PRs produce the right items in the database for all 7 cases. Test each by hand on a sandbox repo with a friend or a second GitHub account.
+- [ ] **(You)** Submitting a review resolves the "review requested" item on the next sync.
+- [ ] **(You)** A re-request after your review shows up as `re_requested`.
+- [ ] **(You)** Fixing a failing check resolves the item.
+- [x] All rule and urgency tests pass.

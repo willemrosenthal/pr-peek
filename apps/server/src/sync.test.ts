@@ -1,6 +1,7 @@
 import type { PrSnapshot } from "@pr-peek/core";
+import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTestDb, resetDb } from "../test/db";
+import { createTestDb, resetDb, TEST_DATABASE_URL } from "../test/db";
 import { githubTokens, githubUser, hours, NOW, TEST_KEY } from "../test/fakes";
 import { fakeGraphQL } from "../test/github";
 import {
@@ -9,8 +10,10 @@ import {
   prGitHub,
   searchHit,
   searchQueries,
+  teamQueries,
   type FakePrGitHub,
 } from "../test/pulls";
+import { ITEMS_CHANNEL } from "./items";
 import { syncUser } from "./sync";
 import { upsertGitHubUser } from "./users";
 
@@ -72,7 +75,12 @@ describe("syncUser", () => {
       prs,
     });
 
-    expect(result).toEqual({ found: 1, fetched: 1, failed: [], deleted: 0 });
+    expect(result).toMatchObject({
+      found: 1,
+      fetched: 1,
+      failed: [],
+      deleted: 0,
+    });
     const row = await db.pullRequest.findFirstOrThrow();
     expect(row).toMatchObject({
       userId: user.id,
@@ -219,6 +227,223 @@ describe("syncUser", () => {
     const { result, github } = await sync(user.id, {});
 
     expect(github).not.toHaveBeenCalled();
-    expect(result).toEqual({ found: 0, fetched: 0, failed: [], deleted: 0 });
+    expect(result).toEqual({
+      found: 0,
+      fetched: 0,
+      failed: [],
+      deleted: 0,
+      newEventItemIds: [],
+    });
+  });
+});
+
+describe("items", () => {
+  const items = () => db.item.findMany({ orderBy: { kind: "asc" } });
+  const itemOf = async (kind: string) =>
+    db.item.findFirstOrThrow({ where: { kind } });
+  const asked = (pr = githubPr(), updatedAt = "2026-10-21T10:00:00Z") => ({
+    reviewRequested: [searchHit("PR_1", { repoId: WATCHED, updatedAt })],
+    prs: { PR_1: { ...pr, updatedAt } },
+  });
+
+  it("saves what the rules find on each fetched PR", async () => {
+    const user = await makeUser();
+    const { result } = await sync(user.id, asked());
+
+    const pr = await db.pullRequest.findFirstOrThrow();
+    const saved = await items();
+    // The fixture asks octocat to review, and has a bot reply and a mention after
+    // octocat's thread comment.
+    expect(saved).toMatchObject([
+      {
+        userId: user.id,
+        pullRequestId: pr.id,
+        kind: "reply",
+        dedupeKey: "reply:PR_1",
+        latestEventId: "IC_1",
+        eventCount: 2,
+        actorLogin: "ghost",
+        occurredAt: new Date("2026-10-21T09:30:00Z"),
+        waitingSince: null,
+        status: "open",
+        seenAt: null,
+      },
+      {
+        kind: "review_requested",
+        dedupeKey: "rr:PR_1:RRE_1",
+        latestEventId: "RRE_1",
+        waitingSince: new Date("2026-10-21T08:00:00Z"),
+        status: "open",
+      },
+    ]);
+    expect(result.newEventItemIds.sort()).toEqual(
+      saved.map((item) => item.id).sort(),
+    );
+  });
+
+  it("notifies only about new events", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    const reply = await itemOf("reply");
+    await db.item.updateMany({ data: { seenAt: NOW } });
+
+    // The PR changed on GitHub, but nothing new for the user.
+    const same = await sync(user.id, asked(githubPr(), "2026-10-21T11:00:00Z"));
+    expect(same.result.newEventItemIds).toEqual([]);
+    expect((await itemOf("reply")).seenAt).toEqual(NOW);
+
+    const pr = githubPr({
+      comments: {
+        nodes: [
+          ...githubPr().comments.nodes,
+          {
+            id: "IC_2",
+            author: { __typename: "User", login: "jlee" },
+            bodyText: "Ping @octocat",
+            createdAt: "2026-10-21T11:30:00Z",
+          },
+        ],
+      },
+    });
+    const replied = await sync(user.id, asked(pr, "2026-10-21T12:00:00Z"));
+    expect(replied.result.newEventItemIds).toEqual([reply.id]);
+    expect(await itemOf("reply")).toMatchObject({
+      latestEventId: "IC_2",
+      eventCount: 3,
+      seenAt: null,
+    });
+  });
+
+  it("resolves items once you act on them", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+
+    const pr = githubPr();
+    pr.reviewRequests.nodes = [];
+    pr.reviews.nodes.push({
+      id: "R_3",
+      state: "COMMENTED",
+      submittedAt: "2026-10-21T10:30:00Z",
+      author: { __typename: "User", login: "octocat" },
+    });
+    const later = hours(1);
+    await sync(user.id, asked(pr, "2026-10-21T10:30:00Z"), later);
+
+    expect(await items()).toMatchObject([
+      { kind: "reply", status: "resolved", resolvedAt: later },
+      { kind: "review_requested", status: "resolved", resolvedAt: later },
+    ]);
+  });
+
+  it("resolves items when the PR leaves the searches, and reopens them if it comes back", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+
+    await sync(user.id, {}, hours(1));
+    expect(await db.item.count({ where: { status: "open" } })).toBe(0);
+
+    const { result } = await sync(user.id, asked(), hours(2));
+    expect(await db.item.count({ where: { status: "open" } })).toBe(2);
+    // Nothing new happened, so no new notification.
+    expect(result.newEventItemIds).toEqual([]);
+  });
+
+  it("skips rules the user turned off", async () => {
+    const user = await makeUser();
+    await db.ruleSetting.update({
+      where: { userId_ruleId: { userId: user.id, ruleId: "review_requested" } },
+      data: { enabled: false },
+    });
+    await sync(user.id, asked());
+    expect((await items()).map((item) => item.kind)).toEqual(["reply"]);
+  });
+
+  it("includes drafts only when the user opts in", async () => {
+    const user = await makeUser();
+    const draft = asked(githubPr({ isDraft: true }));
+    await sync(user.id, draft);
+    expect(await db.item.count({ where: { kind: "review_requested" } })).toBe(
+      0,
+    );
+
+    await db.ruleSetting.update({
+      where: { userId_ruleId: { userId: user.id, ruleId: "review_requested" } },
+      data: { options: { includeDrafts: true } },
+    });
+    await sync(
+      user.id,
+      asked(githubPr({ isDraft: true }), "2026-10-21T11:00:00Z"),
+    );
+    expect(await db.item.count({ where: { kind: "review_requested" } })).toBe(
+      1,
+    );
+  });
+
+  it("leaves out bot replies when bots are hidden", async () => {
+    const user = await makeUser();
+    await db.userSettings.update({
+      where: { userId: user.id },
+      data: { hideBots: true },
+    });
+    await sync(user.id, asked());
+    expect(await itemOf("reply")).toMatchObject({ eventCount: 1 });
+  });
+
+  it("makes an item when one of the user's teams is asked to review", async () => {
+    const user = await makeUser();
+    const frontend = { __typename: "Team", combinedSlug: "acme/frontend" };
+    const pr = githubPr({
+      reviewRequests: { nodes: [{ requestedReviewer: frontend }] },
+      timelineItems: {
+        nodes: [
+          {
+            __typename: "ReviewRequestedEvent",
+            id: "RRE_team",
+            createdAt: "2026-10-21T08:15:00Z",
+            requestedReviewer: frontend,
+          },
+        ],
+      },
+    });
+    await sync(user.id, { ...asked(pr), teams: ["acme/frontend"] });
+
+    expect(await itemOf("review_requested")).toMatchObject({
+      dedupeKey: "rr:PR_1:RRE_team",
+      summary: "Review requested from acme/frontend",
+    });
+  });
+
+  it("asks for the user's teams only when a team is asked to review", async () => {
+    const user = await makeUser();
+    const { requests } = await sync(user.id, asked());
+    expect(teamQueries(requests)).toBe(1);
+
+    const pr = githubPr();
+    pr.reviewRequests.nodes = [
+      { requestedReviewer: { __typename: "User", login: "octocat" } },
+    ];
+    const again = await sync(user.id, asked(pr, "2026-10-21T11:00:00Z"));
+    expect(teamQueries(again.requests)).toBe(0);
+  });
+
+  it("tells listeners when the user's items change", async () => {
+    const user = await makeUser();
+    const listener = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await listener.connect();
+    try {
+      const payloads: string[] = [];
+      listener.on("notification", (msg) => payloads.push(msg.payload ?? ""));
+      await listener.query(`LISTEN ${ITEMS_CHANNEL}`);
+
+      await sync(user.id, asked());
+      // Nothing changed, so no message.
+      await sync(user.id, asked(), hours(1));
+      await vi.waitFor(() => expect(payloads).not.toEqual([]));
+      // Give a second message time to arrive, if one was sent.
+      await new Promise((done) => setTimeout(done, 100));
+      expect(payloads).toEqual([user.id]);
+    } finally {
+      await listener.end();
+    }
   });
 });

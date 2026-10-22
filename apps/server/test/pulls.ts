@@ -170,11 +170,21 @@ export interface FakePrGitHub {
   commented?: unknown[];
   // Details by PR id. Missing ids answer null, like a deleted PR.
   prs?: Record<string, unknown>;
+  // The viewer's teams as "org/team-slug".
+  teams?: string[];
 }
 
-// Answers the PR searches and details queries like GitHub.
+// Answers the PR searches, details, and teams queries like GitHub.
 export function prGitHub(fake: FakePrGitHub) {
   return (request: GraphQLRequest) => {
+    if (request.query.includes("organizations(")) {
+      const nodes = (fake.teams ?? []).map((combinedSlug) => ({
+        combinedSlug,
+      }));
+      return {
+        data: { viewer: { organizations: { nodes: [{ teams: { nodes } }] } } },
+      };
+    }
     if (request.query.includes("search(")) {
       const q = String(request.variables.q);
       const nodes = q.includes("review-requested:@me")
@@ -201,6 +211,10 @@ export const searchQueries = (requests: GraphQLRequest[]) =>
   requests
     .filter((r) => r.query.includes("search("))
     .map((r) => String(r.variables.q));
+
+// How many times the viewer's teams were asked for.
+export const teamQueries = (requests: GraphQLRequest[]) =>
+  requests.filter((r) => r.query.includes("organizations(")).length;
 
 // The PR ids asked for in details requests.
 export const detailIds = (requests: GraphQLRequest[]) =>

@@ -1,9 +1,9 @@
 import type { Octokit } from "octokit";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, resetDb } from "../test/db";
 import { githubTokens, githubUser, hours, NOW, TEST_KEY } from "../test/fakes";
 import { fakeGraphQL, type GraphQLRequest } from "../test/github";
-import { prGitHub } from "../test/pulls";
+import { githubPr, prGitHub, searchHit } from "../test/pulls";
 import { NeedsReauthError } from "./github/tokens";
 import { createLogger } from "./logger";
 import { backoffMs, dueUserIds, runSync } from "./sync-schedule";
@@ -107,6 +107,37 @@ describe("runSync", () => {
       Response.json(prGitHub({})(request), {
         headers: rateLimitHeaders(remaining, resetAt),
       });
+
+  it("queues notifications for new items", async () => {
+    const user = await makeUser();
+    const notifyItems = vi.fn(() => Promise.resolve());
+    const fake = {
+      reviewRequested: [searchHit("PR_1")],
+      prs: { PR_1: githubPr() },
+    };
+    const syncAt = (now: Date) =>
+      runSync(
+        {
+          db,
+          logger,
+          github: () => Promise.resolve(fakeGraphQL(prGitHub(fake)).octokit),
+          now: () => now,
+          notifyItems,
+        },
+        user.id,
+      );
+
+    await syncAt(NOW);
+    const itemIds = (await db.item.findMany()).map((item) => item.id);
+    expect(itemIds).toHaveLength(2);
+    expect(notifyItems).toHaveBeenCalledExactlyOnceWith(
+      expect.arrayContaining(itemIds),
+    );
+
+    // Nothing new, so nothing to notify.
+    await syncAt(minutes(1));
+    expect(notifyItems).toHaveBeenCalledOnce();
+  });
 
   it("clears errors after a good sync", async () => {
     const user = await makeUser({
