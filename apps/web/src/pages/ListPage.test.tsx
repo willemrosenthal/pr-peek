@@ -102,7 +102,19 @@ describe("marking seen", () => {
     await userEvent.click(
       await screen.findByRole("link", { name: "Settings" }),
     );
-    expect(seenRequests(fetch)).toEqual([[review[0]!.id]]);
+    await waitFor(() => expect(seenRequests(fetch)).toEqual([[review[0]!.id]]));
+  });
+
+  it("doesn't mark them when dev mode runs effects twice", async () => {
+    const fetch = fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ review: [newItem()] })),
+      }),
+    );
+    renderApp("/", { strict: true });
+    await sectionButton(/Needs my review/);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    expect(seenRequests(fetch)).toEqual([]);
   });
 
   it("marks each item once", async () => {

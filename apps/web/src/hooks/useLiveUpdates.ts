@@ -11,7 +11,7 @@ export function useLiveUpdates() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const refetch = (...keys: QueryKey[]) => {
+    const invalidate = (...keys: QueryKey[]) => {
       for (const queryKey of keys)
         void queryClient.invalidateQueries({ queryKey });
     };
@@ -24,7 +24,7 @@ export function useLiveUpdates() {
       source.addEventListener("open", () => {
         // The server doesn't replay events, so catch up after a reconnect.
         if (opened)
-          refetch(queryKeys.items, queryKeys.summary, queryKeys.syncStatus);
+          invalidate(queryKeys.items, queryKeys.summary, queryKeys.syncStatus);
         opened = true;
       });
       source.addEventListener(ITEMS_CHANGED_EVENT, (event) => {
@@ -32,13 +32,13 @@ export function useLiveUpdates() {
           (event as MessageEvent<string>).data,
         ) as SummaryResponse;
         queryClient.setQueryData(queryKeys.summary, summary);
-        refetch(queryKeys.items, queryKeys.syncStatus);
+        invalidate(queryKeys.items, queryKeys.syncStatus);
       });
       source.addEventListener("error", () => {
         // The browser retries dropped connections itself, but not refused ones.
         if (source.readyState !== EventSource.CLOSED) return;
         // Sends a signed out user to sign in.
-        refetch(queryKeys.me);
+        invalidate(queryKeys.me);
         retry = setTimeout(connect, RECONNECT_MS);
       });
     };

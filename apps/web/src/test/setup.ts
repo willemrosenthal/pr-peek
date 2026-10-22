@@ -8,8 +8,10 @@ beforeEach(() => {
   fakeStream();
 });
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
+  // Lets work timed for after unmount finish while the fakes are in place.
+  await new Promise((resolve) => setTimeout(resolve, 0));
   vi.unstubAllGlobals();
   localStorage.clear();
   sessionStorage.clear();

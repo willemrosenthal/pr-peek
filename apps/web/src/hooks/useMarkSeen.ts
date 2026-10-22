@@ -13,6 +13,7 @@ export function useMarkSeen(ids: string[]) {
   const onScreen = useRef<string[]>([]);
   const shown = useRef(new Set<string>());
   const sent = useRef(new Set<string>());
+  const leaving = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const flush = useCallback(() => {
     const unsent = [...shown.current]
@@ -38,6 +39,7 @@ export function useMarkSeen(ids: string[]) {
   }, [ids]);
 
   useEffect(() => {
+    clearTimeout(leaving.current);
     const onChange = () => {
       if (!isVisible()) flush();
       else for (const id of onScreen.current) shown.current.add(id);
@@ -45,7 +47,8 @@ export function useMarkSeen(ids: string[]) {
     document.addEventListener("visibilitychange", onChange);
     return () => {
       document.removeEventListener("visibilitychange", onChange);
-      flush();
+      // A tick later, so dev mode's extra remount doesn't count as leaving.
+      leaving.current = setTimeout(flush, 0);
     };
   }, [flush]);
 }
