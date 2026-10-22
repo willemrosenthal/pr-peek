@@ -49,7 +49,7 @@
 
 - [x] "Use a token instead" on `/signin`, for users whose org blocks our OAuth App (plan 04, step 4.0). A text box that posts to `/api/auth/token`, then goes to `/onboarding` or `/` based on `isNew`. Show the error message from the server. Short steps above the box:
   1. GitHub, Settings, Developer settings, Personal access tokens, **Tokens (classic)**, Generate new token (classic).
-  2. Tick the `repo` and `read:org` scopes. Pick an expiry you're happy with. You'll paste a new token when it runs out.
+  2. Tick `repo` (its sub-boxes tick with it) and `read:org`. Leave the rest. For public repos only, tick just `public_repo` instead of `repo`. Pick an expiry you're happy with. You'll paste a new token when it runs out.
   3. If your company uses single sign-on, click **Configure SSO**, then **Authorize** next to your org. Without this, work repos won't show up.
   4. Copy the token and paste it here.
 - [x] When `/api/me` says `needsReauth` and `authMethod` is `pat`, ask for a new token instead of showing the GitHub button.

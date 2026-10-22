@@ -109,8 +109,10 @@ function TokenSteps() {
         <strong>Tokens (classic)</strong>, then Generate new token (classic).
       </li>
       <li>
-        Tick the <code>repo</code> and <code>read:org</code> scopes. Pick an
-        expiry you're happy with. You'll paste a new token when it runs out.
+        Tick <code>repo</code> (its sub-boxes tick with it) and{" "}
+        <code>read:org</code>. Leave the rest. For public repos only, tick just{" "}
+        <code>public_repo</code> instead of <code>repo</code>. Pick an expiry
+        you're happy with. You'll paste a new token when it runs out.
       </li>
       <li>
         If your company uses single sign-on, click{" "}

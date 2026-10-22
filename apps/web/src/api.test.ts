@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { api, ApiError } from "./api";
-import { fakeApi, json, signedOut } from "./test/render";
+import { fakeApi, json, signedOut } from "./test/fake-api";
 
 describe("api", () => {
   it("returns the JSON answer", async () => {

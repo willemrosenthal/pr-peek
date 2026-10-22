@@ -1,14 +1,8 @@
 import { screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
-import {
-  apiError,
-  fakeApi,
-  json,
-  me,
-  renderApp,
-  signedOut,
-} from "../test/render";
+import { apiError, fakeApi, json, me, signedOut } from "../test/fake-api";
+import { renderApp } from "../test/render";
 
 it("shows the page when signed in", async () => {
   fakeApi({ "GET /api/me": () => json(me()) });

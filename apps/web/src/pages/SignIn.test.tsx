@@ -1,14 +1,8 @@
 import { screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import {
-  apiError,
-  fakeApi,
-  json,
-  me,
-  renderApp,
-  signedOut,
-} from "../test/render";
+import { apiError, fakeApi, json, me, signedOut } from "../test/fake-api";
+import { renderApp } from "../test/render";
 
 const githubLink = () =>
   screen.findByRole("link", { name: "Sign in with GitHub" });
