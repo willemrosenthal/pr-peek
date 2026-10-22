@@ -74,21 +74,20 @@ export async function notifyItem(
   if (devices.length === 0) return "no_devices";
 
   // Claims the event before sending. A second run finds the row and stops.
+  const logKey = {
+    itemId,
+    eventId: item.latestEventId,
+    channel: "push" as const,
+  };
   const { count } = await db.notificationLog.createMany({
-    data: [{ userId, itemId, eventId: item.latestEventId, channel: "push" }],
+    data: [{ userId, ...logKey }],
     skipDuplicates: true,
   });
   if (count === 0) return "already_sent";
-  const logWhere = {
-    itemId_eventId_channel: {
-      itemId,
-      eventId: item.latestEventId,
-      channel: "push" as const,
-    },
-  };
 
   // Past the claim, a retry would stop at the claim, so errors end as "failed" here.
   let outcome: "sent" | "failed" = "failed";
+  const pushDeps = { db, send, logger: deps.logger };
   try {
     const badge = summarize(await openItems(db, userId, now)).total;
     const payload: PushPayload = {
@@ -101,7 +100,7 @@ export async function notifyItem(
     };
     const results = await Promise.all(
       devices.map((device) =>
-        pushToDevice({ db, send, logger: deps.logger }, device, payload, {
+        pushToDevice(pushDeps, device, payload, {
           ttlSeconds: NOTIFY_TTL_SECONDS,
           urgency: setting.severity === "high" ? "high" : "normal",
         }),
@@ -112,7 +111,7 @@ export async function notifyItem(
     deps.logger.error({ err, itemId }, "notify failed");
   }
   await db.notificationLog.update({
-    where: logWhere,
+    where: { itemId_eventId_channel: logKey },
     data: { status: outcome },
   });
   return outcome;
