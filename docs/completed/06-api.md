@@ -82,7 +82,7 @@ Rules only run when a PR changes on GitHub (plan 05). So after `PATCH /settings`
 - [x] `GET /api/stream` keeps a connection open using Server-Sent Events.
 - [x] The web service runs `LISTEN` on the Postgres channel the worker publishes to (`user_items_changed`, with the user id as the message, plan 05.5). When a message arrives for a user, it sends `event: items-changed` with the new summary to that user's open streams.
 - [x] Send a comment line every 25 seconds as a keep-alive, so proxies don't close idle connections.
-- [x] The client reconnects on its own (the browser's `EventSource` does this). The client also refetches on reconnect in case it missed something. Noted in [plan 07](../07-web-app.md).
+- [x] The client reconnects on its own (the browser's `EventSource` does this). The client also refetches on reconnect in case it missed something. Noted in [plan 07](07-web-app.md).
 
 ### 6.4 Tests
 

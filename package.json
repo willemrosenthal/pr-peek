@@ -20,6 +20,7 @@
     "lint": "eslint .",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
+    "e2e": "pnpm --filter @pr-peek/web e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

@@ -50,3 +50,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      # The browser smoke test. Needs the build above, since the server serves it.
+      - run: pnpm --filter @pr-peek/web exec playwright install --with-deps chromium
+      - run: pnpm e2e
+        env:
+          E2E_DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_e2e

@@ -15,7 +15,8 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:deploy": "prisma migrate deploy",
-    "sync:once": "tsx --env-file=../../.env src/scripts/sync-once.ts"
+    "sync:once": "tsx --env-file=../../.env src/scripts/sync-once.ts",
+    "e2e:seed": "tsx test/e2e-seed.ts"
   },
   "dependencies": {
     "@pr-peek/core": "workspace:*",

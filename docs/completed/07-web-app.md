@@ -69,6 +69,7 @@
   - Chrome sends its install offer once, soon after the app loads. `install.ts` listens from the start (`main.tsx` imports it), so the button works even when you open `/install` later. If you close Chrome's dialog, the page shows the menu steps instead.
   - The iPhone steps end with "sign in again", since Home Screen apps on iPhone don't share Safari's cookies.
   - Onboarding's last step shows the same "this device" part, with a link to `/install`. The Devices tab links to it too. Neither shows in tray mode.
+- **The smoke test** (part 5c) lives in `apps/web/e2e`. It seeds its own database (`prpeek_e2e` locally, next to the test database) and signs in by writing a session straight into it, so it never talks to GitHub. CI runs it after the build. Run `pnpm --filter @pr-peek/web exec playwright install chromium` once before running it locally.
 - **Showing GitHub avatars needs a CSP change.** Helmet only allows images from our own site. Add `https://avatars.githubusercontent.com` to `img-src` when the first avatar appears.
 
 ## Steps
@@ -112,7 +113,7 @@
 - [x] Design tokens as CSS custom properties in `src/styles/tokens.css`, with a dark set under `@media (prefers-color-scheme: dark)`. Components only use tokens, never raw hex values.
 - [x] `src/styles/global.css` for resets and base type (system font stack, so it looks native on Apple devices).
 - [x] One `*.module.css` file next to each component.
-- [ ] Base UI (from part 3, as each piece is needed) (unstyled, accessible components from the MUI team) for anything interactive:
+- [x] Base UI (from part 3, as each piece is needed). Used for the collapsible sections and switches. Dropdowns are native `<select>`, tabs are links, and there are no confirm dialogs (see Changes) (unstyled, accessible components from the MUI team) for anything interactive:
 
 | Need                                     | Base UI part             |
 | ---------------------------------------- | ------------------------ |
@@ -159,7 +160,7 @@
   1. Repo picker, using search from plan 04.1.
   2. Timezone, detected from the browser and confirmable.
   3. Install prompt (part 5b). Notifications join it in plan 08.
-- [ ] Settings tabs, matching the mockup (the tabs and Repositories in part 4a, the rest in 4b):
+- [x] Settings tabs, matching the mockup (the tabs and Repositories in part 4a, the rest in 4b):
   - [x] **General:** hide bots, team requests, personal access token (`GitHubToken`), sign out. Count style moved to plan 09.
   - [x] **Repositories:** add, remove, enable. Mute moved to plan 08.
   - [x] **Rules:** toggle, severity ("Urgency"), channels ("Notify" turns push on or off, and the list always shows the rule), and "Include draft PRs" on review requested. Grouped by other people's PRs and mine.
@@ -189,7 +190,7 @@
 ### 7.8 Tests
 
 - [x] Vitest + Testing Library for `ItemRow` states (each kind and stale level), section collapse, and the reauth banner.
-- [ ] One Playwright smoke test (a tool that drives a real browser) against a seeded local server: sign in with a test session, see items, click one to open the PR.
+- [x] One Playwright smoke test (a tool that drives a real browser) against a seeded local server: sign in with a test session, see items, click one to open the PR (part 5c). `pnpm build`, then `pnpm e2e`.
 
 ### 7.9 Tracking PRs (part 3c)
 
@@ -257,8 +258,8 @@ Part 3f:
 
 ## Done when
 
-- [ ] On your phone, `www.git-buddy.com` installs to the Home Screen and opens full screen with your real items.
-- [ ] On desktop, the list updates on its own within a sync cycle when something happens on GitHub.
-- [ ] Acting on GitHub (submitting a review, fixing a check) removes the item on both phone and desktop within a sync cycle.
-- [ ] Settings changes take effect on the next sync.
-- [ ] Lighthouse PWA and accessibility checks pass with no major issues.
+- [ ] **(You)** On your phone, `www.git-buddy.com` installs to the Home Screen and opens full screen with your real items.
+- [ ] **(You)** On desktop, the list updates on its own within a sync cycle when something happens on GitHub.
+- [ ] **(You)** Acting on GitHub (submitting a review, fixing a check) removes the item on both phone and desktop within a sync cycle.
+- [ ] **(You)** Settings changes take effect on the next sync.
+- [ ] **(You)** Lighthouse accessibility checks pass with no major issues. Lighthouse 12 dropped its PWA category, so check "installable" in Chrome DevTools, Application tab, Manifest instead.
