@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { PrSnapshot } from "../pr-snapshot";
+import type { CheckState, PrSnapshot } from "../pr-snapshot";
 import { checkFailed } from "./check-failed";
-import { at, ctx, myPr, snapshot } from "./test-helpers";
+import { at, branchUpdate, ctx, myPr, snapshot } from "./test-helpers";
 
 const withChecks = (checks: PrSnapshot["checks"]) => myPr({ checks });
 
@@ -53,6 +53,48 @@ describe("check failed on my PR", () => {
       headSha: "def456",
     };
     expect(detect(pr)[0]?.dedupeKey).toBe("check:PR_1:def456");
+  });
+
+  describe("after Update branch", () => {
+    const updated = (
+      checks: PrSnapshot["checks"],
+      pushChecks: CheckState = "FAILURE",
+    ) => myPr({ ...branchUpdate(20, pushChecks), checks });
+
+    it.each(["PENDING", null] as const)(
+      "keeps the push's failure while checks are %s",
+      (state) => {
+        expect(detect(updated({ state, failing: [] }))).toEqual([
+          {
+            kind: "check_failed",
+            dedupeKey: "check:PR_1:abc123",
+            latestEventId: "abc123",
+            eventCount: 1,
+            actorLogin: null,
+            summary: "Checks failed before the branch update",
+            occurredAt: at(0),
+            waitingSince: null,
+          },
+        ]);
+      },
+    );
+
+    it("is the same item when checks fail again", () => {
+      expect(detect(updated({ state: "FAILURE", failing }))[0]).toMatchObject({
+        dedupeKey: "check:PR_1:abc123",
+        latestEventId: "abc123",
+        summary: "e2e-tests, lint",
+      });
+    });
+
+    it("clears once checks pass", () => {
+      expect(detect(updated({ state: "SUCCESS", failing: [] }))).toEqual([]);
+    });
+
+    it("makes no item when the push's checks passed", () => {
+      const pr = updated({ state: "PENDING", failing: [] }, "SUCCESS");
+      expect(detect(pr)).toEqual([]);
+    });
   });
 
   it("ignores other people's PRs", () => {

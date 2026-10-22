@@ -4,6 +4,7 @@ import { commented } from "./commented";
 import {
   actor,
   at,
+  branchUpdate,
   comment,
   ctx,
   myPr,
@@ -66,6 +67,14 @@ describe("new comment on my PR", () => {
       comments: [comment("C_1", "sam", 10)],
     });
     expect(detect(pr)).toEqual([]);
+  });
+
+  it("stays after Update branch", () => {
+    const pr = myPr({
+      ...branchUpdate(20),
+      comments: [comment("C_1", "sam", 10)],
+    });
+    expect(detect(pr)).toHaveLength(1);
   });
 
   it("ignores resolved threads", () => {

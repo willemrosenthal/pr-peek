@@ -1,4 +1,5 @@
 import type {
+  CheckState,
   PrActor,
   PrComment,
   PrReview,
@@ -65,6 +66,17 @@ export function snapshot(overrides: Partial<PrSnapshot> = {}): PrSnapshot {
 // A PR by the viewer, last pushed at minute 0.
 export const myPr = (overrides: Partial<PrSnapshot> = {}) =>
   snapshot({ author: actor(VIEWER), ...overrides });
+
+// "Update branch" at minute `minutes`: a merge commit on top of the push at minute 0,
+// whose checks were `pushChecks`.
+export const branchUpdate = (
+  minutes: number,
+  pushChecks: CheckState | null = "SUCCESS",
+): Partial<PrSnapshot> => ({
+  headSha: "merge1",
+  headCommittedAt: at(minutes),
+  lastPush: { sha: "abc123", committedAt: at(0), checkState: pushChecks },
+});
 
 export const thread = (
   comments: PrComment[],

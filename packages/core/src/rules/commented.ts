@@ -3,11 +3,12 @@ import {
   isAfter,
   isOther,
   isViewer,
+  lastPushOf,
   viewerLastActivity,
 } from "./helpers";
 import type { Rule } from "./types";
 
-// Comments by others on your PR, after your latest comment and your latest commit.
+// Comments by others on your PR, after your latest comment and your latest push.
 // Comments in resolved threads don't count.
 export const commented: Rule = {
   id: "commented",
@@ -19,10 +20,9 @@ export const commented: Rule = {
     if (!isViewer(snapshot.author, ctx)) return [];
 
     const lastActivity = viewerLastActivity(snapshot, ctx);
+    const pushedAt = lastPushOf(snapshot).committedAt;
     const since =
-      lastActivity && isAfter(lastActivity, snapshot.headCommittedAt)
-        ? lastActivity
-        : snapshot.headCommittedAt;
+      lastActivity && isAfter(lastActivity, pushedAt) ? lastActivity : pushedAt;
     const comments = [
       ...snapshot.comments,
       ...snapshot.threads

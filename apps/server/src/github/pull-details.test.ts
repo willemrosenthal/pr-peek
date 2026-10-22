@@ -1,7 +1,7 @@
 import { prSnapshot, type PrSnapshot } from "@pr-peek/core";
 import { describe, expect, it } from "vitest";
 import { fakeGraphQL } from "../../test/github";
-import { detailIds, githubPr, prGitHub } from "../../test/pulls";
+import { detailIds, githubPr, prGitHub, recentCommit } from "../../test/pulls";
 import { fetchPrDetails, mentionsIn, preview } from "./pull-details";
 
 describe("fetchPrDetails", () => {
@@ -89,6 +89,11 @@ describe("fetchPrDetails", () => {
             { name: "e2e", url: null },
           ],
         },
+        lastPush: {
+          sha: "abc123",
+          committedAt: "2026-10-21T07:00:00Z",
+          checkState: "FAILURE",
+        },
       },
     ]);
     // Plan 05 reads saved snapshots back with the shared schema.
@@ -112,6 +117,39 @@ describe("fetchPrDetails", () => {
     const { octokit } = fakeGraphQL(prGitHub({ prs: { PR_1: pr } }));
     const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
     expect(snapshots[0]?.checks).toEqual({ state: null, failing: [] });
+  });
+
+  it("takes the last push from the newest commit that isn't a merge", async () => {
+    const pr = githubPr({
+      recentCommits: {
+        nodes: [
+          recentCommit("old", "2026-10-21T06:00:00Z", "SUCCESS"),
+          recentCommit("push", "2026-10-21T07:00:00Z", "FAILURE"),
+          // "Update branch".
+          recentCommit("merge", "2026-10-21T08:00:00Z", "PENDING", 2),
+        ],
+      },
+    });
+    const { octokit } = fakeGraphQL(prGitHub({ prs: { PR_1: pr } }));
+    const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
+    expect(snapshots[0]?.lastPush).toEqual({
+      sha: "push",
+      committedAt: "2026-10-21T07:00:00Z",
+      checkState: "FAILURE",
+    });
+  });
+
+  it("leaves the last push out when every recent commit is a merge", async () => {
+    const pr = githubPr({
+      recentCommits: {
+        nodes: [recentCommit("merge", "2026-10-21T08:00:00Z", null, 2)],
+      },
+    });
+    const { octokit } = fakeGraphQL(prGitHub({ prs: { PR_1: pr } }));
+    const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
+    expect(snapshots[0]).not.toHaveProperty("lastPush");
+    // Like snapshots stored before `lastPush` was added, it still reads back.
+    expect(prSnapshot.parse(snapshots[0])).toEqual(snapshots[0]);
   });
 
   it("asks for 10 PRs at a time", async () => {

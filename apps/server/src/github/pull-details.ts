@@ -43,6 +43,9 @@ const DETAILS_QUERY = `query ($ids: [ID!]!) {
         nodes { id isResolved comments(last: 20) { nodes { ${COMMENT} replyTo { id } } } }
       }
       comments(last: 30) { nodes { ${COMMENT} } }
+      recentCommits: commits(last: 20) {
+        nodes { commit { oid committedDate parents { totalCount } statusCheckRollup { state } } }
+      }
       commits(last: 1) {
         nodes {
           commit {
@@ -122,6 +125,16 @@ const rawPr = z.object({
     }),
   ),
   comments: nodesOf(rawComment),
+  recentCommits: nodesOf(
+    z.object({
+      commit: z.object({
+        oid: z.string(),
+        committedDate: z.string(),
+        parents: z.object({ totalCount: z.number() }),
+        statusCheckRollup: z.object({ state: checkState }).nullable(),
+      }),
+    }),
+  ),
   commits: z.object({
     nodes: z
       .array(
@@ -200,6 +213,10 @@ function toSnapshot(raw: RawPr): PrSnapshot {
   // The schema requires at least one commit.
   const head = raw.commits.nodes[0]!.commit;
   const contexts = head.statusCheckRollup?.contexts.nodes ?? [];
+  // A merge commit has two parents.
+  const push = raw.recentCommits.nodes
+    .map((node) => node.commit)
+    .findLast((commit) => commit.parents.totalCount <= 1);
 
   return {
     id: raw.id,
@@ -261,6 +278,13 @@ function toSnapshot(raw: RawPr): PrSnapshot {
         return [];
       }),
     },
+    ...(push && {
+      lastPush: {
+        sha: push.oid,
+        committedAt: push.committedDate,
+        checkState: push.statusCheckRollup?.state ?? null,
+      },
+    }),
   };
 }
 

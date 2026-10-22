@@ -4,6 +4,21 @@ const user = (login: string) => ({ __typename: "User", login });
 const bot = (login: string) => ({ __typename: "Bot", login });
 const team = (combinedSlug: string) => ({ __typename: "Team", combinedSlug });
 
+// One of a PR's recent commits. A merge has two parents.
+export const recentCommit = (
+  oid: string,
+  committedDate: string,
+  checkState: string | null,
+  parents = 1,
+) => ({
+  commit: {
+    oid,
+    committedDate,
+    parents: { totalCount: parents },
+    statusCheckRollup: checkState ? { state: checkState } : null,
+  },
+});
+
 // One PR as GitHub's details query returns it, with a bit of everything in it.
 export function githubPr(overrides: Record<string, unknown> = {}) {
   return {
@@ -93,6 +108,9 @@ export function githubPr(overrides: Record<string, unknown> = {}) {
           createdAt: "2026-10-21T09:30:00Z",
         },
       ],
+    },
+    recentCommits: {
+      nodes: [recentCommit("abc123", "2026-10-21T07:00:00Z", "FAILURE")],
     },
     commits: {
       nodes: [

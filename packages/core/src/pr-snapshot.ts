@@ -83,5 +83,14 @@ export const prSnapshot = z.object({
       z.object({ name: z.string(), url: z.string().nullable() }),
     ),
   }),
+  // The newest commit that isn't a merge, like the one "Update branch" adds. Missing in
+  // snapshots stored before it was added, or when the latest 20 commits are all merges.
+  lastPush: z
+    .object({
+      sha: z.string(),
+      committedAt: z.string(),
+      checkState: checkState.nullable(),
+    })
+    .optional(),
 });
 export type PrSnapshot = z.infer<typeof prSnapshot>;
