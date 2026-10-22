@@ -61,16 +61,11 @@ describe("loadRuleSettings", () => {
   it("ignores values it doesn't understand", async () => {
     const user = await makeUser();
     await db.ruleSetting.updateMany({
-      data: {
-        severity: "urgent",
-        channels: ["email"],
-        options: { includeDrafts: "yes" },
-      },
+      data: { channels: [], options: { includeDrafts: "yes" } },
     });
 
     const settings = await loadRuleSettings(db, user.id);
     expect(settings.find((s) => s.rule.id === "commented")).toMatchObject({
-      severity: "low",
       channels: ["list"],
     });
     expect(includeDraftsFrom(settings)).toBe(false);

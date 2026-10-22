@@ -1,7 +1,7 @@
 import type { GitHubTokenDto } from "@pr-peek/core";
 import { decrypt, encrypt } from "../crypto";
 import type { Db } from "../db";
-import type { User } from "../generated/prisma/client";
+import type { SyncError, User } from "../generated/prisma/client";
 import { HttpError } from "../http-error";
 import { GitHubAuthError, type GitHubOAuth, type GitHubTokens } from "./oauth";
 
@@ -17,7 +17,7 @@ export interface TokenDeps {
 
 // Sync errors that stop syncs until the user acts. "reauth": sign in with GitHub again.
 // "token": add a new personal access token.
-export type StopReason = "reauth" | "token";
+export type StopReason = Exclude<SyncError, "failed">;
 export const STOP_REASONS: StopReason[] = ["reauth", "token"];
 
 // GitHub stopped accepting the user's token: it expired, or they revoked it.

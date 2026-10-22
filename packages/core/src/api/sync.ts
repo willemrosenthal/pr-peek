@@ -7,6 +7,6 @@ export interface SyncStatusResponse {
   lastSyncedAt: string | null;
   // "reauth": sign in with GitHub again. "token": add a new personal access token.
   // "failed": it will retry on its own.
-  syncError: string | null;
+  syncError: "reauth" | "token" | "failed" | null;
   running: boolean;
 }

@@ -68,15 +68,18 @@ describe("POST /api/sync", () => {
   it.each([
     ["reauth", "reauth"],
     ["token", "token_invalid"],
-  ])("refuses while syncs are stopped with %s", async (syncError, code) => {
-    const { agent, requestSync } = await setup();
-    await db.user.updateMany({ data: { syncError } });
+  ] as const)(
+    "refuses while syncs are stopped with %s",
+    async (syncError, code) => {
+      const { agent, requestSync } = await setup();
+      await db.user.updateMany({ data: { syncError } });
 
-    const res = await refresh(agent);
-    expect(res.status).toBe(401);
-    expect(res.body).toMatchObject({ error: { code } });
-    expect(requestSync).not.toHaveBeenCalled();
-  });
+      const res = await refresh(agent);
+      expect(res.status).toBe(401);
+      expect(res.body).toMatchObject({ error: { code } });
+      expect(requestSync).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("GET /api/sync/status", () => {

@@ -1,6 +1,7 @@
 import type { PrSnapshot } from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import type { Db } from "./db";
+import type { PrState } from "./generated/prisma/client";
 import { fetchPrDetails, type PrDetails } from "./github/pull-details";
 import {
   fetchPrStatuses,
@@ -22,7 +23,7 @@ import {
 const KEEP_UNSEEN_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Why a stored PR stopped being tracked. Its items are resolved.
-type EndedState = "merged" | "closed" | "gone" | "unwatched";
+type EndedState = Exclude<PrState, "open">;
 
 export interface SyncDeps {
   db: Db;
@@ -49,7 +50,7 @@ interface StoredPr {
   githubUpdatedAt: Date;
   checkState: string | null;
   authorLogin: string;
-  state: string;
+  state: PrState;
 }
 
 // New PRs, PRs that changed or are back after they ended, and the user's own PRs whose
@@ -75,7 +76,7 @@ function toRow(snapshot: PrSnapshot, githubRepoId: number) {
     url: snapshot.url,
     authorLogin: snapshot.author.login,
     isDraft: snapshot.isDraft,
-    state: "open",
+    state: "open" as const,
     headSha: snapshot.headSha,
     checkState: snapshot.checks.state,
     githubUpdatedAt: new Date(snapshot.updatedAt),
