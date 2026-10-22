@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes, SelectHTMLAttributes } from "react";
+import { cx } from "../cx";
 import styles from "./Field.module.css";
 
 // A labelled text input.
@@ -27,7 +28,18 @@ export function SelectField({
   );
 }
 
+// A text box without its own label, for rows that label it another way.
+export function Input({
+  className,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={cx(styles.input, className)} {...props} />;
+}
+
 // A dropdown without its own label, for rows that label it another way.
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={styles.input} {...props} />;
+export function Select({
+  className,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={cx(styles.input, className)} {...props} />;
 }

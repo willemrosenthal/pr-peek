@@ -7,6 +7,7 @@ import { DevicesTab } from "./pages/settings/DevicesTab";
 import { GeneralTab } from "./pages/settings/GeneralTab";
 import { ReposTab } from "./pages/settings/ReposTab";
 import { RulesTab } from "./pages/settings/RulesTab";
+import { TimingTab } from "./pages/settings/TimingTab";
 import { SettingsLayout } from "./pages/settings/SettingsLayout";
 import { SignIn } from "./pages/SignIn";
 
@@ -24,6 +25,7 @@ export const routes = [
           { path: "general", element: <GeneralTab /> },
           { path: "repos", element: <ReposTab /> },
           { path: "rules", element: <RulesTab /> },
+          { path: "timing", element: <TimingTab /> },
           { path: "devices", element: <DevicesTab /> },
           { index: true, element: <Navigate to="/settings/general" replace /> },
           { path: "*", element: <Navigate to="/settings/general" replace /> },

@@ -1,5 +1,5 @@
 import type { UserSettingsDto } from "@pr-peek/core";
-import { useSaveSettings } from "../hooks/useSaveSettings";
+import { useSettingsSaver } from "../hooks/useSaveSettings";
 import { Alert } from "./Alert";
 import { CardRow } from "./Card";
 import { RowText } from "./RowText";
@@ -21,17 +21,14 @@ export function SettingSwitch({
   label: string;
   hint?: string | undefined;
 }) {
-  const save = useSaveSettings();
-  const on = save.isPending
-    ? (save.variables[field] ?? settings[field])
-    : settings[field];
+  const { save, shown } = useSettingsSaver(settings);
 
   return (
     <CardRow>
       <RowText label={label} hint={hint} />
       <Switch
         label={label}
-        checked={on}
+        checked={shown[field]}
         onChange={(checked) => save.mutate({ [field]: checked })}
         disabled={save.isPending}
       />

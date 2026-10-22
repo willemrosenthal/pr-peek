@@ -33,12 +33,7 @@ export function useSaveSettings() {
     onSuccess: ({ settings }, changes) => {
       // Takes only the fields this save sent, so a slower answer to an earlier save
       // can't undo a later one.
-      const sent = Object.fromEntries(
-        Object.keys(changes).map((key) => [
-          key,
-          settings[key as keyof UserSettingsDto],
-        ]),
-      ) as Partial<UserSettingsDto>;
+      const sent = pick(settings, changes);
       queryClient.setQueryData<SettingsResponse>(
         queryKeys.settings,
         (old) => old && { ...old, settings: { ...old.settings, ...sent } },
@@ -46,6 +41,23 @@ export function useSaveSettings() {
       reloadList(queryClient);
     },
   });
+}
+
+// The fields of `from` that `keysOf` has.
+const pick = (from: object, keysOf: object): Partial<UserSettingsDto> =>
+  Object.fromEntries(
+    Object.entries(from).filter(([key]) => Object.hasOwn(keysOf, key)),
+  );
+
+// Saves settings, and shows them with the values being saved, so a control shows its
+// new value right away.
+export function useSettingsSaver(settings: UserSettingsDto) {
+  const save = useSaveSettings();
+  // Holds only the fields being sent.
+  const saving = save.isPending
+    ? (save.variables as Partial<UserSettingsDto>)
+    : {};
+  return { save, shown: { ...settings, ...saving } };
 }
 
 // Saves some of one rule's settings.

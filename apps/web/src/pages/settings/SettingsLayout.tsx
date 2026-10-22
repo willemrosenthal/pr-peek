@@ -8,6 +8,7 @@ const SETTINGS_TABS = [
   { path: "general", label: "General" },
   { path: "repos", label: "Repositories" },
   { path: "rules", label: "Rules" },
+  { path: "timing", label: "Timing" },
   { path: "devices", label: "Devices" },
 ];
 
