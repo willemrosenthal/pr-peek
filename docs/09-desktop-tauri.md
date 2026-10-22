@@ -25,7 +25,7 @@ The Tauri window loads the **hosted web app** (`https://www.git-buddy.com/?shell
 
 ### 9.2 Menu bar icon and dropdown
 
-- [ ] Create a tray icon with a template image (a black and transparent PNG that macOS tints for light and dark menu bars).
+- [ ] Create a tray icon with a template image (a black and transparent PNG that macOS tints for light and dark menu bars). Use the Wavey octopus from `apps/web/public/icon.svg` (the white strokes only, at 1.5 stroke width).
 - [ ] Left click toggles the window. Use the positioner plugin to place it just under the tray icon.
 - [ ] Hide the window when it loses focus, like a real menu.
 - [ ] Right click shows a small native menu: Refresh, Open in browser, Settings, Launch at login (checkbox), Check for updates, Quit.
