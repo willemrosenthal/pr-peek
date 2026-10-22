@@ -13,7 +13,7 @@ it("signs out and goes to sign in", async () => {
       return new Response(null, { status: 204 });
     },
   });
-  const { router } = renderApp("/");
+  const { router } = renderApp("/settings");
 
   await userEvent.click(
     await screen.findByRole("button", { name: "Sign out" }),

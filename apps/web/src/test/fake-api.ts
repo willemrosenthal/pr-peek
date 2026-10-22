@@ -1,4 +1,9 @@
-import type { MeResponse } from "@pr-peek/core";
+import type {
+  ItemDto,
+  ItemsResponse,
+  MeResponse,
+  SyncStatusResponse,
+} from "@pr-peek/core";
 import { vi } from "vitest";
 
 // Requests with no fake. Checked after each test (setup.ts), since the app catches the error.
@@ -27,6 +32,59 @@ export const apiError = (status: number, code: string, message: string) =>
 
 export const signedOut = () =>
   apiError(401, "unauthorized", "Sign in required");
+
+let itemCount = 0;
+
+export const item = (fields: Partial<ItemDto> = {}): ItemDto => {
+  itemCount += 1;
+  return {
+    id: `item-${itemCount}`,
+    kind: "review_requested",
+    summary: "jlee asked for your review",
+    actorLogin: "jlee",
+    occurredAt: "2026-10-21T10:00:00.000Z",
+    waitingSince: "2026-10-21T10:00:00.000Z",
+    age: "2h",
+    staleLevel: "fresh",
+    severity: "normal",
+    unseen: false,
+    pr: {
+      title: `PR ${itemCount}`,
+      owner: "acme",
+      repo: "web-app",
+      number: itemCount,
+      url: `https://github.com/acme/web-app/pull/${itemCount}`,
+    },
+    ...fields,
+  };
+};
+
+export const groups = (fields: Partial<ItemsResponse> = {}): ItemsResponse => ({
+  review: [],
+  replies: [],
+  mine: [],
+  ...fields,
+});
+
+export const syncStatus = (
+  fields: Partial<SyncStatusResponse> = {},
+): SyncStatusResponse => ({
+  lastSyncedAt: null,
+  syncError: null,
+  running: false,
+  ...fields,
+});
+
+// What the list page asks for: a signed in user with nothing to show.
+export const listApi = (
+  overrides: Record<string, () => Response> = {},
+): Record<string, () => Response> => ({
+  "GET /api/me": () => json(me()),
+  "GET /api/items": () => json(groups()),
+  "GET /api/sync/status": () => json(syncStatus()),
+  "GET /api/repos": () => json({ repos: [{ id: "r1" }] }),
+  ...overrides,
+});
 
 export const me = (
   fields: Partial<Omit<MeResponse, "user">> = {},

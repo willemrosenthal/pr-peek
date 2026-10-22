@@ -46,3 +46,7 @@ export interface WatchedRepoDto {
   enabled: boolean;
   muted: boolean;
 }
+
+export interface WatchedReposResponse {
+  repos: WatchedRepoDto[];
+}

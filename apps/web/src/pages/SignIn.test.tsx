@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
-import { fakeApi, json, me, signedOut } from "../test/fake-api";
+import { fakeApi, json, listApi, me, signedOut } from "../test/fake-api";
 import { renderApp } from "../test/render";
 
 const githubLink = () =>
@@ -27,9 +27,9 @@ it.each([
 });
 
 it("sends signed in users to the list", async () => {
-  fakeApi({ "GET /api/me": () => json(me()) });
+  fakeApi(listApi());
   const { router } = renderApp("/signin");
-  await screen.findByText("Signed in as octocat");
+  await screen.findByText("Nothing needs you right now");
   expect(router.state.location.pathname).toBe("/");
 });
 

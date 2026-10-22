@@ -8,7 +8,9 @@
 
 - **Part 1** (`plan-07-1-setup`): 7.2 project setup, sign in, and the design tokens from 7.3.
 - **Part 2** (`plan-07-2-github-token`): the personal access token becomes an add-on to GitHub sign in, not a way to sign in. See Changes.
-- **Part 3** (`plan-07-3-list`): 7.4 the list, 7.5 layouts, and their tests.
+- **Part 3**, the list, in two PRs:
+  - **3a** (`plan-07-3a-list`): sections, rows, header and refresh, banners, empty and error states, phone and desktop layouts, and their tests.
+  - **3b** (`plan-07-3b-live`): live updates, marking items seen, the app badge, and tray mode.
 - **Part 4** (`plan-07-4-settings`): 7.6 onboarding and settings.
 - **Part 5** (`plan-07-5-pwa`): 7.7 PWA, and the Playwright smoke test.
 
@@ -26,9 +28,18 @@
   - A token GitHub stops accepting sets `syncError` to `"token"`. Syncs stop until the user adds a new one. `"reauth"` still means sign in with GitHub again.
   - `/api/me` has `githubToken` (expiry, scopes, `invalid`) instead of `authMethod`. The `authMethod` column stays for now, so old servers keep working during a deploy. Drop it in a later migration.
   - The migration moves tokens pasted at sign in into the new columns. Those users sign in with GitHub next time.
-  - The token form (`components/GitHubToken.tsx`) sits on the placeholder home page until settings and onboarding exist (part 4).
+  - The token form (`components/GitHubToken.tsx`) is on the first settings page until part 4 adds the tabs.
 - **`api.http` signs in with your browser's session cookie**, since token sign in is gone. Steps at the top of the file.
 - **Onboarding** sends you to the list until part 4 builds it.
+- **A first `/settings` page** (part 3a) holds the token form and sign out, so the header's settings link goes somewhere. Part 4 turns it into tabs. The "not watching any repos" empty state links there, though the repo picker comes in part 4.
+- **The list refetches every minute** (items and sync status), since ages, stale colors, and "Updated 3m ago" change with time. The live stream (3b) refetches right away when something changes.
+- **Empty sections are hidden.** When all three are empty, the list says "Nothing needs you right now", or asks for repos if none are watched.
+- **Unseen rows** have a bold title and a dot, and screen readers hear "New".
+- **One icon per item kind.** "Reviewed" has one icon for approvals and change requests, since items don't say which.
+- **Refresh** spins until `lastSyncedAt` or `syncError` changes, or 2 minutes pass. A refresh refused because the token stopped working shows the banner, not an error.
+- **Rows are links** (`target="_blank"`), so middle click and "open in new tab" work.
+- **Marking seen happens when items are on screen (3b), not on click.** By the time you click a row, it was already on screen. Marking reorders rows a little (unseen adds 25 to the urgency score), so 3b keeps this visit's order.
+- **Base UI** is only used for the collapsible sections so far.
 - **Showing GitHub avatars needs a CSP change.** Helmet only allows images from our own site. Add `https://avatars.githubusercontent.com` to `img-src` when the first avatar appears.
 
 ## Steps
@@ -84,20 +95,20 @@
 | Short messages ("New version available") | Toast                    |
 | Hover hints                              | Tooltip                  |
 
-- [ ] Note: Base UI's npm package was renamed around its 1.0 release (`@base-ui-components/react` became `@base-ui/react`). Check npm for the current name when installing.
+- [x] Note: Base UI's npm package was renamed around its 1.0 release (`@base-ui-components/react` became `@base-ui/react`). Check npm for the current name when installing.
 
-### 7.4 The list
+### 7.4 The list (part 3a: `pages/ListPage.tsx`, part 3b: live updates)
 
-- [ ] `ItemList` with three collapsible sections: "Needs my review", "Replies to me", "My PRs". Each shows a count. Remember which sections are collapsed in `localStorage`.
-- [ ] `ItemRow`, matching design A2 (divided two-line list):
+- [x] `ItemList` with three collapsible sections: "Needs my review", "Replies to me", "My PRs". Each shows a count. Remember which sections are collapsed in `localStorage`.
+- [x] `ItemRow`, matching design A2 (divided two-line list):
   - Thin divider lines between rows.
   - Line 1: a small colored state icon, the PR title, and the age on the right, colored by stale level.
   - Line 2: what happened ("jlee re-requested your review", "e2e-tests failed"), and the short repo and number on the right.
-  - An unseen marker (style to be decided).
-- [ ] Clicking a row opens the PR on GitHub in a new tab, and marks it seen. That's the only row action. There's no snooze or done.
-- [ ] Header: last synced time, refresh button (calls `POST /api/sync`), settings link.
+  - An unseen marker: a bold title and a dot.
+- [x] Clicking a row opens the PR on GitHub in a new tab. That's the only row action. There's no snooze or done. Marking seen happens when the row is on screen (3b, see Changes).
+- [x] Header: last synced time, refresh button (calls `POST /api/sync`), settings link.
   - Spin the refresh button from the `202` until `lastSyncedAt` changes. `GET /api/sync/status` shows `running: false` for a few seconds while the worker picks up the job.
-- [ ] Banners:
+- [x] Banners:
   - "Reconnect GitHub" when `needsReauth`.
   - "Your token stopped working" when `githubToken.invalid`, linking to the token form.
   - "Sync problem, retrying" when `syncError`.
@@ -109,8 +120,8 @@
 
 ### 7.5 Layouts
 
-- [ ] **Phone:** full screen list, sticky header, large touch targets (44px or more).
-- [ ] **Desktop browser:** the list in a centered column (about 420px wide), settings in a wider layout.
+- [x] **Phone:** full screen list, sticky header, large touch targets (44px or more).
+- [x] **Desktop browser:** the list in a centered column (about 420px wide), settings in a wider layout.
 - [ ] **Tray mode** (`?shell=tray`, for plan 09): no outer page chrome, fixed width, a compact header with refresh and settings, and a footer with "Open in browser" and "Quit". Build it now behind the flag so plan 09 is mostly wiring.
 
 ### 7.6 Onboarding and settings
@@ -144,7 +155,7 @@
 
 ### 7.8 Tests
 
-- [ ] Vitest + Testing Library for `ItemRow` states (each kind and stale level), section collapse, and the reauth banner.
+- [x] Vitest + Testing Library for `ItemRow` states (each kind and stale level), section collapse, and the reauth banner.
 - [ ] One Playwright smoke test (a tool that drives a real browser) against a seeded local server: sign in with a test session, see items, click one to open the PR.
 
 ## Done when

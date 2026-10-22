@@ -1,13 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { api } from "../api";
 import { Button } from "../components/Button";
 import { GitHubToken } from "../components/GitHubToken";
 import { useMe } from "../queries";
-import styles from "./Home.module.css";
+import styles from "./Settings.module.css";
 
-// Stands in for the list until plan 07 part 3. The token moves to settings in part 4.
-export function Home() {
+// A first settings page. Plan 07 part 4 turns it into tabs.
+export function Settings() {
   const { data } = useMe();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -22,8 +22,9 @@ export function Home() {
   return (
     <main className={styles.page}>
       <div className={styles.panel}>
-        <h1 className={styles.title}>Signed in as {data?.user.login}</h1>
-        <p className={styles.hint}>The list is coming next.</p>
+        <Link to="/">Back to your list</Link>
+        <h1 className={styles.title}>Settings</h1>
+        <p className={styles.hint}>Signed in as {data?.user.login}</p>
         <GitHubToken />
         <Button onClick={() => signOut.mutate()} disabled={signOut.isPending}>
           Sign out

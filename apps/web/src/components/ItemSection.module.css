@@ -1,0 +1,43 @@
+.heading {
+  margin: 0;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 14px;
+  border: 0;
+  border-top: 1px solid var(--color-divider);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Bigger on touch screens. */
+@media (pointer: coarse) {
+  .trigger {
+    min-height: var(--touch-target);
+  }
+}
+
+.trigger:focus-visible {
+  outline-offset: -2px;
+}
+
+.chevron {
+  transition: transform 0.15s;
+}
+
+.trigger[aria-expanded="true"] .chevron {
+  transform: rotate(90deg);
+}
+
+.title {
+  flex: 1;
+}

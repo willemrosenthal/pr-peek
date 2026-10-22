@@ -5,6 +5,7 @@ import {
   updateRepoBody,
   type SearchReposResponse,
   type WatchedRepoDto,
+  type WatchedReposResponse,
 } from "@pr-peek/core";
 import express, { type Router } from "express";
 import type { Octokit } from "octokit";
@@ -71,7 +72,8 @@ export function reposRouter(deps: RepoDeps): Router {
       where: { userId: currentUser(res).id },
       orderBy: [{ owner: "asc" }, { name: "asc" }],
     });
-    res.json({ repos: repos.map(toDto) });
+    const body: WatchedReposResponse = { repos: repos.map(toDto) };
+    res.json(body);
   });
 
   router.post("/repos", async (req, res) => {
