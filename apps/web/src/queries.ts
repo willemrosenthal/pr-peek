@@ -1,11 +1,17 @@
 import type {
   ItemsResponse,
   MeResponse,
+  SearchReposResponse,
   SummaryResponse,
   SyncStatusResponse,
   WatchedReposResponse,
 } from "@pr-peek/core";
-import { useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { api, isUnauthorized } from "./api";
 
 export const queryKeys = {
@@ -14,6 +20,7 @@ export const queryKeys = {
   summary: ["summary"],
   syncStatus: ["sync-status"],
   repos: ["repos"],
+  githubRepos: ["github-repos"],
 } as const;
 
 // Ages and stale colors change with time, so lists refetch this often.
@@ -51,6 +58,34 @@ export function useRepos() {
     queryKey: queryKeys.repos,
     queryFn: () => api<WatchedReposResponse>("/repos"),
   });
+}
+
+// Repos the user could watch: their recent ones, or matches for `query`. Paged.
+export function useRepoSearch(query: string) {
+  return useInfiniteQuery({
+    queryKey: [...queryKeys.githubRepos, query],
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams();
+      if (query) params.set("query", query);
+      if (pageParam) params.set("cursor", pageParam);
+      const search = params.size > 0 ? `?${params}` : "";
+      return api<SearchReposResponse>(`/github/repos${search}`);
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+    // Keeps the old results up while new ones load.
+    placeholderData: keepPreviousData,
+  });
+}
+
+// Reloads the watch list and the search results after a change to either.
+export function useInvalidateRepos() {
+  const queryClient = useQueryClient();
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.repos }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.githubRepos }),
+    ]);
 }
 
 export function useSyncStatus(

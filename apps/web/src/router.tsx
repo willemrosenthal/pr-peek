@@ -2,7 +2,10 @@ import { createBrowserRouter, Link, Navigate } from "react-router";
 import { PageMessage } from "./components/PageMessage";
 import { RequireAuth } from "./components/RequireAuth";
 import { ListPage } from "./pages/ListPage";
-import { Settings } from "./pages/Settings";
+import { Onboarding } from "./pages/Onboarding";
+import { GeneralTab } from "./pages/settings/GeneralTab";
+import { ReposTab } from "./pages/settings/ReposTab";
+import { SettingsLayout } from "./pages/settings/SettingsLayout";
 import { SignIn } from "./pages/SignIn";
 
 // Route paths have no dots. The server treats a path with a file extension as a file.
@@ -12,9 +15,17 @@ export const routes = [
     element: <RequireAuth />,
     children: [
       { path: "/", element: <ListPage /> },
-      { path: "/settings", element: <Settings /> },
-      // Onboarding comes in plan 07 part 4.
-      { path: "/onboarding", element: <Navigate to="/" replace /> },
+      {
+        path: "/settings",
+        element: <SettingsLayout />,
+        children: [
+          { path: "general", element: <GeneralTab /> },
+          { path: "repos", element: <ReposTab /> },
+          { index: true, element: <Navigate to="/settings/general" replace /> },
+          { path: "*", element: <Navigate to="/settings/general" replace /> },
+        ],
+      },
+      { path: "/onboarding", element: <Onboarding /> },
     ],
   },
   {

@@ -6,6 +6,7 @@ import { queryKeys, useMe } from "../queries";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import styles from "./GitHubToken.module.css";
+import { TextField } from "./Field";
 
 // Shows, adds, replaces, or removes the user's personal access token.
 export function GitHubToken() {
@@ -126,18 +127,15 @@ function TokenForm({
 
   return (
     <form className={styles.form} onSubmit={submit}>
-      <label className={styles.field}>
-        <span>Personal access token</span>
-        <input
-          className={styles.input}
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          required
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-        />
-      </label>
+      <TextField
+        label="Personal access token"
+        type="password"
+        autoComplete="off"
+        spellCheck={false}
+        required
+        value={token}
+        onChange={(e) => setToken(e.target.value)}
+      />
       {save.isError && <Alert>{save.error.message}</Alert>}
       <div className={styles.actions}>
         <Button type="submit" variant="primary" disabled={save.isPending}>

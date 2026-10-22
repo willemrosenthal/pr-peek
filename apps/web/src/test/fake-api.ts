@@ -2,8 +2,11 @@ import type {
   ItemDto,
   ItemsResponse,
   MeResponse,
+  RepoOption,
+  SearchReposResponse,
   SummaryResponse,
   SyncStatusResponse,
+  WatchedRepoDto,
 } from "@pr-peek/core";
 import { vi } from "vitest";
 
@@ -28,6 +31,12 @@ export function fakeApi(handlers: Record<string, () => Response>) {
 // The calls the fake got for `url`.
 export const callsTo = (fetch: ReturnType<typeof fakeApi>, url: string) =>
   fetch.mock.calls.filter(([calledUrl]) => calledUrl === url);
+
+// The JSON bodies the fake got for `key`, like "POST /api/repos".
+export const sentBodies = (fetch: ReturnType<typeof fakeApi>, key: string) =>
+  fetch.mock.calls
+    .filter(([url, init = {}]) => `${init.method ?? "GET"} ${url}` === key)
+    .map(([, init]) => JSON.parse(init!.body as string) as unknown);
 
 export const json = (body: unknown, status = 200) =>
   Response.json(body, { status });
@@ -71,6 +80,40 @@ export const groups = (fields: Partial<ItemsResponse> = {}): ItemsResponse => ({
   ...fields,
 });
 
+let repoCount = 0;
+
+export const watchedRepo = (
+  fields: Partial<WatchedRepoDto> = {},
+): WatchedRepoDto => {
+  repoCount += 1;
+  return {
+    id: `repo-${repoCount}`,
+    githubRepoId: repoCount,
+    owner: "acme",
+    name: `repo-${repoCount}`,
+    enabled: true,
+    muted: false,
+    ...fields,
+  };
+};
+
+export const repoOption = (fields: Partial<RepoOption> = {}): RepoOption => {
+  repoCount += 1;
+  return {
+    githubRepoId: repoCount,
+    owner: "acme",
+    name: `repo-${repoCount}`,
+    isPrivate: false,
+    watched: false,
+    ...fields,
+  };
+};
+
+export const searchResults = (
+  repos: RepoOption[] = [],
+  nextCursor: string | null = null,
+): SearchReposResponse => ({ repos, nextCursor });
+
 export const syncStatus = (
   fields: Partial<SyncStatusResponse> = {},
 ): SyncStatusResponse => ({
@@ -111,7 +154,7 @@ export const listApi = (
   "GET /api/items": () => json(groups()),
   "POST /api/items/seen": noContent,
   "GET /api/sync/status": () => json(syncStatus()),
-  "GET /api/repos": () => json({ repos: [{ id: "r1" }] }),
+  "GET /api/repos": () => json({ repos: [watchedRepo()] }),
   ...overrides,
 });
 

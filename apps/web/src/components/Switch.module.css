@@ -1,0 +1,30 @@
+.root {
+  display: flex;
+  flex: none;
+  align-items: center;
+  width: 34px;
+  height: 20px;
+  padding: 2px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-border);
+  cursor: pointer;
+}
+
+.root[data-checked] {
+  justify-content: flex-end;
+  background: var(--color-accent);
+}
+
+.root[data-disabled] {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 30%);
+}

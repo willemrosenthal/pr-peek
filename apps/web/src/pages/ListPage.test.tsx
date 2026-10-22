@@ -4,7 +4,6 @@ import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
   apiError,
-  callsTo,
   fakeApi,
   groups,
   item,
@@ -12,6 +11,7 @@ import {
   listApi,
   me,
   noContent,
+  sentBodies,
   syncStatus,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
@@ -74,8 +74,8 @@ describe("marking seen", () => {
 
   // The ids in each request to mark items seen.
   const seenRequests = (fetch: ReturnType<typeof fakeApi>) =>
-    callsTo(fetch, "/api/items/seen").map(
-      ([, init]) => (JSON.parse(init!.body as string) as MarkSeenBody).ids,
+    sentBodies(fetch, "POST /api/items/seen").map(
+      (body) => (body as MarkSeenBody).ids,
     );
 
   it("marks the new items in open sections when the tab is hidden", async () => {
@@ -217,6 +217,9 @@ describe("empty and error states", () => {
     expect(
       await screen.findByText("You're not watching any repos yet"),
     ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "settings" }).getAttribute("href"),
+    ).toBe("/settings/repos");
   });
 
   it("offers a retry when the list can't load", async () => {
