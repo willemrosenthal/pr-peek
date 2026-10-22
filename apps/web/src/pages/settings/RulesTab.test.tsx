@@ -116,11 +116,12 @@ describe("the Rules tab", () => {
     );
     renderApp("/settings/rules");
 
-    await userEvent.selectOptions(
-      await screen.findByLabelText("Urgency for Reply to my comment"),
-      "low",
+    const urgency = await screen.findByLabelText<HTMLSelectElement>(
+      "Urgency for Reply to my comment",
     );
+    await userEvent.selectOptions(urgency, "low");
     expect((await screen.findByRole("alert")).textContent).toBe("Bad severity");
+    expect(urgency.value).toBe("normal");
   });
 });
 

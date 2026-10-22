@@ -1,4 +1,5 @@
 import type { RuleGroup, RuleSettingDto, Severity } from "@pr-peek/core";
+import type { ReactNode } from "react";
 import { Alert } from "../../components/Alert";
 import { Card, CardRow } from "../../components/Card";
 import { Select } from "../../components/Field";
@@ -48,6 +49,17 @@ export function RulesTab() {
   );
 }
 
+// A control with a short visible name. Screen readers hear the control's own label,
+// which names the rule too.
+function Control({ name, children }: { name: string; children: ReactNode }) {
+  return (
+    <span className={styles.control}>
+      <span aria-hidden="true">{name}</span>
+      {children}
+    </span>
+  );
+}
+
 // One rule's switch, urgency, and notify setting. Shows new values while they save.
 function RuleRow({ rule }: { rule: RuleSettingDto }) {
   const save = useSaveRule(rule.id);
@@ -64,22 +76,23 @@ function RuleRow({ rule }: { rule: RuleSettingDto }) {
     <CardRow>
       <RowText label={rule.name} />
       <span className={styles.controls}>
-        <Select
-          aria-label={`Urgency for ${rule.name}`}
-          value={shown.severity}
-          onChange={(e) =>
-            save.mutate({ severity: e.target.value as Severity })
-          }
-          disabled={save.isPending}
-        >
-          {SEVERITIES.map(({ value, label }) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </Select>
-        <span className={styles.control}>
-          <span aria-hidden="true">Notify</span>
+        <Control name="Urgency">
+          <Select
+            aria-label={`Urgency for ${rule.name}`}
+            value={shown.severity}
+            onChange={(e) =>
+              save.mutate({ severity: e.target.value as Severity })
+            }
+            disabled={save.isPending}
+          >
+            {SEVERITIES.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </Select>
+        </Control>
+        <Control name="Notify">
           <Switch
             label={`Notify for ${rule.name}`}
             checked={shown.notify}
@@ -88,16 +101,15 @@ function RuleRow({ rule }: { rule: RuleSettingDto }) {
             }
             disabled={save.isPending}
           />
-        </span>
-        <span className={styles.control}>
-          <span aria-hidden="true">On</span>
+        </Control>
+        <Control name="On">
           <Switch
             label={`Turn on ${rule.name}`}
             checked={shown.enabled}
             onChange={(enabled) => save.mutate({ enabled })}
             disabled={save.isPending}
           />
-        </span>
+        </Control>
       </span>
       {rule.id === "review_requested" && (
         <label className={styles.option}>
