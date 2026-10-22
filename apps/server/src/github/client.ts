@@ -1,6 +1,17 @@
 import { Octokit } from "octokit";
 import { getAccessToken, markNeedsReauth, type TokenDeps } from "./tokens";
 
+// Longer waits fail the request instead, and the sync tries again later.
+const MAX_RATE_LIMIT_WAIT_S = 60;
+
+// Retries once when GitHub asks us to slow down, if the wait is short.
+const retryIfShort = (
+  retryAfter: number,
+  _options: unknown,
+  _octokit: unknown,
+  retryCount: number,
+) => retryCount === 0 && retryAfter <= MAX_RATE_LIMIT_WAIT_S;
+
 export interface ClientDeps extends TokenDeps {
   // Lets tests stand in for GitHub's API.
   fetch?: typeof fetch;
@@ -14,6 +25,10 @@ export async function getOctokit(
 ): Promise<Octokit> {
   const octokit = new Octokit({
     auth: await getAccessToken(deps, userId),
+    throttle: {
+      onRateLimit: retryIfShort,
+      onSecondaryRateLimit: retryIfShort,
+    },
     ...(deps.fetch && { request: { fetch: deps.fetch } }),
   });
 

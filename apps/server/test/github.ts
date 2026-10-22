@@ -8,6 +8,7 @@ export interface GraphQLRequest {
 
 // An Octokit whose GraphQL calls are answered by `answer`, which returns the whole
 // response body: `{ data }` for success, or `{ errors }` like GitHub sends.
+// It can also return a Response, to set the status or headers.
 export function fakeGraphQL(
   answer: (request: GraphQLRequest) => unknown,
   // Delay before each answer, to make requests overlap in race tests.
@@ -18,7 +19,8 @@ export function fakeGraphQL(
     const request = JSON.parse(init?.body as string) as GraphQLRequest;
     requests.push(request);
     if (delayMs) await new Promise((done) => setTimeout(done, delayMs));
-    return Response.json(answer(request));
+    const body = answer(request);
+    return body instanceof Response ? body : Response.json(body);
   });
   // Throttling spaces requests out to be kind to GitHub. Not needed for a fake.
   const octokit = new Octokit({
