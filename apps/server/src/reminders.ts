@@ -1,8 +1,9 @@
 import { reminderStage, waitingFor } from "@pr-peek/core";
-import { notifyItem, type NotifyDeps } from "./notify";
+import { notifyItems, type NotifyDeps, type NotifyRequest } from "./notify";
 
 // Sends a reminder for each review request that reached a new stage: orange, red, or
-// another interval past red. Run every few minutes. Returns how many went out.
+// another interval past red. A user's reminders go together, so several become one push.
+// Run every few minutes. Returns how many reminders went out.
 export async function sendDueReminders(
   deps: Omit<NotifyDeps, "now">,
   now: Date,
@@ -13,6 +14,7 @@ export async function sendDueReminders(
   const users = await db.user.findMany({
     where: { pushSubscriptions: { some: {} } },
     select: {
+      id: true,
       settings: true,
       items: {
         where: { status: "open", waitingSince: { not: null } },
@@ -22,25 +24,22 @@ export async function sendDueReminders(
   });
 
   let sent = 0;
-  for (const { settings, items } of users) {
+  for (const { id: userId, settings, items } of users) {
     if (!settings) continue;
-    for (const { id, waitingSince } of items) {
-      if (!waitingSince) continue;
+    const requests = items.flatMap(({ id, waitingSince }): NotifyRequest[] => {
+      if (!waitingSince) return [];
       const stage = reminderStage(
         waitingFor(waitingSince, now, settings),
         settings,
       );
-      if (!stage) continue;
-      try {
-        const outcome = await notifyItem(
-          { ...deps, now: () => now },
-          id,
-          stage,
-        );
-        if (outcome === "sent") sent += 1;
-      } catch (err) {
-        deps.logger.error({ err, itemId: id }, "reminder failed");
-      }
+      return stage ? [{ itemId: id, reminder: stage }] : [];
+    });
+    if (requests.length === 0) continue;
+    try {
+      const outcomes = await notifyItems({ ...deps, now: () => now }, requests);
+      sent += outcomes.filter((outcome) => outcome === "sent").length;
+    } catch (err) {
+      deps.logger.error({ err, userId }, "reminders failed");
     }
   }
   return sent;

@@ -40,9 +40,9 @@ No third party account is needed. The `web-push` npm package handles the encrypt
 
 ### 8.1 Keys and config
 
-- [ ] **(You)** Generate VAPID keys once with `pnpm --filter @pr-peek/server exec web-push generate-vapid-keys`. One pair for your `.env`, another for production.
+- [x] **(You)** Generate VAPID keys once with `pnpm --filter @pr-peek/server exec web-push generate-vapid-keys`. One pair for your `.env`, another for production.
 - [x] Add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (a `mailto:` contact address) to config and `.env.example`. They're optional: with none set, push is off and the push routes answer 503.
-- [ ] **(You)** Add the prod keys to the Render env group. Never change them later: existing subscriptions would stop working.
+- [x] **(You)** Add the prod keys to the Render env group. Never change them later: existing subscriptions would stop working.
 - [x] `GET /api/push/key` returns the public key for the browser.
 - [x] Device routes: `GET`, `POST`, `PATCH`, `DELETE /api/push/subscriptions`, and `POST /api/push/subscriptions/:id/test`. Posting a device that's already saved updates its keys. Endpoints must be a known push service (Google, Mozilla, Apple, Microsoft), since the server sends requests to them. Up to 20 devices per user.
 
@@ -75,7 +75,8 @@ The `notify:item` job from plan 05.5:
   - Every 5 minutes (`sendDueReminders` in `apps/server/src/reminders.ts`). The stage ("warn", "late", "late+1", ...) is part of the logged event id, so each stage sends once. The interval only repeats after red, and counts work hours only if that setting is on.
   - It sends the current stage, so on first deploy each request already past orange gets one reminder.
 - [x] **Quiet hours:** inside quiet hours (or on a quiet weekend), don't send. Leave it for the morning summary. High severity can optionally break through quiet hours, as a setting, off by default. (`isQuiet` in core. The setting is `highBreaksQuiet`, "Let high urgency through" on the Timing tab.)
-- [ ] **Batching:** if 3 or more notifications for the same user would go out within 30 seconds (like after a long offline period), send one "5 new things need you" push instead.
+- [x] **Batching:** if 3 or more notifications for the same user would go out within 30 seconds (like after a long offline period), send one "5 new things need you" push instead.
+  - "At once" means from one sync, or one reminders run. A sync queues one `notify-items` job with all its new items. `notifyItems` checks every item, claims the ones that pass, then sends 3 or more as one push that opens the list ("5 things need you", listing the first 3). Each device that takes any of them gets it once.
 
 ### 8.4 Sending
 
@@ -104,8 +105,7 @@ The `notify:item` job from plan 05.5:
 
 ### 8.7 Tests
 
-- [ ] Unit tests for the decision logic: dedupe, quiet hours across midnight and timezones, weekend rule, severity per device, batching.
-  - All but batching are done (`quiet-hours.test.ts`, `notify.test.ts`). Batching comes in part 4.
+- [x] Unit tests for the decision logic: dedupe, quiet hours across midnight and timezones, weekend rule, severity per device, batching. (`quiet-hours.test.ts`, `notify.test.ts`, `reminders.test.ts`, `summary.test.ts`.)
 - [x] A test with a fake `web-push` sender: a 410 deletes the subscription.
 
 ### 8.8 Database enums
@@ -123,8 +123,8 @@ After part 2b, before part 3. Text columns that only ever hold a few fixed value
 
 ## Done when
 
-- [ ] With the PWA installed on your iPhone and notifications on, a re-request on GitHub produces a push within one sync cycle, while the app is closed and the Mac is asleep.
-- [ ] Tapping it opens the PR.
-- [ ] The same event never alerts twice, even after a worker restart.
-- [ ] Nothing arrives during quiet hours, and the morning summary arrives at the set time.
-- [ ] Removing a device in Settings stops its pushes.
+- [ ] **(You)** With the PWA installed on your iPhone and notifications on, a re-request on GitHub produces a push within one sync cycle, while the app is closed and the Mac is asleep.
+- [ ] **(You)** Tapping it opens the PR.
+- [x] The same event never alerts twice, even after a worker restart. (Each event is claimed in `NotificationLog` before sending. Tested with runs that repeat and race.)
+- [ ] **(You)** Nothing arrives during quiet hours, and the morning summary arrives at the set time. (The logic is tested. This checks it live.)
+- [x] Removing a device in Settings stops its pushes. (The device row is deleted, and this browser unsubscribes. Tested in `DevicesTab.test.tsx`.)
