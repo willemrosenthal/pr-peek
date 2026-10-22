@@ -13,6 +13,7 @@ export const NOW = new Date("2026-10-21T12:00:00Z");
 // A time `n` hours after NOW (negative for before).
 export const hours = (n: number) =>
   new Date(NOW.getTime() + n * 60 * 60 * 1000);
+export const minutes = (n: number) => hours(n / 60);
 
 export function githubUser(overrides: Partial<GitHubUser> = {}): GitHubUser {
   return {

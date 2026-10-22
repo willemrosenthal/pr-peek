@@ -172,6 +172,32 @@ describe("PATCH /api/settings", () => {
   });
 });
 
+it("saves the setting even if re-running the rules fails", async () => {
+  const { agent } = makeTestApp(db, {
+    routers: [
+      settingsRouter({
+        db,
+        github: () => Promise.reject(new Error("GitHub is down")),
+      }),
+    ],
+  });
+  await signIn(agent);
+  const user = await db.user.findFirstOrThrow();
+  await synced(user.id);
+  await db.userSettings.update({
+    where: { userId: user.id },
+    data: { includeTeamRequests: false },
+  });
+
+  // The fixture asks a team to review, so turning team requests on needs GitHub.
+  const res = await patchSettings(agent, { includeTeamRequests: true });
+  expect(res.status).toBe(200);
+  const saved = await db.userSettings.findUniqueOrThrow({
+    where: { userId: user.id },
+  });
+  expect(saved.includeTeamRequests).toBe(true);
+});
+
 describe("PATCH /api/rules/:ruleId", () => {
   const ruleOf = (res: { body: unknown }) =>
     (res.body as { rule: RuleSettingDto }).rule;

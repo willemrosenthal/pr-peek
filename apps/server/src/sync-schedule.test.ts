@@ -1,7 +1,14 @@
 import type { Octokit } from "octokit";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, resetDb } from "../test/db";
-import { githubTokens, githubUser, hours, NOW, TEST_KEY } from "../test/fakes";
+import {
+  githubTokens,
+  githubUser,
+  hours,
+  minutes,
+  NOW,
+  TEST_KEY,
+} from "../test/fakes";
 import { fakeGraphQL, type GraphQLRequest } from "../test/github";
 import { githubPr, prGitHub, searchHit } from "../test/pulls";
 import { NeedsReauthError } from "./github/tokens";
@@ -14,7 +21,6 @@ afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
 const logger = createLogger({ LOG_LEVEL: "silent" });
-const minutes = (n: number) => hours(n / 60);
 const days = (n: number) => hours(n * 24);
 
 async function makeUser(

@@ -8,14 +8,12 @@ import {
   type Agent,
 } from "../../test/app";
 import { createTestDb, resetDb } from "../../test/db";
-import { hours, NOW } from "../../test/fakes";
+import { hours, minutes, NOW } from "../../test/fakes";
 import { syncRouter } from "./sync";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
-
-const minutes = (n: number) => hours(n / 60);
 
 function makeApp(queued = true) {
   const requestSync = vi.fn(() => Promise.resolve(queued));
