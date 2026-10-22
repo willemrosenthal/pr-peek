@@ -58,3 +58,10 @@ jobs:
       - run: pnpm e2e
         env:
           E2E_DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_e2e
+      # Open with `pnpm --filter @pr-peek/web exec playwright show-trace <file>`.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: apps/web/e2e/test-results
+          retention-days: 7

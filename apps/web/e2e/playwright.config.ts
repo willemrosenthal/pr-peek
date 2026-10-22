@@ -5,6 +5,8 @@ import { BASE_URL, SERVER_ENV } from "./env";
 export default defineConfig({
   testDir: ".",
   testMatch: "*.e2e.ts",
+  // Traces of failed tests. CI uploads this folder when the job fails.
+  outputDir: "test-results",
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? "github" : "list",
   use: {
