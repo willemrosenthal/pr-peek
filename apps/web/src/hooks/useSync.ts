@@ -11,7 +11,7 @@ const GIVE_UP_MS = 2 * 60_000;
 // The status when the refresh started.
 interface Started {
   lastSyncedAt: string | null;
-  syncError: string | null;
+  syncError: SyncStatusResponse["syncError"];
   at: number;
 }
 
