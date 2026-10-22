@@ -83,35 +83,36 @@ export async function openItems(
     .sort(byUrgency(settings, now));
 }
 
-// Picks the item a PR's row shows when its items have the same severity.
-const KIND_ORDER: ItemKind[] = [
-  "re_requested",
-  "review_requested",
-  "check_failed",
-  "reviewed",
-  "reply",
-  "mention",
-  "commented",
-];
-const SEVERITY_ORDER: Severity[] = ["high", "normal", "low"];
+// Picks the item a PR's row shows when its items have the same severity. Lower first.
+// A record, so a new kind can't be left out.
+const KIND_RANK: Record<ItemKind, number> = {
+  re_requested: 0,
+  review_requested: 1,
+  check_failed: 2,
+  reviewed: 3,
+  reply: 4,
+  mention: 5,
+  commented: 6,
+};
+const SEVERITY_RANK: Record<Severity, number> = { high: 0, normal: 1, low: 2 };
 
-const rowRank = (item: ItemDto) =>
-  SEVERITY_ORDER.indexOf(item.severity) * KIND_ORDER.length +
-  KIND_ORDER.indexOf(item.kind);
+const byRowRank = (a: ItemDto, b: ItemDto) =>
+  SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] ||
+  KIND_RANK[a.kind] - KIND_RANK[b.kind];
 
 // One row per PR, from items sorted most urgent first. Each row shows the PR's highest
-// severity item, then the first in `KIND_ORDER`. Not the urgency score, which adds points
+// severity item, then the first by `KIND_RANK`. Not the urgency score, which adds points
 // for unseen items, so the row would switch kinds once seen. Rows keep the place of the
 // PR's most urgent item.
 export function onePerPr(items: ItemDto[]): ItemDto[] {
   const byPr = new Map<string, ItemDto[]>();
   for (const item of items) {
-    byPr.set(item.pr.url, [...(byPr.get(item.pr.url) ?? []), item]);
+    const prItems = byPr.get(item.pr.url);
+    if (prItems) prItems.push(item);
+    else byPr.set(item.pr.url, [item]);
   }
   return [...byPr.values()].map((prItems) => {
-    const [top, ...others] = prItems.toSorted(
-      (a, b) => rowRank(a) - rowRank(b),
-    );
+    const [top, ...others] = prItems.toSorted(byRowRank);
     return {
       ...top!,
       unseen: prItems.some((item) => item.unseen),
