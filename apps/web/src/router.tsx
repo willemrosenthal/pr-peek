@@ -1,6 +1,7 @@
 import { createBrowserRouter, Link, Navigate } from "react-router";
 import { PageMessage } from "./components/PageMessage";
 import { RequireAuth } from "./components/RequireAuth";
+import { InstallPage } from "./pages/InstallPage";
 import { ListPage } from "./pages/ListPage";
 import { Onboarding } from "./pages/Onboarding";
 import { DevicesTab } from "./pages/settings/DevicesTab";
@@ -14,6 +15,7 @@ import { SignIn } from "./pages/SignIn";
 // Route paths have no dots. The server treats a path with a file extension as a file.
 export const routes = [
   { path: "/signin", element: <SignIn /> },
+  { path: "/install", element: <InstallPage /> },
   {
     element: <RequireAuth />,
     children: [

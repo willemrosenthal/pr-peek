@@ -65,6 +65,10 @@
 - **The app icon is a placeholder:** the pull request glyph in white on the accent blue. `public/icon.svg` is the source. Run `pnpm --filter @pr-peek/web icons` after changing it.
 - **The update prompt also checks for a new version every hour**, since the app often stays open for days.
 - **Icons and the manifest also get `no-cache`.** The browser still keeps them, and checks with the server before using them.
+- **The `/install` page** (part 5b) shows what fits the device it's open on first: "installed", an Install button, or steps. Steps for the other devices are below. Anyone can open it, signed in or not.
+  - Chrome sends its install offer once, soon after the app loads. `install.ts` listens from the start (`main.tsx` imports it), so the button works even when you open `/install` later. If you close Chrome's dialog, the page shows the menu steps instead.
+  - The iPhone steps end with "sign in again", since Home Screen apps on iPhone don't share Safari's cookies.
+  - Onboarding's last step shows the same "this device" part, with a link to `/install`. The Devices tab links to it too. Neither shows in tray mode.
 - **Showing GitHub avatars needs a CSP change.** Helmet only allows images from our own site. Add `https://avatars.githubusercontent.com` to `img-src` when the first avatar appears.
 
 ## Steps
@@ -154,7 +158,7 @@
 - [x] Onboarding:
   1. Repo picker, using search from plan 04.1.
   2. Timezone, detected from the browser and confirmable.
-  3. Install and notification prompt (filled in by plan 08).
+  3. Install prompt (part 5b). Notifications join it in plan 08.
 - [ ] Settings tabs, matching the mockup (the tabs and Repositories in part 4a, the rest in 4b):
   - [x] **General:** hide bots, team requests, personal access token (`GitHubToken`), sign out. Count style moved to plan 09.
   - [x] **Repositories:** add, remove, enable. Mute moved to plan 08.
@@ -177,7 +181,7 @@
   - Hashed asset files with long cache headers.
   - `index.html`, `sw.js`, and the manifest with `no-cache`.
 - [x] Update `build:render` (plan 02.6) to build web before server. Not needed, see Changes.
-- [ ] `/install` page:
+- [x] `/install` page (part 5b):
   - **iPhone:** Share, then Add to Home Screen. Required before push works on iOS.
   - **Android and desktop Chrome or Edge:** use the browser's install prompt (`beforeinstallprompt`) with an Install button.
   - **Mac Safari:** File, then Add to Dock.
@@ -253,7 +257,7 @@ Part 3f:
 
 ## Done when
 
-- [ ] On your phone, the Render URL installs to the Home Screen and opens full screen with your real items.
+- [ ] On your phone, `www.git-buddy.com` installs to the Home Screen and opens full screen with your real items.
 - [ ] On desktop, the list updates on its own within a sync cycle when something happens on GitHub.
 - [ ] Acting on GitHub (submitting a review, fixing a check) removes the item on both phone and desktop within a sync cycle.
 - [ ] Settings changes take effect on the next sync.

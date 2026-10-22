@@ -4,6 +4,8 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";
 import { UpdatePrompt } from "./components/UpdatePrompt";
 import { createRouter } from "./router";
+// Starts listening for the browser's install offer. See install.ts.
+import "./install";
 import "./styles/tokens.css";
 import "./styles/global.css";
 

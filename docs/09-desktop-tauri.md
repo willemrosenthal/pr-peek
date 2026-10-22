@@ -6,7 +6,7 @@
 
 ## Key decision: load the hosted app
 
-The Tauri window loads the **hosted web app** (`https://<your-domain>/?shell=tray`) instead of bundling a copy of the UI.
+The Tauri window loads the **hosted web app** (`https://www.git-buddy.com/?shell=tray`) instead of bundling a copy of the UI.
 
 - **Good:** UI changes ship through the normal Render deploy. The Mac app itself only needs a new release when native code changes. Sign in, cookies, and the API all work exactly like in the browser, because it's the same site.
 - **Cost:** it needs internet to open. That's fine, since it needs GitHub anyway. It also needs Tauri's security settings (capabilities) to allow our domain to call the native features we expose, and nothing else.

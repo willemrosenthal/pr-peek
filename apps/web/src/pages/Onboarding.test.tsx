@@ -45,12 +45,22 @@ it("picks repos, sets the timezone, and goes to the list", async () => {
   expect(sentBodies(fetch, "PATCH /api/settings")).toEqual([
     { timezone: "Europe/Paris" },
   ]);
+  expect(screen.getByRole("heading", { name: "Install the app" })).toBeTruthy();
 
   await userEvent.click(
     screen.getByRole("button", { name: "Go to your list" }),
   );
   await screen.findByText("Nothing needs you right now");
   expect(router.state.location.pathname).toBe("/");
+});
+
+it("doesn't offer to install inside the menu bar app", async () => {
+  onboardingApi();
+  renderApp("/onboarding?shell=tray");
+  await next();
+  await next();
+  await screen.findByRole("heading", { name: "You're set" });
+  expect(screen.queryByRole("heading", { name: "Install the app" })).toBe(null);
 });
 
 it("goes on when the first sync is refused", async () => {
