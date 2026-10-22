@@ -36,7 +36,10 @@ export interface ItemDto {
   // Only review requests have one.
   staleLevel: StaleLevel | null;
   severity: Severity;
+  // True if any of the PR's open items is unseen.
   unseen: boolean;
+  // The PR's other open items. The list shows one row per PR.
+  otherIds: string[];
   pr: {
     title: string;
     owner: string;

@@ -65,6 +65,7 @@ export const item = (fields: Partial<ItemDto> = {}): ItemDto => {
     staleLevel: "fresh",
     severity: "normal",
     unseen: false,
+    otherIds: [],
     pr: {
       title: `PR ${itemCount}`,
       owner: "acme",

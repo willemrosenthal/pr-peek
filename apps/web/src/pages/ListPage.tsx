@@ -95,7 +95,8 @@ function Sections({ groups }: { groups: ItemsResponse }) {
       SECTIONS.filter(({ group }) => !collapsed.includes(group))
         .flatMap(({ group }) => groups[group])
         .filter((item) => item.unseen)
-        .map((item) => item.id),
+        // A row stands for every open item on its PR.
+        .flatMap((item) => [item.id, ...item.otherIds]),
     [groups, collapsed],
   );
   useMarkSeen(unseenIds);

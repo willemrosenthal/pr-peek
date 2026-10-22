@@ -217,12 +217,13 @@ Part 3e:
 
 Part 3f:
 
-- [ ] One row per PR. Items stay one per kind in the database, since clearing rules and notifications need them. `groupItems` and `summarize` pick one item per PR, so the list, badge, and menu bar count agree.
+- [x] One row per PR. Items stay one per kind in the database, since clearing rules and notifications need them. `groupItems` and `summarize` pick one item per PR (`onePerPr` in `item-list.ts`), so the list, badge, and menu bar count agree.
   - The pick uses each rule's severity, then this order: re-requested, review requested, check failed, reviewed, reply, mention, new comments. Not the urgency score, which adds points for unseen items, so a new mention would push a review request's row aside, then flip back once seen.
-  - Sorting between PRs still uses the urgency score.
-- [ ] The row is unseen if any of the PR's items is, and marking seen covers all of them.
-- [ ] The row shows the top item's summary, plus "+N more" when the PR has other open items.
-- [ ] Notifications stay one per event (plan 08). Which kinds push is already a per-rule setting (`channels`). The Rules tab (4b) shows it.
+  - Sorting between PRs still uses the urgency score: each row takes the place of its PR's most urgent item.
+  - The summary's "stale" and "failing" flags still look at every item, not just each row's.
+- [x] The row is unseen if any of the PR's items is, and marking seen covers all of them (`otherIds` on each row).
+- [x] The row shows the top item's summary, plus "+N more" when the PR has other open items. The count stays when a long summary is cut off.
+- [x] Notifications stay one per event (plan 08). Which kinds push is already a per-rule setting (`channels`). The Rules tab (4b) shows it.
 
 ## Done when
 

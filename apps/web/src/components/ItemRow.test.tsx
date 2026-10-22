@@ -28,6 +28,16 @@ it("links to the PR and shows what happened", () => {
   expect(screen.getByText("web-app #482")).toBeTruthy();
 });
 
+it("says how many more open items the PR has", () => {
+  render(<ItemRow item={item({ otherIds: ["a", "b"] })} />);
+  expect(screen.getByText("+2 more")).toBeTruthy();
+});
+
+it("leaves out the count when the PR has one item", () => {
+  render(<ItemRow item={item()} />);
+  expect(screen.queryByText(/more$/)).toBe(null);
+});
+
 it("marks unseen items for screen readers too", () => {
   render(<ItemRow item={item({ unseen: true })} />);
   expect(screen.getByRole("link").textContent).toMatch(/^New: /);

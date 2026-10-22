@@ -25,7 +25,7 @@
 }
 
 .title,
-.summary {
+.summaryText {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -42,11 +42,19 @@
   text-align: right;
 }
 
-/* Line 2 starts under the title. */
+/* Line 2 starts under the title. The "+2 more" stays when the summary is cut off. */
 .summary {
+  display: flex;
+  gap: var(--space-1);
   grid-column: 2;
+  min-width: 0;
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
+}
+
+.more {
+  flex: none;
+  color: var(--color-text-tertiary);
 }
 
 .repo {

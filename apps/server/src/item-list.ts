@@ -7,6 +7,7 @@ import {
   type ItemDto,
   type ItemKind,
   type ItemsResponse,
+  type Severity,
   type SummaryResponse,
 } from "@pr-peek/core";
 import type { Db } from "./db";
@@ -68,6 +69,7 @@ export async function openItems(
             : null,
           severity: severityOf.get(item.kind) ?? "normal",
           unseen: item.seenAt === null,
+          otherIds: [],
           pr: {
             title: pr.title,
             owner: pr.repoOwner,
@@ -81,17 +83,56 @@ export async function openItems(
     .sort(byUrgency(settings, now));
 }
 
-// Splits sorted items into the list's sections, keeping their order.
+// Picks the item a PR's row shows when its items have the same severity. Lower first.
+// A record, so a new kind can't be left out.
+const KIND_RANK: Record<ItemKind, number> = {
+  re_requested: 0,
+  review_requested: 1,
+  check_failed: 2,
+  reviewed: 3,
+  reply: 4,
+  mention: 5,
+  commented: 6,
+};
+const SEVERITY_RANK: Record<Severity, number> = { high: 0, normal: 1, low: 2 };
+
+const byRowRank = (a: ItemDto, b: ItemDto) =>
+  SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] ||
+  KIND_RANK[a.kind] - KIND_RANK[b.kind];
+
+// One row per PR, from items sorted most urgent first. Each row shows the PR's highest
+// severity item, then the first by `KIND_RANK`. Not the urgency score, which adds points
+// for unseen items, so the row would switch kinds once seen. Rows keep the place of the
+// PR's most urgent item.
+export function onePerPr(items: ItemDto[]): ItemDto[] {
+  const byPr = new Map<string, ItemDto[]>();
+  for (const item of items) {
+    const prItems = byPr.get(item.pr.url);
+    if (prItems) prItems.push(item);
+    else byPr.set(item.pr.url, [item]);
+  }
+  return [...byPr.values()].map((prItems) => {
+    const [top, ...others] = prItems.toSorted(byRowRank);
+    return {
+      ...top!,
+      unseen: prItems.some((item) => item.unseen),
+      otherIds: others.map((item) => item.id),
+    };
+  });
+}
+
+// Splits sorted items into the list's sections, one row per PR, keeping their order.
 export function groupItems(items: ItemDto[]): ItemsResponse {
   const groups: ItemsResponse = { review: [], replies: [], mine: [] };
-  for (const item of items) groups[ITEM_GROUPS[item.kind]].push(item);
+  for (const row of onePerPr(items)) groups[ITEM_GROUPS[row.kind]].push(row);
   return groups;
 }
 
+// Counts PRs, like the list. The flags look at every item.
 export function summarize(items: ItemDto[]): SummaryResponse {
   const groups = groupItems(items);
   return {
-    total: items.length,
+    total: groups.review.length + groups.replies.length + groups.mine.length,
     review: groups.review.length,
     replies: groups.replies.length,
     mine: groups.mine.length,
