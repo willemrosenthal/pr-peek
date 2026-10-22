@@ -1,5 +1,6 @@
 import {
   rules,
+  type IdlePrDto,
   type ItemDto,
   type ItemsResponse,
   type MeResponse,
@@ -82,10 +83,28 @@ export const item = (fields: Partial<ItemDto> = {}): ItemDto => {
   };
 };
 
+export const idlePr = (fields: Partial<IdlePrDto> = {}): IdlePrDto => {
+  itemCount += 1;
+  return {
+    id: `pr-${itemCount}`,
+    isDraft: false,
+    age: "1d",
+    pr: {
+      title: `PR ${itemCount}`,
+      owner: "acme",
+      repo: "web-app",
+      number: itemCount,
+      url: `https://github.com/acme/web-app/pull/${itemCount}`,
+    },
+    ...fields,
+  };
+};
+
 export const groups = (fields: Partial<ItemsResponse> = {}): ItemsResponse => ({
   review: [],
   replies: [],
   mine: [],
+  idlePrs: [],
   ...fields,
 });
 

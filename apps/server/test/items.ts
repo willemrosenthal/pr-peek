@@ -4,7 +4,16 @@ import { hours, NOW } from "./fakes";
 
 // Creates stored PRs and items directly, for tests that don't need a sync.
 export function itemRows(db: Db) {
-  async function makePr(userId: string, number = 7) {
+  async function makePr(
+    userId: string,
+    number = 7,
+    fields: Partial<
+      Pick<
+        Prisma.PullRequestUncheckedCreateInput,
+        "authorLogin" | "isDraft" | "state" | "githubUpdatedAt"
+      >
+    > = {},
+  ) {
     return db.pullRequest.create({
       data: {
         userId,
@@ -21,6 +30,7 @@ export function itemRows(db: Db) {
         headSha: "abc123",
         githubUpdatedAt: NOW,
         snapshot: {},
+        ...fields,
       },
     });
   }

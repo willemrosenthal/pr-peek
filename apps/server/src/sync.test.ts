@@ -649,6 +649,25 @@ describe("items", () => {
       await listener.end();
     }
   });
+
+  it("tells listeners when a PR with no open items ends", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    await db.item.updateMany({ data: { status: "resolved" } });
+    const listener = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await listener.connect();
+    try {
+      const payloads: string[] = [];
+      listener.on("notification", (msg) => payloads.push(msg.payload ?? ""));
+      await listener.query(`LISTEN ${ITEMS_CHANNEL}`);
+
+      // Gone from GitHub.
+      await sync(user.id, {}, hours(1));
+      await vi.waitFor(() => expect(payloads).toEqual([user.id]));
+    } finally {
+      await listener.end();
+    }
+  });
 });
 
 describe("rerunRules", () => {

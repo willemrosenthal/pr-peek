@@ -80,6 +80,11 @@
   vertical-align: middle;
 }
 
+/* A draft PR with nothing to do. */
+.draft {
+  opacity: 0.7;
+}
+
 .accent {
   color: var(--color-accent);
 }

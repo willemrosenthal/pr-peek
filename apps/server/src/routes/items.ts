@@ -1,8 +1,8 @@
-import { markSeenBody } from "@pr-peek/core";
+import { markSeenBody, type ItemsResponse } from "@pr-peek/core";
 import express, { type Router } from "express";
 import type { Db } from "../db";
 import { parseInput } from "../http-error";
-import { groupItems, openItems, summarize } from "../item-list";
+import { groupItems, idlePrs, openItems, summarize } from "../item-list";
 import { currentUser, requireUser } from "./auth";
 
 export interface ItemDeps {
@@ -16,8 +16,13 @@ export function itemsRouter(deps: ItemDeps): Router {
   router.use(["/items", "/summary"], requireUser(deps.db));
 
   router.get("/items", async (_req, res) => {
-    const items = await openItems(deps.db, currentUser(res).id, now());
-    res.json(groupItems(items));
+    const user = currentUser(res);
+    const [items, idle] = await Promise.all([
+      openItems(deps.db, user.id, now()),
+      idlePrs(deps.db, user, now()),
+    ]);
+    const body: ItemsResponse = { ...groupItems(items), idlePrs: idle };
+    res.json(body);
   });
 
   router.get("/summary", async (_req, res) => {
