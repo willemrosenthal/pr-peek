@@ -60,7 +60,7 @@
 - **Fixed: a signed out check looped** between `/signin` and `/`, because a failed `/api/me` check keeps the old data. Also, a failed check other than 401 no longer replaces the page with an error once you're signed in.
 - **Tray mode** (`?shell=tray`) is kept in `sessionStorage`, so it holds on other pages. The footer has "Open in browser". Quit comes in plan 09, since it needs the desktop app.
 - **Base UI** is used for the collapsible sections and switches so far.
-- **The service worker only runs in production builds** (part 5a), not on the Vite dev server. To try it locally, run `pnpm build` and open the app from Express on port 3000.
+- **The service worker only runs in production builds** (part 5a), not on the Vite dev server. Check it on Render. Locally, Express on port 3000 serves the build, but sign in sends you back to 5173.
 - **The service worker is in `src/sw/sw.ts`**, not `src/sw.ts`. It has its own `tsconfig.json`, since it runs in a worker, not a page.
 - **The app icon is a placeholder:** the pull request glyph in white on the accent blue. `public/icon.svg` is the source. Run `pnpm --filter @pr-peek/web icons` after changing it.
 - **The update prompt also checks for a new version every hour**, since the app often stays open for days.
