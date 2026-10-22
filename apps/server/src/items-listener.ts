@@ -67,6 +67,7 @@ export async function listenForItemChanges(
   }
 
   function reconnectLater() {
+    if (stopped) return;
     retry = setTimeout(() => {
       connect().then(
         () => {

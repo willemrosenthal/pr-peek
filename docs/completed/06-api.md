@@ -25,7 +25,7 @@
 - **If a re-run fails** (say GitHub is down while fetching teams), the setting is still saved and the error is logged. Each PR catches up on its next change.
 - **`POST /sync` queues the job through pg-boss in the web service**, which only queues jobs. Both services create the queues at startup (`jobs.ts`), so either can start first. It answers `202 { queued }`, with `queued: false` if a sync was already queued or running. A manual refresh runs even while a failed sync is waiting to retry.
 - **"Running" comes from a new `User.syncStartedAt` column**, set while `runSync` runs. A start time older than the sync timeout (10 minutes) counts as not running, in case a worker stopped mid-sync.
-- **The listener has its own connection** (`items-listener.ts`), outside the pool, since `LISTEN` holds it open. If the connection drops, it reconnects every 5 seconds until it works, then sends every open stream a fresh summary, in case it missed a change.
+- **The listener has its own connection** (`items-listener.ts`), outside the pool, since `LISTEN` holds it open. So the web service uses `DB_POOL_MAX + 1` connections. If the connection drops, it reconnects every 5 seconds until it works, then sends every open stream a fresh summary, in case it missed a change.
 - **The stream sends nothing when it opens.** The client loads the list itself, then waits for changes. The event name is `ITEMS_CHANGED_EVENT` in `packages/core/src/api/stream.ts`.
 - **Shutdown ends open streams first.** Otherwise the server would wait on them until the forced exit.
 - **The `.http` file is `apps/server/api.http`.** It signs in with a pasted personal access token and asks for it each time, so it's never saved. REST Client can't show a stream, so the file gives a `curl -N` line instead.
@@ -91,6 +91,6 @@ Rules only run when a PR changes on GitHub (plan 05). So after `PATCH /settings`
 
 ## Done when
 
-- [ ] **(You)** Every endpoint above works locally against real synced data. A small `.http` file (for the VS Code REST Client extension) or Bruno collection is checked in for manual testing. The file is in (`apps/server/api.http`).
+- [ ] **(You)** Every endpoint above works locally against real synced data. A small `.http` file (for the VS Code REST Client extension) or Bruno collection is checked in for manual testing. The file is in: `apps/server/api.http`.
 - [ ] **(You)** Submitting a review on GitHub removes that item from `GET /items` after the next sync.
 - [ ] **(You)** With `curl -N` on `/api/stream`, a new GitHub event shows up as an SSE message within one sync cycle.
