@@ -1,7 +1,7 @@
 import { RequestError, type Octokit } from "octokit";
 import type { Logger } from "pino";
 import type { Db } from "./db";
-import { NeedsReauthError } from "./github/tokens";
+import { markNeedsReauth, NeedsReauthError } from "./github/tokens";
 import { syncUser, type SyncDeps } from "./sync";
 
 const MINUTE_MS = 60 * 1000;
@@ -15,7 +15,7 @@ const MAX_BACKOFF_MS = 30 * MINUTE_MS;
 // Below this many GraphQL points left, wait for GitHub's limit to reset.
 const LOW_POINTS = 500;
 
-export interface RateLimit {
+interface RateLimit {
   remaining: number;
   resetAt: Date;
 }
@@ -105,8 +105,9 @@ export async function runSync(
     });
     log.info({ ...result, rateLimit, ms: Date.now() - started }, "sync done");
   } catch (err) {
-    // The user is already marked "reauth", so dispatch skips them until they sign in.
+    // Dispatch skips "reauth" users until they sign in again.
     if (needsReauth(err)) {
+      await markNeedsReauth(db, userId);
       log.info("sync stopped until the user signs in again");
       return;
     }

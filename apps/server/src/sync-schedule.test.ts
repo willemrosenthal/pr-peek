@@ -169,6 +169,7 @@ describe("runSync", () => {
     );
 
     expect(await reload(user.id)).toMatchObject({
+      syncError: "reauth",
       syncFailures: 0,
       syncRetryAt: null,
     });
