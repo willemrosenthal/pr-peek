@@ -4,13 +4,16 @@
 
 **Needs:** plan 06. The final row design from the design iteration (step 7.1).
 
-**Split into five PRs:**
+**Split into these PRs:**
 
 - **Part 1** (`plan-07-1-setup`): 7.2 project setup, sign in, and the design tokens from 7.3.
 - **Part 2** (`plan-07-2-github-token`): the personal access token becomes an add-on to GitHub sign in, not a way to sign in. See Changes.
-- **Part 3**, the list, in two PRs:
+- **Part 3**, the list:
   - **3a** (`plan-07-3a-list`): sections, rows, header and refresh, banners, empty and error states, phone and desktop layouts, and their tests.
   - **3b** (`plan-07-3b-live`): live updates, marking items seen, the app badge, and tray mode.
+  - **3c** (`plan-07-3c-tracking`): 7.9, track PRs once found, so a search that misses one doesn't drop it from the list.
+  - **3d** (`plan-07-3d-update-branch`): 7.10, "Update branch" doesn't count as acting on your PR.
+  - **3e** (`plan-07-3e-mentions`): 7.11, mentions, and one row per PR.
 - **Part 4**, 7.6 onboarding and settings, in two PRs:
   - **4a** (`plan-07-4a-repos`): the settings tabs, the Repositories tab, and onboarding.
   - **4b** (`plan-07-4b-settings`): the rest of General, Rules, Timing, and Devices.
@@ -168,6 +171,42 @@
 
 - [x] Vitest + Testing Library for `ItemRow` states (each kind and stale level), section collapse, and the reauth banner.
 - [ ] One Playwright smoke test (a tool that drives a real browser) against a seeded local server: sign in with a test session, see items, click one to open the PR.
+
+### 7.9 Tracking PRs (part 3c)
+
+**Why:** each sync runs three GitHub searches, and any PR the searches don't return has its items resolved. That's how merged PRs leave the list. But GitHub's search index lags behind changes, so right after "Update branch" a PR can be missing from one sync's results. It vanishes, then comes back a minute later.
+
+**The change:** searches find PRs. They never remove them. A stored PR is tracked until it's merged, closed, or gone, or it has nothing for you for 7 days.
+
+- [x] Search results carry each PR's live `state`. Only `OPEN` ones count as found. A PR the index still lists right after it merges is skipped.
+- [x] Each sync checks every tracked PR the searches missed, by id, in one small query: state, updated time, and checks. Same shape as a search result.
+  - Still open: treated like a found PR. Details are fetched only if it changed.
+  - Merged or closed: its `state` is saved and its items are resolved.
+  - Gone or hidden (`NOT_FOUND` or `FORBIDDEN`, like an org that later blocks pr-peek): saved as `gone`, the same as closed. These errors don't fail the sync.
+- [x] A PR in a repo that's no longer watched or enabled is saved as `unwatched`, and its items are resolved too.
+- [x] Resolved items stay stored with their PR, so if the PR reopens or the repo is turned back on, the items reopen without a new notification.
+- [x] Rows are deleted once they have no open items and no search has found them for 7 days.
+- [x] Re-running rules after a settings change uses every open tracked PR.
+- [x] Your own PRs are spotted by their stored author, not by which search found them, so a tracked PR's check changes are still fetched.
+- [x] Tests: one search missing an open PR keeps its items. Merged, closed, gone, and paused-repo PRs resolve theirs. A row with open items lives past 7 days.
+
+### 7.10 "Update branch" doesn't count (part 3d)
+
+**Why:** "Update branch" on GitHub adds a merge commit to your PR. The rules treat any new commit as you acting on it, so it clears "changes requested", new comments, and failed checks. A merge from the base branch doesn't fix any of those.
+
+- [ ] The details query also reads the last 20 commits: sha, time, parent count, and check state.
+- [ ] The snapshot gets `lastPush`: the latest commit that isn't a merge (one parent), with its sha, time, and check state. The new fields are optional, so stored snapshots still read.
+- [ ] "My PR was reviewed" and "New comment on my PR" use `lastPush` time, not the head commit's.
+- [ ] "Check failed" keys on the `lastPush` sha, so a failure after "Update branch" is the same item, with no new notification. While the merge commit's checks run, the item stays if the `lastPush` commit's checks failed, with the summary "Checks failed, running again". Passing checks clear it.
+- [ ] Limit: "Update with rebase" rewrites the commits, so it still counts as a push.
+
+### 7.11 Mentions, and one row per PR (part 3e)
+
+- [ ] A fourth search, `mentions:@me`, finds PRs where someone @mentions you, even ones you never touched.
+- [ ] A new rule and kind, `mention`: someone @mentioned you after your latest comment or review on the PR. Clears when you comment or review. The reply rule stops counting mentions, so they don't overlap. Shown in "Replies to me" with an `@` icon.
+- [ ] One row per PR. Items stay one per kind in the database, since clearing rules and notifications need them. `groupItems` and `summarize` pick each PR's most urgent item, so the list, badge, and menu bar count agree. Ties go in this order: re-requested, review requested, check failed, reviewed, reply, mention, new comments.
+- [ ] The row shows the top item's summary, plus "+N more" when the PR has other open items.
+- [ ] Notifications stay one per event (plan 08). Which kinds push is already a per-rule setting (`channels`). The Rules tab (4b) shows it.
 
 ## Done when
 
