@@ -1,7 +1,11 @@
 import { RequestError, type Octokit } from "octokit";
 import type { Logger } from "pino";
 import type { Db } from "./db";
-import { markNeedsReauth, NeedsReauthError } from "./github/tokens";
+import {
+  markNeedsReauth,
+  NeedsReauthError,
+  STOP_REASONS,
+} from "./github/tokens";
 import { syncUser, type SyncDeps } from "./sync";
 
 const MINUTE_MS = 60 * 1000;
@@ -40,7 +44,7 @@ export async function dueUserIds(db: Db, now: Date): Promise<string[]> {
   const users = await db.user.findMany({
     where: {
       AND: [
-        { OR: [{ syncError: null }, { syncError: { not: "reauth" } }] },
+        { OR: [{ syncError: null }, { syncError: { notIn: STOP_REASONS } }] },
         { OR: [{ syncRetryAt: null }, { syncRetryAt: { lte: now } }] },
       ],
       watchedRepos: { some: { enabled: true } },
@@ -128,10 +132,10 @@ async function syncAndSchedule(
     }
     log.info({ ...result, rateLimit, ms: Date.now() - started }, "sync done");
   } catch (err) {
-    // Dispatch skips "reauth" users until they sign in again.
+    // Dispatch skips these users until they sign in again or add a new token.
     if (needsReauth(err)) {
-      await markNeedsReauth(db, userId);
-      log.info("sync stopped until the user signs in again");
+      const reason = await markNeedsReauth(db, userId);
+      log.info({ reason }, "sync stopped until the user fixes their token");
       return;
     }
     const { syncFailures } = await db.user.findUniqueOrThrow({

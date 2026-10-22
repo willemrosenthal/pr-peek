@@ -35,13 +35,18 @@ model User {
   login                 String
   name                  String?
   avatarUrl             String?
+  // Unused. Left in place so old servers keep working during a deploy. Drop it later.
   authMethod            AuthMethod @default(oauth)
-  // GitHub tokens, encrypted (see crypto.ts). OAuth access tokens expire after about 8 hours.
+  // GitHub sign in tokens, encrypted (see crypto.ts). Access tokens expire after about 8 hours.
   accessTokenEnc        String?
   accessTokenExpiresAt  DateTime?
   refreshTokenEnc       String?
   refreshTokenExpiresAt DateTime?
   tokenScopes           String[]
+  // A personal access token the user added, encrypted. Syncs use it instead when set.
+  patEnc                String?
+  patExpiresAt          DateTime?
+  patScopes             String[]
   lastSyncedAt          DateTime?
   // "reauth" stops syncs until the user signs in again. Other errors retry after a wait.
   syncError             String?

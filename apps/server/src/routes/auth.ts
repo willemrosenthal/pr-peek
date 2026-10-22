@@ -1,9 +1,5 @@
 import { randomBytes } from "node:crypto";
-import {
-  tokenSignInBody,
-  type MeResponse,
-  type TokenSignInResponse,
-} from "@pr-peek/core";
+import type { MeResponse } from "@pr-peek/core";
 import express, {
   type RequestHandler,
   type Response,
@@ -17,7 +13,7 @@ import {
   type GitHubOAuth,
   type ScopeChoice,
 } from "../github/oauth";
-import { HttpError, parseInput } from "../http-error";
+import { personalTokenDto } from "../github/tokens";
 import {
   destroySession,
   regenerateSession,
@@ -111,7 +107,6 @@ export function authRouter(deps: AuthDeps): Router {
         githubUser,
         tokens,
         deps.key,
-        "oauth",
       );
 
       await regenerateSession(req);
@@ -124,51 +119,6 @@ export function authRouter(deps: AuthDeps): Router {
         signInError(err instanceof GitHubAuthError ? "github" : "server"),
       );
     }
-  });
-
-  // Sign in with a pasted personal access token, for orgs that block our OAuth App.
-  router.post("/auth/token", limiter, async (req, res) => {
-    const { token } = parseInput(tokenSignInBody, req.body);
-    const checked = await deps.oauth.checkToken(token).catch((err: unknown) => {
-      if (err instanceof GitHubAuthError) {
-        throw new HttpError(
-          400,
-          "bad_token",
-          "GitHub didn't accept this token. Check it's copied in full and not expired.",
-        );
-      }
-      throw err;
-    });
-
-    // Classic tokens list their scopes. Fine-grained ones don't, so GitHub decides later.
-    const { scopes } = checked;
-    if (scopes && !scopes.includes("repo") && !scopes.includes("public_repo")) {
-      throw new HttpError(
-        400,
-        "missing_scope",
-        "The token needs the repo scope (or public_repo for public repos only).",
-      );
-    }
-
-    const { user, isNew } = await upsertGitHubUser(
-      deps.db,
-      checked.user,
-      {
-        accessToken: token,
-        accessTokenExpiresAt: checked.expiresAt,
-        refreshToken: null,
-        refreshTokenExpiresAt: null,
-        scopes: scopes ?? [],
-      },
-      deps.key,
-      "pat",
-    );
-
-    await regenerateSession(req);
-    req.session.userId = user.id;
-    await saveSession(req);
-    const body: TokenSignInResponse = { isNew };
-    res.json(body);
   });
 
   router.post("/auth/signout", async (req, res) => {
@@ -185,9 +135,9 @@ export function authRouter(deps: AuthDeps): Router {
         login: user.login,
         name: user.name,
         avatarUrl: user.avatarUrl,
-        authMethod: user.authMethod,
         scopes: user.tokenScopes,
       },
+      githubToken: personalTokenDto(user),
       needsReauth: user.syncError === "reauth",
     };
     res.json(body);

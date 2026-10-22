@@ -1,5 +1,5 @@
 import type { Db } from "./db";
-import type { AuthMethod, User } from "./generated/prisma/client";
+import type { User } from "./generated/prisma/client";
 import { encryptTokens } from "./github/tokens";
 import { defaultRuleSettings } from "./items";
 import type { GitHubTokens, GitHubUser } from "./github/oauth";
@@ -22,38 +22,37 @@ export async function markActive(
   });
 }
 
-// Creates or updates the user after they sign in with GitHub or a personal access token.
+// Creates or updates the user after they sign in with GitHub. Never touches their
+// personal access token.
 export async function upsertGitHubUser(
   db: Db,
   githubUser: GitHubUser,
   tokens: GitHubTokens,
   key: Buffer,
-  authMethod: AuthMethod,
 ): Promise<{ user: User; isNew: boolean }> {
   const profile = {
     login: githubUser.login,
     name: githubUser.name,
     avatarUrl: githubUser.avatarUrl,
-    authMethod,
     lastActiveAt: new Date(),
   };
   const tokenFields = encryptTokens(tokens, key);
 
   const existing = await db.user.findUnique({
     where: { githubId: githubUser.id },
-    select: { id: true },
+    select: { id: true, syncError: true },
   });
+  // Signing in fixes a revoked sign in, so sync right away. A broken personal access
+  // token still needs a new one.
+  const clearErrors = existing?.syncError !== "token" && {
+    syncError: null,
+    syncFailures: 0,
+    syncRetryAt: null,
+  };
 
   const user = await db.user.upsert({
     where: { githubId: githubUser.id },
-    // Signing in again fixes a revoked token, so clear the error and sync right away.
-    update: {
-      ...profile,
-      ...tokenFields,
-      syncError: null,
-      syncFailures: 0,
-      syncRetryAt: null,
-    },
+    update: { ...profile, ...tokenFields, ...clearErrors },
     create: {
       githubId: githubUser.id,
       ...profile,
