@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ---------------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [04. GitHub sync](completed/04-github-sync.md), part C: schedule. Parts 0, A, B merged (#10 to #12)        |
 | **Branch**         | `plan-04-3-schedule`                                                                                       |
-| **PR**             | Not open yet                                                                                               |
+| **PR**             | [#13](https://github.com/willemrosenthal/pr-peek/pull/13) (part C), draft                                  |
 | **Last step done** | 4.5 to 4.8 Worker schedule, backoff, rate limits. Plan 04 finished and moved to `completed/`               |
 | **Next step**      | [05. Rules engine](05-rules-engine.md) once part C merges                                                  |
 | **Waiting on you** | Plan 04 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
