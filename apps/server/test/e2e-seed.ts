@@ -9,6 +9,10 @@ const sessionId = process.env.E2E_SESSION_ID;
 if (!DATABASE_URL || !sessionId) {
   throw new Error("Set DATABASE_URL and E2E_SESSION_ID");
 }
+// This empties the database, so only ever run it on one made for the smoke test.
+if (!new URL(DATABASE_URL).pathname.endsWith("_e2e")) {
+  throw new Error("DATABASE_URL must name a database ending in _e2e");
+}
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
