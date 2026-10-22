@@ -4,7 +4,6 @@ import {
   searchReposQuery,
   updateRepoBody,
   type AddRepoResponse,
-  type SearchReposResponse,
   type WatchedRepoDto,
   type WatchedReposResponse,
 } from "@pr-peek/core";
@@ -46,11 +45,8 @@ export function reposRouter(deps: RepoDeps): Router {
   // Repos the user could add, for the picker.
   router.get("/github/repos", async (req, res) => {
     const { query, cursor } = parseInput(searchReposQuery, req.query);
-    const body: SearchReposResponse = await searchRepos(
-      await deps.github(currentUser(res).id),
-      { query, cursor },
-    );
-    res.json(body);
+    const octokit = await deps.github(currentUser(res).id);
+    res.json(await searchRepos(octokit, { query, cursor }));
   });
 
   router.get("/repos", async (_req, res) => {
