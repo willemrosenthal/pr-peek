@@ -17,7 +17,8 @@
   - **3f** (`plan-07-3f-one-row`): 7.11, one row per PR.
 - **Part 4**, 7.6 onboarding and settings, in two PRs:
   - **4a** (`plan-07-4a-repos`): the settings tabs, the Repositories tab, and onboarding.
-  - **4b** (`plan-07-4b-settings`): the rest of General, Rules, Timing, and Devices.
+  - **4b** (`plan-07-4b-settings`): the rest of General, Rules, and a Devices placeholder.
+  - **4c** (`plan-07-4c-timing`): Timing.
 - **Part 5** (`plan-07-5-pwa`): 7.7 PWA, and the Playwright smoke test.
 
 ## Changes from the original plan
@@ -146,12 +147,13 @@
   2. Timezone, detected from the browser and confirmable.
   3. Install and notification prompt (filled in by plan 08).
 - [ ] Settings tabs, matching the mockup (the tabs and Repositories in part 4a, the rest in 4b):
-  - **General:** hide bots, team requests, personal access token (`GitHubToken`), sign out. Count style moved to plan 09.
+  - [x] **General:** hide bots, team requests, personal access token (`GitHubToken`), sign out. Count style moved to plan 09.
   - [x] **Repositories:** add, remove, enable. Mute moved to plan 08.
-  - **Rules:** toggle, severity, channels.
-  - **Timing:** staleness hours, work hours only, quiet hours, weekends, morning summary time.
+  - [x] **Rules:** toggle, severity ("Urgency"), channels ("Notify" turns push on or off, and the list always shows the rule), and "Include draft PRs" on review requested. Grouped by other people's PRs and mine.
+  - [ ] **Timing** (part 4c): staleness hours, work hours only, quiet hours, weekends, morning summary time.
     - Describe "work hours only" as changing only when rows turn orange or red, like "Only count weekdays, 9 to 6, toward overdue". Age labels always show real time.
-  - **Devices:** placeholder, filled in by plan 08.
+  - [x] **Devices:** placeholder, filled in by plan 08.
+- [x] Each switch and dropdown saves on its own and shows the new value while it saves. After a save, the list and its counts reload, since these settings change what's on it.
 
 ### 7.7 Making it a PWA
 
