@@ -1,9 +1,21 @@
-import { formatAge, isAtLeast, isQuiet, type PushPayload } from "@pr-peek/core";
+import {
+  formatAge,
+  isAtLeast,
+  isQuiet,
+  type PushPayload,
+  type Severity,
+} from "@pr-peek/core";
 import type { Logger } from "pino";
 import type { Db } from "./db";
+import type { PushSubscription } from "./generated/prisma/client";
 import { openItems, summarize } from "./item-list";
 import { loadRuleSettings } from "./items";
 import { NOTIFY_TTL_SECONDS, pushToDevices, type SendPush } from "./push";
+
+// This many or more notifications for one user at once go out as one push.
+export const BATCH_MIN = 3;
+// Item summaries listed in a batch push.
+const BATCH_LISTED = 3;
 
 export interface NotifyDeps {
   db: Db;
@@ -11,6 +23,13 @@ export interface NotifyDeps {
   send: SendPush | null;
   logger: Logger;
   now?: () => Date;
+}
+
+// One notification to consider. `reminder` is a stage from `reminderStage`: it sends an
+// overdue reminder instead, once per stage, even if the user saw the item.
+export interface NotifyRequest {
+  itemId: string;
+  reminder?: string | undefined;
 }
 
 // What happened, for logs and tests.
@@ -26,19 +45,83 @@ export type NotifyOutcome =
   | "no_devices"
   | "already_sent";
 
-// Sends a push about an item's latest event to the user's devices, unless something says
-// not to. Each event notifies at most once, even if this runs again. `reminder` is a stage
-// from `reminderStage`: it sends an overdue reminder instead, once per stage, even if the
-// user saw the item.
+// A notification that passed every check, ready to claim and send.
+interface Ready {
+  userId: string;
+  logKey: { itemId: string; eventId: string; channel: "push" };
+  devices: PushSubscription[];
+  severity: Severity;
+  payload: Omit<PushPayload, "badge">;
+}
+
+// Sends one notification. See `notifyItems`.
 export async function notifyItem(
   deps: NotifyDeps,
   itemId: string,
   reminder?: string,
 ): Promise<NotifyOutcome> {
+  const [outcome] = await notifyItems(deps, [{ itemId, reminder }]);
+  return outcome!;
+}
+
+// Sends a push about each item's latest event to its user's devices, unless something says
+// not to. Each event notifies at most once, even if this runs again. When a user has
+// `BATCH_MIN` or more at once, they go out as one push. Outcomes match `requests`.
+export async function notifyItems(
+  deps: NotifyDeps,
+  requests: NotifyRequest[],
+): Promise<NotifyOutcome[]> {
   const { db, send } = deps;
   const now = deps.now?.() ?? new Date();
-  if (!send) return "push_off";
+  if (!send) return requests.map(() => "push_off");
 
+  // Checks everything before writing, so an error here leaves nothing claimed to retry.
+  const decided: (NotifyOutcome | Ready)[] = [];
+  for (const request of requests) decided.push(await decide(db, now, request));
+
+  // Claims each event before sending. A second run finds the row and stops.
+  const outcomes: NotifyOutcome[] = [];
+  const claimed: { index: number; ready: Ready }[] = [];
+  for (const [index, decision] of decided.entries()) {
+    if (typeof decision === "string") {
+      outcomes[index] = decision;
+      continue;
+    }
+    const { count } = await db.notificationLog.createMany({
+      data: [{ userId: decision.userId, ...decision.logKey }],
+      skipDuplicates: true,
+    });
+    if (count === 0) outcomes[index] = "already_sent";
+    else claimed.push({ index, ready: decision });
+  }
+
+  const byUser = new Map<string, typeof claimed>();
+  for (const entry of claimed) {
+    const group = byUser.get(entry.ready.userId) ?? [];
+    byUser.set(entry.ready.userId, [...group, entry]);
+  }
+  for (const [userId, group] of byUser) {
+    const batches =
+      group.length >= BATCH_MIN ? [group] : group.map((entry) => [entry]);
+    for (const batch of batches) {
+      const readies = batch.map(({ ready }) => ready);
+      const outcome = await sendClaimed(
+        { ...deps, send },
+        now,
+        userId,
+        readies,
+      );
+      for (const { index } of batch) outcomes[index] = outcome;
+    }
+  }
+  return outcomes;
+}
+
+async function decide(
+  db: Db,
+  now: Date,
+  { itemId, reminder }: NotifyRequest,
+): Promise<NotifyOutcome | Ready> {
   const item = await db.item.findUnique({
     where: { id: itemId },
     include: {
@@ -73,25 +156,18 @@ export async function notifyItem(
   );
   if (devices.length === 0) return "no_devices";
 
-  // Claims the event before sending. A second run finds the row and stops.
-  const logKey = {
-    itemId,
-    eventId: reminder
-      ? `${item.latestEventId}:${reminder}`
-      : item.latestEventId,
-    channel: "push" as const,
-  };
-  const { count } = await db.notificationLog.createMany({
-    data: [{ userId, ...logKey }],
-    skipDuplicates: true,
-  });
-  if (count === 0) return "already_sent";
-
-  // Past the claim, a retry would stop at the claim, so errors end as "failed" here.
-  let outcome: "sent" | "failed" = "failed";
-  try {
-    const badge = summarize(await openItems(db, userId, now)).total;
-    const payload: PushPayload = {
+  return {
+    userId,
+    logKey: {
+      itemId,
+      eventId: reminder
+        ? `${item.latestEventId}:${reminder}`
+        : item.latestEventId,
+      channel: "push",
+    },
+    devices,
+    severity: setting.severity,
+    payload: {
       title:
         reminder && item.waitingSince
           ? `Waiting ${formatAge(item.waitingSince, now)}: ${item.summary}`
@@ -100,23 +176,57 @@ export async function notifyItem(
       url: pr.url,
       tag: itemId,
       itemId,
-      badge,
-    };
+    },
+  };
+}
+
+// Sends claimed notifications for one user: alone, or as one batch push. Marks their logs
+// "sent" or "failed". Past the claim, a retry would stop at the claim, so errors end as
+// "failed" here.
+async function sendClaimed(
+  deps: NotifyDeps & { send: SendPush },
+  now: Date,
+  userId: string,
+  readies: Ready[],
+): Promise<"sent" | "failed"> {
+  const { db, send, logger } = deps;
+  let outcome: "sent" | "failed" = "failed";
+  try {
+    const badge = summarize(await openItems(db, userId, now)).total;
+    const [only] = readies;
+    const payload =
+      readies.length === 1 && only ? only.payload : batchOf(readies);
+    // Each device that takes any of them gets the push once.
+    const devices = [
+      ...new Map(
+        readies.flatMap((r) => r.devices).map((device) => [device.id, device]),
+      ).values(),
+    ];
+    const urgent = readies.some((r) => r.severity === "high");
     outcome = await pushToDevices(
-      { db, send, logger: deps.logger },
+      { db, send, logger },
       devices,
-      payload,
-      {
-        ttlSeconds: NOTIFY_TTL_SECONDS,
-        urgency: setting.severity === "high" ? "high" : "normal",
-      },
+      { ...payload, badge },
+      { ttlSeconds: NOTIFY_TTL_SECONDS, urgency: urgent ? "high" : "normal" },
     );
   } catch (err) {
-    deps.logger.error({ err, itemId }, "notify failed");
+    logger.error({ err, userId }, "notify failed");
   }
-  await db.notificationLog.update({
-    where: { itemId_eventId_channel: logKey },
+  await db.notificationLog.updateMany({
+    where: { OR: readies.map((r) => r.logKey) },
     data: { status: outcome },
   });
   return outcome;
+}
+
+// One push for several notifications, listing the first few. Opens the list.
+function batchOf(readies: Ready[]): Omit<PushPayload, "badge"> {
+  const listed = readies.slice(0, BATCH_LISTED).map((r) => r.payload.title);
+  const more = readies.length - listed.length;
+  return {
+    title: `${readies.length} things need you`,
+    body: [...listed, ...(more > 0 ? [`+${more} more`] : [])].join("\n"),
+    url: "/",
+    tag: "batch",
+  };
 }

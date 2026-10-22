@@ -5,7 +5,7 @@ import { createTestDb, resetDb } from "../test/db";
 import { githubTokens, githubUser, NOW, TEST_KEY } from "../test/fakes";
 import { itemRows } from "../test/items";
 import { createLogger } from "./logger";
-import { notifyItem } from "./notify";
+import { BATCH_MIN, notifyItem, notifyItems } from "./notify";
 import type { SendPush } from "./push";
 import { upsertGitHubUser } from "./users";
 
@@ -199,5 +199,88 @@ describe("notifyItem", () => {
         expect(await notify()).toBe(outcome);
       },
     );
+  });
+});
+
+describe("notifyItems", () => {
+  // The setup user with `count` review requests in all, one per PR.
+  async function withRequests(count: number) {
+    const ctx = await setup();
+    const ids = [ctx.item.id];
+    for (let number = 8; ids.length < count; number++) {
+      const pr = await makePr(ctx.user.id, number);
+      ids.push((await makeItem(ctx.user.id, pr.id, "review_requested")).id);
+    }
+    const notifyAll = () =>
+      notifyItems(
+        { db, send: ctx.send, logger, now: () => NOW },
+        ids.map((itemId) => ({ itemId })),
+      );
+    return { ...ctx, ids, notifyAll };
+  }
+
+  it(`sends ${BATCH_MIN} or more as one push that opens the list`, async () => {
+    const { send, notifyAll } = await withRequests(5);
+
+    expect(await notifyAll()).toEqual(Array(5).fill("sent"));
+    expect(send).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ endpoint: endpoint("phone") }),
+      {
+        title: "5 things need you",
+        body: [
+          ...Array<string>(3).fill("review_requested summary"),
+          "+2 more",
+        ].join("\n"),
+        url: "/",
+        tag: "batch",
+        badge: 5,
+      } satisfies PushPayload,
+      { ttlSeconds: 12 * 60 * 60, urgency: "normal" },
+    );
+    const logs = await db.notificationLog.findMany();
+    expect(logs.map((log) => log.status)).toEqual(Array(5).fill("sent"));
+  });
+
+  it(`sends fewer than ${BATCH_MIN} one at a time`, async () => {
+    const { send, notifyAll } = await withRequests(2);
+    await notifyAll();
+    expect(send.mock.calls.map(([, payload]) => payload.tag)).toHaveLength(2);
+    expect(send.mock.calls[0]?.[1].tag).not.toBe("batch");
+  });
+
+  it("only batches the ones that pass every check", async () => {
+    const { item, send, notifyAll } = await withRequests(3);
+    await db.item.update({ where: { id: item.id }, data: { seenAt: NOW } });
+
+    expect(await notifyAll()).toEqual(["seen", "sent", "sent"]);
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it("sends a batch to each device that takes any of it, urgent if any is high", async () => {
+    const { user, ids, send } = await withRequests(3);
+    await addDevice(user.id, "watch", "high");
+    await db.ruleSetting.update({
+      where: { userId_ruleId: { userId: user.id, ruleId: "reply" } },
+      data: { severity: "high", channels: ["list", "push"] },
+    });
+    const pr = await makePr(user.id, 20);
+    const reply = await makeItem(user.id, pr.id, "reply");
+
+    await notifyItems(
+      { db, send, logger, now: () => NOW },
+      [...ids, reply.id].map((itemId) => ({ itemId })),
+    );
+    expect(sentTo(send).sort()).toEqual([endpoint("phone"), endpoint("watch")]);
+    expect(send.mock.calls.map(([, , options]) => options.urgency)).toEqual([
+      "high",
+      "high",
+    ]);
+  });
+
+  it("sends a batch once", async () => {
+    const { send, notifyAll } = await withRequests(3);
+    await notifyAll();
+    expect(await notifyAll()).toEqual(Array(3).fill("already_sent"));
+    expect(send).toHaveBeenCalledOnce();
   });
 });

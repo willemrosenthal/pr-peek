@@ -5,7 +5,7 @@ import { createGitHubOAuth } from "./github/oauth";
 import {
   createBoss,
   createQueues,
-  NOTIFY_ITEM,
+  NOTIFY_ITEMS,
   queueSync,
   REMINDER_DISPATCH,
   SUMMARY_DISPATCH,
@@ -13,7 +13,7 @@ import {
   SYNC_USER,
 } from "./jobs";
 import { createLogger } from "./logger";
-import { notifyItem } from "./notify";
+import { notifyItems } from "./notify";
 import { vapidFrom, webPushSender } from "./push";
 import { sendDueReminders } from "./reminders";
 import { onShutdown } from "./shutdown";
@@ -72,10 +72,7 @@ await boss.work<{ userId: string }>(
         github: (userId) =>
           getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY }, userId),
         notifyItems: async (itemIds) => {
-          await boss.insert(
-            NOTIFY_ITEM,
-            itemIds.map((itemId) => ({ data: { itemId } })),
-          );
+          await boss.send(NOTIFY_ITEMS, { itemIds });
         },
       },
       job.data.userId,
@@ -85,11 +82,14 @@ await boss.work<{ userId: string }>(
 
 const vapid = vapidFrom(config);
 const send = vapid ? webPushSender(vapid) : null;
-await boss.work<{ itemId: string }>(NOTIFY_ITEM, async ([job]) => {
+await boss.work<{ itemIds: string[] }>(NOTIFY_ITEMS, async ([job]) => {
   if (!job) return;
-  const { itemId } = job.data;
-  const outcome = await notifyItem({ db, send, logger }, itemId);
-  logger.info({ itemId, outcome }, "notify item");
+  const { itemIds } = job.data;
+  const outcomes = await notifyItems(
+    { db, send, logger },
+    itemIds.map((itemId) => ({ itemId })),
+  );
+  logger.info({ itemIds, outcomes }, "notify items");
 });
 
 await boss.schedule(SUMMARY_DISPATCH, "*/15 * * * *");

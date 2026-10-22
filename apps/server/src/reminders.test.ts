@@ -99,6 +99,20 @@ describe("sendDueReminders", () => {
     expect(await run(hours(5))).toBe(0);
   });
 
+  it("sends a user's reminders together as one push", async () => {
+    const { user, send, run } = await setup();
+    for (const number of [8, 9]) {
+      const pr = await makePr(user.id, number);
+      await makeItem(user.id, pr.id, "review_requested", {
+        occurredAt: NOW,
+        waitingSince: NOW,
+      });
+    }
+    expect(await run(hours(5))).toBe(3);
+    expect(send).toHaveBeenCalledOnce();
+    expect(send.mock.calls[0]?.[1].title).toBe("3 things need you");
+  });
+
   it("ignores items that don't wait", async () => {
     const { user, pr, item, run } = await setup();
     await db.item.delete({ where: { id: item.id } });

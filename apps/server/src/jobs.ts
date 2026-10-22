@@ -3,7 +3,8 @@ import type pg from "pg";
 
 export const SYNC_DISPATCH = "sync-dispatch";
 export const SYNC_USER = "sync-user";
-export const NOTIFY_ITEM = "notify-item";
+// One job per sync, with all its new items, so they can go out as one push.
+export const NOTIFY_ITEMS = "notify-items";
 export const SUMMARY_DISPATCH = "summary-dispatch";
 export const REMINDER_DISPATCH = "reminder-dispatch";
 
@@ -34,7 +35,7 @@ export async function createQueues(boss: PgBoss): Promise<void> {
     retryLimit: 0,
     expireInSeconds: SYNC_TIMEOUT_SECONDS,
   });
-  await boss.createQueue(NOTIFY_ITEM);
+  await boss.createQueue(NOTIFY_ITEMS);
   await boss.createQueue(SUMMARY_DISPATCH);
   await boss.createQueue(REMINDER_DISPATCH);
 }
