@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   byUrgency,
   formatAge,
+  isAtLeast,
   staleLevel,
   urgencyScore,
   waitingFor,
@@ -24,6 +25,12 @@ const workHours = (timezone = "UTC") =>
 
 // 2026-10-21 is a Wednesday.
 const date = (iso: string) => new Date(iso);
+
+it("compares severities", () => {
+  expect(isAtLeast("high", "normal")).toBe(true);
+  expect(isAtLeast("normal", "normal")).toBe(true);
+  expect(isAtLeast("low", "normal")).toBe(false);
+});
 
 describe("waitingFor", () => {
   it("counts all the time by default", () => {

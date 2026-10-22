@@ -87,6 +87,7 @@ describe("GET /api/settings", () => {
       quietStart: null,
       quietEnd: null,
       quietWeekends: false,
+      highBreaksQuiet: false,
       digestTime: null,
       hideBots: false,
       includeTeamRequests: true,
