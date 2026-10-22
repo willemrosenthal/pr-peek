@@ -11,7 +11,7 @@ import { z } from "zod";
 import { partialDataOrThrow } from "./errors";
 
 // PRs per request. Keeps each query well under GitHub's cost limits.
-export const DETAILS_BATCH_SIZE = 10;
+const DETAILS_BATCH_SIZE = 10;
 const PREVIEW_LENGTH = 200;
 
 const ACTOR = `author { __typename login }`;
@@ -196,9 +196,7 @@ const toComment = (raw: z.infer<typeof rawComment>): PrComment => ({
   replyToId: raw.replyTo?.id ?? null,
 });
 
-const notNull = <T>(value: T | null): value is T => value !== null;
-
-export function toSnapshot(raw: RawPr): PrSnapshot {
+function toSnapshot(raw: RawPr): PrSnapshot {
   // The schema requires at least one commit.
   const head = raw.commits.nodes[0]!.commit;
   const contexts = head.statusCheckRollup?.contexts.nodes ?? [];
@@ -214,9 +212,9 @@ export function toSnapshot(raw: RawPr): PrSnapshot {
     headSha: head.oid,
     headCommittedAt: head.committedDate,
     updatedAt: raw.updatedAt,
-    reviewRequests: raw.reviewRequests.nodes
-      .map((r) => toReviewer(r.requestedReviewer))
-      .filter(notNull),
+    reviewRequests: raw.reviewRequests.nodes.flatMap(
+      (r) => toReviewer(r.requestedReviewer) ?? [],
+    ),
     reviewRequestEvents: raw.timelineItems.nodes.flatMap((event) => {
       const reviewer = toReviewer(event.requestedReviewer);
       if (!reviewer) return [];

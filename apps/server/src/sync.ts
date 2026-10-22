@@ -51,14 +51,12 @@ function toRow(snapshot: PrSnapshot, githubRepoId: number, now: Date) {
   };
 }
 
-// Brings the user's stored PRs up to date with GitHub.
-export async function syncUser(
+// The PRs in the user's watched repos, and details for the ones that changed.
+async function fetchFromGitHub(
   deps: SyncDeps,
   userId: string,
-): Promise<SyncResult> {
+): Promise<{ found: FoundPr[]; details: PrDetails }> {
   const { db } = deps;
-  const now = (deps.now ?? (() => new Date()))();
-
   const [settings, watched] = await Promise.all([
     db.userSettings.findUnique({
       where: { userId },
@@ -69,36 +67,44 @@ export async function syncUser(
       select: { githubRepoId: true },
     }),
   ]);
+  if (watched.length === 0) {
+    return { found: [], details: { snapshots: [], failed: [] } };
+  }
   const watchedIds = new Set(watched.map((repo) => repo.githubRepoId));
 
-  let found: FoundPr[] = [];
-  let details: PrDetails = { snapshots: [], failed: [] };
-  if (watchedIds.size > 0) {
-    const octokit = await deps.github(userId);
-    const all = await findRelevantPrs(octokit, {
-      includeTeamRequests: settings?.includeTeamRequests ?? true,
-    });
-    // Match on repo id, not name, so a renamed repo keeps syncing.
-    found = [...all.values()].filter((pr) => watchedIds.has(pr.githubRepoId));
+  const octokit = await deps.github(userId);
+  const all = await findRelevantPrs(octokit, {
+    includeTeamRequests: settings?.includeTeamRequests ?? true,
+  });
+  // Match on repo id, not name, so a renamed repo keeps syncing.
+  const found = [...all.values()].filter((pr) =>
+    watchedIds.has(pr.githubRepoId),
+  );
 
-    const stored = await db.pullRequest.findMany({
-      where: { userId, githubNodeId: { in: found.map((pr) => pr.id) } },
-      select: { githubNodeId: true, githubUpdatedAt: true, checkState: true },
-    });
-    const storedById = new Map(stored.map((pr) => [pr.githubNodeId, pr]));
-    const changed = found.filter((pr) =>
-      needsDetails(pr, storedById.get(pr.id)),
-    );
-    details = await fetchPrDetails(
-      octokit,
-      changed.map((pr) => pr.id),
-    );
-  }
+  const stored = await db.pullRequest.findMany({
+    where: { userId, githubNodeId: { in: found.map((pr) => pr.id) } },
+    select: { githubNodeId: true, githubUpdatedAt: true, checkState: true },
+  });
+  const storedById = new Map(stored.map((pr) => [pr.githubNodeId, pr]));
+  const changedIds = found
+    .filter((pr) => needsDetails(pr, storedById.get(pr.id)))
+    .map((pr) => pr.id);
+  return { found, details: await fetchPrDetails(octokit, changedIds) };
+}
+
+// Brings the user's stored PRs up to date with GitHub.
+export async function syncUser(
+  deps: SyncDeps,
+  userId: string,
+): Promise<SyncResult> {
+  const { db } = deps;
+  const now = (deps.now ?? (() => new Date()))();
+  const { found, details } = await fetchFromGitHub(deps, userId);
 
   const repoIdOf = new Map(found.map((pr) => [pr.id, pr.githubRepoId]));
   await db.$transaction([
     db.pullRequest.updateMany({
-      where: { userId, githubNodeId: { in: found.map((pr) => pr.id) } },
+      where: { userId, githubNodeId: { in: [...repoIdOf.keys()] } },
       data: { lastSeenAt: now },
     }),
     ...details.snapshots.map((snapshot) => {
