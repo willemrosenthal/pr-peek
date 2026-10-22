@@ -92,7 +92,6 @@ describe("POST /api/push/subscriptions", () => {
 
     const res = await subscribe(agent, {
       keys: { ...keys, auth: "new-auth-key" },
-      label: "iPhone",
     });
     expect(res.status).toBe(200);
     expect(deviceOf(res)).toMatchObject({
@@ -129,8 +128,9 @@ describe("POST /api/push/subscriptions", () => {
     });
     const saved = await db.pushSubscription.findUniqueOrThrow({
       where: { endpoint: endpoint() },
+      include: { user: true },
     });
-    expect(saved.userId).not.toBe(other.id);
+    expect(saved.user.login).toBe("octocat");
   });
 
   it("refuses an endpoint that isn't a push service", async () => {
