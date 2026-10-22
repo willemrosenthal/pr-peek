@@ -63,12 +63,20 @@ describe("GET /api/items", () => {
       occurredAt: hours(-5),
       seenAt: hours(-4),
     });
-    const askedAgain = await makeItem(user.id, pr.id, "re_requested", {
-      waitingSince: hours(-1),
-    });
-    const reply = await makeItem(user.id, pr.id, "reply");
-    const failed = await makeItem(user.id, pr.id, "check_failed");
-    await makeItem(user.id, pr.id, "commented", { status: "resolved" });
+    const askedAgain = await makeItem(
+      user.id,
+      (await makePr(user.id, 8)).id,
+      "re_requested",
+      { waitingSince: hours(-1) },
+    );
+    const reply = await makeItem(
+      user.id,
+      (await makePr(user.id, 9)).id,
+      "reply",
+    );
+    const mine = await makePr(user.id, 10);
+    const failed = await makeItem(user.id, mine.id, "check_failed");
+    await makeItem(user.id, mine.id, "commented", { status: "resolved" });
 
     const res = await agent.get("/api/items");
 
@@ -92,6 +100,7 @@ describe("GET /api/items", () => {
       staleLevel: "warn",
       severity: "normal",
       unseen: false,
+      otherIds: [],
       pr: {
         title: "Add login",
         owner: "acme",
@@ -133,16 +142,77 @@ describe("GET /api/items", () => {
   });
 });
 
-describe("GET /api/summary", () => {
-  it("counts open items", async () => {
+describe("one row per PR", () => {
+  const getItems = async (agent: Agent) =>
+    bodyOf<ItemsResponse>(await agent.get("/api/items"));
+
+  it("shows the PR's top item, unseen if any item is, with the others' ids", async () => {
     const { agent, user } = await setup();
     const pr = await makePr(user.id);
-    await makeItem(user.id, pr.id, "review_requested", {
+    const asked = await makeItem(user.id, pr.id, "review_requested", {
+      seenAt: hours(-1),
+    });
+    // Unseen, so it scores higher, but a review request still leads the row.
+    const mention = await makeItem(user.id, pr.id, "mention");
+
+    const body = await getItems(agent);
+    expect(body.replies).toEqual([]);
+    expect(body.review).toHaveLength(1);
+    expect(body.review[0]).toMatchObject({
+      id: asked.id,
+      kind: "review_requested",
+      unseen: true,
+      otherIds: [mention.id],
+    });
+  });
+
+  it("puts the user's higher severity first", async () => {
+    const { agent, user } = await setup();
+    await db.ruleSetting.update({
+      where: { userId_ruleId: { userId: user.id, ruleId: "reply" } },
+      data: { severity: "high" },
+    });
+    const pr = await makePr(user.id);
+    await makeItem(user.id, pr.id, "review_requested");
+    const reply = await makeItem(user.id, pr.id, "reply");
+
+    const body = await getItems(agent);
+    expect(body.review).toEqual([]);
+    expect(body.replies.map((row) => row.id)).toEqual([reply.id]);
+  });
+
+  it("places each PR by its most urgent item", async () => {
+    const { agent, user } = await setup();
+    const quiet = await makePr(user.id, 7);
+    await makeItem(user.id, quiet.id, "review_requested", {
+      seenAt: hours(-1),
+    });
+    // The same request, plus an unseen mention.
+    const busy = await makePr(user.id, 8);
+    const busyAsk = await makeItem(user.id, busy.id, "review_requested", {
+      seenAt: hours(-1),
+    });
+    await makeItem(user.id, busy.id, "mention");
+
+    const body = await getItems(agent);
+    expect(body.review.map((row) => row.pr.number)).toEqual([8, 7]);
+    expect(body.review[0]?.id).toBe(busyAsk.id);
+  });
+});
+
+describe("GET /api/summary", () => {
+  it("counts PRs with open items, like the list", async () => {
+    const { agent, user } = await setup();
+    const asked = await makePr(user.id, 7);
+    await makeItem(user.id, asked.id, "review_requested", {
       waitingSince: hours(-1),
     });
-    await makeItem(user.id, pr.id, "reply");
-    await makeItem(user.id, pr.id, "reviewed");
-    await makeItem(user.id, pr.id, "commented", { status: "resolved" });
+    // Same PR, so one row.
+    await makeItem(user.id, asked.id, "mention");
+    await makeItem(user.id, (await makePr(user.id, 8)).id, "reply");
+    const mine = await makePr(user.id, 9);
+    await makeItem(user.id, mine.id, "reviewed");
+    await makeItem(user.id, mine.id, "commented", { status: "resolved" });
 
     const res = await agent.get("/api/summary");
     expect(bodyOf<SummaryResponse>(res)).toEqual({
@@ -155,13 +225,18 @@ describe("GET /api/summary", () => {
     });
   });
 
-  it("flags late requests and failing checks", async () => {
+  it("flags late requests and failing checks, even when another item leads the row", async () => {
     const { agent, user } = await setup();
-    const pr = await makePr(user.id);
-    await makeItem(user.id, pr.id, "review_requested", {
+    await db.ruleSetting.update({
+      where: { userId_ruleId: { userId: user.id, ruleId: "check_failed" } },
+      data: { severity: "low" },
+    });
+    await makeItem(user.id, (await makePr(user.id, 7)).id, "review_requested", {
       waitingSince: hours(-30),
     });
-    await makeItem(user.id, pr.id, "check_failed");
+    const mine = await makePr(user.id, 8);
+    await makeItem(user.id, mine.id, "reviewed");
+    await makeItem(user.id, mine.id, "check_failed");
 
     const res = await agent.get("/api/summary");
     expect(bodyOf<SummaryResponse>(res)).toMatchObject({

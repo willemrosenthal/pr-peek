@@ -93,6 +93,20 @@ describe("marking seen", () => {
     expect(seenRequests(fetch)).toEqual([[review[0]!.id]]);
   });
 
+  it("marks every item on a new row's PR", async () => {
+    const review = [item({ unseen: true, otherIds: ["other-1", "other-2"] })];
+    const fetch = fakeApi(
+      listApi({ "GET /api/items": () => json(groups({ review })) }),
+    );
+    renderApp("/");
+    await sectionButton(/Needs my review/);
+
+    act(() => setVisibility("hidden"));
+    expect(seenRequests(fetch)).toEqual([
+      [review[0]!.id, "other-1", "other-2"],
+    ]);
+  });
+
   it("marks them when going to another page", async () => {
     const review = [newItem()];
     const fetch = fakeApi(

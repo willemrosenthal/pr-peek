@@ -43,7 +43,12 @@ export function ItemRow({ item }: { item: ItemDto }) {
         {item.pr.title}
       </span>
       <span className={cx(styles.age, ageTone)}>{item.age}</span>
-      <span className={styles.summary}>{item.summary}</span>
+      <span className={styles.summary}>
+        <span className={styles.summaryText}>{item.summary}</span>
+        {item.otherIds.length > 0 && (
+          <span className={styles.more}>+{item.otherIds.length} more</span>
+        )}
+      </span>
       <span className={styles.repo}>
         {item.pr.repo} #{item.pr.number}
       </span>
