@@ -34,6 +34,11 @@
   font-weight: 600;
 }
 
+.subTitle {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
 .hint {
   color: var(--color-text-secondary);
 }

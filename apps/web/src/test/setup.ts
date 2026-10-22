@@ -1,11 +1,14 @@
 import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, expect, vi } from "vitest";
+import { resetInstall } from "../install";
 import { unknownRequests } from "./fake-api";
 import { fakeStream } from "./fake-stream";
+import { stubDisplayMode } from "./install";
 import { resetVisibility } from "./visibility";
 
 beforeEach(() => {
   fakeStream();
+  stubDisplayMode();
 });
 
 afterEach(async () => {
@@ -13,6 +16,8 @@ afterEach(async () => {
   // Lets work timed for after unmount finish while the fakes are in place.
   await new Promise((resolve) => setTimeout(resolve, 0));
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  resetInstall();
   localStorage.clear();
   sessionStorage.clear();
   resetVisibility();

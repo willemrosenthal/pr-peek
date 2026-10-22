@@ -54,7 +54,7 @@
 
 ### 10.7 Polish for new users
 
-- [ ] A custom domain on Render, with HTTPS (automatic).
+- [x] A custom domain on Render, with HTTPS (automatic). Done early: `www.git-buddy.com`, bought at Porkbun. `git-buddy.com` redirects to it.
 - [ ] A short landing section on `/signin`: what it does, a screenshot, install buttons.
 - [ ] Friendly states for: no repos yet, nothing needs you, GitHub is down, sync error.
 - [ ] A feedback link (GitHub issues or an email).

@@ -1,12 +1,14 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { api } from "../api";
 import { Alert } from "../components/Alert";
 import { Button } from "../components/Button";
+import { InstallHere } from "../components/InstallSteps";
 import { RepoPicker } from "../components/RepoPicker";
 import { SelectField } from "../components/Field";
 import { WatchedRepos } from "../components/WatchedRepos";
+import { useIsTray } from "../hooks/useIsTray";
 import { detectedTimezone, timezoneOptions } from "../timezones";
 import styles from "./Onboarding.module.css";
 
@@ -97,13 +99,22 @@ function TimezoneStep({ onNext }: { onNext: () => void }) {
 
 function DoneStep() {
   const navigate = useNavigate();
+  const isTray = useIsTray();
   return (
     <section className={styles.step}>
       <h2 className={styles.stepTitle}>You're set</h2>
       <p className={styles.hint}>
-        Your list fills in within a minute. Notifications and installing the app
-        come later.
+        Your list fills in within a minute. Notifications come later.
       </p>
+      {!isTray && (
+        <>
+          <h3 className={styles.subTitle}>Install the app</h3>
+          <InstallHere />
+          <p>
+            <Link to="/install">Install on other devices</Link>
+          </p>
+        </>
+      )}
       <div>
         <Button variant="primary" onClick={() => void navigate("/")}>
           Go to your list
