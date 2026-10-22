@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [07. Web app](07-web-app.md), part 3a: the list. Parts 1 (#20) and 2 (#21) merged                                                                                      |
 | **Branch**         | `plan-07-3a-list`                                                                                                                                                      |
-| **PR**             | Part 3a, draft                                                                                                                                                         |
+| **PR**             | [#22](https://github.com/willemrosenthal/pr-peek/pull/22) (part 3a), draft                                                                                             |
 | **Last step done** | The list: sections, rows, header and refresh, banners, empty and error states, phone and desktop layouts                                                               |
 | **Next step**      | Part 3b (`plan-07-3b-live`): live updates, marking seen, badge, tray mode, once 3a merges                                                                              |
 | **Waiting on you** | Try the list with real items. Your token is now under Settings. Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
