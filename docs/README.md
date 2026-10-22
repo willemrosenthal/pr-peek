@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ----------------------------------------------------------------------------------------------- |
 | **Current plan**   | [04. GitHub sync](04-github-sync.md), part A of 3: watched repos API. B: fetch PRs. C: schedule |
 | **Branch**         | `plan-04-1-repos`                                                                               |
-| **PR**             | Opening now (part A)                                                                            |
+| **PR**             | [#10](https://github.com/willemrosenthal/pr-peek/pull/10) (part A), CI green                    |
 | **Last step done** | 4.1 Watched repos API, tested (89 tests)                                                        |
 | **Next step**      | Part B (`plan-04-2-fetch`): 4.2 to 4.4 once part A merges                                       |
 | **Waiting on you** | Confirm the plan 02 worker heartbeat. Branch protection for `main` and `prod`                   |
