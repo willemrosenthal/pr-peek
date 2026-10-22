@@ -86,6 +86,16 @@ describe("fetchPrStatuses", () => {
     expect(statuses.get("PR_3")).toBeNull();
   });
 
+  it("leaves out PRs in a shape it doesn't expect, so they stay tracked", async () => {
+    const { octokit } = fakeGraphQL(
+      prGitHub({
+        statuses: { PR_1: { ...searchHit("PR_1"), state: "DRAFT" } },
+      }),
+    );
+    const statuses = await fetchPrStatuses(octokit, ["PR_1"]);
+    expect(statuses.has("PR_1")).toBe(false);
+  });
+
   it.each(["NOT_FOUND", "FORBIDDEN"])(
     "treats PRs GitHub answers %s for as gone",
     async (type) => {

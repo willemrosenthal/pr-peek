@@ -118,7 +118,8 @@ export async function findRelevantPrs(
   return prs;
 }
 
-// Each PR's status, read directly by id. Null for PRs that are gone or hidden.
+// Each PR's status, read directly by id. Null for PRs that are gone or hidden. PRs in a
+// shape we don't expect are left out, so the caller doesn't take them as gone.
 export async function fetchPrStatuses(
   octokit: Octokit,
   ids: string[],
@@ -134,8 +135,13 @@ export async function fetchPrStatuses(
       );
     const { nodes } = z.object({ nodes: z.array(z.unknown()) }).parse(data);
     batch.forEach((id, index) => {
-      const parsed = statusNode.safeParse(nodes[index]);
-      statuses.set(id, parsed.success ? toStatus(parsed.data) : null);
+      const node = nodes[index];
+      if (!node) {
+        statuses.set(id, null);
+        return;
+      }
+      const parsed = statusNode.safeParse(node);
+      if (parsed.success) statuses.set(id, toStatus(parsed.data));
     });
   }
   return statuses;
