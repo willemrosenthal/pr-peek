@@ -19,18 +19,27 @@ export const isPushServiceUrl = (endpoint: string) =>
   pushEndpoint.safeParse(endpoint).success;
 
 const pushKey = z.string().regex(/^[\w-]{1,200}={0,2}$/, "Not a push key");
-const deviceLabel = z.string().trim().min(1).max(50);
+export const MAX_DEVICE_LABEL = 50;
+const deviceLabel = z.string().trim().min(1).max(MAX_DEVICE_LABEL);
 
-// What the browser's PushSubscription.toJSON() gives, plus a name for the device.
-export const addPushSubscriptionBody = z.object({
+// What the browser's PushSubscription.toJSON() gives.
+const browserSubscription = z.object({
   endpoint: pushEndpoint,
   keys: z.object({ p256dh: pushKey, auth: pushKey }),
+});
+
+export const addPushSubscriptionBody = browserSubscription.extend({
   label: deviceLabel,
 });
 export type AddPushSubscriptionBody = z.infer<typeof addPushSubscriptionBody>;
 
 export const updatePushSubscriptionBody = z
-  .object({ label: deviceLabel, minSeverity: severity })
+  .object({
+    label: deviceLabel,
+    minSeverity: severity,
+    // The browser's new subscription, when it replaced the old one.
+    subscription: browserSubscription,
+  })
   .partial()
   .refine((body) => Object.keys(body).length > 0, "Nothing to update");
 export type UpdatePushSubscriptionBody = z.infer<

@@ -7,8 +7,10 @@ import { Button } from "../components/Button";
 import { InstallHere } from "../components/InstallSteps";
 import { RepoPicker } from "../components/RepoPicker";
 import { SelectField } from "../components/Field";
+import { TurnOnNotifications } from "../components/TurnOnNotifications";
 import { WatchedRepos } from "../components/WatchedRepos";
 import { useIsTray } from "../hooks/useIsTray";
+import { pushSupport } from "../push";
 import { detectedTimezone, timezoneOptions } from "../timezones";
 import styles from "./Onboarding.module.css";
 
@@ -103,9 +105,14 @@ function DoneStep() {
   return (
     <section className={styles.step}>
       <h2 className={styles.stepTitle}>You're set</h2>
-      <p className={styles.hint}>
-        Your list fills in within a minute. Notifications come later.
-      </p>
+      <p className={styles.hint}>Your list fills in within a minute.</p>
+      {/* The iPhone install steps below already say notifications need the app. */}
+      {!isTray && pushSupport() !== "needs-install" && (
+        <>
+          <h3 className={styles.subTitle}>Get notifications</h3>
+          <TurnOnNotifications />
+        </>
+      )}
       {!isTray && (
         <>
           <h3 className={styles.subTitle}>Install the app</h3>

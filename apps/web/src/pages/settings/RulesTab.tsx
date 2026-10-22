@@ -1,7 +1,7 @@
 import type { RuleGroup, RuleSettingDto, Severity } from "@pr-peek/core";
-import type { ReactNode } from "react";
 import { Alert } from "../../components/Alert";
 import { CardRow } from "../../components/Card";
+import { Control, Controls } from "../../components/Control";
 import { Select } from "../../components/Field";
 import { RowText } from "../../components/RowText";
 import { SettingsGroup } from "../../components/SettingsGroup";
@@ -47,17 +47,6 @@ export function RulesTab() {
   );
 }
 
-// A control with a short visible name. Screen readers hear the control's own label,
-// which names the rule too.
-function Control({ name, children }: { name: string; children: ReactNode }) {
-  return (
-    <span className={styles.control}>
-      <span aria-hidden="true">{name}</span>
-      {children}
-    </span>
-  );
-}
-
 // One rule's switch, urgency, and notify setting. Shows new values while they save.
 function RuleRow({ rule }: { rule: RuleSettingDto }) {
   const save = useSaveRule(rule.id);
@@ -73,7 +62,7 @@ function RuleRow({ rule }: { rule: RuleSettingDto }) {
   return (
     <CardRow>
       <RowText label={rule.name} />
-      <span className={styles.controls}>
+      <Controls>
         <Control name="Urgency">
           <Select
             aria-label={`Urgency for ${rule.name}`}
@@ -108,7 +97,7 @@ function RuleRow({ rule }: { rule: RuleSettingDto }) {
             disabled={save.isPending}
           />
         </Control>
-      </span>
+      </Controls>
       {rule.id === "review_requested" && (
         <label className={styles.option}>
           <input

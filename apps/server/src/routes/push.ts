@@ -105,12 +105,36 @@ export function pushRouter(deps: PushRouteDeps): Router {
     res.status(isMine ? 200 : 201).json(body);
   });
 
+  // A `subscription` moves the device to the browser's new one, keeping its settings.
   router.patch("/push/subscriptions/:id", async (req, res) => {
-    const changes = parseInput(updatePushSubscriptionBody, req.body);
+    const { subscription, ...changes } = parseInput(
+      updatePushSubscriptionBody,
+      req.body,
+    );
     const where = { id: req.params.id, userId: currentUser(res).id };
+    if (subscription) {
+      const taken = await db.pushSubscription.findUnique({
+        where: { endpoint: subscription.endpoint },
+        select: { id: true },
+      });
+      if (taken && taken.id !== where.id) {
+        throw new HttpError(
+          409,
+          "device_exists",
+          "This subscription is already a device",
+        );
+      }
+    }
     const { count } = await db.pushSubscription.updateMany({
       where,
-      data: sentFields(changes),
+      data: {
+        ...sentFields(changes),
+        ...(subscription && {
+          endpoint: subscription.endpoint,
+          ...subscription.keys,
+          failureCount: 0,
+        }),
+      },
     });
     if (count === 0) throw notFound();
     const saved = await db.pushSubscription.findUniqueOrThrow({ where });

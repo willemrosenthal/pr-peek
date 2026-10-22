@@ -11,6 +11,8 @@ import {
   searchResults,
   sentBodies,
 } from "../test/fake-api";
+import { stubUserAgent, USER_AGENTS } from "../test/install";
+import { PUBLIC_KEY, stubPush } from "../test/push";
 import { renderApp } from "../test/render";
 
 const onboardingApi = (overrides: Handlers = {}) =>
@@ -19,12 +21,46 @@ const onboardingApi = (overrides: Handlers = {}) =>
       "GET /api/github/repos": () => json(searchResults()),
       "POST /api/sync": () => json({ queued: true }, 202),
       "PATCH /api/settings": () => json({}),
+      "GET /api/push/key": () => json({ publicKey: PUBLIC_KEY }),
+      "GET /api/push/subscriptions": () => json({ subscriptions: [] }),
       ...overrides,
     }),
   );
 
 const next = async () =>
   userEvent.click(await screen.findByRole("button", { name: "Next" }));
+
+async function finishSteps() {
+  await next();
+  await next();
+  await screen.findByRole("heading", { name: "You're set" });
+}
+
+// Turning them on is tested in DevicesTab.test.tsx.
+it("offers to turn on notifications at the end", async () => {
+  stubPush();
+  onboardingApi();
+  renderApp("/onboarding");
+  await finishSteps();
+  expect(
+    await screen.findByRole("button", { name: "Turn on notifications" }),
+  ).toBeTruthy();
+});
+
+it("shows only the install steps on an iPhone outside the Home Screen app", async () => {
+  stubUserAgent(USER_AGENTS.iphone);
+  onboardingApi();
+  renderApp("/onboarding");
+  await finishSteps();
+  expect(screen.queryByRole("heading", { name: "Get notifications" })).toBe(
+    null,
+  );
+  expect(
+    screen.getAllByText(
+      "On iPhone, notifications only work in the Home Screen app.",
+    ),
+  ).toHaveLength(1);
+});
 
 it("picks repos, sets the timezone, and goes to the list", async () => {
   const fetch = onboardingApi();
@@ -54,13 +90,14 @@ it("picks repos, sets the timezone, and goes to the list", async () => {
   expect(router.state.location.pathname).toBe("/");
 });
 
-it("doesn't offer to install inside the menu bar app", async () => {
+it("doesn't offer to install or turn on notifications inside the menu bar app", async () => {
   onboardingApi();
   renderApp("/onboarding?shell=tray");
-  await next();
-  await next();
-  await screen.findByRole("heading", { name: "You're set" });
+  await finishSteps();
   expect(screen.queryByRole("heading", { name: "Install the app" })).toBe(null);
+  expect(screen.queryByRole("heading", { name: "Get notifications" })).toBe(
+    null,
+  );
 });
 
 it("goes on when the first sync is refused", async () => {

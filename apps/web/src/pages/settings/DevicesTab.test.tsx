@@ -1,5 +1,5 @@
 import type { PushSubscriptionDto } from "@pr-peek/core";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
@@ -69,6 +69,7 @@ describe("turning on notifications", () => {
     ]);
     const list = await deviceList();
     expect(within(list).getByText(/This device/)).toBeTruthy();
+    expect(localStorage.getItem("push-endpoint")).toBe(THIS_ENDPOINT);
   });
 
   it("stops when the user doesn't allow notifications", async () => {
@@ -150,6 +151,58 @@ describe("turning on notifications", () => {
   });
 });
 
+describe("checking this device on open", () => {
+  const OLD_ENDPOINT = "https://fcm.googleapis.com/fcm/send/old";
+
+  it("moves the device when the browser changed its subscription", async () => {
+    stubPush({ subscribed: THIS_ENDPOINT });
+    localStorage.setItem("push-endpoint", OLD_ENDPOINT);
+    const devices = [device({ endpoint: OLD_ENDPOINT, label: "Mac" })];
+    const mac = devices[0]!;
+    const fetch = devicesApi(devices, {
+      [`PATCH /api/push/subscriptions/${mac.id}`]: () => {
+        mac.endpoint = THIS_ENDPOINT;
+        return json({ subscription: mac });
+      },
+    });
+    renderApp("/settings/devices");
+
+    expect(
+      await screen.findByText("Notifications are on for this device."),
+    ).toBeTruthy();
+    expect(
+      sentBodies(fetch, `PATCH /api/push/subscriptions/${mac.id}`),
+    ).toEqual([
+      { subscription: { endpoint: THIS_ENDPOINT, keys: SUBSCRIPTION_KEYS } },
+    ]);
+    expect(localStorage.getItem("push-endpoint")).toBe(THIS_ENDPOINT);
+  });
+
+  it("leaves a device removed from another device removed", async () => {
+    stubPush({ subscribed: THIS_ENDPOINT });
+    localStorage.setItem("push-endpoint", OLD_ENDPOINT);
+    const fetch = devicesApi([]);
+    renderApp("/settings/devices");
+
+    expect(await turnOnButton()).toBeTruthy();
+    // The list, and the check. Neither adds the device back.
+    await waitFor(() =>
+      expect(callsTo(fetch, "/api/push/subscriptions")).toHaveLength(2),
+    );
+    expect(sentBodies(fetch, "POST /api/push/subscriptions")).toEqual([]);
+  });
+
+  it("remembers a device saved before it kept track", async () => {
+    stubPush({ subscribed: THIS_ENDPOINT });
+    devicesApi([device({ endpoint: THIS_ENDPOINT })]);
+    renderApp("/settings/devices");
+
+    await waitFor(() =>
+      expect(localStorage.getItem("push-endpoint")).toBe(THIS_ENDPOINT),
+    );
+  });
+});
+
 describe("the device list", () => {
   it("lists devices with when each last got a notification", async () => {
     devicesApi([
@@ -209,6 +262,67 @@ describe("the device list", () => {
     ).toBeTruthy();
   });
 
+  it("chooses which notifications a device gets", async () => {
+    const phone = device({ label: "iPhone" });
+    const fetch = devicesApi([phone], {
+      [`PATCH /api/push/subscriptions/${phone.id}`]: () => {
+        phone.minSeverity = "high";
+        return json({ subscription: phone });
+      },
+    });
+    renderApp("/settings/devices");
+
+    const select = await screen.findByLabelText("Notifications on iPhone");
+    await userEvent.selectOptions(select, "High only");
+    expect(
+      sentBodies(fetch, `PATCH /api/push/subscriptions/${phone.id}`),
+    ).toEqual([{ minSeverity: "high" }]);
+    await waitFor(() => expect(select).toHaveProperty("disabled", false));
+    expect(select).toHaveProperty("value", "high");
+  });
+
+  it("renames a device when the name box loses focus", async () => {
+    const ipad = device({ label: "Mac, Safari" });
+    const fetch = devicesApi([ipad], {
+      [`PATCH /api/push/subscriptions/${ipad.id}`]: () => {
+        ipad.label = "iPad";
+        return json({ subscription: ipad });
+      },
+    });
+    renderApp("/settings/devices");
+
+    const name = await screen.findByLabelText("Name for Mac, Safari");
+    await userEvent.clear(name);
+    await userEvent.type(name, "  iPad ");
+    await userEvent.tab();
+    expect(await screen.findByLabelText("Name for iPad")).toBeTruthy();
+    expect(
+      sentBodies(fetch, `PATCH /api/push/subscriptions/${ipad.id}`),
+    ).toEqual([{ label: "iPad" }]);
+  });
+
+  it("puts back the old name when the new one is blank or fails to save", async () => {
+    const phone = device({ label: "iPhone" });
+    const fetch = devicesApi([phone], {
+      [`PATCH /api/push/subscriptions/${phone.id}`]: () =>
+        apiError(400, "invalid_input", "Too long"),
+    });
+    renderApp("/settings/devices");
+
+    const name = await screen.findByLabelText("Name for iPhone");
+    await userEvent.clear(name);
+    await userEvent.tab();
+    expect(name).toHaveProperty("value", "iPhone");
+    expect(
+      sentBodies(fetch, `PATCH /api/push/subscriptions/${phone.id}`),
+    ).toEqual([]);
+
+    await userEvent.type(name, " 2");
+    await userEvent.tab();
+    expect((await screen.findByRole("alert")).textContent).toBe("Too long");
+    expect(name).toHaveProperty("value", "iPhone");
+  });
+
   it("removes another device", async () => {
     const push = stubPush({ subscribed: THIS_ENDPOINT });
     const devices = [
@@ -248,5 +362,6 @@ describe("the device list", () => {
     await userEvent.click(screen.getByRole("button", { name: "Remove Mac" }));
     expect(await turnOnButton()).toBeTruthy();
     expect(push.subscription()).toBe(null);
+    expect(localStorage.getItem("push-endpoint")).toBe(null);
   });
 });

@@ -14,6 +14,10 @@
   overflow-wrap: anywhere;
 }
 
+.label {
+  max-width: 16rem;
+}
+
 .hint {
   font-size: var(--text-sm);
   font-weight: 400;

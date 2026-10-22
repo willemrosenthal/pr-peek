@@ -1,4 +1,7 @@
-import type { PushSubscriptionResponse } from "@pr-peek/core";
+import type {
+  PushSubscriptionResponse,
+  PushSubscriptionsResponse,
+} from "@pr-peek/core";
 import { api } from "./api";
 import { detectPlatform, isStandalone } from "./install";
 
@@ -72,6 +75,7 @@ export async function turnOnPush(publicKey: string) {
       body: { ...subscription.toJSON(), label: deviceLabel() },
     },
   );
+  remember(device.endpoint);
   return device;
 }
 
@@ -88,4 +92,51 @@ export async function thisDeviceEndpoint() {
 
 export async function unsubscribeThisDevice() {
   await (await currentSubscription())?.unsubscribe();
+  remember(null);
+}
+
+// The endpoint this browser last saved as a device, to spot when the browser changes it.
+const SAVED_ENDPOINT_KEY = "push-endpoint";
+
+function remembered() {
+  try {
+    return localStorage.getItem(SAVED_ENDPOINT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function remember(endpoint: string | null) {
+  try {
+    if (endpoint) localStorage.setItem(SAVED_ENDPOINT_KEY, endpoint);
+    else localStorage.removeItem(SAVED_ENDPOINT_KEY);
+  } catch {
+    // Private windows can block storage. The next check just finds nothing to compare.
+  }
+}
+
+// Run when the app opens. If the browser replaced its subscription, moves this device to
+// the new one. A device removed from another device stays removed. Returns true if it
+// changed the device.
+export async function recheckPush(): Promise<boolean> {
+  const current = await currentSubscription();
+  const saved = remembered();
+  if (!current || current.endpoint === saved) return false;
+
+  const { subscriptions } = await api<PushSubscriptionsResponse>(
+    "/push/subscriptions",
+  );
+  if (subscriptions.some((device) => device.endpoint === current.endpoint)) {
+    // Saved before this browser remembered its endpoint.
+    remember(current.endpoint);
+    return false;
+  }
+  const old = subscriptions.find((device) => device.endpoint === saved);
+  if (!old) return false;
+  await api(`/push/subscriptions/${old.id}`, {
+    method: "PATCH",
+    body: { subscription: current.toJSON() },
+  });
+  remember(current.endpoint);
+  return true;
 }

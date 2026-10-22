@@ -15,6 +15,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { api, ApiError, isUnauthorized } from "./api";
 import { thisDeviceEndpoint } from "./push";
 
@@ -133,11 +134,14 @@ export function useThisDevice() {
 // Reloads the device list after a change, and which one is this browser.
 export function useReloadDevices() {
   const queryClient = useQueryClient();
-  return () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.devices }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.thisDevice }),
-    ]);
+  return useCallback(
+    () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.devices }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.thisDevice }),
+      ]),
+    [queryClient],
+  );
 }
 
 export function useSyncStatus(
