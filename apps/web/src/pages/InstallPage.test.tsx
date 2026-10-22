@@ -34,6 +34,16 @@ it("shows the menu steps after the install dialog is closed", async () => {
   expect(installButton()).toBe(null);
 });
 
+it("shows the menu steps when the browser won't open its dialog", async () => {
+  stubUserAgent(USER_AGENTS.chrome);
+  const offer = offerInstall();
+  offer.prompt.mockRejectedValue(new Error("already shown"));
+  renderApp("/install");
+
+  await userEvent.click(installButton()!);
+  expect(await screen.findByText("Open the browser menu.")).toBeTruthy();
+});
+
 it("shows the button when the offer comes after the page opened", () => {
   stubUserAgent(USER_AGENTS.chrome);
   renderApp("/install");

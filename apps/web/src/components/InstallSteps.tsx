@@ -24,7 +24,7 @@ const GUIDES: Record<Exclude<Platform, "other">, Guide> = {
     title: "Android, Chrome, and Edge",
     steps: [
       "Open the browser menu.",
-      "Pick Install pr-peek. On Android it may say Add to Home screen.",
+      "Pick Install pr-peek. In Chrome it's under Cast, save, and share. In Edge it's under Apps. On Android it may say Add to Home screen.",
     ],
   },
   "mac-safari": {
