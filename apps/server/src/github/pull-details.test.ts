@@ -46,6 +46,8 @@ describe("fetchPrDetails", () => {
             author: { login: "jlee", isBot: false },
             state: "APPROVED",
             submittedAt: "2026-10-21T09:00:00Z",
+            bodyPreview: "Looks good, @sam",
+            mentions: ["sam"],
           },
         ],
         threads: [
@@ -82,6 +84,14 @@ describe("fetchPrDetails", () => {
             replyToId: null,
           },
         ],
+        description: {
+          id: "body:PR_1",
+          author: { login: "sam", isBot: false },
+          bodyPreview: "Adds a login page.",
+          mentions: [],
+          createdAt: "2026-10-21T06:00:00Z",
+          replyToId: null,
+        },
         checks: {
           state: "FAILURE",
           failing: [

@@ -137,7 +137,8 @@ describe("runSync", () => {
 
     await syncAt(NOW);
     const itemIds = (await db.item.findMany()).map((item) => item.id);
-    expect(itemIds).toHaveLength(2);
+    // A review request, a reply, and a mention.
+    expect(itemIds).toHaveLength(3);
     expect(notifyItems).toHaveBeenCalledExactlyOnceWith(
       expect.arrayContaining(itemIds),
     );

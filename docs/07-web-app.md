@@ -13,7 +13,8 @@
   - **3b** (`plan-07-3b-live`): live updates, marking items seen, the app badge, and tray mode.
   - **3c** (`plan-07-3c-tracking`): 7.9, track PRs once found, so a search that misses one doesn't drop it from the list.
   - **3d** (`plan-07-3d-update-branch`): 7.10, "Update branch" doesn't count as acting on your PR.
-  - **3e** (`plan-07-3e-mentions`): 7.11, mentions, and one row per PR.
+  - **3e** (`plan-07-3e-mentions`): 7.11, mentions.
+  - **3f** (`plan-07-3f-one-row`): 7.11, one row per PR.
 - **Part 4**, 7.6 onboarding and settings, in two PRs:
   - **4a** (`plan-07-4a-repos`): the settings tabs, the Repositories tab, and onboarding.
   - **4b** (`plan-07-4b-settings`): the rest of General, Rules, Timing, and Devices.
@@ -202,11 +203,24 @@
 - [x] "Check failed" keys on the `lastPush` sha, so a failure after "Update branch" is the same item, with no new notification. While the merge commit's checks run (or if it has none), the item stays if the `lastPush` commit's checks failed, with the summary "Checks failed before the branch update". Passing checks clear it.
 - [x] Limit: "Update with rebase" rewrites the commits, so it still counts as a push.
 
-### 7.11 Mentions, and one row per PR (part 3e)
+### 7.11 Mentions (part 3e), and one row per PR (part 3f)
 
-- [ ] A fourth search, `mentions:@me`, finds PRs where someone @mentions you, even ones you never touched.
-- [ ] A new rule and kind, `mention`: someone @mentioned you after your latest comment or review on the PR. Clears when you comment or review. The reply rule stops counting mentions, so they don't overlap. Shown in "Replies to me" with an `@` icon.
-- [ ] One row per PR. Items stay one per kind in the database, since clearing rules and notifications need them. `groupItems` and `summarize` pick each PR's most urgent item, so the list, badge, and menu bar count agree. Ties go in this order: re-requested, review requested, check failed, reviewed, reply, mention, new comments.
+Part 3e:
+
+- [x] A fourth search, `mentions:@me -author:@me`, finds PRs where someone @mentions you, even ones you never touched.
+- [x] A new rule and kind, `mention`: someone @mentioned you after your latest comment or review on the PR. Clears when you comment or review. Shown in "Replies to me" with an `@` icon.
+  - It looks in the PR description too, since the search finds PRs that only mention you there, like "cc @you". The snapshot gets an optional `description`, in the shape of a comment by the PR's author when it was opened. A mention added to the description later, after you commented, is missed.
+  - It looks in each review's summary text too, like "@you thoughts?". Reviews in the snapshot get optional `bodyPreview` and `mentions`.
+- [x] "New comment on my PR" now counts "Comment" reviews with summary text. Before, a review that was only a summary didn't show up at all. Approvals and change requests stay with "My PR was reviewed".
+  - The reply rule now only counts replies in review threads you commented in. The mention rule skips those threads, so one comment never makes two items.
+- After the deploy: tracked PRs get mention items, and their reply items lose the mentions, when they next change on GitHub.
+
+Part 3f:
+
+- [ ] One row per PR. Items stay one per kind in the database, since clearing rules and notifications need them. `groupItems` and `summarize` pick one item per PR, so the list, badge, and menu bar count agree.
+  - The pick uses each rule's severity, then this order: re-requested, review requested, check failed, reviewed, reply, mention, new comments. Not the urgency score, which adds points for unseen items, so a new mention would push a review request's row aside, then flip back once seen.
+  - Sorting between PRs still uses the urgency score.
+- [ ] The row is unseen if any of the PR's items is, and marking seen covers all of them.
 - [ ] The row shows the top item's summary, plus "+N more" when the PR has other open items.
 - [ ] Notifications stay one per event (plan 08). Which kinds push is already a per-rule setting (`channels`). The Rules tab (4b) shows it.
 

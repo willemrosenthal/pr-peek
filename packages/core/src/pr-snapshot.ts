@@ -27,6 +27,10 @@ export const prReview = z.object({
   author: prActor,
   state: z.enum(["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"]),
   submittedAt: z.string(),
+  // The review's summary text, like a comment's. Missing in snapshots stored before
+  // they were added.
+  bodyPreview: z.string().optional(),
+  mentions: z.array(z.string()).optional(),
 });
 export type PrReview = z.infer<typeof prReview>;
 
@@ -76,6 +80,9 @@ export const prSnapshot = z.object({
   reviews: z.array(prReview),
   threads: z.array(prThread),
   comments: z.array(prComment),
+  // The PR's description, as a comment by its author when the PR was opened. Missing in
+  // snapshots stored before it was added.
+  description: prComment.optional(),
   checks: z.object({
     // Null when the commit has no checks.
     state: checkState.nullable(),

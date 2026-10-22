@@ -1,4 +1,8 @@
-import type { RuleSettingDto, SettingsResponse } from "@pr-peek/core";
+import {
+  rules,
+  type RuleSettingDto,
+  type SettingsResponse,
+} from "@pr-peek/core";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
   APP_URL,
@@ -87,7 +91,7 @@ describe("GET /api/settings", () => {
       hideBots: false,
       includeTeamRequests: true,
     });
-    expect(body.rules).toHaveLength(6);
+    expect(body.rules).toHaveLength(rules.length);
     expect(body.rules.find((r) => r.id === "commented")).toEqual({
       id: "commented",
       name: "New comment on my PR",
@@ -164,11 +168,12 @@ describe("PATCH /api/settings", () => {
   it("re-runs the rules when hiding bots", async () => {
     const { agent, user } = await setup();
     await synced(user.id);
+    // The fixture's only reply is from a bot.
     const reply = () => db.item.findFirstOrThrow({ where: { kind: "reply" } });
-    expect((await reply()).eventCount).toBe(2);
+    expect((await reply()).status).toBe("open");
 
     await patchSettings(agent, { hideBots: true });
-    expect((await reply()).eventCount).toBe(1);
+    expect((await reply()).status).toBe("resolved");
   });
 });
 

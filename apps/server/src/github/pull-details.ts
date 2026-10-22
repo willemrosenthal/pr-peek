@@ -27,7 +27,7 @@ const COMMENT = `id ${ACTOR} bodyText createdAt`;
 const DETAILS_QUERY = `query ($ids: [ID!]!) {
   nodes(ids: $ids) {
     ... on PullRequest {
-      id number title url isDraft updatedAt
+      id number title url isDraft updatedAt createdAt bodyText
       repository { name owner { login } }
       ${ACTOR}
       reviewRequests(first: 50) { nodes { ${REVIEWER} } }
@@ -38,7 +38,7 @@ const DETAILS_QUERY = `query ($ids: [ID!]!) {
           ... on ReviewRequestRemovedEvent { id createdAt ${REVIEWER} }
         }
       }
-      reviews(last: 20) { nodes { id state submittedAt ${ACTOR} } }
+      reviews(last: 20) { nodes { id state submittedAt bodyText ${ACTOR} } }
       reviewThreads(last: 30) {
         nodes { id isResolved comments(last: 20) { nodes { ${COMMENT} replyTo { id } } } }
       }
@@ -115,6 +115,8 @@ const rawPr = z.object({
   url: z.string(),
   isDraft: z.boolean(),
   updatedAt: z.string(),
+  createdAt: z.string(),
+  bodyText: z.string(),
   repository: z.object({
     name: z.string(),
     owner: z.object({ login: z.string() }),
@@ -134,6 +136,7 @@ const rawPr = z.object({
       id: z.string(),
       state: z.enum([...prReview.shape.state.options, "PENDING"]),
       submittedAt: z.string().nullable(),
+      bodyText: z.string(),
       author: rawActor.nullable(),
     }),
   ),
@@ -286,8 +289,16 @@ function toSnapshot(raw: RawPr): PrSnapshot {
             author: toActor(review.author),
             state: review.state,
             submittedAt: review.submittedAt,
+            bodyPreview: preview(review.bodyText),
+            mentions: mentionsIn(review.bodyText),
           },
     ),
+    description: toComment({
+      id: `body:${raw.id}`,
+      author: raw.author,
+      bodyText: raw.bodyText,
+      createdAt: raw.createdAt,
+    }),
     threads: raw.reviewThreads.nodes.map((thread) => ({
       id: thread.id,
       isResolved: thread.isResolved,

@@ -1,5 +1,6 @@
 import { checkFailed } from "./check-failed";
 import { commented } from "./commented";
+import { mention } from "./mention";
 import { reply } from "./reply";
 import { reRequested, reviewRequested } from "./review-requested";
 import { reviewed } from "./reviewed";
@@ -12,6 +13,7 @@ export const rules: Rule[] = [
   reviewRequested,
   reRequested,
   reply,
+  mention,
   reviewed,
   commented,
   checkFailed,

@@ -9,6 +9,7 @@ export const ITEM_GROUPS: Record<ItemKind, ItemGroup> = {
   review_requested: "review",
   re_requested: "review",
   reply: "replies",
+  mention: "replies",
   reviewed: "mine",
   commented: "mine",
   check_failed: "mine",

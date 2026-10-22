@@ -8,6 +8,7 @@ import {
   comment,
   ctx,
   myPr,
+  review,
   snapshot,
   thread,
   VIEWER,
@@ -65,6 +66,28 @@ describe("new comment on my PR", () => {
     const pr = myPr({
       headCommittedAt: at(20),
       comments: [comment("C_1", "sam", 10)],
+    });
+    expect(detect(pr)).toEqual([]);
+  });
+
+  it("counts a Comment review's summary", () => {
+    const pr = myPr({
+      reviews: [
+        { ...review("R_1", "jlee", 10, "COMMENTED"), bodyPreview: "Nice work" },
+      ],
+    });
+    expect(detect(pr)[0]).toMatchObject({
+      latestEventId: "R_1",
+      summary: 'jlee: "Nice work"',
+    });
+  });
+
+  it("skips empty Comment reviews, and leaves approvals to the reviewed rule", () => {
+    const pr = myPr({
+      reviews: [
+        review("R_1", "jlee", 10, "COMMENTED"),
+        { ...review("R_2", "sam", 10, "APPROVED"), bodyPreview: "Ship it" },
+      ],
     });
     expect(detect(pr)).toEqual([]);
   });

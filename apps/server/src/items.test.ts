@@ -1,3 +1,4 @@
+import { rules } from "@pr-peek/core";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb, resetDb } from "../test/db";
 import { githubTokens, githubUser, TEST_KEY } from "../test/fakes";
@@ -47,7 +48,7 @@ describe("loadRuleSettings", () => {
     await db.ruleSetting.deleteMany();
 
     const settings = await loadRuleSettings(db, user.id);
-    expect(settings).toHaveLength(6);
+    expect(settings).toHaveLength(rules.length);
     expect(settings.find((s) => s.rule.id === "commented")).toMatchObject({
       enabled: true,
       severity: "low",

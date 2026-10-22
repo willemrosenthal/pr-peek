@@ -10,6 +10,7 @@ const KIND_ICONS: Record<
   review_requested: { icon: "eye", tone: styles.accent },
   re_requested: { icon: "again", tone: styles.accent },
   reply: { icon: "reply", tone: styles.reply },
+  mention: { icon: "mention", tone: styles.reply },
   reviewed: { icon: "reviewed", tone: styles.success },
   commented: { icon: "comment", tone: styles.muted },
   check_failed: { icon: "failed", tone: styles.danger },

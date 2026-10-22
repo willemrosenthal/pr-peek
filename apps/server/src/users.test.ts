@@ -35,6 +35,7 @@ describe("upsertGitHubUser", () => {
     expect(ruleSettings.map((s) => s.ruleId).sort()).toEqual([
       "check_failed",
       "commented",
+      "mention",
       "re_requested",
       "reply",
       "review_requested",

@@ -106,6 +106,7 @@ export async function findRelevantPrs(
       : "user-review-requested:@me",
     "author:@me",
     "commenter:@me -author:@me",
+    "mentions:@me -author:@me",
   ];
 
   const prs = new Map<string, PrStatus>();
