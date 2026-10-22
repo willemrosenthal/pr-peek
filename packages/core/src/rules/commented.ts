@@ -4,11 +4,13 @@ import {
   isOther,
   isViewer,
   lastPushOf,
+  reviewSummary,
   viewerLastActivity,
 } from "./helpers";
 import type { Rule } from "./types";
 
-// Comments by others on your PR, after your latest comment and your latest push.
+// Comments and "Comment" review summaries by others on your PR, after your latest
+// comment and your latest push.
 // Comments in resolved threads don't count.
 export const commented: Rule = {
   id: "commented",
@@ -25,6 +27,11 @@ export const commented: Rule = {
       lastActivity && isAfter(lastActivity, pushedAt) ? lastActivity : pushedAt;
     const comments = [
       ...snapshot.comments,
+      // "Comment" reviews with summary text. Approvals and change requests are the
+      // "reviewed" rule's.
+      ...snapshot.reviews
+        .filter((review) => review.state === "COMMENTED" && review.bodyPreview)
+        .map(reviewSummary),
       ...snapshot.threads
         .filter((thread) => !thread.isResolved)
         .flatMap((thread) => thread.comments),

@@ -211,6 +211,7 @@ Part 3e:
 - [x] A new rule and kind, `mention`: someone @mentioned you after your latest comment or review on the PR. Clears when you comment or review. Shown in "Replies to me" with an `@` icon.
   - It looks in the PR description too, since the search finds PRs that only mention you there, like "cc @you". The snapshot gets an optional `description`, in the shape of a comment by the PR's author when it was opened. A mention added to the description later, after you commented, is missed.
   - It looks in each review's summary text too, like "@you thoughts?". Reviews in the snapshot get optional `bodyPreview` and `mentions`.
+- [x] "New comment on my PR" now counts "Comment" reviews with summary text. Before, a review that was only a summary didn't show up at all. Approvals and change requests stay with "My PR was reviewed".
   - The reply rule now only counts replies in review threads you commented in. The mention rule skips those threads, so one comment never makes two items.
 - After the deploy: tracked PRs get mention items, and their reply items lose the mentions, when they next change on GitHub.
 

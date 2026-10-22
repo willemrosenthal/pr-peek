@@ -1,4 +1,3 @@
-import type { PrComment, PrReview } from "../pr-snapshot";
 import {
   commentsItem,
   isAfter,
@@ -6,19 +5,10 @@ import {
   isViewer,
   isViewerThread,
   mentionsViewer,
+  reviewSummary,
   viewerLastActivity,
 } from "./helpers";
 import type { Rule } from "./types";
-
-// A review's summary text, as a comment.
-const summaryOf = (review: PrReview): PrComment => ({
-  id: review.id,
-  author: review.author,
-  bodyPreview: review.bodyPreview ?? "",
-  mentions: review.mentions ?? [],
-  createdAt: review.submittedAt,
-  replyToId: null,
-});
 
 // @mentions of you on other people's PRs: in the description, the conversation, a
 // review's summary, or an open review thread you aren't in. Replies in your threads are
@@ -37,7 +27,7 @@ export const mention: Rule = {
     const mentions = [
       ...(snapshot.description ? [snapshot.description] : []),
       ...snapshot.comments,
-      ...snapshot.reviews.map(summaryOf),
+      ...snapshot.reviews.map(reviewSummary),
       ...snapshot.threads
         .filter((thread) => !thread.isResolved && !isViewerThread(thread, ctx))
         .flatMap((thread) => thread.comments),
