@@ -1,4 +1,5 @@
-import { screen } from "@testing-library/react";
+import type { UserSettingsDto } from "@pr-peek/core";
+import { act, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
 import {
@@ -56,6 +57,38 @@ it("turns team review requests off", async () => {
     { includeTeamRequests: false },
   ]);
   expect(toggle.getAttribute("aria-checked")).toBe("false");
+});
+
+it("keeps both changes when an earlier save answers last", async () => {
+  const saved = (fields: Partial<UserSettingsDto>) =>
+    json({ settings: settingsResponse(fields).settings });
+  let answerHideBots: (() => void) | undefined;
+  fakeApi(
+    signedInApi({
+      "PATCH /api/settings": () => {
+        if (answerHideBots) {
+          return saved({ hideBots: true, includeTeamRequests: false });
+        }
+        // The first save waits. Its answer is from before the second change.
+        return new Promise((resolve) => {
+          answerHideBots = () => resolve(saved({ hideBots: true }));
+        });
+      },
+    }),
+  );
+  renderApp("/settings/general");
+
+  const bots = await screen.findByRole("switch", { name: "Hide bots" });
+  const teams = screen.getByRole("switch", { name: "Team review requests" });
+  await userEvent.click(bots);
+  await userEvent.click(teams);
+  await waitFor(() => expect(teams.getAttribute("aria-checked")).toBe("false"));
+  act(() => answerHideBots?.());
+
+  // A switch is disabled while it saves.
+  await waitFor(() => expect(bots.hasAttribute("data-disabled")).toBe(false));
+  expect(bots.getAttribute("aria-checked")).toBe("true");
+  expect(teams.getAttribute("aria-checked")).toBe("false");
 });
 
 it("shows why a setting couldn't be saved, and keeps it as it was", async () => {

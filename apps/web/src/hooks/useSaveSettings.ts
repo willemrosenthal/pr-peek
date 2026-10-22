@@ -5,6 +5,7 @@ import type {
   UpdateRuleResponse,
   UpdateSettingsBody,
   UpdateSettingsResponse,
+  UserSettingsDto,
 } from "@pr-peek/core";
 import {
   useMutation,
@@ -29,10 +30,18 @@ export function useSaveSettings() {
         method: "PATCH",
         body: changes,
       }),
-    onSuccess: ({ settings }) => {
+    onSuccess: ({ settings }, changes) => {
+      // Takes only the fields this save sent, so a slower answer to an earlier save
+      // can't undo a later one.
+      const sent = Object.fromEntries(
+        Object.keys(changes).map((key) => [
+          key,
+          settings[key as keyof UserSettingsDto],
+        ]),
+      ) as Partial<UserSettingsDto>;
       queryClient.setQueryData<SettingsResponse>(
         queryKeys.settings,
-        (old) => old && { ...old, settings },
+        (old) => old && { ...old, settings: { ...old.settings, ...sent } },
       );
       reloadList(queryClient);
     },
