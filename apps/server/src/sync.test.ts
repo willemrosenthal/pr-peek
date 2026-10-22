@@ -401,6 +401,26 @@ describe("items", () => {
     });
   });
 
+  it("marks items from bots, filling in older ones without notifying", async () => {
+    const user = await makeUser();
+    const pr = githubPr({
+      comments: {
+        nodes: githubPr().comments.nodes.map((comment) => ({
+          ...comment,
+          author: { __typename: "Bot", login: "ci-bot" },
+        })),
+      },
+    });
+    await sync(user.id, asked(pr));
+    expect(await itemOf("mention")).toMatchObject({ actorIsBot: true });
+
+    // Like an item saved before items knew about bots.
+    await db.item.updateMany({ data: { actorIsBot: false } });
+    const { result } = await sync(user.id, asked(pr, "2026-10-21T11:00:00Z"));
+    expect(result.newEventItemIds).toEqual([]);
+    expect(await itemOf("mention")).toMatchObject({ actorIsBot: true });
+  });
+
   it("resolves items once you act on them", async () => {
     const user = await makeUser();
     await sync(user.id, asked());
