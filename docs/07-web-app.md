@@ -20,7 +20,10 @@
   - **4a** (`plan-07-4a-repos`): the settings tabs, the Repositories tab, and onboarding.
   - **4b** (`plan-07-4b-settings`): the rest of General, Rules, and a Devices placeholder.
   - **4c** (`plan-07-4c-timing`): Timing.
-- **Part 5** (`plan-07-5-pwa`): 7.7 PWA, and the Playwright smoke test.
+- **Part 5**, 7.7 PWA and 7.8 tests:
+  - **5a** (`plan-07-5a-pwa`): installable. Manifest, icons, service worker, the update prompt, and cache headers.
+  - **5b** (`plan-07-5b-install`): the `/install` page.
+  - **5c** (`plan-07-5c-smoke`): the Playwright smoke test.
 
 ## Changes from the original plan
 
@@ -57,6 +60,11 @@
 - **Fixed: a signed out check looped** between `/signin` and `/`, because a failed `/api/me` check keeps the old data. Also, a failed check other than 401 no longer replaces the page with an error once you're signed in.
 - **Tray mode** (`?shell=tray`) is kept in `sessionStorage`, so it holds on other pages. The footer has "Open in browser". Quit comes in plan 09, since it needs the desktop app.
 - **Base UI** is used for the collapsible sections and switches so far.
+- **The service worker only runs in production builds** (part 5a), not on the Vite dev server. To try it locally, run `pnpm build` and open the app from Express on port 3000.
+- **The service worker is in `src/sw/sw.ts`**, not `src/sw.ts`. It has its own `tsconfig.json`, since it runs in a worker, not a page.
+- **The app icon is a placeholder:** the pull request glyph in white on the accent blue. `public/icon.svg` is the source. Run `pnpm --filter @pr-peek/web icons` after changing it.
+- **The update prompt also checks for a new version every hour**, since the app often stays open for days.
+- **Icons and the manifest also get `no-cache`.** The browser still keeps them, and checks with the server before using them.
 - **Showing GitHub avatars needs a CSP change.** Helmet only allows images from our own site. Add `https://avatars.githubusercontent.com` to `img-src` when the first avatar appears.
 
 ## Steps
@@ -161,11 +169,11 @@
 
 ### 7.7 Making it a PWA
 
-- [ ] `vite-plugin-pwa` with the `injectManifest` strategy, so we write our own service worker in `src/sw.ts`. Plan 08 adds push handling there.
-- [ ] Web app manifest: name, short name, theme colors, `display: "standalone"`, `start_url: "/"`, icons (192, 512, maskable), Apple touch icon.
-- [ ] The service worker precaches the app shell (HTML, JS, CSS, icons) so the app opens instantly. It never caches `/api`.
-- [ ] Update flow: when a new version is deployed, show a "New version available. Reload" toast instead of reloading on its own.
-- [ ] Express serves `apps/web/dist`:
+- [x] `vite-plugin-pwa` with the `injectManifest` strategy, so we write our own service worker in `src/sw/sw.ts`. Plan 08 adds push handling there.
+- [x] Web app manifest: name, short name, theme colors, `display: "standalone"`, `start_url: "/"`, icons (192, 512, maskable), Apple touch icon.
+- [x] The service worker precaches the app shell (HTML, JS, CSS, icons) so the app opens instantly. It never caches `/api`.
+- [x] Update flow: when a new version is deployed, show a "New version available. Reload" toast instead of reloading on its own.
+- [x] Express serves `apps/web/dist`:
   - Hashed asset files with long cache headers.
   - `index.html`, `sw.js`, and the manifest with `no-cache`.
 - [x] Update `build:render` (plan 02.6) to build web before server. Not needed, see Changes.
