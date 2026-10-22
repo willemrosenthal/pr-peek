@@ -7,7 +7,9 @@ import { loadConfig } from "./config";
 import { checkDb, createDb, createPool } from "./db";
 import { createGitHubOAuth } from "./github/oauth";
 import { createLogger } from "./logger";
+import { getOctokit } from "./github/client";
 import { authRouter } from "./routes/auth";
+import { reposRouter } from "./routes/repos";
 import { sessionMiddleware } from "./session";
 import { onShutdown } from "./shutdown";
 
@@ -39,6 +41,11 @@ const app = createApp({
       oauth,
       key: config.TOKEN_ENC_KEY,
       appUrl: config.APP_URL,
+    }),
+    reposRouter({
+      db,
+      github: (userId) =>
+        getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY }, userId),
     }),
   ],
   // Same depth from src/ (tsx in dev) and dist/ (built), so this works for both.

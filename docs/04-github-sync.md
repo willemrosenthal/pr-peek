@@ -14,13 +14,29 @@ Each sync for a user answers three questions:
 
 We use GitHub's **GraphQL API** because one request can fetch a PR plus its reviews, comments, timeline, and checks. GitHub limits GraphQL by "points" per hour per user token. Check GitHub's docs for the current limits. Each user's sync uses that user's own token, so users don't eat into each other's limits.
 
+**Split into three PRs:**
+
+- **Part A** (`plan-04-1-repos`): step 4.1, the watched repos API.
+- **Part B** (`plan-04-2-fetch`): steps 4.2 to 4.4. Find relevant PRs, skip unchanged ones, fetch details, save snapshots.
+- **Part C** (`plan-04-3-schedule`): steps 4.5 to 4.7. The worker schedule, backoff, and rate limit logging.
+
+## Changes from the original plan
+
+- **Search once, not per repo batch.** GitHub search queries max out at 256 characters, so 50 `repo:` filters would need about 9 batches per search, per user, per sync. Instead each search runs once across all of GitHub, and we keep only results in watched repos. Three searches per sync, whatever the repo count.
+- **Zod instead of GraphQL Code Generator.** Codegen needs GitHub's whole schema (about 10 MB) in the repo. Each query's response is checked with a Zod schema instead, which gives the TypeScript types and fails clearly if GitHub changes a field.
+- **Fake GitHub with an injected `fetch`, not MSW.** Same approach as plan 03. `test/github.ts` has `fakeGraphQL`.
+- **Octokit spaces out GraphQL calls** (its throttling treats them as writes, about one per second). Fine for a few calls per sync, but keep the number of calls per sync low. Tests turn throttling off.
+- **Added `GET /api/repos`** to list the watch list. The settings screen needs it.
+
 ## Steps
 
-### 4.1 Watched repos
+### 4.1 Watched repos (part A)
 
-- [ ] `GET /api/github/repos?query=` lists repos the user can see (their own, their orgs'), for the repo picker. Search with GraphQL, paginated.
-- [ ] `POST /api/repos` and `DELETE /api/repos/:id` add and remove `WatchedRepo` rows. `PATCH /api/repos/:id` sets `enabled` or `muted`.
-- [ ] Limit each user to a sensible number of watched repos (start at 50) to keep sync cost predictable.
+- [x] `GET /api/github/repos?query=&cursor=`: without a query, the user's repos (own, collaborator, org member), most recently pushed first. With a query, a GitHub search by name across repos they can see. 20 per page, archived repos skipped, each marked `watched` if already added.
+- [x] `GET /api/repos` lists the watch list. `POST /api/repos` (`{ owner, name }`) checks the repo on GitHub and adds it. `PATCH /api/repos/:id` sets `enabled` or `muted`. `DELETE /api/repos/:id` removes it. All scoped to the signed in user.
+- [x] Limit of 50 watched repos (`MAX_WATCHED_REPOS` in `packages/core`).
+- [x] Request and response shapes in `packages/core/src/api/repos.ts`, shared with the web app later.
+- [x] `HttpError` (`src/http-error.ts`) for clear 4xx answers. `NeedsReauthError` is one, so a revoked token becomes a 401 with code `reauth`.
 
 ### 4.2 Finding relevant PRs
 
@@ -30,6 +46,7 @@ We use GitHub's **GraphQL API** because one request can fetch a PR plus its revi
   - `is:pr is:open author:@me`
   - `is:pr is:open commenter:@me -author:@me` (for "replies to me")
 - [ ] Merge the results into one set keyed by PR node id, remembering which searches matched (the "reasons").
+- [ ] Keep only PRs in enabled watched repos. Match on the repo's `databaseId` (our `githubRepoId`), not its name, so a renamed repo keeps syncing.
 
 ### 4.3 Skipping unchanged PRs
 

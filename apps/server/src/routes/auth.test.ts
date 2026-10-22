@@ -1,45 +1,15 @@
-import { pino } from "pino";
-import request from "supertest";
+import type request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { APP_URL, makeTestApp, signIn, startSignIn } from "../../test/app";
 import { createTestDb, resetDb } from "../../test/db";
-import { fakeOAuth, TEST_KEY } from "../../test/fakes";
-import { createApp } from "../app";
+import { fakeOAuth } from "../../test/fakes";
 import { GitHubAuthError } from "../github/oauth";
-import { sessionMiddleware } from "../session";
-import { authRouter } from "./auth";
 
-const APP_URL = "https://git-buddy.example";
 const db = createTestDb();
 afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
-function makeApp(oauth = fakeOAuth()) {
-  const app = createApp({
-    logger: pino({ level: "silent" }),
-    version: "test",
-    checkDb: () => Promise.resolve(),
-    appUrl: APP_URL,
-    session: sessionMiddleware({ secret: "x".repeat(32), secure: false }),
-    routers: [authRouter({ db, oauth, key: TEST_KEY, appUrl: APP_URL })],
-  });
-  return { agent: request.agent(app), oauth };
-}
-
-type Agent = ReturnType<typeof makeApp>["agent"];
-
-// Starts sign in and returns the `state` value we sent to GitHub.
-async function startSignIn(agent: Agent, query = ""): Promise<string> {
-  const res = await agent.get(`/api/auth/github${query}`);
-  expect(res.status).toBe(302);
-  return (
-    new URL(res.headers.location as string).searchParams.get("state") ?? ""
-  );
-}
-
-async function signIn(agent: Agent) {
-  const state = await startSignIn(agent);
-  return agent.get(`/api/auth/github/callback?code=the-code&state=${state}`);
-}
+const makeApp = (oauth = fakeOAuth()) => makeTestApp(db, { oauth });
 
 const sessionCookie = (res: request.Response) =>
   (res.headers["set-cookie"] as string[] | undefined)?.[0]?.split(";")[0];
