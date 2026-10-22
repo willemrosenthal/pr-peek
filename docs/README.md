@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [06. API and live updates](completed/06-api.md), part C: live updates. Parts A (#17) and B (#18) merged. Last part     |
 | **Branch**         | `plan-06-3-stream`                                                                                                     |
-| **PR**             | Part C, draft                                                                                                          |
+| **PR**             | [#19](https://github.com/willemrosenthal/pr-peek/pull/19) (part C), draft                                              |
 | **Last step done** | SSE stream at `/api/stream`, the `.http` file. Plan 06 moved to `completed/`                                           |
 | **Next step**      | [Plan 07](07-web-app.md) (web app) once part C merges                                                                  |
 | **Waiting on you** | Plan 04, 05, and 06 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
