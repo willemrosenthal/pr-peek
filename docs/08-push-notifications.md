@@ -30,7 +30,7 @@ No third party account is needed. The `web-push` npm package handles the encrypt
    - 2a: 8.5, the "Turn on notifications" button in Settings, Devices, and the device list with Send test and Remove.
    - 2b: the rest of 8.2: the button in onboarding, per-device severity, renaming, re-checking on open, and the repo Mute switch.
    - Then a small PR for step 8.8: database enums.
-3. Notify: 8.3 except staleness and batching, plus the rest of 8.4.
+3. Notify: 8.3 except staleness and batching, plus the rest of 8.4. Also drop "once those arrive" from the Rules tab and the Notifications group on the Timing tab.
 4. Schedules: staleness reminders, batching, and 8.6.
 
 ## Steps
@@ -45,16 +45,16 @@ No third party account is needed. The `web-push` npm package handles the encrypt
 
 ### 8.2 Subscribing a device
 
-- [ ] A "Turn on notifications" button (in onboarding and Settings, Devices). It must be a user tap, which iOS requires. It:
+- [x] A "Turn on notifications" button (in onboarding and Settings, Devices). It must be a user tap, which iOS requires. It:
   1. Calls `Notification.requestPermission()`.
   2. Calls `registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })`.
   3. Sends the subscription to `POST /api/push/subscriptions` with a device label ("iPhone", "Mac, Safari") guessed from the user agent and editable.
-  - Done in Settings, Devices (part 2a, `components/TurnOnNotifications.tsx`). Onboarding and editing the label are part 2b.
 - [x] On iPhone, if the app isn't installed to the Home Screen, show the install steps instead of the button.
 - [x] Settings, Devices lists each subscription with its label, last success time, a "Send test" button, and Remove. Removing this browser's device also unsubscribes it.
-- [ ] Each device can choose which severities it gets. For example: phone gets high only, Mac gets everything. Add a `minSeverity` field to `PushSubscription`. (The field and API are in part 1.)
-- [ ] Re-check the subscription each time the app opens. If the browser changed it, update it on the server.
-- [ ] Add a Mute switch to each repo in Settings, Repositories (`components/WatchedRepos.tsx`, plan 07 part 4a). `PATCH /api/repos/:id` already takes `muted`.
+- [x] Each device can choose which severities it gets. For example: phone gets high only, Mac gets everything. Add a `minSeverity` field to `PushSubscription`. (The field and API are in part 1.)
+- [x] Re-check the subscription each time the app opens. If the browser changed it, update it on the server.
+  - The browser remembers the endpoint it saved (in localStorage). If its subscription changed, the old device moves to the new one with `PATCH /api/push/subscriptions/:id`, keeping its name and severity. A device removed from another device isn't added back. (`recheckPush` in `apps/web/src/push.ts`.)
+- [x] Add a Mute switch to each repo in Settings, Repositories (`components/WatchedRepos.tsx`, plan 07 part 4a). `PATCH /api/repos/:id` already takes `muted`.
 
 ### 8.3 Deciding whether to notify
 

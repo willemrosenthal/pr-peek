@@ -72,6 +72,29 @@ describe("watched repos", () => {
     expect(sentBodies(fetch, `PATCH /api/repos/${repo.id}`)).toEqual([
       { enabled: false },
     ]);
+    const notify = screen.getByRole("switch", { name: "Notify for acme/web" });
+    expect(notify.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("mutes one", async () => {
+    const repo = watchedRepo({ owner: "acme", name: "web" });
+    const fetch = reposApi([repo], [], {
+      [`PATCH /api/repos/${repo.id}`]: () => {
+        repo.muted = true;
+        return json({ repo });
+      },
+    });
+    renderApp("/settings/repos");
+
+    const toggle = await screen.findByRole("switch", {
+      name: "Notify for acme/web",
+    });
+    await userEvent.click(toggle);
+    expect(await screen.findByText("Muted")).toBeTruthy();
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    expect(sentBodies(fetch, `PATCH /api/repos/${repo.id}`)).toEqual([
+      { muted: true },
+    ]);
   });
 
   it("removes one", async () => {

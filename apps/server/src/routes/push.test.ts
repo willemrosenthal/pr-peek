@@ -186,6 +186,48 @@ describe("listing, changing, and removing devices", () => {
     expect(res.status).toBe(400);
   });
 
+  it("moves a device to the browser's new subscription, keeping its settings", async () => {
+    const { agent } = await setup();
+    const { id } = deviceOf(await subscribe(agent));
+    await db.pushSubscription.update({
+      where: { id },
+      data: { minSeverity: "high", failureCount: 2 },
+    });
+
+    const res = await agent
+      .patch(`/api/push/subscriptions/${id}`)
+      .set("Origin", APP_URL)
+      .send({
+        subscription: {
+          endpoint: endpoint("renewed"),
+          keys: { ...keys, auth: "new-auth-key" },
+        },
+      });
+    expect(deviceOf(res)).toMatchObject({
+      id,
+      endpoint: endpoint("renewed"),
+      label: "iPhone",
+      minSeverity: "high",
+    });
+    const saved = await db.pushSubscription.findUniqueOrThrow({
+      where: { id },
+    });
+    expect(saved).toMatchObject({ auth: "new-auth-key", failureCount: 0 });
+  });
+
+  it("won't move a device onto another device's subscription", async () => {
+    const { agent } = await setup();
+    const { id } = deviceOf(await subscribe(agent));
+    await subscribe(agent, { endpoint: endpoint("mac") });
+
+    const res = await agent
+      .patch(`/api/push/subscriptions/${id}`)
+      .set("Origin", APP_URL)
+      .send({ subscription: { endpoint: endpoint("mac"), keys } });
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ error: { code: "device_exists" } });
+  });
+
   it("removes a device", async () => {
     const { agent } = await setup();
     const { id } = deviceOf(await subscribe(agent));
