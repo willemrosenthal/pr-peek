@@ -14,6 +14,7 @@ import {
   publishItemsChanged,
   resolveItemsOf,
   saveItems,
+  trackedPrs,
   type SavedPr,
 } from "./items";
 
@@ -181,8 +182,18 @@ export async function syncUser(
     deps,
     userId,
   );
-  const detect = await prepareRules(db, userId, details.snapshots, now, () =>
-    octokit ? Promise.resolve(octokit) : deps.github(userId),
+  // The rules run on every tracked PR, not just the ones that changed, so a wrong item
+  // heals on the next sync and a new rule reaches PRs that haven't changed.
+  const fetchedIds = new Set(details.snapshots.map((snapshot) => snapshot.id));
+  const unchanged = (await trackedPrs(db, userId)).filter(
+    (pr) => !fetchedIds.has(pr.snapshot.id) && !ended.has(pr.snapshot.id),
+  );
+  const detect = await prepareRules(
+    db,
+    userId,
+    [...details.snapshots, ...unchanged.map((pr) => pr.snapshot)],
+    now,
+    () => (octokit ? Promise.resolve(octokit) : deps.github(userId)),
   );
 
   const repoIdOf = new Map(open.map((pr) => [pr.id, pr.githubRepoId]));
@@ -206,7 +217,13 @@ export async function syncUser(
       });
       saved.push({ id, snapshot });
     }
-    const itemIds = await saveItems(tx, userId, saved, detect, now);
+    const items = await saveItems(
+      tx,
+      userId,
+      [...saved, ...unchanged],
+      detect,
+      now,
+    );
 
     // Rows stay, so the items reopen without notifying if the PR comes back.
     for (const state of new Set(ended.values())) {
@@ -217,10 +234,11 @@ export async function syncUser(
       });
     }
     const resolved = await resolveItemsOf(tx, userId, [...ended.keys()], now);
-    if (saved.length > 0 || resolved > 0) {
+    // A fetched PR may show a new title, even if its items didn't change.
+    if (saved.length > 0 || items.changed || resolved > 0) {
       await publishItemsChanged(tx, userId);
     }
-    return itemIds;
+    return items.newEventIds;
   }, ITEMS_TX);
 
   const { count: deleted } = await db.pullRequest.deleteMany({

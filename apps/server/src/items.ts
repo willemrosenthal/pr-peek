@@ -14,7 +14,7 @@ import {
 } from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import type { Db } from "./db";
-import type { Prisma } from "./generated/prisma/client";
+import type { Item, Prisma } from "./generated/prisma/client";
 import { fetchViewerTeams } from "./github/teams";
 
 // Postgres NOTIFY channel. The payload is the user id. Plan 06 listens for SSE.
@@ -91,6 +91,23 @@ export const detectItems = (
     .filter((s) => s.enabled)
     .flatMap((s) => s.rule.detect(snapshot, ctx));
 
+// How long a user's team list is kept. Joining a team takes up to this long to show.
+const TEAMS_KEPT_MS = 60 * 60 * 1000;
+const teamsByUser = new Map<string, { teams: string[]; fetchedAt: number }>();
+
+// The user's teams, fetched at most once an hour, since every sync checks every tracked PR.
+async function cachedTeams(
+  userId: string,
+  now: Date,
+  fetch: () => Promise<string[]>,
+): Promise<string[]> {
+  const kept = teamsByUser.get(userId);
+  if (kept && now.getTime() - kept.fetchedAt < TEAMS_KEPT_MS) return kept.teams;
+  const teams = await fetch();
+  teamsByUser.set(userId, { teams, fetchedAt: now.getTime() });
+  return teams;
+}
+
 // The user's enabled rules, ready to run on these PRs. Asks GitHub for the user's teams
 // only when a team is asked to review one of them.
 export async function prepareRules(
@@ -117,7 +134,9 @@ export async function prepareRules(
   );
   const viewerTeams =
     includeTeamRequests && hasTeamRequest
-      ? await fetchViewerTeams(await github(), user.login)
+      ? await cachedTeams(userId, now, async () =>
+          fetchViewerTeams(await github(), user.login),
+        )
       : [];
   const ctx: RuleContext = {
     viewerLogin: user.login,
@@ -138,66 +157,101 @@ export interface SavedPr {
   snapshot: PrSnapshot;
 }
 
-// Saves the items each PR has now and resolves the ones it no longer has.
-// Returns the ids of items that are new or have a new event, for notifications.
+export interface SavedItems {
+  // Items that are new or have a new event, for notifications.
+  newEventIds: string[];
+  // Any item was written or resolved.
+  changed: boolean;
+}
+
+type ItemFields = Pick<
+  Item,
+  | "kind"
+  | "latestEventId"
+  | "eventCount"
+  | "actorLogin"
+  | "summary"
+  | "occurredAt"
+  | "waitingSince"
+>;
+
+const sameTime = (a: Date | null, b: Date | null) =>
+  a?.getTime() === b?.getTime();
+
+// True if the stored item is open and already has these fields.
+const isUnchanged = (stored: Item, fields: ItemFields) =>
+  stored.status === "open" &&
+  stored.kind === fields.kind &&
+  stored.latestEventId === fields.latestEventId &&
+  stored.eventCount === fields.eventCount &&
+  stored.actorLogin === fields.actorLogin &&
+  stored.summary === fields.summary &&
+  sameTime(stored.occurredAt, fields.occurredAt) &&
+  sameTime(stored.waitingSince, fields.waitingSince);
+
+// Saves the items each PR has now and resolves the ones it no longer has. Writes only
+// what changed, since every sync runs this for every tracked PR.
 export async function saveItems(
   tx: Tx,
   userId: string,
   prs: SavedPr[],
   detect: (snapshot: PrSnapshot) => DetectedItem[],
   now: Date,
-): Promise<string[]> {
+): Promise<SavedItems> {
   const before = await tx.item.findMany({
     where: { userId, pullRequestId: { in: prs.map((pr) => pr.id) } },
-    select: { dedupeKey: true, latestEventId: true },
   });
-  const eventBefore = new Map(
-    before.map((item) => [item.dedupeKey, item.latestEventId]),
-  );
+  const stored = new Map(before.map((item) => [item.dedupeKey, item]));
 
+  const found = new Set<string>();
   const newEventIds: string[] = [];
+  let written = 0;
   for (const pr of prs) {
-    const items = detect(pr.snapshot);
-    for (const item of items) {
-      const isNewEvent = eventBefore.get(item.dedupeKey) !== item.latestEventId;
-      const fields = {
+    for (const item of detect(pr.snapshot)) {
+      found.add(item.dedupeKey);
+      const fields: ItemFields = {
         kind: item.kind,
         latestEventId: item.latestEventId,
         eventCount: item.eventCount,
         actorLogin: item.actorLogin,
         summary: item.summary,
         occurredAt: new Date(item.occurredAt),
-        waitingSince: item.waitingSince && new Date(item.waitingSince),
-        // Reopens an item that was resolved before.
-        status: "open" as const,
-        resolvedAt: null,
+        waitingSince: item.waitingSince ? new Date(item.waitingSince) : null,
       };
+      const existing = stored.get(item.dedupeKey);
+      if (existing && isUnchanged(existing, fields)) continue;
+
+      const isNewEvent = existing?.latestEventId !== item.latestEventId;
+      // Reopens an item that was resolved before.
+      const update = { ...fields, status: "open" as const, resolvedAt: null };
       const saved = await tx.item.upsert({
         where: { userId_dedupeKey: { userId, dedupeKey: item.dedupeKey } },
         create: {
           userId,
           pullRequestId: pr.id,
           dedupeKey: item.dedupeKey,
-          ...fields,
+          ...update,
         },
         // Something new happened, so the user hasn't seen it yet.
-        update: { ...fields, ...(isNewEvent && { seenAt: null }) },
+        update: { ...update, ...(isNewEvent && { seenAt: null }) },
         select: { id: true },
       });
+      written += 1;
       if (isNewEvent) newEventIds.push(saved.id);
     }
+  }
 
+  const goneIds = before
+    .filter((item) => item.status === "open" && !found.has(item.dedupeKey))
+    .map((item) => item.id);
+  if (goneIds.length > 0) {
     await tx.item.updateMany({
-      where: {
-        userId,
-        pullRequestId: pr.id,
-        status: "open",
-        dedupeKey: { notIn: items.map((item) => item.dedupeKey) },
-      },
+      where: { id: { in: goneIds } },
       data: { status: "resolved", resolvedAt: now },
     });
   }
-  return newEventIds;
+
+  return { newEventIds, changed: written > 0 || goneIds.length > 0 };
 }
 
 // Resolves the open items on the PRs with these GitHub ids. Returns how many.
@@ -219,8 +273,9 @@ export async function resolveItemsOf(
   return count;
 }
 
-// The PRs the sync tracks. Ended ones already had their items resolved.
-async function trackedPrs(tx: Tx, userId: string): Promise<SavedPr[]> {
+// The PRs the sync tracks, from their stored snapshots. Ended ones already had their
+// items resolved.
+export async function trackedPrs(tx: Tx, userId: string): Promise<SavedPr[]> {
   const rows = await tx.pullRequest.findMany({
     where: { userId, state: "open" },
     select: { id: true, snapshot: true },
@@ -255,7 +310,7 @@ export async function rerunRules(
     await lockUserItems(tx, userId);
     // Read again under the lock, in case a sync saved newer snapshots meanwhile.
     const prs = await trackedPrs(tx, userId);
-    await saveItems(tx, userId, prs, detect, now);
-    await publishItemsChanged(tx, userId);
+    const { changed } = await saveItems(tx, userId, prs, detect, now);
+    if (changed) await publishItemsChanged(tx, userId);
   }, ITEMS_TX);
 }

@@ -582,6 +582,53 @@ describe("items", () => {
     expect(teamQueries(again.requests)).toBe(0);
   });
 
+  it("heals an item resolved by mistake on the next sync, without notifying", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    // Like an old bug, or a deploy changeover, resolving it.
+    await db.item.updateMany({ data: { status: "resolved", resolvedAt: NOW } });
+
+    // The PR didn't change on GitHub, so its details aren't fetched again.
+    const { result, requests } = await sync(user.id, asked(), hours(1));
+    expect(detailIds(requests)).toEqual([]);
+    expect(await openItemCount()).toBe(ASKED_ITEMS);
+    expect(result.newEventItemIds).toEqual([]);
+  });
+
+  it("applies a rule turned back on to PRs that didn't change", async () => {
+    const user = await makeUser();
+    const where = {
+      userId_ruleId: { userId: user.id, ruleId: "mention" as const },
+    };
+    await db.ruleSetting.update({ where, data: { enabled: false } });
+    await sync(user.id, asked());
+    expect(await db.item.count({ where: { kind: "mention" } })).toBe(0);
+
+    await db.ruleSetting.update({ where, data: { enabled: true } });
+    await sync(user.id, asked(), hours(1));
+    expect((await itemOf("mention")).status).toBe("open");
+  });
+
+  it("writes nothing when nothing changed", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    const before = await items();
+
+    await sync(user.id, asked(), hours(1));
+    expect(await items()).toEqual(before);
+  });
+
+  it("asks for the user's teams at most once an hour", async () => {
+    const user = await makeUser();
+    // The fixture asks a team to review.
+    const first = await sync(user.id, asked());
+    const soon = await sync(user.id, asked(), hours(0.5));
+    const later = await sync(user.id, asked(), hours(1.5));
+    expect(teamQueries(first.requests)).toBe(1);
+    expect(teamQueries(soon.requests)).toBe(0);
+    expect(teamQueries(later.requests)).toBe(1);
+  });
+
   it("tells listeners when the user's items change", async () => {
     const user = await makeUser();
     const listener = new pg.Client({ connectionString: TEST_DATABASE_URL });
