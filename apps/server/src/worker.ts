@@ -1,15 +1,19 @@
-import { PgBoss } from "pg-boss";
 import { loadConfig } from "./config";
 import { createDb, createPool } from "./db";
 import { getOctokit } from "./github/client";
 import { createGitHubOAuth } from "./github/oauth";
+import {
+  createBoss,
+  createQueues,
+  NOTIFY_ITEM,
+  queueSync,
+  SYNC_DISPATCH,
+  SYNC_USER,
+} from "./jobs";
 import { createLogger } from "./logger";
 import { onShutdown } from "./shutdown";
 import { dueUserIds, runSync } from "./sync-schedule";
 
-const SYNC_DISPATCH = "sync-dispatch";
-const SYNC_USER = "sync-user";
-const NOTIFY_ITEM = "notify-item";
 // Syncs running at once, so one slow user doesn't hold up everyone. Each holds a database
 // connection during its save, so keep this below DB_POOL_MAX to leave room for pg-boss.
 const SYNC_CONCURRENCY = 3;
@@ -22,10 +26,7 @@ const oauth = createGitHubOAuth({
   clientId: config.GITHUB_CLIENT_ID,
   clientSecret: config.GITHUB_CLIENT_SECRET,
 });
-// Shares the pool with Prisma, to keep connection counts low.
-const boss = new PgBoss({
-  db: { executeSql: (text, values) => pool.query(text, values) },
-});
+const boss = createBoss(pool, { worker: true });
 
 boss.on("error", (err) => logger.error({ err }, "pg-boss error"));
 
@@ -38,27 +39,17 @@ await boss.work("heartbeat", () => {
   return Promise.resolve();
 });
 
-await boss.createQueue(SYNC_DISPATCH);
-// "exclusive" with a singletonKey: one queued or running sync per user.
-// No retries: runSync backs off on its own.
-await boss.createQueue(SYNC_USER, {
-  policy: "exclusive",
-  retryLimit: 0,
-  expireInSeconds: 10 * 60,
-});
-await boss.createQueue(NOTIFY_ITEM);
+await createQueues(boss);
 
 await boss.schedule(SYNC_DISPATCH, "* * * * *");
 await boss.work(SYNC_DISPATCH, async () => {
   const userIds = await dueUserIds(db, new Date());
   if (userIds.length === 0) return;
-  const jobIds = await Promise.all(
-    userIds.map((userId) =>
-      boss.send(SYNC_USER, { userId }, { singletonKey: userId }),
-    ),
+  const queued = await Promise.all(
+    userIds.map((userId) => queueSync(boss, userId)),
   );
   logger.info(
-    { due: userIds.length, queued: jobIds.filter(Boolean).length },
+    { due: userIds.length, queued: queued.filter(Boolean).length },
     "sync dispatch",
   );
 });

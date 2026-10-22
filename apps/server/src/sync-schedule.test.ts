@@ -139,6 +139,18 @@ describe("runSync", () => {
     expect(notifyItems).toHaveBeenCalledOnce();
   });
 
+  it("marks the sync as running until it ends, even when it fails", async () => {
+    const user = await makeUser();
+    let whileRunning: Date | null = null;
+    await syncWith(user.id, async () => {
+      whileRunning = (await reload(user.id)).syncStartedAt;
+      throw new Error("GitHub is down");
+    });
+
+    expect(whileRunning).toEqual(NOW);
+    expect((await reload(user.id)).syncStartedAt).toBeNull();
+  });
+
   it("clears errors after a good sync", async () => {
     const user = await makeUser({
       syncError: "failed",

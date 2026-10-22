@@ -48,6 +48,8 @@ model User {
   // Failed syncs in a row, and when to try again (see sync-schedule.ts).
   syncFailures          Int        @default(0)
   syncRetryAt           DateTime?
+  // When the running sync started. Null when none is running.
+  syncStartedAt         DateTime?
   // The last time the user opened the app. Idle users sync less often.
   lastActiveAt          DateTime   @default(now())
   createdAt             DateTime   @default(now())

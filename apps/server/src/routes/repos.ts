@@ -11,7 +11,7 @@ import type { Octokit } from "octokit";
 import type { Db } from "../db";
 import { Prisma, type WatchedRepo } from "../generated/prisma/client";
 import { findRepo, searchRepos } from "../github/repos";
-import { HttpError, parseInput } from "../http-error";
+import { HttpError, parseInput, sentFields } from "../http-error";
 import { currentUser, requireUser } from "./auth";
 
 export interface RepoDeps {
@@ -117,14 +117,10 @@ export function reposRouter(deps: RepoDeps): Router {
   });
 
   router.patch("/repos/:id", async (req, res) => {
-    const { enabled, muted } = parseInput(updateRepoBody, req.body);
+    const changes = parseInput(updateRepoBody, req.body);
     const { count } = await deps.db.watchedRepo.updateMany({
       where: { id: req.params.id, userId: currentUser(res).id },
-      // Only the fields that were sent.
-      data: {
-        ...(enabled !== undefined && { enabled }),
-        ...(muted !== undefined && { muted }),
-      },
+      data: sentFields(changes),
     });
     if (count === 0) throw notFound();
     const repo = await deps.db.watchedRepo.findUniqueOrThrow({

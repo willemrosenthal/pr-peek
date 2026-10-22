@@ -85,8 +85,25 @@ export async function runSync(
   deps: ScheduleDeps,
   userId: string,
 ): Promise<void> {
-  const { db } = deps;
   const now = (deps.now ?? (() => new Date()))();
+  const setStartedAt = (syncStartedAt: Date | null) =>
+    deps.db.user.update({ where: { id: userId }, data: { syncStartedAt } });
+
+  // Shows the sync as running (see GET /api/sync/status).
+  await setStartedAt(now);
+  try {
+    await syncAndSchedule(deps, userId, now);
+  } finally {
+    await setStartedAt(null);
+  }
+}
+
+async function syncAndSchedule(
+  deps: ScheduleDeps,
+  userId: string,
+  now: Date,
+): Promise<void> {
+  const { db } = deps;
   const started = Date.now();
   const log = deps.logger.child({ userId });
   let rateLimit: RateLimit | undefined;

@@ -17,12 +17,19 @@
 - **Muted repos' items are still listed.** Muting only stops notifications (plan 08).
 - **`POST /items/seen`** skips ids that aren't the user's, without an error, and keeps the first seen time.
 - **The urgency sort takes `unseen`**, not `seenAt`, so it can sort the API's items directly.
+- **Timezones are checked by trying them** (`isTimeZone` in `api/settings.ts`), not against `Intl.supportedValuesOf("timeZone")`. That list leaves out `UTC`, the default, and old names like `US/Eastern`.
+- **The orange limit must be below the red one** (`staleWarnHours < staleLateHours`), checked after merging with the saved settings, since either can be sent alone.
+- **`PATCH /rules/:ruleId` also takes `options`** (`{ includeDrafts }`, on the review requested rule). Users from before rule settings existed get a row on their first change.
+- **Re-running rules** (`rerunRules` in `items.ts`) uses the stored snapshots of the PRs the latest sync found. PRs it didn't find already had their items resolved. It only calls GitHub for the user's teams, and doesn't send notifications, since a settings change isn't news from GitHub. It runs only when a setting changes what rules find: `hideBots`, `includeTeamRequests`, or a rule's `enabled` or `options`. Severity and channels are read when items are listed.
+- **A per-user lock** (`pg_advisory_xact_lock`) stops the worker's sync and a re-run from saving the same user's items at once. The re-run reads the PRs again after taking the lock, so it never saves items from older snapshots.
+- **`POST /sync` queues the job through pg-boss in the web service**, which only queues jobs. Both services create the queues at startup (`jobs.ts`), so either can start first. It answers `202 { queued }`, with `queued: false` if a sync was already queued or running. A manual refresh runs even while a failed sync is waiting to retry.
+- **"Running" comes from a new `User.syncStartedAt` column**, set while `runSync` runs. A start time older than the sync timeout (10 minutes) counts as not running, in case a worker stopped mid-sync.
 
 ## Steps
 
 ### 6.1 Shared API types (part A)
 
-- [x] Define request and response shapes as Zod schemas in `packages/core/src/api/`. The server uses them to validate input. The web app uses the inferred TypeScript types. This way both sides always agree. Items: `api/items.ts`.
+- [x] Define request and response shapes as Zod schemas in `packages/core/src/api/`. The server uses them to validate input. The web app uses the inferred TypeScript types. This way both sides always agree. `api/items.ts`, `api/settings.ts`, `api/sync.ts`.
 - [x] Every error response uses `{ error: { code, message } }` (done since plan 04, `HttpError`).
 
 ### 6.2 Endpoints
@@ -40,19 +47,19 @@ There are no done or snooze endpoints. Items clear on their own (see [plan 05](c
 
 **Repos:** the endpoints from plan 04.1.
 
-**Settings**
+**Settings** (part B, done: `routes/settings.ts`)
 
 | Method and path        | What it does                                                                              |
 | ---------------------- | ----------------------------------------------------------------------------------------- |
 | `GET /settings`        | User settings plus each rule with its name, group, defaults, and the user's choices       |
 | `PATCH /settings`      | Update user settings (timezone, staleness, quiet hours, digest time, bots, team requests) |
-| `PATCH /rules/:ruleId` | Update `enabled`, `severity`, `channels`                                                  |
+| `PATCH /rules/:ruleId` | Update `enabled`, `severity`, `channels`, `options`                                       |
 
-Rules only run when a PR changes on GitHub (plan 05). So after `PATCH /settings` (hide bots, team requests) or `PATCH /rules/:ruleId`, re-run the rules on the user's stored PR snapshots and save the items, the same way `syncUser` does.
+Rules only run when a PR changes on GitHub (plan 05). So after `PATCH /settings` (hide bots, team requests) or `PATCH /rules/:ruleId`, the rules run again on the user's stored PR snapshots (see Changes above).
 
-`PATCH /settings` must reject unknown timezones (check against `Intl.supportedValuesOf("timeZone")`). The waiting time code in `packages/core/src/urgency.ts` throws on one.
+`PATCH /settings` rejects unknown timezones. The waiting time code in `packages/core/src/urgency.ts` throws on one.
 
-**Sync**
+**Sync** (part B, done: `routes/sync.ts`)
 
 | Method and path    | What it does                                                                                 |
 | ------------------ | -------------------------------------------------------------------------------------------- |
@@ -74,7 +81,7 @@ Rules only run when a PR changes on GitHub (plan 05). So after `PATCH /settings`
 
 ### 6.4 Tests
 
-- [ ] Supertest tests for each endpoint: auth required, validation errors, happy path, and one user can't touch another user's items. Items, seen, and summary done in part A.
+- [ ] Supertest tests for each endpoint: auth required, validation errors, happy path, and one user can't touch another user's items. Items, seen, and summary done in part A. Settings, rules, and sync in part B.
 - [ ] A test that publishing a change sends an SSE event to the right user only.
 
 ## Done when
