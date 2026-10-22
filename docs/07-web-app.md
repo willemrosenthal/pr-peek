@@ -74,6 +74,8 @@
   - "Reconnect GitHub" when `needsReauth`.
   - "Sync problem, retrying" when `syncError`.
 - [ ] `useLiveUpdates()` hook: opens `/api/stream` and invalidates the `items` and `summary` queries on each event.
+  - The event is named `ITEMS_CHANGED_EVENT` (from `@pr-peek/core`). Its data is the new summary, so the `summary` query can be set directly.
+  - Also invalidate both on the `open` event, so a reconnect catches anything missed while the stream was down. The server doesn't replay old events.
 - [ ] Mark visible items as seen when the list opens (`POST /api/items/seen`).
 - [ ] Set the app icon badge with `navigator.setAppBadge(total)` where supported.
 

@@ -25,6 +25,10 @@
 - **If a re-run fails** (say GitHub is down while fetching teams), the setting is still saved and the error is logged. Each PR catches up on its next change.
 - **`POST /sync` queues the job through pg-boss in the web service**, which only queues jobs. Both services create the queues at startup (`jobs.ts`), so either can start first. It answers `202 { queued }`, with `queued: false` if a sync was already queued or running. A manual refresh runs even while a failed sync is waiting to retry.
 - **"Running" comes from a new `User.syncStartedAt` column**, set while `runSync` runs. A start time older than the sync timeout (10 minutes) counts as not running, in case a worker stopped mid-sync.
+- **The listener has its own connection** (`items-listener.ts`), outside the pool, since `LISTEN` holds it open. If the connection drops, it reconnects every 5 seconds until it works, then sends every open stream a fresh summary, in case it missed a change.
+- **The stream sends nothing when it opens.** The client loads the list itself, then waits for changes. The event name is `ITEMS_CHANGED_EVENT` in `packages/core/src/api/stream.ts`.
+- **Shutdown ends open streams first.** Otherwise the server would wait on them until the forced exit.
+- **The `.http` file is `apps/server/api.http`.** It signs in with a pasted personal access token and asks for it each time, so it's never saved. REST Client can't show a stream, so the file gives a `curl -N` line instead.
 
 ## Steps
 
@@ -44,7 +48,7 @@ All under `/api`. All require sign in except auth and health.
 | `GET /items`       | Open items, grouped into `review`, `replies`, and `mine`, sorted by urgency. Each item includes PR title, repo, number, url, kind, summary, age, stale level, severity, unseen flag |
 | `POST /items/seen` | Body `{ ids }`. Marks items as seen when the list is opened                                                                                                                         |
 
-There are no done or snooze endpoints. Items clear on their own (see [plan 05](completed/05-rules-engine.md#when-an-item-clears)).
+There are no done or snooze endpoints. Items clear on their own (see [plan 05](05-rules-engine.md#when-an-item-clears)).
 
 **Repos:** the endpoints from plan 04.1.
 
@@ -73,20 +77,20 @@ Rules only run when a PR changes on GitHub (plan 05). So after `PATCH /settings`
 | --------------- | ----------------------------------------------------------------------------------------------------------- |
 | `GET /summary`  | `{ total, review, replies, mine, hasStale, hasFailing }`. Used by the app badge and later the menu bar icon |
 
-### 6.3 Live updates with SSE
+### 6.3 Live updates with SSE (part C, done: `routes/stream.ts` and `items-listener.ts`)
 
-- [ ] `GET /api/stream` keeps a connection open using Server-Sent Events.
-- [ ] The web service runs `LISTEN` on the Postgres channel the worker publishes to (`user_items_changed`, with the user id as the message, plan 05.5). When a message arrives for a user, it sends `event: items-changed` with the new summary to that user's open streams.
-- [ ] Send a comment line every 25 seconds as a keep-alive, so proxies don't close idle connections.
-- [ ] The client reconnects on its own (the browser's `EventSource` does this). The client also refetches on reconnect in case it missed something.
+- [x] `GET /api/stream` keeps a connection open using Server-Sent Events.
+- [x] The web service runs `LISTEN` on the Postgres channel the worker publishes to (`user_items_changed`, with the user id as the message, plan 05.5). When a message arrives for a user, it sends `event: items-changed` with the new summary to that user's open streams.
+- [x] Send a comment line every 25 seconds as a keep-alive, so proxies don't close idle connections.
+- [x] The client reconnects on its own (the browser's `EventSource` does this). The client also refetches on reconnect in case it missed something. Noted in [plan 07](../07-web-app.md).
 
 ### 6.4 Tests
 
-- [ ] Supertest tests for each endpoint: auth required, validation errors, happy path, and one user can't touch another user's items. Items, seen, and summary done in part A. Settings, rules, and sync in part B.
-- [ ] A test that publishing a change sends an SSE event to the right user only.
+- [x] Supertest tests for each endpoint: auth required, validation errors, happy path, and one user can't touch another user's items. Items, seen, and summary done in part A. Settings, rules, and sync in part B.
+- [x] A test that publishing a change sends an SSE event to the right user only. The stream tests use a real port and `fetch`, since supertest waits for the response to end.
 
 ## Done when
 
-- [ ] Every endpoint above works locally against real synced data. A small `.http` file (for the VS Code REST Client extension) or Bruno collection is checked in for manual testing.
-- [ ] Submitting a review on GitHub removes that item from `GET /items` after the next sync.
-- [ ] With `curl -N` on `/api/stream`, a new GitHub event shows up as an SSE message within one sync cycle.
+- [ ] **(You)** Every endpoint above works locally against real synced data. A small `.http` file (for the VS Code REST Client extension) or Bruno collection is checked in for manual testing. The file is in (`apps/server/api.http`).
+- [ ] **(You)** Submitting a review on GitHub removes that item from `GET /items` after the next sync.
+- [ ] **(You)** With `curl -N` on `/api/stream`, a new GitHub event shows up as an SSE message within one sync cycle.
