@@ -1,33 +1,63 @@
 import { z } from "zod";
 import { KEY_BYTES } from "./crypto";
 
-const schema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-  PORT: z.coerce.number().int().positive().default(3000),
-  LOG_LEVEL: z
-    .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
-    .default("info"),
-  APP_URL: z.url(),
-  DATABASE_URL: z.url(),
-  // Max connections per pool. Kept small to stay under Supabase's free plan limit.
-  DB_POOL_MAX: z.coerce.number().int().positive().default(5),
-  // Signs the session cookie. Generate with: openssl rand -base64 32
-  SESSION_SECRET: z.string().min(32),
-  // Encrypts GitHub tokens. Generate with: openssl rand -base64 32
-  TOKEN_ENC_KEY: z
-    .base64()
-    .transform((value) => Buffer.from(value, "base64"))
-    .refine((key) => key.length === KEY_BYTES, {
-      message: `Must be ${KEY_BYTES} bytes, base64 encoded`,
-    }),
-  // The GitHub OAuth App ("git-buddy (dev)" locally, "git-buddy" in production).
-  GITHUB_CLIENT_ID: z.string().min(1),
-  GITHUB_CLIENT_SECRET: z.string().min(1),
-  // Set by Render on every deploy.
-  RENDER_GIT_COMMIT: z.string().optional(),
-});
+// A setting that can be left out or left empty, like `NAME=` in .env.
+const optional = <T extends z.ZodType>(type: T) =>
+  z.preprocess((value) => (value === "" ? undefined : value), type.optional());
+
+const schema = z
+  .object({
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+    PORT: z.coerce.number().int().positive().default(3000),
+    LOG_LEVEL: z
+      .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+      .default("info"),
+    APP_URL: z.url(),
+    DATABASE_URL: z.url(),
+    // Max connections per pool. Kept small to stay under Supabase's free plan limit.
+    DB_POOL_MAX: z.coerce.number().int().positive().default(5),
+    // Signs the session cookie. Generate with: openssl rand -base64 32
+    SESSION_SECRET: z.string().min(32),
+    // Encrypts GitHub tokens. Generate with: openssl rand -base64 32
+    TOKEN_ENC_KEY: z
+      .base64()
+      .transform((value) => Buffer.from(value, "base64"))
+      .refine((key) => key.length === KEY_BYTES, {
+        message: `Must be ${KEY_BYTES} bytes, base64 encoded`,
+      }),
+    // The GitHub OAuth App ("git-buddy (dev)" locally, "git-buddy" in production).
+    GITHUB_CLIENT_ID: z.string().min(1),
+    GITHUB_CLIENT_SECRET: z.string().min(1),
+    // Signs push notifications. Without them, push is off. Never change them once set:
+    // every device would have to turn notifications on again.
+    VAPID_PUBLIC_KEY: optional(z.string()),
+    VAPID_PRIVATE_KEY: optional(z.string()),
+    // A contact for the push services, like mailto:you@example.com.
+    VAPID_SUBJECT: optional(
+      z
+        .string()
+        .regex(/^(mailto:|https:)/, "Must start with mailto: or https:"),
+    ),
+    // Set by Render on every deploy.
+    RENDER_GIT_COMMIT: z.string().optional(),
+  })
+  .refine(
+    (env) => {
+      const set = [
+        env.VAPID_PUBLIC_KEY,
+        env.VAPID_PRIVATE_KEY,
+        env.VAPID_SUBJECT,
+      ];
+      return set.every(Boolean) || !set.some(Boolean);
+    },
+    {
+      message:
+        "Set all of VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, or none",
+      path: ["VAPID_PUBLIC_KEY"],
+    },
+  );
 
 export type Config = z.infer<typeof schema>;
 

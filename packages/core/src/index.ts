@@ -2,6 +2,7 @@ export const APP_NAME = "pr-peek";
 
 export * from "./api/auth";
 export * from "./api/items";
+export * from "./api/push";
 export * from "./api/repos";
 export * from "./api/settings";
 export * from "./api/stream";

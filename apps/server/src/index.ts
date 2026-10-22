@@ -10,9 +10,11 @@ import { createLogger } from "./logger";
 import { getOctokit } from "./github/client";
 import { listenForItemChanges } from "./items-listener";
 import { createBoss, createQueues, queueSync } from "./jobs";
+import { vapidFrom, webPushSender } from "./push";
 import { authRouter } from "./routes/auth";
 import { githubTokenRouter } from "./routes/github-token";
 import { itemsRouter } from "./routes/items";
+import { pushRouter } from "./routes/push";
 import { reposRouter } from "./routes/repos";
 import { settingsRouter } from "./routes/settings";
 import { streamRouter } from "./routes/stream";
@@ -30,6 +32,8 @@ const oauth = createGitHubOAuth({
 });
 const github = (userId: string) =>
   getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY }, userId);
+const vapid = vapidFrom(config);
+if (!vapid) logger.warn("VAPID keys not set, so push notifications are off");
 const PgStore = connectPgSimple(session);
 // The table comes from a Prisma migration.
 const sessionStore = new PgStore({ pool, tableName: "session" });
@@ -69,6 +73,13 @@ const app = createApp({
     settingsRouter({ db, github }),
     syncRouter({ db, requestSync: (userId) => queueSync(boss, userId) }),
     streamRouter({ db, listener, signal: streams.signal }),
+    pushRouter({
+      db,
+      push: vapid && {
+        publicKey: vapid.publicKey,
+        send: webPushSender(vapid),
+      },
+    }),
   ],
   // Same depth from src/ (tsx in dev) and dist/ (built), so this works for both.
   webDir: resolve(import.meta.dirname, "../../web/dist"),

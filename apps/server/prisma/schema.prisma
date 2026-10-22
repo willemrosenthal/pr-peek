@@ -178,6 +178,8 @@ model PushSubscription {
   auth          String
   label         String?
   platform      String?
+  // The lowest severity this device gets: "low", "normal", or "high".
+  minSeverity   String    @default("low")
   lastSuccessAt DateTime?
   failureCount  Int       @default(0)
   createdAt     DateTime  @default(now())
