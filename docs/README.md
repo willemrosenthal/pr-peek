@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                  |
-| ------------------ | ------------------------------------------------------------------------------------------------ |
-| **Current plan**   | [03. GitHub sign in](03-github-auth.md), part B of 2: sign in flow, token refresh, GitHub client |
-| **Branch**         | `plan-03-2-sign-in`                                                                              |
-| **PR**             | [#8](https://github.com/willemrosenthal/pr-peek/pull/8) (part B), CI green. Part A merged as #7  |
-| **Last step done** | 3.1, 3.4, 3.5 built and tested (75 tests). Real sign in not tried yet                            |
-| **Next step**      | You: real sign in locally and on Render. Me: move plan 03 to `completed/`, then plan 04          |
-| **Waiting on you** | Merge part B, update `prod`. Sign in for real (see the PR). Heartbeat check                      |
+|                    |                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [03. GitHub sign in](completed/03-github-auth.md), finishing. Next: [04. GitHub sync](04-github-sync.md) |
+| **Branch**         | `plan-03-3-finish`                                                                                       |
+| **PR**             | Opening now (finish plan 03). Earlier: #7, #8                                                            |
+| **Last step done** | Sign in works locally and on Render                                                                      |
+| **Next step**      | Start [plan 04](04-github-sync.md) once this merges                                                      |
+| **Waiting on you** | Merge this PR. Confirm the plan 02 worker heartbeat. Branch protection for `main` and `prod`             |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.
@@ -32,7 +32,7 @@ Plans can be edited while in progress when we learn something. Completed plans a
 | --- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | 01  | ✅ [Repo setup](completed/01-repo-setup.md)                                | Empty monorepo that builds, lints, and tests in CI                            |
 | 02  | ✅ [Server foundation and first deploy](completed/02-server-foundation.md) | Express + Prisma live on Render with Supabase Postgres, deploying from `prod` |
-| 03  | [GitHub sign in](03-github-auth.md)                                        | Users can sign in with GitHub. Tokens stored encrypted                        |
+| 03  | ✅ [GitHub sign in](completed/03-github-auth.md)                           | Users can sign in with GitHub. Tokens stored encrypted                        |
 | 04  | [GitHub sync engine](04-github-sync.md)                                    | Worker pulls each user's PRs on a schedule and stores them                    |
 | 05  | [Rules and attention items](05-rules-engine.md)                            | PR data turned into sorted "needs you" items, all 7 cases                     |
 | 06  | [API and live updates](06-api.md)                                          | JSON API for items, repos, settings. SSE stream                               |

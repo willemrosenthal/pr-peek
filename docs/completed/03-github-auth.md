@@ -103,8 +103,8 @@ All in `src/routes/auth.ts`, with GitHub's endpoints in `src/github/oauth.ts` an
 
 ## Done when
 
-- [ ] **(You)** Locally: open `http://localhost:3000/api/auth/github`, approve on GitHub, land back (on a 404 until plan 07), and `http://localhost:3000/api/me` returns your login.
+- [x] **(You)** Locally: open `http://localhost:3000/api/auth/github`, approve on GitHub, land back (on a 404 until plan 07), and `http://localhost:3000/api/me` returns your login.
 - [x] Tokens are stored encrypted, never as plain text (tested in `users.test.ts`). **(You)** can also check the real row after signing in.
 - [x] A 401 from GitHub marks the user `needsReauth` (tested in `client.test.ts`). **(You)** can also try it for real by revoking the app in GitHub settings, once plan 04 makes GitHub calls.
 - [x] A cross origin `POST` to `/api/auth/signout` is rejected (tested in `auth.test.ts`).
-- [ ] **(You)** Works the same on the Render deployment with the prod OAuth App.
+- [x] **(You)** Works the same on the Render deployment with the prod OAuth App (on commit `dce934c`).
