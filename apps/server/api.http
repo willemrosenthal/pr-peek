@@ -2,7 +2,8 @@
 # Run `pnpm dev`, then send "Sign in" first. REST Client keeps the session cookie.
 
 @baseUrl = http://localhost:3000/api
-@origin = http://localhost:3000
+# Must match APP_URL in .env.
+@origin = http://localhost:5173
 
 ### Health
 GET {{baseUrl}}/health

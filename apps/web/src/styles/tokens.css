@@ -1,0 +1,74 @@
+/* Colors, type, and spacing from design A2. Components use only these. */
+:root {
+  color-scheme: light dark;
+
+  --color-page: #f2f2f5;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f4f7;
+  --color-hover: #f5f5f8;
+  --color-border: #d2d2d8;
+  --color-divider: #ededf1;
+  --color-text: #1d1d1f;
+  --color-text-secondary: #5a5a60;
+  --color-text-tertiary: #6e6e73;
+  --color-accent: #0b57d0;
+  --color-accent-hover: #08408f;
+  --color-on-accent: #ffffff;
+  --color-focus: #0b57d0;
+  --color-danger: #b42318;
+  --color-danger-bg: #fde7e7;
+  --color-warning: #8a4b00;
+  --color-warning-bg: #fff0db;
+  --color-success: #1e6b34;
+  --color-reply: #5b33b6;
+
+  --font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial,
+    sans-serif;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-lg: 14px;
+  --text-xl: 18px;
+  --text-2xl: 24px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --shadow-panel: 0 12px 32px rgb(0 0 0 / 18%);
+
+  /* Smallest comfortable touch target. */
+  --touch-target: 44px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-page: #111113;
+    --color-surface: #1c1c1f;
+    --color-surface-muted: #242428;
+    --color-hover: #2a2a2f;
+    --color-border: #3a3a40;
+    --color-divider: #2c2c31;
+    --color-text: #f2f2f4;
+    --color-text-secondary: #b4b4bb;
+    --color-text-tertiary: #9a9aa1;
+    --color-accent: #8ab4ff;
+    --color-accent-hover: #b0ccff;
+    --color-on-accent: #0b1a33;
+    --color-focus: #8ab4ff;
+    --color-danger: #ff8a80;
+    --color-danger-bg: #3a1d1b;
+    --color-warning: #f5b453;
+    --color-warning-bg: #3a2a12;
+    --color-success: #6fd08a;
+    --color-reply: #c2a8ff;
+    --shadow-panel: 0 12px 32px rgb(0 0 0 / 50%);
+  }
+}
