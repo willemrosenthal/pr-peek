@@ -2,19 +2,26 @@ import type { PrSnapshot } from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import type { Db } from "./db";
 import { fetchPrDetails, type PrDetails } from "./github/pull-details";
-import { findRelevantPrs, type FoundPr } from "./github/pull-search";
+import {
+  fetchPrStatuses,
+  findRelevantPrs,
+  type PrStatus,
+} from "./github/pull-search";
 import {
   ITEMS_TX,
   lockUserItems,
   prepareRules,
   publishItemsChanged,
-  resolveUnseenItems,
+  resolveItemsOf,
   saveItems,
   type SavedPr,
 } from "./items";
 
-// PRs no search has found for this long are deleted, along with their items.
+// PRs with no open items that no search has found for this long are deleted.
 const KEEP_UNSEEN_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Why a stored PR stopped being tracked. Its items are resolved.
+type EndedState = "merged" | "closed" | "gone" | "unwatched";
 
 export interface SyncDeps {
   db: Db;
@@ -24,35 +31,40 @@ export interface SyncDeps {
 }
 
 export interface SyncResult {
-  // Open PRs in watched repos that involve the user.
+  // Open PRs in watched repos the searches found.
   found: number;
   fetched: number;
   failed: PrDetails["failed"];
+  // Tracked PRs that were merged, closed, gone, or in a repo no longer watched.
+  ended: number;
   deleted: number;
   // Items that are new or have a new event, to notify about.
   newEventItemIds: string[];
 }
 
 interface StoredPr {
+  githubNodeId: string;
+  githubRepoId: number;
   githubUpdatedAt: Date;
   checkState: string | null;
-  lastSeenAt: Date;
+  authorLogin: string;
+  state: string;
 }
 
-// New PRs, PRs that changed, the user's own PRs whose checks changed, and PRs back in the
-// searches after the last sync missed them (their items were resolved then).
+// New PRs, PRs that changed or are back after they ended, and the user's own PRs whose
+// checks changed.
 function needsDetails(
-  pr: FoundPr,
+  pr: PrStatus,
   stored: StoredPr | undefined,
-  lastSyncedAt: Date | null,
+  viewerLogin: string,
 ): boolean {
-  if (!stored) return true;
+  if (!stored || stored.state !== "open") return true;
   if (stored.githubUpdatedAt.getTime() !== pr.updatedAt.getTime()) return true;
-  if (lastSyncedAt && stored.lastSeenAt < lastSyncedAt) return true;
-  return pr.reasons.has("authored") && stored.checkState !== pr.checkState;
+  const isOwn = stored.authorLogin.toLowerCase() === viewerLogin.toLowerCase();
+  return isOwn && stored.checkState !== pr.checkState;
 }
 
-function toRow(snapshot: PrSnapshot, githubRepoId: number, now: Date) {
+function toRow(snapshot: PrSnapshot, githubRepoId: number) {
   return {
     githubRepoId,
     repoOwner: snapshot.repo.owner,
@@ -66,28 +78,32 @@ function toRow(snapshot: PrSnapshot, githubRepoId: number, now: Date) {
     headSha: snapshot.headSha,
     checkState: snapshot.checks.state,
     githubUpdatedAt: new Date(snapshot.updatedAt),
-    lastSeenAt: now,
     snapshot,
   };
 }
 
 interface FromGitHub {
-  found: FoundPr[];
+  // PRs the searches found.
+  searchedIds: string[];
+  // Open PRs in watched repos: found by a search, or tracked and checked by id.
+  open: PrStatus[];
+  ended: Map<string, EndedState>;
   details: PrDetails;
   // The client used, if GitHub was called.
   octokit: Octokit | null;
 }
 
-// The PRs in the user's watched repos, and details for the ones that changed.
+// Searches find new PRs. Tracked PRs the searches missed are checked by id, since the
+// search index lags, so a missed PR only ends when it's really merged, closed, or gone.
 async function fetchFromGitHub(
   deps: SyncDeps,
   userId: string,
 ): Promise<FromGitHub> {
   const { db } = deps;
-  const [user, settings, watched] = await Promise.all([
+  const [user, settings, watched, stored] = await Promise.all([
     db.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { lastSyncedAt: true },
+      select: { login: true },
     }),
     db.userSettings.findUnique({
       where: { userId },
@@ -97,39 +113,58 @@ async function fetchFromGitHub(
       where: { userId, enabled: true },
       select: { githubRepoId: true },
     }),
+    db.pullRequest.findMany({
+      where: { userId },
+      select: {
+        githubNodeId: true,
+        githubRepoId: true,
+        githubUpdatedAt: true,
+        checkState: true,
+        authorLogin: true,
+        state: true,
+      },
+    }),
   ]);
-  if (watched.length === 0) {
-    return {
-      found: [],
-      details: { snapshots: [], failed: [] },
-      octokit: null,
-    };
-  }
+  // Match on repo id, not name, so a renamed repo keeps syncing.
   const watchedIds = new Set(watched.map((repo) => repo.githubRepoId));
-  const includeTeamRequests = settings?.includeTeamRequests ?? true;
+  const tracked = stored.filter((pr) => pr.state === "open");
+  const ended = new Map<string, EndedState>(
+    tracked
+      .filter((pr) => !watchedIds.has(pr.githubRepoId))
+      .map((pr) => [pr.githubNodeId, "unwatched"]),
+  );
+  if (watched.length === 0) {
+    const details = { snapshots: [], failed: [] };
+    return { searchedIds: [], open: [], ended, details, octokit: null };
+  }
 
   const octokit = await deps.github(userId);
+  const includeTeamRequests = settings?.includeTeamRequests ?? true;
   const all = await findRelevantPrs(octokit, { includeTeamRequests });
-  // Match on repo id, not name, so a renamed repo keeps syncing.
   const found = [...all.values()].filter((pr) =>
     watchedIds.has(pr.githubRepoId),
   );
+  const searchedIds = found.map((pr) => pr.id);
 
-  const stored = await db.pullRequest.findMany({
-    where: { userId, githubNodeId: { in: found.map((pr) => pr.id) } },
-    select: {
-      githubNodeId: true,
-      githubUpdatedAt: true,
-      checkState: true,
-      lastSeenAt: true,
-    },
-  });
+  const missedIds = tracked
+    .filter(
+      (pr) => watchedIds.has(pr.githubRepoId) && !all.has(pr.githubNodeId),
+    )
+    .map((pr) => pr.githubNodeId);
+  const open = [...found];
+  for (const [id, status] of await fetchPrStatuses(octokit, missedIds)) {
+    if (!status) ended.set(id, "gone");
+    else if (status.state === "MERGED") ended.set(id, "merged");
+    else if (status.state === "CLOSED") ended.set(id, "closed");
+    else open.push(status);
+  }
+
   const storedById = new Map(stored.map((pr) => [pr.githubNodeId, pr]));
-  const changedIds = found
-    .filter((pr) => needsDetails(pr, storedById.get(pr.id), user.lastSyncedAt))
+  const changedIds = open
+    .filter((pr) => needsDetails(pr, storedById.get(pr.id), user.login))
     .map((pr) => pr.id);
   const details = await fetchPrDetails(octokit, changedIds);
-  return { found, details, octokit };
+  return { searchedIds, open, ended, details, octokit };
 }
 
 // Brings the user's stored PRs and items up to date with GitHub.
@@ -139,34 +174,45 @@ export async function syncUser(
 ): Promise<SyncResult> {
   const { db } = deps;
   const now = (deps.now ?? (() => new Date()))();
-  const { found, details, octokit } = await fetchFromGitHub(deps, userId);
+  const { searchedIds, open, ended, details, octokit } = await fetchFromGitHub(
+    deps,
+    userId,
+  );
   const detect = await prepareRules(db, userId, details.snapshots, now, () =>
     octokit ? Promise.resolve(octokit) : deps.github(userId),
   );
 
-  const repoIdOf = new Map(found.map((pr) => [pr.id, pr.githubRepoId]));
+  const repoIdOf = new Map(open.map((pr) => [pr.id, pr.githubRepoId]));
   // PRs and their items save together, so a PR is never stored without its items.
   const newEventItemIds = await db.$transaction(async (tx) => {
     await lockUserItems(tx, userId);
     await tx.pullRequest.updateMany({
-      where: { userId, githubNodeId: { in: [...repoIdOf.keys()] } },
+      where: { userId, githubNodeId: { in: searchedIds } },
       data: { lastSeenAt: now },
     });
     const saved: SavedPr[] = [];
     for (const snapshot of details.snapshots) {
-      // Details are only fetched for PRs in `found`.
-      const row = toRow(snapshot, repoIdOf.get(snapshot.id)!, now);
+      // Details are only fetched for PRs in `open`.
+      const row = toRow(snapshot, repoIdOf.get(snapshot.id)!);
       const { id } = await tx.pullRequest.upsert({
         where: { userId_githubNodeId: { userId, githubNodeId: snapshot.id } },
-        create: { userId, githubNodeId: snapshot.id, ...row },
+        // New PRs come from the searches.
+        create: { userId, githubNodeId: snapshot.id, ...row, lastSeenAt: now },
         update: row,
         select: { id: true },
       });
       saved.push({ id, snapshot });
     }
-
     const itemIds = await saveItems(tx, userId, saved, detect, now);
-    const resolved = await resolveUnseenItems(tx, userId, now);
+
+    // Rows stay, so the items reopen without notifying if the PR comes back.
+    for (const [githubNodeId, state] of ended) {
+      await tx.pullRequest.update({
+        where: { userId_githubNodeId: { userId, githubNodeId } },
+        data: { state },
+      });
+    }
+    const resolved = await resolveItemsOf(tx, userId, [...ended.keys()], now);
     if (saved.length > 0 || resolved > 0) {
       await publishItemsChanged(tx, userId);
     }
@@ -177,6 +223,7 @@ export async function syncUser(
     where: {
       userId,
       lastSeenAt: { lt: new Date(now.getTime() - KEEP_UNSEEN_MS) },
+      items: { none: { status: "open" } },
     },
   });
   await db.user.update({
@@ -185,9 +232,10 @@ export async function syncUser(
   });
 
   return {
-    found: found.length,
+    found: searchedIds.length,
     fetched: details.snapshots.length,
     failed: details.failed,
+    ended: ended.size,
     deleted,
     newEventItemIds,
   };

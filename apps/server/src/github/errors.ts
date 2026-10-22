@@ -19,10 +19,13 @@ export function isNotFound(err: unknown): boolean {
   return Array.isArray(errors) && errors.some((e) => e.type === "NOT_FOUND");
 }
 
-// The data GitHub sent along with NOT_FOUND errors, when the rest of the query worked.
+// The data GitHub sent along with errors of `types`, when the rest of the query worked.
 // Octokit throws on any GraphQL error, even when the other results are fine.
-export function partialDataOrThrow(err: unknown): unknown {
+export function partialDataOrThrow(
+  err: unknown,
+  types: string[] = ["NOT_FOUND"],
+): unknown {
   const { data } = err as GraphQLErrorShape;
-  if (hasOnlyErrorTypes(err, ["NOT_FOUND"]) && data) return data;
+  if (hasOnlyErrorTypes(err, types) && data) return data;
   throw err;
 }

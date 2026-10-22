@@ -113,11 +113,12 @@ model PullRequest {
   url             String
   authorLogin     String
   isDraft         Boolean
+  // "open" while the sync tracks it. Then "merged", "closed", "gone", or "unwatched".
   state           String
   headSha         String
   checkState      String?
   githubUpdatedAt DateTime
-  // The last sync that found this PR. PRs not found for 7 days are deleted.
+  // The last sync whose searches found this PR. Deleted after 7 days with no open items.
   lastSeenAt      DateTime @default(now())
   snapshot        Json
   createdAt       DateTime @default(now())

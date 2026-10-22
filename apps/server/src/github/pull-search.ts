@@ -1,26 +1,37 @@
 import { checkState, type CheckState } from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import { z } from "zod";
+import { partialDataOrThrow } from "./errors";
 
-// Why a PR showed up: which searches found it.
-export type PrReason = "review_requested" | "authored" | "commented";
-
-// One open PR from the searches, with just enough to tell if it changed.
-export interface FoundPr {
+// One PR with just enough to tell if it's open and if it changed.
+export interface PrStatus {
   id: string;
   githubRepoId: number;
+  state: "OPEN" | "CLOSED" | "MERGED";
   updatedAt: Date;
   // The latest commit's checks. They can change without `updatedAt` changing.
   checkState: CheckState | null;
-  reasons: Set<PrReason>;
 }
 
 const PAGE_SIZE = 100;
 // GitHub stops at 1000 search results anyway.
 const MAX_PAGES = 10;
+// PRs per status request.
+const STATUS_BATCH_SIZE = 100;
 
-const prNode = z.object({
+// Search results are found through GitHub's index, which lags, but their fields are
+// read live. So `state` is current even when the index isn't.
+const STATUS_FIELDS = `
+  id
+  state
+  updatedAt
+  repository { databaseId }
+  commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+`;
+
+const statusNode = z.object({
   id: z.string(),
+  state: z.enum(["OPEN", "CLOSED", "MERGED"]),
   updatedAt: z.string(),
   repository: z.object({ databaseId: z.number() }),
   commits: z.object({
@@ -34,10 +45,20 @@ const prNode = z.object({
   }),
 });
 
+type StatusNode = z.infer<typeof statusNode>;
+
+const toStatus = (node: StatusNode): PrStatus => ({
+  id: node.id,
+  githubRepoId: node.repository.databaseId,
+  state: node.state,
+  updatedAt: new Date(node.updatedAt),
+  checkState: node.commits.nodes[0]?.commit.statusCheckRollup?.state ?? null,
+});
+
 const searchPage = z.object({
   search: z.object({
     // Search can return other node types as empty objects, so allow and skip them.
-    nodes: z.array(z.union([prNode, z.object({})]).nullable()),
+    nodes: z.array(z.union([statusNode, z.object({})]).nullable()),
     pageInfo: z.object({
       hasNextPage: z.boolean(),
       endCursor: z.string().nullable(),
@@ -45,25 +66,20 @@ const searchPage = z.object({
   }),
 });
 
-type PrNode = z.infer<typeof prNode>;
-
 const SEARCH_QUERY = `query ($q: String!, $cursor: String) {
   search(type: ISSUE, query: $q, first: ${PAGE_SIZE}, after: $cursor) {
-    nodes {
-      ... on PullRequest {
-        id
-        updatedAt
-        repository { databaseId }
-        commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
-      }
-    }
+    nodes { ... on PullRequest { ${STATUS_FIELDS} } }
     pageInfo { hasNextPage endCursor }
   }
 }`;
 
-// Every open PR matching one search, newest first.
-async function searchAll(octokit: Octokit, q: string): Promise<PrNode[]> {
-  const found: PrNode[] = [];
+const STATUS_QUERY = `query ($ids: [ID!]!) {
+  nodes(ids: $ids) { ... on PullRequest { ${STATUS_FIELDS} } }
+}`;
+
+// Every PR matching one search, newest first.
+async function searchAll(octokit: Octokit, q: string): Promise<StatusNode[]> {
+  const found: StatusNode[] = [];
   let cursor: string | null = null;
   for (let page = 0; page < MAX_PAGES; page++) {
     const data: unknown = await octokit.graphql(SEARCH_QUERY, {
@@ -71,47 +87,56 @@ async function searchAll(octokit: Octokit, q: string): Promise<PrNode[]> {
       cursor,
     });
     const { nodes, pageInfo } = searchPage.parse(data).search;
-    found.push(...nodes.filter((n): n is PrNode => !!n && "id" in n));
+    found.push(...nodes.filter((n): n is StatusNode => !!n && "id" in n));
     if (!pageInfo.hasNextPage) break;
     cursor = pageInfo.endCursor;
   }
   return found;
 }
 
-// The open PRs that involve the user, merged into one list keyed by PR id.
+// The open PRs that involve the user, keyed by PR id.
 export async function findRelevantPrs(
   octokit: Octokit,
   options: { includeTeamRequests: boolean },
-): Promise<Map<string, FoundPr>> {
-  const searches: [PrReason, string][] = [
-    [
-      "review_requested",
-      // `review-requested` also matches requests to the user's teams.
-      options.includeTeamRequests
-        ? "review-requested:@me"
-        : "user-review-requested:@me",
-    ],
-    ["authored", "author:@me"],
-    ["commented", "commenter:@me -author:@me"],
+): Promise<Map<string, PrStatus>> {
+  const searches = [
+    // `review-requested` also matches requests to the user's teams.
+    options.includeTeamRequests
+      ? "review-requested:@me"
+      : "user-review-requested:@me",
+    "author:@me",
+    "commenter:@me -author:@me",
   ];
 
-  const prs = new Map<string, FoundPr>();
-  for (const [reason, q] of searches) {
+  const prs = new Map<string, PrStatus>();
+  for (const q of searches) {
     for (const node of await searchAll(octokit, q)) {
-      const existing = prs.get(node.id);
-      if (existing) {
-        existing.reasons.add(reason);
-        continue;
-      }
-      prs.set(node.id, {
-        id: node.id,
-        githubRepoId: node.repository.databaseId,
-        updatedAt: new Date(node.updatedAt),
-        checkState:
-          node.commits.nodes[0]?.commit.statusCheckRollup?.state ?? null,
-        reasons: new Set([reason]),
-      });
+      // The index can still list a PR that just merged.
+      if (node.state === "OPEN") prs.set(node.id, toStatus(node));
     }
   }
   return prs;
+}
+
+// Each PR's status, read directly by id. Null for PRs that are gone or hidden.
+export async function fetchPrStatuses(
+  octokit: Octokit,
+  ids: string[],
+): Promise<Map<string, PrStatus | null>> {
+  const statuses = new Map<string, PrStatus | null>();
+  for (let i = 0; i < ids.length; i += STATUS_BATCH_SIZE) {
+    const batch = ids.slice(i, i + STATUS_BATCH_SIZE);
+    const data: unknown = await octokit
+      .graphql(STATUS_QUERY, { ids: batch })
+      // Hidden covers an org that blocks pr-peek after the PR was found.
+      .catch((err: unknown) =>
+        partialDataOrThrow(err, ["NOT_FOUND", "FORBIDDEN"]),
+      );
+    const { nodes } = z.object({ nodes: z.array(z.unknown()) }).parse(data);
+    batch.forEach((id, index) => {
+      const parsed = statusNode.safeParse(nodes[index]);
+      statuses.set(id, parsed.success ? toStatus(parsed.data) : null);
+    });
+  }
+  return statuses;
 }

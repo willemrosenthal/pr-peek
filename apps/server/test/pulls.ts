@@ -140,13 +140,19 @@ export function githubPr(overrides: Record<string, unknown> = {}) {
   };
 }
 
-// One PR as the search query returns it.
+// One PR as the search and status queries return it.
 export function searchHit(
   id: string,
-  options: { repoId?: number; updatedAt?: string; checkState?: string } = {},
+  options: {
+    repoId?: number;
+    state?: "OPEN" | "CLOSED" | "MERGED";
+    updatedAt?: string;
+    checkState?: string;
+  } = {},
 ) {
   return {
     id,
+    state: options.state ?? "OPEN",
     updatedAt: options.updatedAt ?? "2026-10-21T10:00:00Z",
     repository: { databaseId: options.repoId ?? 1 },
     commits: {
@@ -170,6 +176,9 @@ export interface FakePrGitHub {
   commented?: unknown[];
   // Details by PR id. Missing ids answer null, like a deleted PR.
   prs?: Record<string, unknown>;
+  // Status by PR id, for tracked PRs the searches miss (see `searchHit`). Missing ids
+  // answer null, like a deleted PR.
+  statuses?: Record<string, unknown>;
   // The viewer's teams as "org/team-slug".
   teams?: string[];
 }
@@ -202,9 +211,16 @@ export function prGitHub(fake: FakePrGitHub) {
       };
     }
     const ids = request.variables.ids as string[];
-    return { data: { nodes: ids.map((id) => fake.prs?.[id] ?? null) } };
+    const byId = isDetails(request) ? fake.prs : fake.statuses;
+    return { data: { nodes: ids.map((id) => byId?.[id] ?? null) } };
   };
 }
+
+const isDetails = (request: GraphQLRequest) =>
+  request.query.includes("reviewThreads");
+
+const idsIn = (requests: GraphQLRequest[]) =>
+  requests.flatMap((r) => (r.variables.ids as string[] | undefined) ?? []);
 
 // The search requests in a list of requests, as their `q` text.
 export const searchQueries = (requests: GraphQLRequest[]) =>
@@ -218,4 +234,8 @@ export const teamQueries = (requests: GraphQLRequest[]) =>
 
 // The PR ids asked for in details requests.
 export const detailIds = (requests: GraphQLRequest[]) =>
-  requests.flatMap((r) => (r.variables.ids as string[] | undefined) ?? []);
+  idsIn(requests.filter(isDetails));
+
+// The PR ids asked for in status requests.
+export const statusIds = (requests: GraphQLRequest[]) =>
+  idsIn(requests.filter((r) => r.query.includes("nodes(") && !isDetails(r)));
