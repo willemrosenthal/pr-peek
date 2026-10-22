@@ -1,5 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { tokenSignInBody, type TokenSignInResponse } from "@pr-peek/core";
+import {
+  tokenSignInBody,
+  type MeResponse,
+  type TokenSignInResponse,
+} from "@pr-peek/core";
 import express, {
   type RequestHandler,
   type Response,
@@ -173,12 +177,9 @@ export function authRouter(deps: AuthDeps): Router {
     res.sendStatus(204);
   });
 
-  router.get("/me", requireUser(deps.db), async (_req, res) => {
+  router.get("/me", requireUser(deps.db), (_req, res) => {
     const user = currentUser(res);
-    const settings = await deps.db.userSettings.findUnique({
-      where: { userId: user.id },
-    });
-    res.json({
+    const body: MeResponse = {
       user: {
         id: user.id,
         login: user.login,
@@ -187,9 +188,9 @@ export function authRouter(deps: AuthDeps): Router {
         authMethod: user.authMethod,
         scopes: user.tokenScopes,
       },
-      settings,
       needsReauth: user.syncError === "reauth",
-    });
+    };
+    res.json(body);
   });
 
   return router;

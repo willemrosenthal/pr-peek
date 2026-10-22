@@ -64,7 +64,6 @@ describe("the GitHub callback", () => {
         authMethod: "oauth",
         scopes: ["repo", "read:org", "notifications"],
       },
-      settings: { timezone: "UTC" },
       needsReauth: false,
     });
   });
