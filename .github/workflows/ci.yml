@@ -14,7 +14,9 @@ concurrency:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # Pinned, since ubuntu-latest is moving to 26.04. 24.04 has what Chromium needs.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     services:
       # For tests that use a real database. The test setup creates the test database in it.
       postgres:
@@ -51,7 +53,8 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       # The browser smoke test. Needs the build above, since the server serves it.
-      - run: pnpm --filter @pr-peek/web exec playwright install --with-deps chromium
+      # Headless Chromium only. The runner already has its system libraries.
+      - run: pnpm --filter @pr-peek/web exec playwright install --only-shell chromium
       - run: pnpm e2e
         env:
           E2E_DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_e2e
