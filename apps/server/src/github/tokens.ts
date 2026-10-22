@@ -1,5 +1,6 @@
 import { decrypt, encrypt } from "../crypto";
 import type { Db } from "../db";
+import { HttpError } from "../http-error";
 import { GitHubAuthError, type GitHubOAuth, type GitHubTokens } from "./oauth";
 
 // Refresh a bit early so a token never expires partway through a sync.
@@ -13,9 +14,10 @@ export interface TokenDeps {
 }
 
 // The user has to sign in again: no token, an expired refresh token, or GitHub revoked it.
-export class NeedsReauthError extends Error {
+// In a request it becomes a 401 with code "reauth".
+export class NeedsReauthError extends HttpError {
   constructor(readonly userId: string) {
-    super("User needs to sign in to GitHub again");
+    super(401, "reauth", "Sign in to GitHub again");
     this.name = "NeedsReauthError";
   }
 }

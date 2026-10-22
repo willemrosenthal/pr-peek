@@ -10,6 +10,7 @@ import helmet from "helmet";
 import type { Logger } from "pino";
 import { pinoHttp } from "pino-http";
 import { requireSameOrigin } from "./csrf";
+import { HttpError } from "./http-error";
 
 const API = "/api";
 const HEALTH = "/health";
@@ -87,28 +88,36 @@ const notFound: RequestHandler = (_req, res) => {
   res.status(404).json({ error: { code: "not_found", message: "Not found" } });
 };
 
-// Body parser and similar errors carry a 4xx `status` and a safe `message`.
-function httpError(err: unknown): { status: number; message?: string } {
-  if (typeof err !== "object" || err === null) return { status: 500 };
+interface ClientError {
+  status: number;
+  code: string;
+  message: string;
+}
+
+// Errors that are safe to show: our HttpError, and body parser errors (4xx `status`, `expose`).
+function clientError(err: unknown): ClientError | null {
+  if (err instanceof HttpError) return err;
+  if (typeof err !== "object" || err === null) return null;
   const { status, expose, message } = err as Record<string, unknown>;
-  if (typeof status !== "number" || status < 400 || status >= 600) {
-    return { status: 500 };
-  }
-  return expose === true && typeof message === "string"
-    ? { status, message }
-    : { status };
+  if (typeof status !== "number" || status < 400 || status >= 500) return null;
+  return {
+    status,
+    code: "bad_request",
+    message:
+      expose === true && typeof message === "string" ? message : "Bad request",
+  };
 }
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
-  const { status, message } = httpError(err);
-  if (status >= 500) {
-    req.log.error({ err }, "request failed");
-    res.status(status).json({
-      error: { code: "internal_error", message: "Something went wrong" },
+  const known = clientError(err);
+  if (known) {
+    res.status(known.status).json({
+      error: { code: known.code, message: known.message },
     });
     return;
   }
-  res.status(status).json({
-    error: { code: "bad_request", message: message ?? "Bad request" },
+  req.log.error({ err }, "request failed");
+  res.status(500).json({
+    error: { code: "internal_error", message: "Something went wrong" },
   });
 };

@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                          |
-| ------------------ | -------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [03. GitHub sign in](completed/03-github-auth.md), finishing. Next: [04. GitHub sync](04-github-sync.md) |
-| **Branch**         | `plan-03-3-finish`                                                                                       |
-| **PR**             | Opening now (finish plan 03). Earlier: #7, #8                                                            |
-| **Last step done** | Sign in works locally and on Render                                                                      |
-| **Next step**      | Start [plan 04](04-github-sync.md) once this merges                                                      |
-| **Waiting on you** | Merge this PR. Confirm the plan 02 worker heartbeat. Branch protection for `main` and `prod`             |
+|                    |                                                                                                 |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| **Current plan**   | [04. GitHub sync](04-github-sync.md), part A of 3: watched repos API. B: fetch PRs. C: schedule |
+| **Branch**         | `plan-04-1-repos`                                                                               |
+| **PR**             | Opening now (part A)                                                                            |
+| **Last step done** | 4.1 Watched repos API, tested (89 tests)                                                        |
+| **Next step**      | Part B (`plan-04-2-fetch`): 4.2 to 4.4 once part A merges                                       |
+| **Waiting on you** | Confirm the plan 02 worker heartbeat. Branch protection for `main` and `prod`                   |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.
