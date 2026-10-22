@@ -17,7 +17,13 @@ afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
 async function userWith(tokens = githubTokens()) {
-  const { user } = await upsertGitHubUser(db, githubUser(), tokens, TEST_KEY);
+  const { user } = await upsertGitHubUser(
+    db,
+    githubUser(),
+    tokens,
+    TEST_KEY,
+    "oauth",
+  );
   return user;
 }
 

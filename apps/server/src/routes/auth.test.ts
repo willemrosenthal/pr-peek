@@ -4,7 +4,7 @@ import { APP_URL, makeTestApp, signIn, startSignIn } from "../../test/app";
 import { createTestDb, resetDb } from "../../test/db";
 import { fakeOAuth, githubUser, hours, TEST_KEY } from "../../test/fakes";
 import { decrypt } from "../crypto";
-import { GitHubAuthError } from "../github/oauth";
+import { type CheckedToken, GitHubAuthError } from "../github/oauth";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
@@ -146,6 +146,20 @@ describe("POST /api/auth/token", () => {
     token = "ghp_token",
   ) => agent.post("/api/auth/token").set("Origin", APP_URL).send({ token });
 
+  // An app where GitHub reports the pasted token with these details.
+  const appWithToken = (checked: Partial<CheckedToken>) =>
+    makeApp(
+      fakeOAuth({
+        checkToken: () =>
+          Promise.resolve({
+            user: githubUser(),
+            scopes: ["repo"],
+            expiresAt: null,
+            ...checked,
+          }),
+      }),
+    );
+
   it("signs in a new user with a personal access token", async () => {
     const { agent, oauth } = makeApp();
     const res = await postToken(agent, "  ghp_token  ");
@@ -197,16 +211,7 @@ describe("POST /api/auth/token", () => {
   });
 
   it("accepts a fine-grained token, which has no scopes", async () => {
-    const { agent } = makeApp(
-      fakeOAuth({
-        checkToken: () =>
-          Promise.resolve({
-            user: githubUser(),
-            scopes: null,
-            expiresAt: null,
-          }),
-      }),
-    );
+    const { agent } = appWithToken({ scopes: null });
     expect((await postToken(agent, "github_pat_token")).status).toBe(200);
     const user = await db.user.findFirstOrThrow();
     expect(user).toMatchObject({ tokenScopes: [], accessTokenExpiresAt: null });
@@ -228,16 +233,7 @@ describe("POST /api/auth/token", () => {
   });
 
   it("rejects a classic token without the repo scope", async () => {
-    const { agent } = makeApp(
-      fakeOAuth({
-        checkToken: () =>
-          Promise.resolve({
-            user: githubUser(),
-            scopes: ["read:org"],
-            expiresAt: null,
-          }),
-      }),
-    );
+    const { agent } = appWithToken({ scopes: ["read:org"] });
     const res = await postToken(agent);
 
     expect(res.status).toBe(400);
@@ -246,16 +242,7 @@ describe("POST /api/auth/token", () => {
   });
 
   it("accepts the public_repo scope", async () => {
-    const { agent } = makeApp(
-      fakeOAuth({
-        checkToken: () =>
-          Promise.resolve({
-            user: githubUser(),
-            scopes: ["public_repo"],
-            expiresAt: null,
-          }),
-      }),
-    );
+    const { agent } = appWithToken({ scopes: ["public_repo"] });
     expect((await postToken(agent)).status).toBe(200);
   });
 

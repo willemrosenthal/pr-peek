@@ -26,6 +26,7 @@ async function setup(github: typeof fetch) {
     githubUser(),
     githubTokens(),
     TEST_KEY,
+    "oauth",
   );
   const octokit = await getOctokit(
     { db, oauth: fakeOAuth(), key: TEST_KEY, now: () => NOW, fetch: github },

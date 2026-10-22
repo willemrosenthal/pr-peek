@@ -9,7 +9,7 @@ export async function upsertGitHubUser(
   githubUser: GitHubUser,
   tokens: GitHubTokens,
   key: Buffer,
-  authMethod: AuthMethod = "oauth",
+  authMethod: AuthMethod,
 ): Promise<{ user: User; isNew: boolean }> {
   const profile = {
     login: githubUser.login,
