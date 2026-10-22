@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Current plan**   | [07. Web app](07-web-app.md), part 3c: tracking PRs. Parts 1 to 4a (#20 to #24) merged                                                                                               |
 | **Branch**         | `plan-07-3c-tracking`                                                                                                                                                                |
-| **PR**             | Part 3c, not opened yet                                                                                                                                                              |
+| **PR**             | [#25](https://github.com/willemrosenthal/pr-peek/pull/25) (part 3c), draft                                                                                                           |
 | **Last step done** | Planned parts 3c, 3d, and 3e (steps 7.9 to 7.11)                                                                                                                                     |
 | **Next step**      | Build 3c. Then 3d ("Update branch"), 3e (mentions, one row per PR), then 4b                                                                                                          |
 | **Waiting on you** | Add repos, then the part 3b stream check in DevTools (PR #23, steps 3 and 4). Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
