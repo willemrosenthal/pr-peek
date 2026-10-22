@@ -41,23 +41,19 @@ describe("sections", () => {
   });
 
   it("lists the user's idle PRs after their items in My PRs", async () => {
+    const idle = idlePr();
+    const busy = item();
     fakeApi(
       listApi({
-        "GET /api/items": () =>
-          json(
-            groups({
-              mine: [item({ pr: { ...item().pr, title: "PR busy" } })],
-              idlePrs: [idlePr({ pr: { ...idlePr().pr, title: "PR idle" } })],
-            }),
-          ),
+        "GET /api/items": () => json(groups({ mine: [busy], idlePrs: [idle] })),
       }),
     );
     renderApp("/");
 
     expect((await sectionButton(/My PRs/)).textContent).toContain("2");
     expect(rows().map((row) => row.textContent)).toEqual([
-      expect.stringContaining("PR busy"),
-      expect.stringContaining("PR idle"),
+      expect.stringContaining(busy.pr.title),
+      expect.stringContaining(idle.pr.title),
     ]);
   });
 

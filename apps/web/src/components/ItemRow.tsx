@@ -41,7 +41,7 @@ export function ItemRow({ item }: { item: ItemDto }) {
   return (
     <Row
       pr={item.pr}
-      className={cx(item.unseen && styles.unseen)}
+      className={item.unseen && styles.unseen}
       // Keeps the kind's color, so a bot's approval still reads as an approval.
       Icon={item.actorIsBot ? BotMessageSquare : KindIcon}
       tone={tone}
@@ -68,7 +68,7 @@ export function IdlePrRow({ pr }: { pr: IdlePrDto }) {
   return (
     <Row
       pr={pr.pr}
-      className={cx(pr.isDraft && styles.draft)}
+      className={pr.isDraft && styles.draft}
       Icon={pr.isDraft ? SquircleDashed : Squircle}
       tone={styles.muted}
       title={pr.pr.title}
@@ -94,7 +94,7 @@ function Row({
   children,
 }: {
   pr: ItemDto["pr"];
-  className: string | undefined;
+  className: string | false | undefined;
   Icon: LucideIcon;
   tone: string | undefined;
   title: ReactNode;
