@@ -1,11 +1,18 @@
 import { screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
-import { apiError, fakeApi, json, me, signedOut } from "../test/fake-api";
+import {
+  apiError,
+  fakeApi,
+  json,
+  me,
+  signedInApi,
+  signedOut,
+} from "../test/fake-api";
 import { renderApp } from "../test/render";
 
 it("shows the page when signed in", async () => {
-  fakeApi({ "GET /api/me": () => json(me()) });
+  fakeApi(signedInApi());
   renderApp("/settings");
   expect(await screen.findByText("Signed in as octocat")).toBeTruthy();
 });
@@ -19,10 +26,12 @@ it("sends signed out users to sign in", async () => {
 
 it("offers a retry when the server can't be reached", async () => {
   let down = true;
-  fakeApi({
-    "GET /api/me": () =>
-      down ? apiError(503, "unavailable", "Server is down") : json(me()),
-  });
+  fakeApi(
+    signedInApi({
+      "GET /api/me": () =>
+        down ? apiError(503, "unavailable", "Server is down") : json(me()),
+    }),
+  );
   renderApp("/settings");
 
   expect(await screen.findByText("Server is down")).toBeTruthy();

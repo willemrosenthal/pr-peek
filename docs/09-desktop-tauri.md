@@ -50,6 +50,8 @@ The Tauri window loads the **hosted web app** (`https://<your-domain>/?shell=tra
 - [ ] The hidden window keeps the page and its SSE connection alive. Summary updates keep the tray count current.
 - [ ] Turn off the web view's background throttling so SSE and timers keep running when the window is hidden. Verify on battery power.
 - [ ] After sleep or wake, or a network change, reconnect SSE and refetch.
+- [ ] Check that hiding the window sets `document.visibilityState` to `hidden`. The list marks items seen then (plan 07 part 3b). If it doesn't, mark them seen on the window's own hide event.
+- [ ] Add the Quit button to the tray footer (`ListPage.tsx`, plan 07 part 3b), and route "Open in browser" through `open_external`.
 
 ### 9.5 Notifications without duplicates
 

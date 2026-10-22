@@ -1,17 +1,21 @@
-import { cleanup, screen } from "@testing-library/react";
+import type { MarkSeenBody } from "@pr-peek/core";
+import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
   apiError,
+  callsTo,
   fakeApi,
   groups,
   item,
   json,
   listApi,
   me,
+  noContent,
   syncStatus,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
+import { setVisibility } from "../test/visibility";
 
 const minutesAgo = (n: number) =>
   new Date(Date.now() - n * 60_000).toISOString();
@@ -62,6 +66,141 @@ describe("sections", () => {
     renderApp("/");
     const review = await sectionButton(/Needs my review/);
     expect(review.getAttribute("aria-expanded")).toBe("true");
+  });
+});
+
+describe("marking seen", () => {
+  const newItem = () => item({ unseen: true });
+
+  // The ids in each request to mark items seen.
+  const seenRequests = (fetch: ReturnType<typeof fakeApi>) =>
+    callsTo(fetch, "/api/items/seen").map(
+      ([, init]) => (JSON.parse(init!.body as string) as MarkSeenBody).ids,
+    );
+
+  it("marks the new items in open sections when the tab is hidden", async () => {
+    const review = [newItem(), item()];
+    const mine = [newItem()];
+    localStorage.setItem("pr-peek:collapsed", '["mine"]');
+    const fetch = fakeApi(
+      listApi({ "GET /api/items": () => json(groups({ review, mine })) }),
+    );
+    renderApp("/");
+    await sectionButton(/Needs my review/);
+    expect(seenRequests(fetch)).toEqual([]);
+
+    act(() => setVisibility("hidden"));
+    expect(seenRequests(fetch)).toEqual([[review[0]!.id]]);
+  });
+
+  it("marks them when going to another page", async () => {
+    const review = [newItem()];
+    const fetch = fakeApi(
+      listApi({ "GET /api/items": () => json(groups({ review })) }),
+    );
+    renderApp("/");
+    await userEvent.click(
+      await screen.findByRole("link", { name: "Settings" }),
+    );
+    await waitFor(() => expect(seenRequests(fetch)).toEqual([[review[0]!.id]]));
+  });
+
+  it("doesn't mark them when dev mode runs effects twice", async () => {
+    const fetch = fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ review: [newItem()] })),
+      }),
+    );
+    renderApp("/", { strict: true });
+    await sectionButton(/Needs my review/);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    expect(seenRequests(fetch)).toEqual([]);
+  });
+
+  it("marks each item once", async () => {
+    const review = [newItem()];
+    const fetch = fakeApi(
+      listApi({ "GET /api/items": () => json(groups({ review })) }),
+    );
+    renderApp("/");
+    await sectionButton(/Needs my review/);
+
+    act(() => setVisibility("hidden"));
+    act(() => setVisibility("visible"));
+    act(() => setVisibility("hidden"));
+    expect(seenRequests(fetch)).toHaveLength(1);
+  });
+
+  it("skips items that loaded while the tab was hidden, until it's shown", async () => {
+    setVisibility("hidden");
+    const review = [newItem()];
+    const fetch = fakeApi(
+      listApi({ "GET /api/items": () => json(groups({ review })) }),
+    );
+    renderApp("/");
+    await sectionButton(/Needs my review/);
+
+    act(() => setVisibility("hidden"));
+    expect(seenRequests(fetch)).toEqual([]);
+    act(() => setVisibility("visible"));
+    act(() => setVisibility("hidden"));
+    expect(seenRequests(fetch)).toEqual([[review[0]!.id]]);
+  });
+
+  it("tries again when marking fails", async () => {
+    let down = true;
+    const review = [newItem()];
+    const fetch = fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ review })),
+        "POST /api/items/seen": () =>
+          down ? apiError(500, "internal_error", "Server error") : noContent(),
+      }),
+    );
+    renderApp("/");
+    await sectionButton(/Needs my review/);
+
+    act(() => setVisibility("hidden"));
+    down = false;
+    act(() => setVisibility("visible"));
+    // Hides again until the failed request has finished.
+    await waitFor(() => {
+      act(() => setVisibility("hidden"));
+      expect(seenRequests(fetch)).toHaveLength(2);
+    });
+  });
+});
+
+describe("tray mode", () => {
+  const trayFooter = () =>
+    screen.queryByRole("link", { name: "Open in browser" });
+
+  it("adds the footer in the menu bar app", async () => {
+    fakeApi(listApi());
+    renderApp("/?shell=tray");
+    expect(
+      await screen.findByRole("link", { name: "Open in browser" }),
+    ).toBeTruthy();
+  });
+
+  it("has no footer in a browser", async () => {
+    fakeApi(listApi());
+    renderApp("/");
+    await screen.findByText("Nothing needs you right now");
+    expect(trayFooter()).toBe(null);
+  });
+
+  it("stays on after visiting settings", async () => {
+    fakeApi(listApi());
+    renderApp("/?shell=tray");
+    await userEvent.click(
+      await screen.findByRole("link", { name: "Settings" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("link", { name: "Back to your list" }),
+    );
+    await screen.findByText("Nothing needs you right now");
+    expect(trayFooter()).toBeTruthy();
   });
 });
 

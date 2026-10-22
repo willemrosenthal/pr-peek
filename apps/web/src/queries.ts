@@ -1,6 +1,7 @@
 import type {
   ItemsResponse,
   MeResponse,
+  SummaryResponse,
   SyncStatusResponse,
   WatchedReposResponse,
 } from "@pr-peek/core";
@@ -10,6 +11,7 @@ import { api, isUnauthorized } from "./api";
 export const queryKeys = {
   me: ["me"],
   items: ["items"],
+  summary: ["summary"],
   syncStatus: ["sync-status"],
   repos: ["repos"],
 } as const;
@@ -31,6 +33,15 @@ export function useItems() {
   return useQuery({
     queryKey: queryKeys.items,
     queryFn: () => api<ItemsResponse>("/items"),
+    refetchInterval: REFETCH_MS,
+  });
+}
+
+// Counts for the app badge. The live stream also sets it.
+export function useSummary() {
+  return useQuery({
+    queryKey: queryKeys.summary,
+    queryFn: () => api<SummaryResponse>("/summary"),
     refetchInterval: REFETCH_MS,
   });
 }

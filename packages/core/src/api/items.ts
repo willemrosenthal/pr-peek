@@ -15,7 +15,7 @@ export const ITEM_GROUPS: Record<ItemKind, ItemGroup> = {
 };
 
 // Most items marked seen in one request.
-const MAX_SEEN_IDS = 500;
+export const MAX_SEEN_IDS = 500;
 
 export const markSeenBody = z.object({
   ids: z.array(z.string().min(1).max(100)).min(1).max(MAX_SEEN_IDS),
