@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import { createGitHubOAuth, GitHubAuthError } from "./oauth";
+import { createGitHubOAuth, GitHubAuthError, parseTokenExpiry } from "./oauth";
 
 const NOW = new Date("2026-10-21T12:00:00Z");
 const REDIRECT = "https://git-buddy.example/api/auth/github/callback";
 
-function setup(response: unknown, status = 200) {
+function setup(
+  response: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+) {
   const fetch = vi.fn<typeof globalThis.fetch>(() =>
-    Promise.resolve(Response.json(response, { status })),
+    Promise.resolve(Response.json(response, { status, headers })),
   );
   const oauth = createGitHubOAuth({
     clientId: "client-id",
@@ -143,5 +147,82 @@ describe("getUser", () => {
     });
     const headers = fetch.mock.calls[0]?.[1]?.headers as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer ghu_access");
+  });
+});
+
+describe("checkToken", () => {
+  const profile = {
+    id: 42,
+    login: "octocat",
+    name: null,
+    avatar_url: "https://avatars.example/42",
+  };
+
+  it("returns the user, scopes, and expiry of a classic token", async () => {
+    const { oauth, fetch } = setup(profile, 200, {
+      "x-oauth-scopes": "repo, read:org",
+      "github-authentication-token-expiration": "2026-10-28 18:00:00 UTC",
+    });
+    expect(await oauth.checkToken("ghp_token")).toEqual({
+      user: {
+        id: 42,
+        login: "octocat",
+        name: null,
+        avatarUrl: "https://avatars.example/42",
+      },
+      scopes: ["repo", "read:org"],
+      expiresAt: new Date("2026-10-28T18:00:00Z"),
+    });
+    const headers = fetch.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer ghp_token");
+  });
+
+  it("reports an empty scope list as no scopes", async () => {
+    const { oauth } = setup(profile, 200, { "x-oauth-scopes": "" });
+    expect(await oauth.checkToken("ghp_token")).toMatchObject({
+      scopes: [],
+      expiresAt: null,
+    });
+  });
+
+  it("returns null scopes for a fine-grained token", async () => {
+    const { oauth } = setup(profile);
+    expect(await oauth.checkToken("github_pat_token")).toMatchObject({
+      scopes: null,
+    });
+  });
+
+  it("throws GitHubAuthError for a bad token", async () => {
+    const { oauth } = setup({ message: "Bad credentials" }, 401);
+    await expect(oauth.checkToken("ghp_bad")).rejects.toMatchObject({
+      name: "GitHubAuthError",
+      code: "bad_token",
+    });
+  });
+
+  it("throws a plain error when GitHub is down", async () => {
+    const { oauth } = setup({}, 502);
+    const error = await oauth.checkToken("ghp_token").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(GitHubAuthError);
+  });
+});
+
+describe("parseTokenExpiry", () => {
+  it("reads GitHub's UTC format", () => {
+    expect(parseTokenExpiry("2026-10-28 18:00:00 UTC")).toEqual(
+      new Date("2026-10-28T18:00:00Z"),
+    );
+  });
+
+  it("reads a numeric time zone", () => {
+    expect(parseTokenExpiry("2026-10-28 11:00:00 -0700")).toEqual(
+      new Date("2026-10-28T18:00:00Z"),
+    );
+  });
+
+  it("returns null for a missing or unknown value", () => {
+    expect(parseTokenExpiry(null)).toBeNull();
+    expect(parseTokenExpiry("next tuesday")).toBeNull();
   });
 });

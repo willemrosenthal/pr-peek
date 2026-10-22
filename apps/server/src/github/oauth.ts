@@ -1,4 +1,5 @@
 // Talks to GitHub's OAuth endpoints: the sign in link, swapping a code for tokens, and refreshing them.
+// Also checks personal access tokens that users paste in.
 
 export type ScopeChoice = "full" | "public";
 
@@ -24,6 +25,15 @@ export interface GitHubUser {
   avatarUrl: string;
 }
 
+// What GitHub says about a pasted personal access token.
+export interface CheckedToken {
+  user: GitHubUser;
+  // Null for fine-grained tokens, which have no scopes.
+  scopes: string[] | null;
+  // Null when the token never expires.
+  expiresAt: Date | null;
+}
+
 export interface GitHubOAuth {
   authorizeUrl(options: {
     state: string;
@@ -33,6 +43,7 @@ export interface GitHubOAuth {
   exchangeCode(code: string, redirectUri: string): Promise<GitHubTokens>;
   refresh(refreshToken: string): Promise<GitHubTokens>;
   getUser(accessToken: string): Promise<GitHubUser>;
+  checkToken(token: string): Promise<CheckedToken>;
 }
 
 // GitHub said no: a bad or expired code or refresh token. The user has to sign in again.
@@ -68,6 +79,26 @@ interface UserResponse {
   login: string;
   name: string | null;
   avatar_url: string;
+}
+
+const toGitHubUser = (user: UserResponse): GitHubUser => ({
+  id: user.id,
+  login: user.login,
+  name: user.name,
+  avatarUrl: user.avatar_url,
+});
+
+// GitHub sends token expiry like "2026-10-28 18:00:00 UTC", which Date can't parse reliably.
+export function parseTokenExpiry(header: string | null): Date | null {
+  const match = header?.match(
+    /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) (UTC|[+-]\d{2}:?\d{2})$/,
+  );
+  if (!match) return null;
+  const [, date, time, zone = "UTC"] = match;
+  const offset =
+    zone === "UTC" ? "Z" : zone.replace(/^([+-]\d{2})(\d{2})$/, "$1:$2");
+  const parsed = new Date(`${date}T${time}${offset}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 export function createGitHubOAuth(options: Options): GitHubOAuth {
@@ -112,6 +143,14 @@ export function createGitHubOAuth(options: Options): GitHubOAuth {
     };
   }
 
+  const fetchUser = (accessToken: string) =>
+    request("https://api.github.com/user", {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
   return {
     authorizeUrl({ state, scope, redirectUri }) {
       const url = new URL("https://github.com/login/oauth/authorize");
@@ -136,19 +175,35 @@ export function createGitHubOAuth(options: Options): GitHubOAuth {
     },
 
     async getUser(accessToken) {
-      const res = await request("https://api.github.com/user", {
-        headers: {
-          Accept: "application/vnd.github+json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const res = await fetchUser(accessToken);
       if (!res.ok) throw new Error(`GitHub user request failed: ${res.status}`);
-      const user = (await res.json()) as UserResponse;
+      return toGitHubUser((await res.json()) as UserResponse);
+    },
+
+    async checkToken(token) {
+      const res = await fetchUser(token);
+      if (res.status === 401) {
+        throw new GitHubAuthError(
+          "bad_token",
+          "GitHub didn't accept the token",
+        );
+      }
+      if (!res.ok) throw new Error(`GitHub user request failed: ${res.status}`);
+
+      // Only classic tokens send this header.
+      const scopeHeader = res.headers.get("x-oauth-scopes");
       return {
-        id: user.id,
-        login: user.login,
-        name: user.name,
-        avatarUrl: user.avatar_url,
+        user: toGitHubUser((await res.json()) as UserResponse),
+        scopes:
+          scopeHeader === null
+            ? null
+            : scopeHeader
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean),
+        expiresAt: parseTokenExpiry(
+          res.headers.get("github-authentication-token-expiration"),
+        ),
       };
     },
   };

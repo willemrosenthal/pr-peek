@@ -14,8 +14,9 @@ Each sync for a user answers three questions:
 
 We use GitHub's **GraphQL API** because one request can fetch a PR plus its reviews, comments, timeline, and checks. GitHub limits GraphQL by "points" per hour per user token. Check GitHub's docs for the current limits. Each user's sync uses that user's own token, so users don't eat into each other's limits.
 
-**Split into three PRs:**
+**Split into four PRs:**
 
+- **Part 0** (`plan-04-0-token-sign-in`): step 4.0, sign in with a personal access token.
 - **Part A** (`plan-04-1-repos`): step 4.1, the watched repos API.
 - **Part B** (`plan-04-2-fetch`): steps 4.2 to 4.4. Find relevant PRs, skip unchanged ones, fetch details, save snapshots.
 - **Part C** (`plan-04-3-schedule`): steps 4.5 to 4.7. The worker schedule, backoff, and rate limit logging.
@@ -27,8 +28,27 @@ We use GitHub's **GraphQL API** because one request can fetch a PR plus its revi
 - **Fake GitHub with an injected `fetch`, not MSW.** Same approach as plan 03. `test/github.ts` has `fakeGraphQL`.
 - **Octokit spaces out GraphQL calls** (its throttling treats them as writes, about one per second). Fine for a few calls per sync, but keep the number of calls per sync low. Tests turn throttling off.
 - **Added `GET /api/repos`** to list the watch list. The settings screen needs it.
+- **Added step 4.0, token sign in.** Many company orgs block OAuth Apps until an org owner approves them. Our app can sign people in, but GitHub hides the org's private repos from it. A **personal access token** (PAT, a password-like key the user makes in their own GitHub settings) acts as the user and isn't affected by that block, unless the org also bans classic tokens. Added after part A.
 
 ## Steps
+
+### 4.0 Sign in with a personal access token (part 0)
+
+- [x] `POST /api/auth/token` (`{ token }`): checks the token with GitHub's `GET /user`, then signs the user in like the OAuth callback does (same user row, new session id, rate limit, CSRF check). Returns `{ isNew }` as JSON.
+- [x] Classic tokens must have the `repo` or `public_repo` scope, read from GitHub's `X-OAuth-Scopes` header. Fine-grained tokens have no scopes, so they're accepted and GitHub decides what they can see.
+- [x] The token's expiry comes from GitHub's `GitHub-Authentication-Token-Expiration` header. There's no refresh token, so when it expires the user is marked "needs reauth" and must paste a new one.
+- [x] New `User.authMethod` column (`oauth` or `pat`), returned by `/api/me`. The web app uses it to show the right "sign in again" screen.
+- [x] Request and response shapes in `packages/core/src/api/auth.ts`.
+- [x] Tests: good token, bad token, missing scope, fine-grained token, switching between OAuth and a token, bad input, CSRF, rate limit, and an expiring token asking for a new one.
+- [ ] **(You)** Make a classic token with `repo` and `read:org` (authorize it for SSO if your org uses it). With the dev server running, sign in with it and search for your work repo:
+  ```
+  curl -c pp-cookies.txt -H "Origin: http://localhost:3000" -H "Content-Type: application/json" -d '{"token":"YOUR_TOKEN"}' http://localhost:3000/api/auth/token
+  curl -b pp-cookies.txt http://localhost:3000/api/me
+  curl -b pp-cookies.txt "http://localhost:3000/api/github/repos?query=WORK_REPO_NAME"
+  ```
+  The last call should list the work repo. Delete `pp-cookies.txt` after.
+- `read:org` isn't required by the server, but without it org repos and team review requests can go missing. The sign in steps ask for it.
+- Limit: we can't tell if a classic token was authorized for the org's single sign-on (SSO). `GET /user` works either way. Without it, adding an org repo fails with "not found". The sign in screen (plan 07) must tell users to do that step.
 
 ### 4.1 Watched repos (part A)
 

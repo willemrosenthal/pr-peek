@@ -15,6 +15,7 @@ describe("upsertGitHubUser", () => {
       githubUser(),
       githubTokens(),
       TEST_KEY,
+      "oauth",
     );
 
     expect(isNew).toBe(true);
@@ -35,6 +36,7 @@ describe("upsertGitHubUser", () => {
       githubUser(),
       githubTokens(),
       TEST_KEY,
+      "oauth",
     );
 
     expect(user.accessTokenEnc).not.toContain("ghu_access");
@@ -49,6 +51,7 @@ describe("upsertGitHubUser", () => {
       githubUser(),
       githubTokens(),
       TEST_KEY,
+      "oauth",
     );
     await db.user.update({
       where: { id: first.user.id },
@@ -60,6 +63,7 @@ describe("upsertGitHubUser", () => {
       githubUser({ login: "octocat-renamed" }),
       githubTokens({ accessToken: "ghu_new" }),
       TEST_KEY,
+      "oauth",
     );
 
     expect(second.isNew).toBe(false);

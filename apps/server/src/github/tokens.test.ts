@@ -17,7 +17,13 @@ afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
 async function userWith(tokens = githubTokens()) {
-  const { user } = await upsertGitHubUser(db, githubUser(), tokens, TEST_KEY);
+  const { user } = await upsertGitHubUser(
+    db,
+    githubUser(),
+    tokens,
+    TEST_KEY,
+    "oauth",
+  );
   return user;
 }
 
@@ -92,6 +98,23 @@ describe("getAccessToken", () => {
     expect(
       (await db.user.findUniqueOrThrow({ where: { id: user.id } })).syncError,
     ).toBe("reauth");
+  });
+
+  it("asks for a new token when a personal access token is about to expire", async () => {
+    const user = await userWith(
+      githubTokens({
+        accessToken: "ghp_token",
+        accessTokenExpiresAt: hours(0.05),
+        refreshToken: null,
+        refreshTokenExpiresAt: null,
+      }),
+    );
+    const oauth = fakeOAuth();
+
+    await expect(getAccessToken(deps(oauth), user.id)).rejects.toBeInstanceOf(
+      NeedsReauthError,
+    );
+    expect(oauth.refresh).not.toHaveBeenCalled();
   });
 
   it("asks the user to sign in again when GitHub rejects the refresh", async () => {

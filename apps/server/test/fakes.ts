@@ -55,5 +55,14 @@ export function fakeOAuth(overrides: Partial<GitHubOAuth> = {}) {
     getUser: vi.fn<GitHubOAuth["getUser"]>(
       overrides.getUser ?? (() => Promise.resolve(githubUser())),
     ),
+    checkToken: vi.fn<GitHubOAuth["checkToken"]>(
+      overrides.checkToken ??
+        (() =>
+          Promise.resolve({
+            user: githubUser(),
+            scopes: ["repo", "read:org"],
+            expiresAt: hours(24 * 30),
+          })),
+    ),
   };
 }

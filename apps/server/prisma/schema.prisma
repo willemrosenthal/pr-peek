@@ -23,22 +23,29 @@ enum ItemStatus {
   resolved
 }
 
+// How the user signed in: the GitHub OAuth App, or a pasted personal access token.
+enum AuthMethod {
+  oauth
+  pat
+}
+
 model User {
-  id             String    @id @default(cuid())
-  githubId       Int       @unique
-  login          String
-  name           String?
-  avatarUrl      String?
-  // GitHub tokens, encrypted (see crypto.ts). Access tokens expire after about 8 hours.
+  id                    String     @id @default(cuid())
+  githubId              Int        @unique
+  login                 String
+  name                  String?
+  avatarUrl             String?
+  authMethod            AuthMethod @default(oauth)
+  // GitHub tokens, encrypted (see crypto.ts). OAuth access tokens expire after about 8 hours.
   accessTokenEnc        String?
   accessTokenExpiresAt  DateTime?
   refreshTokenEnc       String?
   refreshTokenExpiresAt DateTime?
   tokenScopes           String[]
-  lastSyncedAt   DateTime?
-  syncError      String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  lastSyncedAt          DateTime?
+  syncError             String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
 
   settings          UserSettings?
   watchedRepos      WatchedRepo[]
