@@ -1,3 +1,4 @@
+import type { Octokit } from "octokit";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb, resetDb } from "../test/db";
 import { githubTokens, githubUser, hours, NOW, TEST_KEY } from "../test/fakes";
@@ -87,14 +88,13 @@ describe("backoffMs", () => {
 });
 
 describe("runSync", () => {
+  // Runs one sync at NOW.
+  const syncWith = (userId: string, github: () => Promise<Octokit>) =>
+    runSync({ db, logger, github, now: () => NOW }, userId);
+
   // Runs one sync at NOW against a fake GitHub.
-  function run(userId: string, answer: (request: GraphQLRequest) => unknown) {
-    const { octokit } = fakeGraphQL(answer);
-    return runSync(
-      { db, logger, github: () => Promise.resolve(octokit), now: () => NOW },
-      userId,
-    );
-  }
+  const run = (userId: string, answer: (request: GraphQLRequest) => unknown) =>
+    syncWith(userId, () => Promise.resolve(fakeGraphQL(answer).octokit));
 
   const rateLimitHeaders = (remaining: number, resetAt: Date) => ({
     "x-ratelimit-remaining": String(remaining),
@@ -127,16 +127,15 @@ describe("runSync", () => {
   it("backs off after each failure", async () => {
     const user = await makeUser();
     const failing = () => Promise.reject(new Error("GitHub is down"));
-    const deps = { db, logger, github: failing, now: () => NOW };
 
-    await runSync(deps, user.id);
+    await syncWith(user.id, failing);
     expect(await reload(user.id)).toMatchObject({
       syncError: "failed",
       syncFailures: 1,
       syncRetryAt: minutes(2),
     });
 
-    await runSync(deps, user.id);
+    await syncWith(user.id, failing);
     expect(await reload(user.id)).toMatchObject({
       syncFailures: 2,
       syncRetryAt: minutes(4),
@@ -144,15 +143,9 @@ describe("runSync", () => {
   });
 
   it("stops without backing off when the user must sign in again", async () => {
-    const user = await makeUser({ syncError: "reauth" });
-    await runSync(
-      {
-        db,
-        logger,
-        github: () => Promise.reject(new NeedsReauthError(user.id)),
-        now: () => NOW,
-      },
-      user.id,
+    const user = await makeUser();
+    await syncWith(user.id, () =>
+      Promise.reject(new NeedsReauthError(user.id)),
     );
 
     expect(await reload(user.id)).toMatchObject({
