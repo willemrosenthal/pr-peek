@@ -33,6 +33,7 @@ function toSettingsDto(row: UserSettings): UserSettingsDto {
     staleWarnHours: row.staleWarnHours,
     staleLateHours: row.staleLateHours,
     workHoursOnly: row.workHoursOnly,
+    remindEveryHours: row.remindEveryHours,
     quietStart: row.quietStart,
     quietEnd: row.quietEnd,
     quietWeekends: row.quietWeekends,

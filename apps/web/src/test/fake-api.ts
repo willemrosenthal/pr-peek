@@ -195,6 +195,7 @@ export const settingsResponse = (
     staleWarnHours: 4,
     staleLateHours: 24,
     workHoursOnly: false,
+    remindEveryHours: null,
     quietStart: null,
     quietEnd: null,
     quietWeekends: false,

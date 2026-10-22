@@ -1,4 +1,4 @@
-import { isAtLeast, isQuiet, type PushPayload } from "@pr-peek/core";
+import { formatAge, isAtLeast, isQuiet, type PushPayload } from "@pr-peek/core";
 import type { Logger } from "pino";
 import type { Db } from "./db";
 import { openItems, summarize } from "./item-list";
@@ -27,10 +27,13 @@ export type NotifyOutcome =
   | "already_sent";
 
 // Sends a push about an item's latest event to the user's devices, unless something says
-// not to. Each event notifies at most once, even if this runs again.
+// not to. Each event notifies at most once, even if this runs again. `reminder` is a stage
+// from `reminderStage`: it sends an overdue reminder instead, once per stage, even if the
+// user saw the item.
 export async function notifyItem(
   deps: NotifyDeps,
   itemId: string,
+  reminder?: string,
 ): Promise<NotifyOutcome> {
   const { db, send } = deps;
   const now = deps.now?.() ?? new Date();
@@ -44,7 +47,7 @@ export async function notifyItem(
     },
   });
   if (!item || item.status !== "open") return "not_open";
-  if (item.seenAt) return "seen";
+  if (item.seenAt && !reminder) return "seen";
 
   const { userId, pullRequest: pr, user } = item;
   const setting = (await loadRuleSettings(db, userId)).find(
@@ -73,7 +76,9 @@ export async function notifyItem(
   // Claims the event before sending. A second run finds the row and stops.
   const logKey = {
     itemId,
-    eventId: item.latestEventId,
+    eventId: reminder
+      ? `${item.latestEventId}:${reminder}`
+      : item.latestEventId,
     channel: "push" as const,
   };
   const { count } = await db.notificationLog.createMany({
@@ -87,7 +92,10 @@ export async function notifyItem(
   try {
     const badge = summarize(await openItems(db, userId, now)).total;
     const payload: PushPayload = {
-      title: item.summary,
+      title:
+        reminder && item.waitingSince
+          ? `Waiting ${formatAge(item.waitingSince, now)}: ${item.summary}`
+          : item.summary,
       body: `${pr.title}\n${pr.repoName} #${pr.number}`,
       url: pr.url,
       tag: itemId,

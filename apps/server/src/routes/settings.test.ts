@@ -84,6 +84,7 @@ describe("GET /api/settings", () => {
       staleWarnHours: 4,
       staleLateHours: 24,
       workHoursOnly: false,
+      remindEveryHours: null,
       quietStart: null,
       quietEnd: null,
       quietWeekends: false,
@@ -141,6 +142,7 @@ describe("PATCH /api/settings", () => {
     { digestTime: "24:00" },
     { staleWarnHours: 0 },
     { staleWarnHours: 1.5 },
+    { remindEveryHours: 0 },
     { hideBots: "yes" },
     {},
   ])("rejects %o", async (body) => {

@@ -110,6 +110,8 @@ model UserSettings {
   staleWarnHours      Int     @default(4)
   staleLateHours      Int     @default(24)
   workHoursOnly       Boolean @default(false)
+  // Hours between reminders once a review request is red. Null for none.
+  remindEveryHours    Int?
   // Times are "HH:MM" in the user's timezone.
   quietStart          String?
   quietEnd            String?

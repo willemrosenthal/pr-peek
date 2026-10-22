@@ -3,6 +3,7 @@ import {
   byUrgency,
   formatAge,
   isAtLeast,
+  reminderStage,
   staleLevel,
   urgencyScore,
   waitingFor,
@@ -118,6 +119,28 @@ describe("staleLevel", () => {
     [24 * HOUR, "late"],
   ] as const)("%i ms is %s", (waited, level) => {
     expect(staleLevel(waited, settings())).toBe(level);
+  });
+});
+
+describe("reminderStage", () => {
+  const remind = (remindEveryHours: number | null) => ({
+    ...settings(),
+    remindEveryHours,
+  });
+
+  it.each([
+    [4 * HOUR - 1, null],
+    [4 * HOUR, "warn"],
+    [24 * HOUR, "late"],
+    [24 * HOUR + 4 * HOUR - 1, "late"],
+    [24 * HOUR + 4 * HOUR, "late+1"],
+    [24 * HOUR + 10 * HOUR, "late+2"],
+  ])("%i ms, reminding every 4 hours, is %s", (waited, stage) => {
+    expect(reminderStage(waited, remind(4))).toBe(stage);
+  });
+
+  it("stays at late with no reminders", () => {
+    expect(reminderStage(100 * HOUR, remind(null))).toBe("late");
   });
 });
 

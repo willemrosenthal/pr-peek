@@ -7,6 +7,7 @@ import {
   createQueues,
   NOTIFY_ITEM,
   queueSync,
+  REMINDER_DISPATCH,
   SUMMARY_DISPATCH,
   SYNC_DISPATCH,
   SYNC_USER,
@@ -14,6 +15,7 @@ import {
 import { createLogger } from "./logger";
 import { notifyItem } from "./notify";
 import { vapidFrom, webPushSender } from "./push";
+import { sendDueReminders } from "./reminders";
 import { onShutdown } from "./shutdown";
 import { sendDueSummaries } from "./summary";
 import { dueUserIds, runSync } from "./sync-schedule";
@@ -94,6 +96,12 @@ await boss.schedule(SUMMARY_DISPATCH, "*/15 * * * *");
 await boss.work(SUMMARY_DISPATCH, async () => {
   const sent = await sendDueSummaries({ db, send, logger }, new Date());
   if (sent > 0) logger.info({ sent }, "morning summaries sent");
+});
+
+await boss.schedule(REMINDER_DISPATCH, "*/5 * * * *");
+await boss.work(REMINDER_DISPATCH, async () => {
+  const sent = await sendDueReminders({ db, send, logger }, new Date());
+  if (sent > 0) logger.info({ sent }, "reminders sent");
 });
 
 logger.info("worker started");
