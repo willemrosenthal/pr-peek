@@ -44,7 +44,7 @@ describe("overdue hours", () => {
     const fetch = timingApi({}, { staleWarnHours: 6 });
     renderApp("/settings/timing");
 
-    await enter("Review requests turn orange after", "6");
+    await enter("Turn orange after", "6");
     expect(patches(fetch)).toEqual([{ staleWarnHours: 6 }]);
   });
 
@@ -52,15 +52,15 @@ describe("overdue hours", () => {
     const fetch = timingApi();
     renderApp("/settings/timing");
 
-    await enter("And red after", "24");
+    await enter("Turn red after", "24");
     expect(patches(fetch)).toEqual([]);
   });
 
   it.each([
-    ["Review requests turn orange after", "30", "Orange must come before red."],
-    ["And red after", "2", "Red must come after orange."],
-    ["And red after", "", "Use a whole number of hours, 1 to 720."],
-    ["And red after", "1000", "Use a whole number of hours, 1 to 720."],
+    ["Turn orange after", "30", "Orange must come before red."],
+    ["Turn red after", "2", "Red must come after orange."],
+    ["Turn red after", "", "Use a whole number of hours, 1 to 720."],
+    ["Turn red after", "1000", "Use a whole number of hours, 1 to 720."],
   ])("refuses %s %j", async (label, value, message) => {
     const fetch = timingApi();
     renderApp("/settings/timing");
@@ -81,14 +81,12 @@ describe("overdue hours", () => {
     );
     renderApp("/settings/timing");
 
-    await enter("Review requests turn orange after", "6");
+    await enter("Turn orange after", "6");
     expect((await screen.findByRole("alert")).textContent).toBe(
       "Couldn't save",
     );
     expect(
-      screen.getByLabelText<HTMLInputElement>(
-        "Review requests turn orange after",
-      ).value,
+      screen.getByLabelText<HTMLInputElement>("Turn orange after").value,
     ).toBe("4");
   });
 });

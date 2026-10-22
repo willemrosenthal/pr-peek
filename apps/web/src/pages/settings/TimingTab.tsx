@@ -7,7 +7,7 @@ import { RowText } from "../../components/RowText";
 import { SettingSwitch } from "../../components/SettingSwitch";
 import { SettingsGroup } from "../../components/SettingsGroup";
 import { Switch } from "../../components/Switch";
-import { useSettingsSaver } from "../../hooks/useSaveSettings";
+import { useSaveSettings, useSettingsSaver } from "../../hooks/useSaveSettings";
 import { useSettings } from "../../queries";
 import { timezoneOptions } from "../../timezones";
 import styles from "./TimingTab.module.css";
@@ -38,12 +38,15 @@ export function TimingTab() {
 function TimingSettings({ settings }: { settings: UserSettingsDto }) {
   return (
     <>
-      <SettingsGroup title="Overdue reviews">
+      <SettingsGroup
+        title="Overdue reviews"
+        hint="How long a review request waits before its row turns orange, then red."
+      >
         <HoursRow
           key={`warn-${settings.staleWarnHours}`}
           settings={settings}
           field="staleWarnHours"
-          label="Review requests turn orange after"
+          label="Turn orange after"
           problem={(hours) =>
             hours >= settings.staleLateHours
               ? "Orange must come before red."
@@ -54,7 +57,7 @@ function TimingSettings({ settings }: { settings: UserSettingsDto }) {
           key={`late-${settings.staleLateHours}`}
           settings={settings}
           field="staleLateHours"
-          label="And red after"
+          label="Turn red after"
           problem={(hours) =>
             hours <= settings.staleWarnHours
               ? "Red must come after orange."
@@ -98,7 +101,7 @@ function HoursRow({
   // Why `hours` can't be saved, or null.
   problem: (hours: number) => string | null;
 }) {
-  const { save } = useSettingsSaver(settings);
+  const save = useSaveSettings();
   const stored = settings[field];
   const [draft, setDraft] = useState(String(stored));
   const [mistake, setMistake] = useState<string | null>(null);
