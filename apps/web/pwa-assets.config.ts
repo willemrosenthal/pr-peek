@@ -1,4 +1,5 @@
 // Makes the app icons in public/ from public/icon.svg. Run `pnpm icons` after changing it.
+// The previous icon (PR Pal) is saved in icons/git-buddy-icon.svg.
 import {
   defineConfig,
   minimal2023Preset as preset,
