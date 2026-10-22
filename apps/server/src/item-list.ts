@@ -12,7 +12,8 @@ import {
 import type { Db } from "./db";
 import { loadRuleSettings } from "./items";
 
-const isItemKind = (kind: string): kind is ItemKind => kind in ITEM_GROUPS;
+const isItemKind = (kind: string): kind is ItemKind =>
+  Object.hasOwn(ITEM_GROUPS, kind);
 
 // The user's open items, most urgent first.
 export async function openItems(

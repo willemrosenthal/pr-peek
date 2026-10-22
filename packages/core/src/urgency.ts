@@ -101,7 +101,16 @@ export function urgencyScore(
 
 // Sorts items most urgent first. Ties go to the newest event.
 export function byUrgency(settings: WaitSettings, now: Date) {
+  // Each score is worked out once, since sorting compares items many times.
+  const scores = new Map<UrgencyInput, number>();
+  const score = (item: UrgencyInput) => {
+    let value = scores.get(item);
+    if (value === undefined) {
+      value = urgencyScore(item, settings, now);
+      scores.set(item, value);
+    }
+    return value;
+  };
   return (a: UrgencyInput, b: UrgencyInput) =>
-    urgencyScore(b, settings, now) - urgencyScore(a, settings, now) ||
-    Date.parse(b.occurredAt) - Date.parse(a.occurredAt);
+    score(b) - score(a) || Date.parse(b.occurredAt) - Date.parse(a.occurredAt);
 }

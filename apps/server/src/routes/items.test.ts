@@ -89,12 +89,17 @@ async function otherUser() {
   return user;
 }
 
-describe("GET /api/items", () => {
-  it("needs sign in", async () => {
-    const { agent } = makeTestApp(db, { routers: [itemsRouter({ db })] });
-    expect((await agent.get("/api/items")).status).toBe(401);
-  });
+const markSeen = (agent: Agent, ids: unknown) =>
+  agent.post("/api/items/seen").set("Origin", APP_URL).send({ ids });
 
+it("needs sign in for every items endpoint", async () => {
+  const { agent } = makeTestApp(db, { routers: [itemsRouter({ db })] });
+  expect((await agent.get("/api/items")).status).toBe(401);
+  expect((await agent.get("/api/summary")).status).toBe(401);
+  expect((await markSeen(agent, ["x"])).status).toBe(401);
+});
+
+describe("GET /api/items", () => {
   it("returns open items in sections, most urgent first", async () => {
     const { agent, user } = await setup();
     const pr = await makePr(user.id);
@@ -163,7 +168,10 @@ describe("GET /api/items", () => {
     const { agent, user } = await setup();
     const other = await otherUser();
     await makeItem(other.id, (await makePr(other.id)).id, "reply");
-    await makeItem(user.id, (await makePr(user.id)).id, "retired_rule");
+    const pr = await makePr(user.id);
+    await makeItem(user.id, pr.id, "retired_rule");
+    // A name every object has, so a plain `in` check would let it through.
+    await makeItem(user.id, pr.id, "constructor");
 
     const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
     expect(body).toEqual({ review: [], replies: [], mine: [] });
@@ -171,11 +179,6 @@ describe("GET /api/items", () => {
 });
 
 describe("GET /api/summary", () => {
-  it("needs sign in", async () => {
-    const { agent } = makeTestApp(db, { routers: [itemsRouter({ db })] });
-    expect((await agent.get("/api/summary")).status).toBe(401);
-  });
-
   it("counts open items", async () => {
     const { agent, user } = await setup();
     const pr = await makePr(user.id);
@@ -214,9 +217,6 @@ describe("GET /api/summary", () => {
 });
 
 describe("POST /api/items/seen", () => {
-  const markSeen = (agent: Agent, ids: unknown) =>
-    agent.post("/api/items/seen").set("Origin", APP_URL).send({ ids });
-
   it("marks the user's items as seen", async () => {
     const { agent, user } = await setup();
     const pr = await makePr(user.id);
@@ -251,10 +251,5 @@ describe("POST /api/items/seen", () => {
     const res = await markSeen(agent, []);
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: { code: "invalid_input" } });
-  });
-
-  it("needs sign in", async () => {
-    const { agent } = makeTestApp(db, { routers: [itemsRouter({ db })] });
-    expect((await markSeen(agent, ["x"])).status).toBe(401);
   });
 });
