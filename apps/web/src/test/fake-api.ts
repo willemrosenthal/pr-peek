@@ -1,12 +1,15 @@
-import type {
-  ItemDto,
-  ItemsResponse,
-  MeResponse,
-  RepoOption,
-  SearchReposResponse,
-  SummaryResponse,
-  SyncStatusResponse,
-  WatchedRepoDto,
+import {
+  rules,
+  type ItemDto,
+  type ItemsResponse,
+  type MeResponse,
+  type RepoOption,
+  type SearchReposResponse,
+  type SettingsResponse,
+  type SummaryResponse,
+  type SyncStatusResponse,
+  type UserSettingsDto,
+  type WatchedRepoDto,
 } from "@pr-peek/core";
 import { vi } from "vitest";
 
@@ -140,11 +143,42 @@ export const summary = (
 
 export const noContent = () => new Response(null, { status: 204 });
 
-// What every signed in page asks for.
+// What signed in pages ask for, including the settings the settings tabs load.
 export const signedInApi = (overrides: Handlers = {}): Handlers => ({
   "GET /api/me": () => json(me()),
   "GET /api/summary": () => json(summary()),
+  "GET /api/settings": () => json(settingsResponse()),
   ...overrides,
+});
+
+// The default settings, and every rule at its defaults.
+export const settingsResponse = (
+  fields: Partial<UserSettingsDto> = {},
+): SettingsResponse => ({
+  settings: {
+    timezone: "UTC",
+    staleWarnHours: 4,
+    staleLateHours: 24,
+    workHoursOnly: false,
+    quietStart: null,
+    quietEnd: null,
+    quietWeekends: false,
+    digestTime: null,
+    hideBots: false,
+    includeTeamRequests: true,
+    ...fields,
+  },
+  rules: rules.map((rule) => ({
+    id: rule.id,
+    name: rule.name,
+    group: rule.group,
+    defaultSeverity: rule.defaultSeverity,
+    defaultChannels: rule.defaultChannels,
+    enabled: true,
+    severity: rule.defaultSeverity,
+    channels: rule.defaultChannels,
+    options: {},
+  })),
 });
 
 // What the list page asks for: a signed in user with nothing to show.

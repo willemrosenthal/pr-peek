@@ -22,7 +22,12 @@ export function SelectField({
   return (
     <label className={styles.field}>
       <span>{label}</span>
-      <select className={styles.input} {...props} />
+      <Select {...props} />
     </label>
   );
+}
+
+// A dropdown without its own label, for rows that label it another way.
+export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={styles.input} {...props} />;
 }
