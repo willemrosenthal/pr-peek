@@ -120,12 +120,18 @@ describe("PUT /api/github-token", () => {
   it.each([
     [["repo"], 200],
     [["public_repo"], 200],
-    // Fine-grained tokens have no scopes.
-    [null, 200],
     [["read:org"], 400],
   ])("with scopes %o answers %i", async (scopes, status) => {
     const { agent } = await setup(tokenIs({ scopes }));
     expect((await putToken(agent)).status).toBe(status);
+  });
+
+  it("accepts a fine-grained token, which has no scopes", async () => {
+    const { agent } = await setup(tokenIs({ scopes: null, expiresAt: null }));
+    const res = await putToken(agent, "github_pat_token");
+    expect(res.body).toEqual({
+      githubToken: { expiresAt: null, scopes: [], invalid: false },
+    });
   });
 
   it("rejects input that isn't a token, without asking GitHub", async () => {

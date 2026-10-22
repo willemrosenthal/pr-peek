@@ -74,6 +74,22 @@ it("replaces the token", async () => {
   expect(await screen.findByText(/Syncs use your token/)).toBeTruthy();
 });
 
+it("can cancel replacing the token", async () => {
+  fakeApi({ "GET /api/me": () => json(me({ githubToken: TOKEN })) });
+  renderApp("/");
+
+  await userEvent.click(await screen.findByRole("button", { name: "Replace" }));
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.getByText(/Syncs use your token/)).toBeTruthy();
+});
+
+it("has no cancel when there's no working token", async () => {
+  fakeApi({ "GET /api/me": () => json(me()) });
+  renderApp("/");
+  await screen.findByLabelText("Personal access token");
+  expect(screen.queryByRole("button", { name: "Cancel" })).toBe(null);
+});
+
 it("removes the token", async () => {
   let githubToken: GitHubTokenDto | null = TOKEN;
   fakeApi({

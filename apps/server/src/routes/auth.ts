@@ -5,7 +5,6 @@ import express, {
   type Response,
   type Router,
 } from "express";
-import { rateLimit } from "express-rate-limit";
 import type { Db } from "../db";
 import type { User } from "../generated/prisma/client";
 import {
@@ -14,6 +13,7 @@ import {
   type ScopeChoice,
 } from "../github/oauth";
 import { personalTokenDto } from "../github/tokens";
+import { attemptLimiter } from "../rate-limit";
 import {
   destroySession,
   regenerateSession,
@@ -65,13 +65,7 @@ export function authRouter(deps: AuthDeps): Router {
   // The browser lands on these app routes. They exist from plan 07.
   const signInError = (code: string) => `/signin?error=${code}`;
 
-  // Slows down anyone hammering the sign in endpoints.
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 30,
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
-  });
+  const limiter = attemptLimiter();
 
   router.get("/auth/github", limiter, async (req, res) => {
     const scope: ScopeChoice = req.query.scope === "public" ? "public" : "full";

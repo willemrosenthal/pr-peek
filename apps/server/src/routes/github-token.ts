@@ -1,10 +1,10 @@
 import { githubTokenBody, type GitHubTokenResponse } from "@pr-peek/core";
 import express, { type Router } from "express";
-import { rateLimit } from "express-rate-limit";
 import type { Db } from "../db";
 import { GitHubAuthError, type GitHubOAuth } from "../github/oauth";
 import { encryptPersonalToken, personalTokenDto } from "../github/tokens";
 import { HttpError, parseInput } from "../http-error";
+import { attemptLimiter } from "../rate-limit";
 import { currentUser, requireUser } from "./auth";
 
 export interface GitHubTokenDeps {
@@ -18,13 +18,7 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
   const router = express.Router();
   router.use("/github-token", requireUser(deps.db));
 
-  // Each try calls GitHub with the user's input.
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 30,
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
-  });
+  const limiter = attemptLimiter();
 
   router.put("/github-token", limiter, async (req, res) => {
     const { token } = parseInput(githubTokenBody, req.body);

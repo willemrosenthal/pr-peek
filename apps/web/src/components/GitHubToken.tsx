@@ -34,7 +34,10 @@ export function GitHubToken() {
         </>
       )}
       <TokenSteps />
-      <TokenForm onSaved={() => setReplacing(false)} />
+      <TokenForm
+        onSaved={() => setReplacing(false)}
+        onCancel={replacing ? () => setReplacing(false) : undefined}
+      />
     </section>
   );
 }
@@ -93,7 +96,14 @@ function TokenSteps() {
   );
 }
 
-function TokenForm({ onSaved }: { onSaved: () => void }) {
+function TokenForm({
+  onSaved,
+  onCancel,
+}: {
+  onSaved: () => void;
+  // Shown while replacing a working token.
+  onCancel?: (() => void) | undefined;
+}) {
   const [token, setToken] = useState("");
   const queryClient = useQueryClient();
   const save = useMutation({
@@ -129,9 +139,12 @@ function TokenForm({ onSaved }: { onSaved: () => void }) {
         />
       </label>
       {save.isError && <Alert>{save.error.message}</Alert>}
-      <Button type="submit" variant="primary" disabled={save.isPending}>
-        {save.isPending ? "Checking token" : "Save token"}
-      </Button>
+      <div className={styles.actions}>
+        <Button type="submit" variant="primary" disabled={save.isPending}>
+          {save.isPending ? "Checking token" : "Save token"}
+        </Button>
+        {onCancel && <Button onClick={onCancel}>Cancel</Button>}
+      </div>
     </form>
   );
 }
