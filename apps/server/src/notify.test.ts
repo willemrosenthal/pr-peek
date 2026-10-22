@@ -242,10 +242,10 @@ describe("notifyItems", () => {
   });
 
   it(`sends fewer than ${BATCH_MIN} one at a time`, async () => {
-    const { send, notifyAll } = await withRequests(2);
+    const { ids, send, notifyAll } = await withRequests(2);
     await notifyAll();
-    expect(send.mock.calls.map(([, payload]) => payload.tag)).toHaveLength(2);
-    expect(send.mock.calls[0]?.[1].tag).not.toBe("batch");
+    // Each push is tagged with its own item.
+    expect(send.mock.calls.map(([, payload]) => payload.tag)).toEqual(ids);
   });
 
   it("only batches the ones that pass every check", async () => {

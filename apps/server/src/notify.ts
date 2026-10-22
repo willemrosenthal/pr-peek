@@ -97,8 +97,9 @@ export async function notifyItems(
 
   const byUser = new Map<string, typeof claimed>();
   for (const entry of claimed) {
-    const group = byUser.get(entry.ready.userId) ?? [];
-    byUser.set(entry.ready.userId, [...group, entry]);
+    const group = byUser.get(entry.ready.userId);
+    if (group) group.push(entry);
+    else byUser.set(entry.ready.userId, [entry]);
   }
   for (const [userId, group] of byUser) {
     const batches =
@@ -193,9 +194,9 @@ async function sendClaimed(
   let outcome: "sent" | "failed" = "failed";
   try {
     const badge = summarize(await openItems(db, userId, now)).total;
-    const [only] = readies;
+    const [first] = readies;
     const payload =
-      readies.length === 1 && only ? only.payload : batchOf(readies);
+      first && readies.length === 1 ? first.payload : batchOf(readies);
     // Each device that takes any of them gets the push once.
     const devices = [
       ...new Map(
