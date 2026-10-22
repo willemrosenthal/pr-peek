@@ -138,7 +138,7 @@ describe("urgency", () => {
     severity: "normal",
     waitingSince: "2026-10-21T11:00:00Z",
     occurredAt: "2026-10-21T11:00:00Z",
-    seenAt: "2026-10-21T11:30:00Z",
+    unseen: false,
     ...overrides,
   });
   const score = (overrides: Partial<UrgencyInput> = {}) =>
@@ -169,7 +169,7 @@ describe("urgency", () => {
 
   it("adds points for re-requests and unseen items", () => {
     expect(score({ kind: "re_requested" })).toBe(240);
-    expect(score({ seenAt: null })).toBe(225);
+    expect(score({ unseen: true })).toBe(225);
   });
 
   it("sorts most urgent first, then newest", () => {

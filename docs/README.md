@@ -6,11 +6,11 @@ Updated after every step. Read this first when picking work back up.
 
 |                    |                                                                                                                   |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [05. Rules engine](completed/05-rules-engine.md), part C: apply on the server. Parts A, B merged (#14, #15)       |
-| **Branch**         | `plan-05-3-apply`                                                                                                 |
-| **PR**             | [#16](https://github.com/willemrosenthal/pr-peek/pull/16) (part C), draft                                         |
-| **Last step done** | 5.5 to 5.7 Items saved each sync, rule settings, end to end tests. Plan 05 finished, moved to `completed/`        |
-| **Next step**      | [06. API and live updates](06-api.md) once part C merges                                                          |
+| **Current plan**   | [06. API and live updates](06-api.md), part A: items. B: settings. C: live updates                                |
+| **Branch**         | `plan-06-1-items`                                                                                                 |
+| **PR**             | [#17](https://github.com/willemrosenthal/pr-peek/pull/17) (part A), draft                                         |
+| **Last step done** | 6.1 and the items, seen, and summary endpoints                                                                    |
+| **Next step**      | Part B (`plan-06-2-settings`) once part A merges                                                                  |
 | **Waiting on you** | Plan 04 and 05 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.

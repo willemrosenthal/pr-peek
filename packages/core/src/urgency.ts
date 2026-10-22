@@ -74,13 +74,13 @@ export function formatAge(since: string | Date, now: Date): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-// The item fields the score needs. Dates are ISO strings.
+// The item fields the score needs. Dates are ISO strings. An `ItemDto` has them all.
 export interface UrgencyInput {
   kind: ItemKind;
   severity: Severity;
   waitingSince: string | null;
   occurredAt: string;
-  seenAt: string | null;
+  unseen: boolean;
 }
 
 export function urgencyScore(
@@ -95,13 +95,22 @@ export function urgencyScore(
     URGENCY_WEIGHTS.severity[item.severity] +
     URGENCY_WEIGHTS.stale[stale] +
     (item.kind === "re_requested" ? URGENCY_WEIGHTS.reRequested : 0) +
-    (item.seenAt === null ? URGENCY_WEIGHTS.unseen : 0)
+    (item.unseen ? URGENCY_WEIGHTS.unseen : 0)
   );
 }
 
 // Sorts items most urgent first. Ties go to the newest event.
 export function byUrgency(settings: WaitSettings, now: Date) {
+  // Each score is worked out once, since sorting compares items many times.
+  const scores = new Map<UrgencyInput, number>();
+  const score = (item: UrgencyInput) => {
+    let value = scores.get(item);
+    if (value === undefined) {
+      value = urgencyScore(item, settings, now);
+      scores.set(item, value);
+    }
+    return value;
+  };
   return (a: UrgencyInput, b: UrgencyInput) =>
-    urgencyScore(b, settings, now) - urgencyScore(a, settings, now) ||
-    Date.parse(b.occurredAt) - Date.parse(a.occurredAt);
+    score(b) - score(a) || Date.parse(b.occurredAt) - Date.parse(a.occurredAt);
 }
