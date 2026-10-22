@@ -43,6 +43,19 @@ const DETAILS_QUERY = `query ($ids: [ID!]!) {
         nodes { id isResolved comments(last: 20) { nodes { ${COMMENT} replyTo { id } } } }
       }
       comments(last: 30) { nodes { ${COMMENT} } }
+      recentCommits: commits(last: 20) {
+        nodes {
+          commit {
+            oid committedDate parents { totalCount }
+            statusCheckRollup {
+              contexts {
+                checkRunCountsByState { state count }
+                statusContextCountsByState { state count }
+              }
+            }
+          }
+        }
+      }
       commits(last: 1) {
         nodes {
           commit {
@@ -85,6 +98,16 @@ const rawComment = z.object({
 const nodesOf = <T extends z.ZodType>(item: T) =>
   z.object({ nodes: z.array(item) });
 
+const stateCount = z.object({ state: z.string(), count: z.number() });
+
+// How many check runs and statuses ended each way.
+const checkCounts = z.object({
+  contexts: z.object({
+    checkRunCountsByState: z.array(stateCount),
+    statusContextCountsByState: z.array(stateCount),
+  }),
+});
+
 const rawPr = z.object({
   id: z.string(),
   number: z.number(),
@@ -122,6 +145,16 @@ const rawPr = z.object({
     }),
   ),
   comments: nodesOf(rawComment),
+  recentCommits: nodesOf(
+    z.object({
+      commit: z.object({
+        oid: z.string(),
+        committedDate: z.string(),
+        parents: z.object({ totalCount: z.number() }),
+        statusCheckRollup: checkCounts.nullable(),
+      }),
+    }),
+  ),
   commits: z.object({
     nodes: z
       .array(
@@ -162,6 +195,18 @@ const FAILED_CONCLUSIONS = new Set([
 ]);
 const FAILED_STATES = new Set(["FAILURE", "ERROR"]);
 
+// True if a check run or status failed. GitHub's overall state can't tell: it counts
+// cancelled runs, like ones a newer commit stopped, as failures.
+function checksFailed(rollup: z.infer<typeof checkCounts> | null): boolean {
+  if (!rollup) return false;
+  const any = (counts: z.infer<typeof stateCount>[], failed: Set<string>) =>
+    counts.some((c) => failed.has(c.state) && c.count > 0);
+  return (
+    any(rollup.contexts.checkRunCountsByState, FAILED_CONCLUSIONS) ||
+    any(rollup.contexts.statusContextCountsByState, FAILED_STATES)
+  );
+}
+
 const toActor = (actor: z.infer<typeof rawActor> | null): PrActor =>
   actor
     ? { login: actor.login, isBot: actor.__typename === "Bot" }
@@ -200,6 +245,10 @@ function toSnapshot(raw: RawPr): PrSnapshot {
   // The schema requires at least one commit.
   const head = raw.commits.nodes[0]!.commit;
   const contexts = head.statusCheckRollup?.contexts.nodes ?? [];
+  // A merge commit has two parents.
+  const push = raw.recentCommits.nodes
+    .map((node) => node.commit)
+    .findLast((commit) => commit.parents.totalCount <= 1);
 
   return {
     id: raw.id,
@@ -261,6 +310,13 @@ function toSnapshot(raw: RawPr): PrSnapshot {
         return [];
       }),
     },
+    ...(push && {
+      lastPush: {
+        sha: push.oid,
+        committedAt: push.committedDate,
+        checksFailed: checksFailed(push.statusCheckRollup),
+      },
+    }),
   };
 }
 

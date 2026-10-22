@@ -4,6 +4,7 @@ import {
   isAfter,
   isOther,
   isViewer,
+  lastPushOf,
   latestBy,
   viewerLastActivity,
 } from "./helpers";
@@ -34,10 +35,11 @@ export const reviewed: Rule = {
     }
 
     const since = viewerLastActivity(snapshot, ctx);
+    const pushedAt = lastPushOf(snapshot).committedAt;
     const open = [...byReviewer.values()].filter(
       (review) =>
         review.state === "APPROVED" ||
-        (isAfter(review.submittedAt, snapshot.headCommittedAt) &&
+        (isAfter(review.submittedAt, pushedAt) &&
           isAfter(review.submittedAt, since)),
     );
     const latest = latestBy(open, (review) => review.submittedAt);

@@ -4,6 +4,7 @@ import { reviewed } from "./reviewed";
 import {
   actor,
   at,
+  branchUpdate,
   comment,
   ctx,
   myPr,
@@ -84,6 +85,14 @@ describe("my PR was reviewed", () => {
       reviews: [review("R_1", "jlee", 10, "CHANGES_REQUESTED")],
     });
     expect(detect(pr)).toEqual([]);
+  });
+
+  it("keeps a change request after Update branch", () => {
+    const pr = myPr({
+      ...branchUpdate(20),
+      reviews: [review("R_1", "jlee", 10, "CHANGES_REQUESTED")],
+    });
+    expect(detect(pr)).toHaveLength(1);
   });
 
   it("clears a change request when you reply", () => {

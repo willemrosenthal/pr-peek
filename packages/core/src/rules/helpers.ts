@@ -47,6 +47,15 @@ export function viewerLastActivity(
   return latestBy(times, (time) => time) ?? null;
 }
 
+// The author's latest real push. Merges from the base branch, like "Update branch",
+// don't count. Falls back to the head commit when the snapshot doesn't say.
+export const lastPushOf = (snapshot: PrSnapshot) =>
+  snapshot.lastPush ?? {
+    sha: snapshot.headSha,
+    committedAt: snapshot.headCommittedAt,
+    checksFailed: snapshot.checks.failing.length > 0,
+  };
+
 // " (+2 more)" when there's more than one, or nothing.
 export const andMore = (count: number) =>
   count > 1 ? ` (+${count - 1} more)` : "";
