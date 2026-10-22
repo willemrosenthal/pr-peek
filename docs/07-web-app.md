@@ -38,7 +38,11 @@
 - **One icon per item kind.** "Reviewed" has one icon for approvals and change requests, since items don't say which.
 - **Refresh** spins until `lastSyncedAt` or `syncError` changes, or 2 minutes pass. A refresh refused because the token stopped working shows the banner, not an error.
 - **Rows are links** (`target="_blank"`), so middle click and "open in new tab" work.
-- **Marking seen happens when items are on screen (3b), not on click.** By the time you click a row, it was already on screen. Marking reorders rows a little (unseen adds 25 to the urgency score), so 3b keeps this visit's order.
+- **Marking seen happens when you leave the list** (part 3b): you hide the tab, or go to another page. It marks the new items that were in open sections while the tab showed. Marking reorders rows a little (unseen adds 25 to the urgency score), and the bold goes away. Waiting until you leave means nothing moves while you look. The request uses `keepalive`, so it finishes after the tab closes. If it fails, the next visit tries again.
+- **The stream and the badge run on every signed in page** (`components/SignedIn.tsx`), not just the list, so the menu bar app's hidden window stays current (plan 09). The badge reads `GET /api/summary`, which the stream's event updates.
+- **A stream the server refuses** (signed out, or a deploy in progress) is closed by the browser for good. The app checks `/api/me`, which sends a signed out user to sign in, and opens a new stream 30 seconds later.
+- **Fixed: a signed out check looped** between `/signin` and `/`, because a failed `/api/me` check keeps the old data. Also, a failed check other than 401 no longer replaces the page with an error once you're signed in.
+- **Tray mode** (`?shell=tray`) is kept in `sessionStorage`, so it holds on other pages. The footer has "Open in browser". Quit comes in plan 09, since it needs the desktop app.
 - **Base UI** is only used for the collapsible sections so far.
 - **Showing GitHub avatars needs a CSP change.** Helmet only allows images from our own site. Add `https://avatars.githubusercontent.com` to `img-src` when the first avatar appears.
 
@@ -112,17 +116,17 @@
   - "Reconnect GitHub" when `needsReauth`.
   - "Your token stopped working" when `githubToken.invalid`, linking to the token form.
   - "Sync problem, retrying" when `syncError`.
-- [ ] `useLiveUpdates()` hook: opens `/api/stream` and invalidates the `items` and `summary` queries on each event.
+- [x] `useLiveUpdates()` hook: opens `/api/stream` and invalidates the `items` and `summary` queries on each event.
   - The event is named `ITEMS_CHANGED_EVENT` (from `@pr-peek/core`). Its data is the new summary, so the `summary` query can be set directly.
   - Also invalidate both on the `open` event, so a reconnect catches anything missed while the stream was down. The server doesn't replay old events.
-- [ ] Mark visible items as seen when the list opens (`POST /api/items/seen`).
-- [ ] Set the app icon badge with `navigator.setAppBadge(total)` where supported.
+- [x] Mark items seen (`POST /api/items/seen`) when you leave the list. Changed, see Changes.
+- [x] Set the app icon badge with `navigator.setAppBadge(total)` where supported.
 
 ### 7.5 Layouts
 
 - [x] **Phone:** full screen list, sticky header, large touch targets (44px or more).
 - [x] **Desktop browser:** the list in a centered column (about 420px wide), settings in a wider layout.
-- [ ] **Tray mode** (`?shell=tray`, for plan 09): no outer page chrome, fixed width, a compact header with refresh and settings, and a footer with "Open in browser" and "Quit". Build it now behind the flag so plan 09 is mostly wiring.
+- [x] **Tray mode** (`?shell=tray`, for plan 09): no outer page chrome, fixed width, a compact header with refresh and settings, and a footer with "Open in browser" and "Quit". Build it now behind the flag so plan 09 is mostly wiring. Quit comes in plan 09.
 
 ### 7.6 Onboarding and settings
 

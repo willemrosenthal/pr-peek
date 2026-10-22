@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                                                                                        |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [07. Web app](07-web-app.md), part 3a: the list. Parts 1 (#20) and 2 (#21) merged                                                                                      |
-| **Branch**         | `plan-07-3a-list`                                                                                                                                                      |
-| **PR**             | [#22](https://github.com/willemrosenthal/pr-peek/pull/22) (part 3a), draft                                                                                             |
-| **Last step done** | The list: sections, rows, header and refresh, banners, empty and error states, phone and desktop layouts                                                               |
-| **Next step**      | Part 3b (`plan-07-3b-live`): live updates, marking seen, badge, tray mode, once 3a merges                                                                              |
-| **Waiting on you** | Try the list with real items. Your token is now under Settings. Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
+|                    |                                                                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [07. Web app](07-web-app.md), part 3b: live updates. Parts 1 (#20), 2 (#21), and 3a (#22) merged                                                  |
+| **Branch**         | `plan-07-3b-live`                                                                                                                                 |
+| **PR**             | Part 3b, draft                                                                                                                                    |
+| **Last step done** | Live updates, marking seen when you leave the list, the app badge, tray mode                                                                      |
+| **Next step**      | Part 4 (`plan-07-4-settings`): onboarding and settings, once 3b merges                                                                            |
+| **Waiting on you** | Check the stream in DevTools (see the PR). Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.
