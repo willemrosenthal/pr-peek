@@ -1,6 +1,7 @@
 import type { Db } from "./db";
 import type { AuthMethod, User } from "./generated/prisma/client";
 import { encryptTokens } from "./github/tokens";
+import { defaultRuleSettings } from "./items";
 import type { GitHubTokens, GitHubUser } from "./github/oauth";
 
 // How often to save `lastActiveAt`, so it isn't a write on every request.
@@ -58,6 +59,7 @@ export async function upsertGitHubUser(
       ...profile,
       ...tokenFields,
       settings: { create: {} },
+      ruleSettings: { create: defaultRuleSettings() },
     },
   });
 

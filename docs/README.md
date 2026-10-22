@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                            |
-| ------------------ | ---------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [05. Rules engine](05-rules-engine.md), part B: urgency. Part A merged (#14). C: apply on the server       |
-| **Branch**         | `plan-05-2-urgency`                                                                                        |
-| **PR**             | [#15](https://github.com/willemrosenthal/pr-peek/pull/15) (part B), draft                                  |
-| **Last step done** | 5.4 Waiting time, work hours, stale levels, urgency score                                                  |
-| **Next step**      | Part C (`plan-05-3-apply`): 5.5 to 5.7 once part B merges                                                  |
-| **Waiting on you** | Plan 04 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
+|                    |                                                                                                                   |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [05. Rules engine](completed/05-rules-engine.md), part C: apply on the server. Parts A, B merged (#14, #15)       |
+| **Branch**         | `plan-05-3-apply`                                                                                                 |
+| **PR**             | Not open yet                                                                                                      |
+| **Last step done** | 5.5 to 5.7 Items saved each sync, rule settings, end to end tests. Plan 05 finished, moved to `completed/`        |
+| **Next step**      | [06. API and live updates](06-api.md) once part C merges                                                          |
+| **Waiting on you** | Plan 04 and 05 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.
@@ -34,7 +34,7 @@ Plans can be edited while in progress when we learn something. Completed plans a
 | 02  | ✅ [Server foundation and first deploy](completed/02-server-foundation.md) | Express + Prisma live on Render with Supabase Postgres, deploying from `prod` |
 | 03  | ✅ [GitHub sign in](completed/03-github-auth.md)                           | Users can sign in with GitHub. Tokens stored encrypted                        |
 | 04  | ✅ [GitHub sync engine](completed/04-github-sync.md)                       | Worker pulls each user's PRs on a schedule and stores them                    |
-| 05  | [Rules and attention items](05-rules-engine.md)                            | PR data turned into sorted "needs you" items, all 7 cases                     |
+| 05  | ✅ [Rules and attention items](completed/05-rules-engine.md)               | PR data turned into sorted "needs you" items, all 7 cases                     |
 | 06  | [API and live updates](06-api.md)                                          | JSON API for items, repos, settings. SSE stream                               |
 | 07  | [Web app (PWA)](07-web-app.md)                                             | The list (design A2), onboarding, settings. Installable                       |
 | 08  | [Push notifications](08-push-notifications.md)                             | Web Push to phone and desktop, quiet hours, morning summary                   |

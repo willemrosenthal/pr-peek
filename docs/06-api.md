@@ -22,7 +22,7 @@ All under `/api`. All require sign in except auth and health.
 | `GET /items`       | Open items, grouped into `review`, `replies`, and `mine`, sorted by urgency. Each item includes PR title, repo, number, url, kind, summary, age, stale level, severity, unseen flag |
 | `POST /items/seen` | Body `{ ids }`. Marks items as seen when the list is opened                                                                                                                         |
 
-There are no done or snooze endpoints. Items clear on their own (see [plan 05](05-rules-engine.md#when-an-item-clears)).
+There are no done or snooze endpoints. Items clear on their own (see [plan 05](completed/05-rules-engine.md#when-an-item-clears)).
 
 **Repos:** the endpoints from plan 04.1.
 
@@ -33,6 +33,8 @@ There are no done or snooze endpoints. Items clear on their own (see [plan 05](0
 | `GET /settings`        | User settings plus each rule with its name, group, defaults, and the user's choices       |
 | `PATCH /settings`      | Update user settings (timezone, staleness, quiet hours, digest time, bots, team requests) |
 | `PATCH /rules/:ruleId` | Update `enabled`, `severity`, `channels`                                                  |
+
+Rules only run when a PR changes on GitHub (plan 05). So after `PATCH /settings` (hide bots, team requests) or `PATCH /rules/:ruleId`, re-run the rules on the user's stored PR snapshots and save the items, the same way `syncUser` does.
 
 `PATCH /settings` must reject unknown timezones (check against `Intl.supportedValuesOf("timeZone")`). The waiting time code in `packages/core/src/urgency.ts` throws on one.
 
@@ -52,7 +54,7 @@ There are no done or snooze endpoints. Items clear on their own (see [plan 05](0
 ### 6.3 Live updates with SSE
 
 - [ ] `GET /api/stream` keeps a connection open using Server-Sent Events.
-- [ ] The web service runs `LISTEN` on the Postgres channel the worker publishes to (plan 05.5). When a message arrives for a user, it sends `event: items-changed` with the new summary to that user's open streams.
+- [ ] The web service runs `LISTEN` on the Postgres channel the worker publishes to (`user_items_changed`, with the user id as the message, plan 05.5). When a message arrives for a user, it sends `event: items-changed` with the new summary to that user's open streams.
 - [ ] Send a comment line every 25 seconds as a keep-alive, so proxies don't close idle connections.
 - [ ] The client reconnects on its own (the browser's `EventSource` does this). The client also refetches on reconnect in case it missed something.
 

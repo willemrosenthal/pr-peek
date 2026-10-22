@@ -28,6 +28,25 @@ describe("upsertGitHubUser", () => {
       where: { userId: user.id },
     });
     expect(settings).toMatchObject({ timezone: "UTC", staleWarnHours: 4 });
+
+    const ruleSettings = await db.ruleSetting.findMany({
+      where: { userId: user.id },
+    });
+    expect(ruleSettings.map((s) => s.ruleId).sort()).toEqual([
+      "check_failed",
+      "commented",
+      "re_requested",
+      "reply",
+      "review_requested",
+      "reviewed",
+    ]);
+    expect(ruleSettings.find((s) => s.ruleId === "check_failed")).toMatchObject(
+      {
+        enabled: true,
+        severity: "high",
+        channels: ["list", "push"],
+      },
+    );
   });
 
   it("stores tokens encrypted, never as plain text", async () => {

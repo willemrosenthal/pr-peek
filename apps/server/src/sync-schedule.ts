@@ -22,6 +22,8 @@ interface RateLimit {
 
 export interface ScheduleDeps extends SyncDeps {
   logger: Logger;
+  // Queues a notification check for each item that's new or has a new event.
+  notifyItems?: (itemIds: string[]) => Promise<void>;
 }
 
 const syncInterval = (lastActiveAt: Date, now: Date) =>
@@ -103,6 +105,10 @@ export async function runSync(
       where: { id: userId },
       data: { syncError: null, syncFailures: 0, syncRetryAt: limitResetAt() },
     });
+    // After the sync's transaction, so a notification never points at an unsaved item.
+    if (result.newEventItemIds.length > 0) {
+      await deps.notifyItems?.(result.newEventItemIds);
+    }
     log.info({ ...result, rateLimit, ms: Date.now() - started }, "sync done");
   } catch (err) {
     // Dispatch skips "reauth" users until they sign in again.
