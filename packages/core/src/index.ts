@@ -10,4 +10,5 @@ export * from "./api/sync";
 export * from "./pr-snapshot";
 export * from "./quiet-hours";
 export * from "./rules";
+export * from "./summary";
 export * from "./urgency";

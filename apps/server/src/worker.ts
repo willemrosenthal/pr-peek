@@ -7,6 +7,7 @@ import {
   createQueues,
   NOTIFY_ITEM,
   queueSync,
+  SUMMARY_DISPATCH,
   SYNC_DISPATCH,
   SYNC_USER,
 } from "./jobs";
@@ -14,6 +15,7 @@ import { createLogger } from "./logger";
 import { notifyItem } from "./notify";
 import { vapidFrom, webPushSender } from "./push";
 import { onShutdown } from "./shutdown";
+import { sendDueSummaries } from "./summary";
 import { dueUserIds, runSync } from "./sync-schedule";
 
 // Syncs running at once, so one slow user doesn't hold up everyone. Each holds a database
@@ -86,6 +88,12 @@ await boss.work<{ itemId: string }>(NOTIFY_ITEM, async ([job]) => {
   const { itemId } = job.data;
   const outcome = await notifyItem({ db, send, logger }, itemId);
   logger.info({ itemId, outcome }, "notify item");
+});
+
+await boss.schedule(SUMMARY_DISPATCH, "*/15 * * * *");
+await boss.work(SUMMARY_DISPATCH, async () => {
+  const sent = await sendDueSummaries({ db, send, logger }, new Date());
+  if (sent > 0) logger.info({ sent }, "morning summaries sent");
 });
 
 logger.info("worker started");

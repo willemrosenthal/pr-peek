@@ -7,6 +7,8 @@ import type { PushSubscription } from "./generated/prisma/client";
 
 // Failed sends in a row before a device is removed.
 export const MAX_PUSH_FAILURES = 5;
+// How long a push service keeps trying a device that's offline, for notifications.
+export const NOTIFY_TTL_SECONDS = 12 * 60 * 60;
 
 export interface Vapid {
   publicKey: string;
@@ -106,4 +108,17 @@ export async function pushToDevice(
     data: { lastSuccessAt: new Date(), failureCount: 0 },
   });
   return "sent";
+}
+
+// Sends to each device at once. "sent" if any device got it.
+export async function pushToDevices(
+  deps: PushDeps,
+  devices: PushSubscription[],
+  payload: PushPayload,
+  options: PushOptions,
+): Promise<"sent" | "failed"> {
+  const results = await Promise.all(
+    devices.map((device) => pushToDevice(deps, device, payload, options)),
+  );
+  return results.includes("sent") ? "sent" : "failed";
 }

@@ -3,10 +3,7 @@ import type { Logger } from "pino";
 import type { Db } from "./db";
 import { openItems, summarize } from "./item-list";
 import { loadRuleSettings } from "./items";
-import { pushToDevice, type SendPush } from "./push";
-
-// How long a push service keeps trying a device that's offline.
-const NOTIFY_TTL_SECONDS = 12 * 60 * 60;
+import { NOTIFY_TTL_SECONDS, pushToDevices, type SendPush } from "./push";
 
 export interface NotifyDeps {
   db: Db;
@@ -87,7 +84,6 @@ export async function notifyItem(
 
   // Past the claim, a retry would stop at the claim, so errors end as "failed" here.
   let outcome: "sent" | "failed" = "failed";
-  const pushDeps = { db, send, logger: deps.logger };
   try {
     const badge = summarize(await openItems(db, userId, now)).total;
     const payload: PushPayload = {
@@ -98,15 +94,15 @@ export async function notifyItem(
       itemId,
       badge,
     };
-    const results = await Promise.all(
-      devices.map((device) =>
-        pushToDevice(pushDeps, device, payload, {
-          ttlSeconds: NOTIFY_TTL_SECONDS,
-          urgency: setting.severity === "high" ? "high" : "normal",
-        }),
-      ),
+    outcome = await pushToDevices(
+      { db, send, logger: deps.logger },
+      devices,
+      payload,
+      {
+        ttlSeconds: NOTIFY_TTL_SECONDS,
+        urgency: setting.severity === "high" ? "high" : "normal",
+      },
     );
-    if (results.includes("sent")) outcome = "sent";
   } catch (err) {
     deps.logger.error({ err, itemId }, "notify failed");
   }
