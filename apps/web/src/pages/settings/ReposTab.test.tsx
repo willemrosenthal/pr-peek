@@ -223,6 +223,30 @@ describe("adding repos", () => {
     ]);
   });
 
+  it("shows a typed repo as watched when GitHub knows it by a new name", async () => {
+    const watched: WatchedRepoDto[] = [];
+    reposApi(watched, [], {
+      "GET /api/github/repos?query=acme%2Fold-name": () =>
+        json(searchResults()),
+      "POST /api/repos": () => {
+        watched.push(watchedRepo({ owner: "acme", name: "new-name" }));
+        return json({ repo: watched[0] }, 201);
+      },
+    });
+    renderApp("/settings/repos");
+
+    await userEvent.type(
+      await screen.findByLabelText("Add a repo"),
+      "acme/old-name",
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Add acme/old-name" }),
+    );
+    expect(
+      await within(await optionList()).findByText("Watching"),
+    ).toBeTruthy();
+  });
+
   it("shows why a repo couldn't be added", async () => {
     reposApi([], [repoOption({ owner: "acme", name: "api" })], {
       "POST /api/repos": () =>

@@ -1,4 +1,4 @@
-import type { AddRepoBody } from "@pr-peek/core";
+import type { AddRepoBody, AddRepoResponse } from "@pr-peek/core";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../api";
@@ -26,10 +26,10 @@ export function RepoPicker() {
   const [query, setQuery] = useState("");
   const search = useDebounced(query.trim(), SEARCH_DELAY_MS);
   const results = useRepoSearch(search);
-  // The watch list decides "Watching", so adds and removes show without searching again.
-  const watched = new Set(
-    useRepos().data?.repos.map((repo) => fullName(repo)) ?? [],
-  );
+  const repos = useRepos();
+  // The watch list decides "Watching", so search doesn't run again after a change.
+  const watched = new Set(repos.data?.repos.map(fullName));
+  const isWatched = (repo: AddRepoBody) => watched.has(fullName(repo));
 
   const options = results.data?.pages.flatMap((page) => page.repos) ?? [];
   const typed = FULL_NAME.exec(search);
@@ -57,7 +57,7 @@ export function RepoPicker() {
             <AddRepoRow
               key={fullName(typedRepo)}
               repo={typedRepo}
-              watched={watched.has(fullName(typedRepo))}
+              isWatched={isWatched}
             />
           )}
           {options.map((repo) => (
@@ -65,7 +65,7 @@ export function RepoPicker() {
               key={repo.githubRepoId}
               repo={repo}
               isPrivate={repo.isPrivate}
-              watched={watched.has(fullName(repo))}
+              isWatched={isWatched}
             />
           ))}
         </Card>
@@ -88,16 +88,16 @@ export function RepoPicker() {
 function AddRepoRow({
   repo,
   isPrivate = false,
-  watched,
+  isWatched,
 }: {
   repo: AddRepoBody;
   isPrivate?: boolean;
-  watched: boolean;
+  isWatched: (repo: AddRepoBody) => boolean;
 }) {
   const reloadWatchList = useReloadWatchList();
   const add = useMutation({
     mutationFn: () =>
-      api("/repos", {
+      api<AddRepoResponse>("/repos", {
         method: "POST",
         body: { owner: repo.owner, name: repo.name },
       }),
@@ -105,6 +105,9 @@ function AddRepoRow({
     onSuccess: reloadWatchList,
   });
   const name = `${repo.owner}/${repo.name}`;
+  // GitHub may save a typed repo under its current name.
+  const watched =
+    isWatched(repo) || (add.isSuccess && isWatched(add.data.repo));
 
   return (
     <CardRow>
