@@ -1,8 +1,8 @@
 import type { ItemKind, StaleLevel } from "@pr-peek/core";
 import { render, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
-import { item } from "../test/fake-api";
-import { ItemRow } from "./ItemRow";
+import { idlePr, item } from "../test/fake-api";
+import { IdlePrRow, ItemRow } from "./ItemRow";
 
 it("links to the PR and shows what happened", () => {
   render(
@@ -67,6 +67,18 @@ it.each([
   const svg = screen.getByRole("link").querySelector("svg");
   expect(svg?.classList).toContain(icon);
   expect(svg?.parentElement?.className).toContain("reply");
+});
+
+it.each([
+  [false, "lucide-squircle", "Nothing to do"],
+  [true, "lucide-squircle-dashed", "Draft"],
+])("shows an idle PR, dimmed if it's a draft: %s", (isDraft, icon, summary) => {
+  render(<IdlePrRow pr={idlePr({ isDraft, age: "3d" })} />);
+  const link = screen.getByRole("link");
+  expect(link.querySelector("svg")?.classList).toContain(icon);
+  expect(link.className.includes("draft")).toBe(isDraft);
+  expect(screen.getByText(summary)).toBeTruthy();
+  expect(screen.getByText("3d")).toBeTruthy();
 });
 
 it.each<[StaleLevel | null, string]>([

@@ -51,7 +51,21 @@ export interface ItemDto {
 }
 
 // Open items in each section, most urgent first.
-export type ItemsResponse = Record<ItemGroup, ItemDto[]>;
+export type ItemGroups = Record<ItemGroup, ItemDto[]>;
+
+// One of the user's open PRs with nothing to do. Shown under My PRs.
+export interface IdlePrDto {
+  id: string;
+  isDraft: boolean;
+  // Real time since the PR last changed, like "3h".
+  age: string;
+  pr: ItemDto["pr"];
+}
+
+export interface ItemsResponse extends ItemGroups {
+  // Newest change first.
+  idlePrs: IdlePrDto[];
+}
 
 // Counts for the app badge and the menu bar icon.
 export interface SummaryResponse {

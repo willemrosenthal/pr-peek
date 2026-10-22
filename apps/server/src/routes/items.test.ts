@@ -139,7 +139,49 @@ describe("GET /api/items", () => {
     await makeItem(user.id, pr.id, "constructor");
 
     const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
-    expect(body).toEqual({ review: [], replies: [], mine: [] });
+    expect(body).toEqual({ review: [], replies: [], mine: [], idlePrs: [] });
+  });
+
+  it("lists the user's open PRs with nothing to do, newest change first", async () => {
+    const { agent, user } = await setup();
+    const older = await makePr(user.id, 7, {
+      authorLogin: "Octocat",
+      githubUpdatedAt: hours(-5),
+    });
+    const draft = await makePr(user.id, 8, {
+      authorLogin: "octocat",
+      isDraft: true,
+    });
+    // Left out: has an open item, isn't the user's, or has ended.
+    const busy = await makePr(user.id, 9, { authorLogin: "octocat" });
+    await makeItem(user.id, busy.id, "check_failed");
+    await makePr(user.id, 10);
+    await makePr(user.id, 11, { authorLogin: "octocat", state: "merged" });
+    const resolved = await makePr(user.id, 12, {
+      authorLogin: "octocat",
+      githubUpdatedAt: hours(-9),
+    });
+    await makeItem(user.id, resolved.id, "reviewed", { status: "resolved" });
+
+    const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
+    expect(body.idlePrs.map((pr) => pr.id)).toEqual([
+      draft.id,
+      older.id,
+      resolved.id,
+    ]);
+    expect(body.idlePrs[1]).toEqual({
+      id: older.id,
+      isDraft: false,
+      age: "5h",
+      pr: {
+        title: "Add login",
+        owner: "acme",
+        repo: "web-app",
+        number: 7,
+        url: "https://github.com/acme/web-app/pull/7",
+      },
+    });
+    expect(body.idlePrs[0]?.isDraft).toBe(true);
   });
 });
 

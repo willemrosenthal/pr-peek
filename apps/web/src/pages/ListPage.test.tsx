@@ -6,6 +6,7 @@ import {
   apiError,
   fakeApi,
   groups,
+  idlePr,
   item,
   json,
   listApi,
@@ -37,6 +38,36 @@ describe("sections", () => {
     expect((await sectionButton(/My PRs/)).textContent).toContain("1");
     expect(screen.queryByRole("button", { name: /Replies to me/ })).toBe(null);
     expect(rows()).toHaveLength(3);
+  });
+
+  it("lists the user's idle PRs after their items in My PRs", async () => {
+    const idle = idlePr();
+    const busy = item();
+    fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ mine: [busy], idlePrs: [idle] })),
+      }),
+    );
+    renderApp("/");
+
+    expect((await sectionButton(/My PRs/)).textContent).toContain("2");
+    expect(rows().map((row) => row.textContent)).toEqual([
+      expect.stringContaining(busy.pr.title),
+      expect.stringContaining(idle.pr.title),
+    ]);
+  });
+
+  it("still lists idle PRs when nothing needs you", async () => {
+    fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ idlePrs: [idlePr()] })),
+      }),
+    );
+    renderApp("/");
+
+    expect(await screen.findByText("Nothing needs you right now")).toBeTruthy();
+    expect((await sectionButton(/My PRs/)).textContent).toContain("1");
+    expect(rows()).toHaveLength(1);
   });
 
   it("collapses a section and remembers it", async () => {

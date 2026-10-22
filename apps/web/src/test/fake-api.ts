@@ -1,5 +1,6 @@
 import {
   rules,
+  type IdlePrDto,
   type ItemDto,
   type ItemsResponse,
   type MeResponse,
@@ -56,6 +57,15 @@ export const signedOut = () =>
 
 let itemCount = 0;
 
+// A PR numbered and titled after the row count, so each row's text differs.
+const prRef = (): ItemDto["pr"] => ({
+  title: `PR ${itemCount}`,
+  owner: "acme",
+  repo: "web-app",
+  number: itemCount,
+  url: `https://github.com/acme/web-app/pull/${itemCount}`,
+});
+
 export const item = (fields: Partial<ItemDto> = {}): ItemDto => {
   itemCount += 1;
   return {
@@ -71,13 +81,18 @@ export const item = (fields: Partial<ItemDto> = {}): ItemDto => {
     severity: "normal",
     unseen: false,
     otherIds: [],
-    pr: {
-      title: `PR ${itemCount}`,
-      owner: "acme",
-      repo: "web-app",
-      number: itemCount,
-      url: `https://github.com/acme/web-app/pull/${itemCount}`,
-    },
+    pr: prRef(),
+    ...fields,
+  };
+};
+
+export const idlePr = (fields: Partial<IdlePrDto> = {}): IdlePrDto => {
+  itemCount += 1;
+  return {
+    id: `pr-${itemCount}`,
+    isDraft: false,
+    age: "1d",
+    pr: prRef(),
     ...fields,
   };
 };
@@ -86,6 +101,7 @@ export const groups = (fields: Partial<ItemsResponse> = {}): ItemsResponse => ({
   review: [],
   replies: [],
   mine: [],
+  idlePrs: [],
   ...fields,
 });
 

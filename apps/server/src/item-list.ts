@@ -4,9 +4,10 @@ import {
   ITEM_GROUPS,
   staleLevel,
   waitingFor,
+  type IdlePrDto,
   type ItemDto,
+  type ItemGroups,
   type ItemKind,
-  type ItemsResponse,
   type Severity,
   type SummaryResponse,
 } from "@pr-peek/core";
@@ -122,9 +123,38 @@ export function onePerPr(items: ItemDto[]): ItemDto[] {
   });
 }
 
+// The user's open PRs that have no open items, newest change first.
+export async function idlePrs(
+  db: Db,
+  user: { id: string; login: string },
+  now: Date,
+): Promise<IdlePrDto[]> {
+  const rows = await db.pullRequest.findMany({
+    where: {
+      userId: user.id,
+      state: "open",
+      authorLogin: { equals: user.login, mode: "insensitive" },
+      items: { none: { status: "open" } },
+    },
+    orderBy: { githubUpdatedAt: "desc" },
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    isDraft: row.isDraft,
+    age: formatAge(row.githubUpdatedAt, now),
+    pr: {
+      title: row.title,
+      owner: row.repoOwner,
+      repo: row.repoName,
+      number: row.number,
+      url: row.url,
+    },
+  }));
+}
+
 // Splits sorted items into the list's sections, one row per PR, keeping their order.
-export function groupItems(items: ItemDto[]): ItemsResponse {
-  const groups: ItemsResponse = { review: [], replies: [], mine: [] };
+export function groupItems(items: ItemDto[]): ItemGroups {
+  const groups: ItemGroups = { review: [], replies: [], mine: [] };
   for (const row of onePerPr(items)) groups[ITEM_GROUPS[row.kind]].push(row);
   return groups;
 }

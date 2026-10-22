@@ -233,9 +233,10 @@ export async function syncUser(
         data: { state },
       });
     }
-    const resolved = await resolveItemsOf(tx, userId, [...ended.keys()], now);
-    // A fetched PR may show a new title, even if its items didn't change.
-    if (saved.length > 0 || items.changed || resolved > 0) {
+    await resolveItemsOf(tx, userId, [...ended.keys()], now);
+    // A fetched PR may show a new title, even if its items didn't change. An ended PR
+    // leaves My PRs, even with no items.
+    if (saved.length > 0 || items.changed || ended.size > 0) {
       await publishItemsChanged(tx, userId);
     }
     return items.newEventIds;

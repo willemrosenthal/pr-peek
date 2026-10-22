@@ -75,8 +75,12 @@ function ListBody() {
     (sum, { group }) => sum + items.data[group].length,
     0,
   );
-  if (total === 0) return <EmptyList />;
-  return <Sections groups={items.data} />;
+  return (
+    <>
+      {total === 0 && <EmptyList />}
+      <Sections groups={items.data} />
+    </>
+  );
 }
 
 function Sections({ groups }: { groups: ItemsResponse }) {
@@ -101,17 +105,20 @@ function Sections({ groups }: { groups: ItemsResponse }) {
   );
   useMarkSeen(unseenIds);
 
-  return SECTIONS.filter(({ group }) => groups[group].length > 0).map(
-    ({ group, title }) => (
+  return SECTIONS.map(({ group, title }) => {
+    const idle = group === "mine" ? groups.idlePrs : [];
+    if (groups[group].length + idle.length === 0) return null;
+    return (
       <ItemSection
         key={group}
         title={title}
         items={groups[group]}
+        idle={idle}
         open={!collapsed.includes(group)}
         onOpenChange={(open) => setOpen(group, open)}
       />
-    ),
-  );
+    );
+  });
 }
 
 function EmptyList() {
