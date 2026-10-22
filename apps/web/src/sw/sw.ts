@@ -29,14 +29,16 @@ self.addEventListener("push", (event) => {
   if (!payload) return;
   const { url, itemId, badge } = payload;
   const data: NotificationData = { url, ...(itemId && { itemId }) };
-  if (badge !== undefined) setBadge(badge);
   event.waitUntil(
-    self.registration.showNotification(payload.title, {
-      body: payload.body,
-      tag: payload.tag,
-      icon: "/pwa-192x192.png",
-      data,
-    }),
+    Promise.all([
+      self.registration.showNotification(payload.title, {
+        body: payload.body,
+        tag: payload.tag,
+        icon: "/pwa-192x192.png",
+        data,
+      }),
+      badge !== undefined && setBadge(badge),
+    ]),
   );
 });
 
