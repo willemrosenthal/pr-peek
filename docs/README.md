@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                                        |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [06. API and live updates](completed/06-api.md), part C: live updates. Parts A (#17) and B (#18) merged. Last part     |
-| **Branch**         | `plan-06-3-stream`                                                                                                     |
-| **PR**             | [#19](https://github.com/willemrosenthal/pr-peek/pull/19) (part C), draft                                              |
-| **Last step done** | SSE stream at `/api/stream`, the `.http` file. Plan 06 moved to `completed/`                                           |
-| **Next step**      | [Plan 07](07-web-app.md) (web app) once part C merges                                                                  |
-| **Waiting on you** | Plan 04, 05, and 06 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
+|                    |                                                                                                                                                       |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [07. Web app](07-web-app.md), part 1 of 4: setup and sign in. Plan 06 done (#19)                                                                      |
+| **Branch**         | `plan-07-1-setup`                                                                                                                                     |
+| **PR**             | Part 1, draft                                                                                                                                         |
+| **Last step done** | Vite + React app, sign in with GitHub or a token, design tokens from A2                                                                               |
+| **Next step**      | Part 2 (`plan-07-2-list`): the list, once part 1 merges                                                                                               |
+| **Waiting on you** | Set `APP_URL=http://localhost:5173` in `.env`. Plan 04, 05, and 06 "Done when" checks. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.
