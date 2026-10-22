@@ -15,7 +15,7 @@ import {
   NOW,
   TEST_KEY,
 } from "../../test/fakes";
-import type { Prisma } from "../generated/prisma/client";
+import { itemRows } from "../../test/items";
 import { upsertGitHubUser } from "../users";
 import { itemsRouter } from "./items";
 
@@ -32,51 +32,7 @@ async function setup() {
   return { agent, user };
 }
 
-async function makePr(userId: string, number = 7) {
-  return db.pullRequest.create({
-    data: {
-      userId,
-      githubNodeId: `PR_${number}`,
-      githubRepoId: 1,
-      repoOwner: "acme",
-      repoName: "web-app",
-      number,
-      title: "Add login",
-      url: `https://github.com/acme/web-app/pull/${number}`,
-      authorLogin: "sam",
-      isDraft: false,
-      state: "open",
-      headSha: "abc123",
-      githubUpdatedAt: NOW,
-      snapshot: {},
-    },
-  });
-}
-
-async function makeItem(
-  userId: string,
-  pullRequestId: string,
-  kind: string,
-  fields: Partial<
-    Pick<
-      Prisma.ItemUncheckedCreateInput,
-      "occurredAt" | "waitingSince" | "status" | "seenAt"
-    >
-  > = {},
-) {
-  return db.item.create({
-    data: {
-      userId,
-      pullRequestId,
-      kind,
-      dedupeKey: `${kind}:${pullRequestId}`,
-      latestEventId: "E_1",
-      summary: `${kind} summary`,
-      occurredAt: hours(-1),
-      ...fields,
-    },
-  });
-}
+const { makePr, makeItem } = itemRows(db);
 
 async function otherUser() {
   const { user } = await upsertGitHubUser(

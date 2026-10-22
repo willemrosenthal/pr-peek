@@ -4,14 +4,14 @@
 
 Updated after every step. Read this first when picking work back up.
 
-|                    |                                                                                                                   |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [06. API and live updates](06-api.md), part B: settings and sync. Part A merged (#17). C: live updates            |
-| **Branch**         | `plan-06-2-settings`                                                                                              |
-| **PR**             | [#18](https://github.com/willemrosenthal/pr-peek/pull/18) (part B), draft                                         |
-| **Last step done** | Settings, rules, and sync endpoints. Rules re-run when settings change                                            |
-| **Next step**      | Part C (`plan-06-3-stream`) once part B merges                                                                    |
-| **Waiting on you** | Plan 04 and 05 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
+|                    |                                                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| **Current plan**   | [06. API and live updates](completed/06-api.md), part C: live updates. Parts A (#17) and B (#18) merged. Last part     |
+| **Branch**         | `plan-06-3-stream`                                                                                                     |
+| **PR**             | [#19](https://github.com/willemrosenthal/pr-peek/pull/19) (part C), draft                                              |
+| **Last step done** | SSE stream at `/api/stream`, the `.http` file. Plan 06 moved to `completed/`                                           |
+| **Next step**      | [Plan 07](07-web-app.md) (web app) once part C merges                                                                  |
+| **Waiting on you** | Plan 04, 05, and 06 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.
 - The numbered files below: build plans, run in order. Each ends with a "Done when" list. Don't start the next plan until those all pass.
@@ -35,7 +35,7 @@ Plans can be edited while in progress when we learn something. Completed plans a
 | 03  | ✅ [GitHub sign in](completed/03-github-auth.md)                           | Users can sign in with GitHub. Tokens stored encrypted                        |
 | 04  | ✅ [GitHub sync engine](completed/04-github-sync.md)                       | Worker pulls each user's PRs on a schedule and stores them                    |
 | 05  | ✅ [Rules and attention items](completed/05-rules-engine.md)               | PR data turned into sorted "needs you" items, all 7 cases                     |
-| 06  | [API and live updates](06-api.md)                                          | JSON API for items, repos, settings. SSE stream                               |
+| 06  | ✅ [API and live updates](completed/06-api.md)                             | JSON API for items, repos, settings. SSE stream                               |
 | 07  | [Web app (PWA)](07-web-app.md)                                             | The list (design A2), onboarding, settings. Installable                       |
 | 08  | [Push notifications](08-push-notifications.md)                             | Web Push to phone and desktop, quiet hours, morning summary                   |
 

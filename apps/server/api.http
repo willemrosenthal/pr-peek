@@ -1,0 +1,92 @@
+# Manual API requests, for the VS Code REST Client extension.
+# Run `pnpm dev`, then send "Sign in" first. REST Client keeps the session cookie.
+
+@baseUrl = http://localhost:3000/api
+@origin = http://localhost:3000
+
+### Health
+GET {{baseUrl}}/health
+
+### Sign in with a personal access token (needs the repo scope)
+# @prompt token GitHub personal access token
+POST {{baseUrl}}/auth/token
+Origin: {{origin}}
+Content-Type: application/json
+
+{ "token": "{{token}}" }
+
+### Who am I
+GET {{baseUrl}}/me
+
+### Sign out
+POST {{baseUrl}}/auth/signout
+Origin: {{origin}}
+
+### Search your GitHub repos
+GET {{baseUrl}}/github/repos?query=web
+
+### Watched repos
+GET {{baseUrl}}/repos
+
+### Watch a repo
+POST {{baseUrl}}/repos
+Origin: {{origin}}
+Content-Type: application/json
+
+{ "owner": "acme", "name": "web-app" }
+
+### Mute a watched repo (id from "Watched repos")
+# @prompt id Watched repo id
+PATCH {{baseUrl}}/repos/{{id}}
+Origin: {{origin}}
+Content-Type: application/json
+
+{ "muted": true }
+
+### Stop watching a repo
+# @prompt id Watched repo id
+DELETE {{baseUrl}}/repos/{{id}}
+Origin: {{origin}}
+
+### Items, grouped and sorted by urgency
+GET {{baseUrl}}/items
+
+### Mark items as seen (ids from "Items")
+# @prompt ids Item ids, quoted and comma separated
+POST {{baseUrl}}/items/seen
+Origin: {{origin}}
+Content-Type: application/json
+
+{ "ids": [{{ids}}] }
+
+### Counts for badges
+GET {{baseUrl}}/summary
+
+### Settings and rules
+GET {{baseUrl}}/settings
+
+### Change settings
+PATCH {{baseUrl}}/settings
+Origin: {{origin}}
+Content-Type: application/json
+
+{ "timezone": "America/New_York", "hideBots": true }
+
+### Change a rule
+PATCH {{baseUrl}}/rules/commented
+Origin: {{origin}}
+Content-Type: application/json
+
+{ "severity": "high", "channels": ["list", "push"] }
+
+### Refresh now
+POST {{baseUrl}}/sync
+Origin: {{origin}}
+
+### Sync status
+GET {{baseUrl}}/sync/status
+
+### Live updates
+# REST Client waits for the response to end, which a stream never does. Use curl:
+#   curl -N -b <cookie file> http://localhost:3000/api/stream
+GET {{baseUrl}}/stream

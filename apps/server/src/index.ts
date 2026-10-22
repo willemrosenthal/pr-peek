@@ -8,11 +8,13 @@ import { checkDb, createDb, createPool } from "./db";
 import { createGitHubOAuth } from "./github/oauth";
 import { createLogger } from "./logger";
 import { getOctokit } from "./github/client";
+import { listenForItemChanges } from "./items-listener";
 import { createBoss, createQueues, queueSync } from "./jobs";
 import { authRouter } from "./routes/auth";
 import { itemsRouter } from "./routes/items";
 import { reposRouter } from "./routes/repos";
 import { settingsRouter } from "./routes/settings";
+import { streamRouter } from "./routes/stream";
 import { syncRouter } from "./routes/sync";
 import { sessionMiddleware } from "./session";
 import { onShutdown } from "./shutdown";
@@ -37,6 +39,12 @@ boss.on("error", (err) => logger.error({ err }, "pg-boss error"));
 await boss.start();
 await createQueues(boss);
 
+const listener = await listenForItemChanges({
+  connectionString: config.DATABASE_URL,
+  logger,
+});
+const streams = new AbortController();
+
 const app = createApp({
   logger,
   version: config.RENDER_GIT_COMMIT ?? "dev",
@@ -58,6 +66,7 @@ const app = createApp({
     itemsRouter({ db }),
     settingsRouter({ db, github }),
     syncRouter({ db, requestSync: (userId) => queueSync(boss, userId) }),
+    streamRouter({ db, listener, signal: streams.signal }),
   ],
   // Same depth from src/ (tsx in dev) and dist/ (built), so this works for both.
   webDir: resolve(import.meta.dirname, "../../web/dist"),
@@ -68,7 +77,10 @@ const server = app.listen(config.PORT, () => {
 });
 
 onShutdown(logger, async () => {
+  // Open streams never finish on their own, so end them first.
+  streams.abort();
   await promisify(server.close.bind(server))();
+  await listener.stop();
   await boss.stop({ graceful: true });
   await db.$disconnect();
   // Stops the store's expired-session cleanup timer before the pool closes.
