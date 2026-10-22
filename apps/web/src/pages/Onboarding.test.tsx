@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import {
   apiError,
   callsTo,
@@ -60,6 +60,33 @@ it("goes on when the first sync is refused", async () => {
   renderApp("/onboarding");
   await next();
   expect(await screen.findByLabelText("Timezone")).toBeTruthy();
+});
+
+it("keeps the detected timezone when the browser's list lacks it", async () => {
+  const resolved = Intl.DateTimeFormat().resolvedOptions();
+  const detect = vi
+    .spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+    .mockReturnValue({ ...resolved, timeZone: "UTC" });
+  const list = vi
+    .spyOn(Intl, "supportedValuesOf")
+    .mockReturnValue(["Europe/Paris"]);
+  try {
+    const fetch = onboardingApi();
+    renderApp("/onboarding");
+    await next();
+
+    const select = await screen.findByLabelText("Timezone");
+    await userEvent.selectOptions(select, "Europe/Paris");
+    await userEvent.selectOptions(select, "UTC");
+    await next();
+    await screen.findByRole("heading", { name: "You're set" });
+    expect(sentBodies(fetch, "PATCH /api/settings")).toEqual([
+      { timezone: "UTC" },
+    ]);
+  } finally {
+    detect.mockRestore();
+    list.mockRestore();
+  }
 });
 
 it("shows why the timezone couldn't be saved", async () => {

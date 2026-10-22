@@ -30,7 +30,8 @@ export function RepoPicker() {
 
   const options = results.data?.pages.flatMap((page) => page.repos) ?? [];
   const typed = FULL_NAME.exec(search);
-  // A full name search doesn't list, like a repo in an org that blocks pr-peek.
+  // Offers a typed owner/name that search didn't find, like a repo in an org that
+  // blocks pr-peek.
   const typedMissing =
     typed && !options.some((repo) => `${repo.owner}/${repo.name}` === typed[0]);
 
@@ -45,6 +46,7 @@ export function RepoPicker() {
       />
       {add.isError && <Alert>{add.error.message}</Alert>}
       {results.isError && <Alert>{results.error.message}</Alert>}
+      {results.isPending && <p className={styles.hint}>Loading</p>}
       {(options.length > 0 || typedMissing) && (
         <Card label="Repos you can add">
           {typedMissing && (

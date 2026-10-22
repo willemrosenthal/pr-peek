@@ -58,7 +58,8 @@ function ReposStep({ onNext }: { onNext: () => void }) {
 }
 
 function TimezoneStep({ onNext }: { onNext: () => void }) {
-  const [timezone, setTimezone] = useState(detectedTimezone);
+  const [zones] = useState(timezones);
+  const [timezone, setTimezone] = useState(zones.detected);
   const save = useMutation({
     mutationFn: () => api("/settings", { method: "PATCH", body: { timezone } }),
     onSuccess: onNext,
@@ -79,7 +80,7 @@ function TimezoneStep({ onNext }: { onNext: () => void }) {
         value={timezone}
         onChange={(e) => setTimezone(e.target.value)}
       >
-        {timezones(timezone).map((zone) => (
+        {zones.all.map((zone) => (
           <option key={zone}>{zone}</option>
         ))}
       </SelectField>
@@ -111,10 +112,10 @@ function DoneStep() {
   );
 }
 
-const detectedTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-// Every timezone the browser knows, plus `current` if it's missing, like "UTC".
-function timezones(current: string): string[] {
-  const zones = Intl.supportedValuesOf("timeZone");
-  return zones.includes(current) ? zones : [current, ...zones];
+// The browser's timezone, and every one it knows. Adds the detected one if the list
+// lacks it, like "UTC".
+function timezones() {
+  const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const all = Intl.supportedValuesOf("timeZone");
+  return { detected, all: all.includes(detected) ? all : [detected, ...all] };
 }
