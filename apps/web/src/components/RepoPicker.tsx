@@ -12,7 +12,7 @@ import styles from "./Repos.module.css";
 import { Spinner } from "./Spinner";
 
 // Waits for typing to pause before searching GitHub.
-export const SEARCH_DELAY_MS = 300;
+const SEARCH_DELAY_MS = 300;
 
 // "owner/name", typed in full.
 const FULL_NAME = /^([\w.-]+)\/([\w.-]+)$/;

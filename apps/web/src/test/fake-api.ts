@@ -107,7 +107,6 @@ export const repoOption = (fields: Partial<RepoOption> = {}): RepoOption => {
     owner: "acme",
     name: `repo-${repoCount}`,
     isPrivate: false,
-    watched: false,
     ...fields,
   };
 };

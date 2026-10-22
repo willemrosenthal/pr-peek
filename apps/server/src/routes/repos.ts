@@ -45,26 +45,11 @@ export function reposRouter(deps: RepoDeps): Router {
 
   // Repos the user could add, for the picker.
   router.get("/github/repos", async (req, res) => {
-    const user = currentUser(res);
     const { query, cursor } = parseInput(searchReposQuery, req.query);
-    const page = await searchRepos(await deps.github(user.id), {
-      query,
-      cursor,
-    });
-
-    const watched = await deps.db.watchedRepo.findMany({
-      where: { userId: user.id },
-      select: { githubRepoId: true },
-    });
-    const watchedIds = new Set(watched.map((repo) => repo.githubRepoId));
-
-    const body: SearchReposResponse = {
-      repos: page.repos.map((repo) => ({
-        ...repo,
-        watched: watchedIds.has(repo.githubRepoId),
-      })),
-      nextCursor: page.nextCursor,
-    };
+    const body: SearchReposResponse = await searchRepos(
+      await deps.github(currentUser(res).id),
+      { query, cursor },
+    );
     res.json(body);
   });
 

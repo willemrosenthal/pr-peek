@@ -28,8 +28,6 @@ export interface RepoOption {
   owner: string;
   name: string;
   isPrivate: boolean;
-  // Already in the user's watch list.
-  watched: boolean;
 }
 
 export interface SearchReposResponse {

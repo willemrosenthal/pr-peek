@@ -34,6 +34,7 @@
 - **`api.http` signs in with your browser's session cookie**, since token sign in is gone. Steps at the top of the file.
 - **Settings tabs are links** (part 4a), like `/settings/repos`, with the tab list on the left as in the mockup, and a row that scrolls sideways on phones. Each tab has its own URL, so they use the router, not Base UI Tabs. `/settings` and unknown tabs open General.
 - **Repositories tab:** the watch list, with a switch to pause each repo and a Remove button. Below it, search. With nothing typed, it lists your repos, most recently pushed first. Typing `owner/name` offers that repo even when search doesn't find it, like a repo in an org that blocks pr-peek. Search waits for typing to pause (300 ms).
+  - **Each row adds on its own**, with a spinner and "Adding" while the server checks the repo with GitHub, so other rows stay clickable. Rows read "Watching" from the watch list, so a change never searches GitHub again. Search results no longer carry a `watched` flag.
   - **No confirm on Remove.** Adding the repo back restores everything on the next sync.
   - **Mute comes with plan 08.** It only stops notifications, so a switch would do nothing yet.
 - **Onboarding** has three steps: repos, timezone, and "You're set". Leaving the repo step starts a first sync, so the list fills in sooner. The timezone is a native dropdown, not Base UI Select, since it has about 400 options. Installing and notifications join the last step in plans 07 part 5 and 08.
