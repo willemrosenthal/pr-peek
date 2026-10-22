@@ -53,8 +53,10 @@ it.each<[ItemKind, string]>([
   ["check_failed", "danger"],
 ])("colors the %s icon %s", (kind, tone) => {
   render(<ItemRow item={item({ kind })} />);
-  const icon = screen.getByRole("link").querySelector("svg")?.parentElement;
-  expect(icon?.className).toContain(tone);
+  const svg = screen.getByRole("link").querySelector("svg");
+  expect(svg?.parentElement?.className).toContain(tone);
+  // Screen readers skip it. The row's text says what happened.
+  expect(svg?.getAttribute("aria-hidden")).toBe("true");
 });
 
 it.each<[StaleLevel | null, string]>([

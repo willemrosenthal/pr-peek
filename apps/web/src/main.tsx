@@ -14,11 +14,11 @@ const queryClient = new QueryClient();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <LucideProvider size={16} strokeWidth={2.2}>
+    <LucideProvider size={16} strokeWidth={2.2}>
+      <QueryClientProvider client={queryClient}>
         <RouterProvider router={createRouter()} />
-      </LucideProvider>
-    </QueryClientProvider>
-    <UpdatePrompt />
+      </QueryClientProvider>
+      <UpdatePrompt />
+    </LucideProvider>
   </StrictMode>,
 );
