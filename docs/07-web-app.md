@@ -69,6 +69,7 @@
   - An unseen marker (style to be decided).
 - [ ] Clicking a row opens the PR on GitHub in a new tab, and marks it seen. That's the only row action. There's no snooze or done.
 - [ ] Header: last synced time, refresh button (calls `POST /api/sync`), settings link.
+  - Spin the refresh button from the `202` until `lastSyncedAt` changes. `GET /api/sync/status` shows `running: false` for a few seconds while the worker picks up the job.
 - [ ] Banners:
   - "Reconnect GitHub" when `needsReauth`.
   - "Sync problem, retrying" when `syncError`.

@@ -1,14 +1,13 @@
-import type { DetectedItem, PrSnapshot } from "@pr-peek/core";
+import type { PrSnapshot } from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import type { Db } from "./db";
 import { fetchPrDetails, type PrDetails } from "./github/pull-details";
 import { findRelevantPrs, type FoundPr } from "./github/pull-search";
-import { fetchViewerTeams } from "./github/teams";
 import {
-  detectItems,
-  includeDraftsFrom,
-  ITEMS_CHANNEL,
-  loadRuleSettings,
+  ITEMS_TX,
+  lockUserItems,
+  prepareRules,
+  publishItemsChanged,
   resolveUnseenItems,
   saveItems,
   type SavedPr,
@@ -75,38 +74,35 @@ function toRow(snapshot: PrSnapshot, githubRepoId: number, now: Date) {
 interface FromGitHub {
   found: FoundPr[];
   details: PrDetails;
-  // Runs the user's enabled rules on one PR.
-  detect: (snapshot: PrSnapshot) => DetectedItem[];
+  // The client used, if GitHub was called.
+  octokit: Octokit | null;
 }
 
-// The PRs in the user's watched repos, details for the ones that changed, and the rules
-// to run on them.
+// The PRs in the user's watched repos, and details for the ones that changed.
 async function fetchFromGitHub(
   deps: SyncDeps,
   userId: string,
-  now: Date,
 ): Promise<FromGitHub> {
   const { db } = deps;
-  const [user, settings, watched, ruleSettings] = await Promise.all([
+  const [user, settings, watched] = await Promise.all([
     db.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { login: true, lastSyncedAt: true },
+      select: { lastSyncedAt: true },
     }),
     db.userSettings.findUnique({
       where: { userId },
-      select: { includeTeamRequests: true, hideBots: true },
+      select: { includeTeamRequests: true },
     }),
     db.watchedRepo.findMany({
       where: { userId, enabled: true },
       select: { githubRepoId: true },
     }),
-    loadRuleSettings(db, userId),
   ]);
   if (watched.length === 0) {
     return {
       found: [],
       details: { snapshots: [], failed: [] },
-      detect: () => [],
+      octokit: null,
     };
   }
   const watchedIds = new Set(watched.map((repo) => repo.githubRepoId));
@@ -133,30 +129,7 @@ async function fetchFromGitHub(
     .filter((pr) => needsDetails(pr, storedById.get(pr.id), user.lastSyncedAt))
     .map((pr) => pr.id);
   const details = await fetchPrDetails(octokit, changedIds);
-
-  // Only ask for the user's teams when a team was asked to review.
-  const hasTeamRequest = details.snapshots.some((snapshot) =>
-    snapshot.reviewRequests.some((reviewer) => reviewer.type === "team"),
-  );
-  const viewerTeams =
-    includeTeamRequests && hasTeamRequest
-      ? await fetchViewerTeams(octokit, user.login)
-      : [];
-  const ctx = {
-    viewerLogin: user.login,
-    viewerTeams,
-    now,
-    settings: {
-      includeTeamRequests,
-      hideBots: settings?.hideBots ?? false,
-      includeDrafts: includeDraftsFrom(ruleSettings),
-    },
-  };
-  return {
-    found,
-    details,
-    detect: (snapshot) => detectItems(ruleSettings, snapshot, ctx),
-  };
+  return { found, details, octokit };
 }
 
 // Brings the user's stored PRs and items up to date with GitHub.
@@ -166,40 +139,39 @@ export async function syncUser(
 ): Promise<SyncResult> {
   const { db } = deps;
   const now = (deps.now ?? (() => new Date()))();
-  const { found, details, detect } = await fetchFromGitHub(deps, userId, now);
+  const { found, details, octokit } = await fetchFromGitHub(deps, userId);
+  const detect = await prepareRules(db, userId, details.snapshots, now, () =>
+    octokit ? Promise.resolve(octokit) : deps.github(userId),
+  );
 
   const repoIdOf = new Map(found.map((pr) => [pr.id, pr.githubRepoId]));
   // PRs and their items save together, so a PR is never stored without its items.
-  const newEventItemIds = await db.$transaction(
-    async (tx) => {
-      await tx.pullRequest.updateMany({
-        where: { userId, githubNodeId: { in: [...repoIdOf.keys()] } },
-        data: { lastSeenAt: now },
+  const newEventItemIds = await db.$transaction(async (tx) => {
+    await lockUserItems(tx, userId);
+    await tx.pullRequest.updateMany({
+      where: { userId, githubNodeId: { in: [...repoIdOf.keys()] } },
+      data: { lastSeenAt: now },
+    });
+    const saved: SavedPr[] = [];
+    for (const snapshot of details.snapshots) {
+      // Details are only fetched for PRs in `found`.
+      const row = toRow(snapshot, repoIdOf.get(snapshot.id)!, now);
+      const { id } = await tx.pullRequest.upsert({
+        where: { userId_githubNodeId: { userId, githubNodeId: snapshot.id } },
+        create: { userId, githubNodeId: snapshot.id, ...row },
+        update: row,
+        select: { id: true },
       });
-      const saved: SavedPr[] = [];
-      for (const snapshot of details.snapshots) {
-        // Details are only fetched for PRs in `found`.
-        const row = toRow(snapshot, repoIdOf.get(snapshot.id)!, now);
-        const { id } = await tx.pullRequest.upsert({
-          where: { userId_githubNodeId: { userId, githubNodeId: snapshot.id } },
-          create: { userId, githubNodeId: snapshot.id, ...row },
-          update: row,
-          select: { id: true },
-        });
-        saved.push({ id, snapshot });
-      }
+      saved.push({ id, snapshot });
+    }
 
-      const itemIds = await saveItems(tx, userId, saved, detect, now);
-      const resolved = await resolveUnseenItems(tx, userId, now);
-      // Sent when the transaction commits.
-      if (saved.length > 0 || resolved > 0) {
-        await tx.$executeRaw`SELECT pg_notify(${ITEMS_CHANNEL}, ${userId})`;
-      }
-      return itemIds;
-    },
-    // Waits for a free connection longer than Prisma's 2 seconds, since syncs share the pool.
-    { timeout: 30_000, maxWait: 10_000 },
-  );
+    const itemIds = await saveItems(tx, userId, saved, detect, now);
+    const resolved = await resolveUnseenItems(tx, userId, now);
+    if (saved.length > 0 || resolved > 0) {
+      await publishItemsChanged(tx, userId);
+    }
+    return itemIds;
+  }, ITEMS_TX);
 
   const { count: deleted } = await db.pullRequest.deleteMany({
     where: {

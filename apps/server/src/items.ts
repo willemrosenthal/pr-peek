@@ -1,34 +1,51 @@
 import {
+  channels,
+  prSnapshot,
+  ruleOptions,
   rules,
+  severity,
   type Channel,
   type DetectedItem,
   type PrSnapshot,
   type Rule,
   type RuleContext,
+  type RuleOptions,
   type Severity,
 } from "@pr-peek/core";
-import { z } from "zod";
+import type { Octokit } from "octokit";
 import type { Db } from "./db";
 import type { Prisma } from "./generated/prisma/client";
+import { fetchViewerTeams } from "./github/teams";
 
 // Postgres NOTIFY channel. The payload is the user id. Plan 06 listens for SSE.
 export const ITEMS_CHANNEL = "user_items_changed";
 
-const severity = z.enum(["low", "normal", "high"]);
-const channels = z.array(z.enum(["list", "push"]));
+// For transactions that save items. Waits for a free connection longer than Prisma's
+// 2 seconds, since the worker's syncs share the pool.
+export const ITEMS_TX = { timeout: 30_000, maxWait: 10_000 };
 
-// Options a rule setting can hold. Only the review request rules use one so far.
-const ruleOptions = z
-  .object({ includeDrafts: z.boolean() })
-  .partial()
-  .catch({});
+type Tx = Prisma.TransactionClient;
+
+// Holds the user's items until the transaction ends, so the worker's sync and a re-run
+// from the web service never save the same user's items at once.
+export async function lockUserItems(tx: Tx, userId: string): Promise<void> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
+}
+
+// Tells listeners the user's items changed. Sent when the transaction commits.
+export async function publishItemsChanged(
+  tx: Tx,
+  userId: string,
+): Promise<void> {
+  await tx.$executeRaw`SELECT pg_notify(${ITEMS_CHANNEL}, ${userId})`;
+}
 
 export interface EffectiveRuleSetting {
   rule: Rule;
   enabled: boolean;
   severity: Severity;
   channels: Channel[];
-  options: z.infer<typeof ruleOptions>;
+  options: RuleOptions;
 }
 
 // Each rule with the user's setting, or the rule's defaults if they have none.
@@ -46,7 +63,7 @@ export async function loadRuleSettings(
       enabled: row?.enabled ?? true,
       severity: severity.catch(rule.defaultSeverity).parse(row?.severity),
       channels: channels.catch(rule.defaultChannels).parse(row?.channels),
-      options: ruleOptions.parse(row?.options ?? {}),
+      options: ruleOptions.catch({}).parse(row?.options ?? {}),
     };
   });
 }
@@ -74,6 +91,47 @@ export const detectItems = (
     .filter((s) => s.enabled)
     .flatMap((s) => s.rule.detect(snapshot, ctx));
 
+// The user's enabled rules, ready to run on these PRs. Asks GitHub for the user's teams
+// only when a team is asked to review one of them.
+export async function prepareRules(
+  db: Db,
+  userId: string,
+  snapshots: PrSnapshot[],
+  now: Date,
+  github: () => Promise<Octokit>,
+): Promise<(snapshot: PrSnapshot) => DetectedItem[]> {
+  const [user, settings, ruleSettings] = await Promise.all([
+    db.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { login: true },
+    }),
+    db.userSettings.findUnique({
+      where: { userId },
+      select: { includeTeamRequests: true, hideBots: true },
+    }),
+    loadRuleSettings(db, userId),
+  ]);
+  const includeTeamRequests = settings?.includeTeamRequests ?? true;
+  const hasTeamRequest = snapshots.some((snapshot) =>
+    snapshot.reviewRequests.some((reviewer) => reviewer.type === "team"),
+  );
+  const viewerTeams =
+    includeTeamRequests && hasTeamRequest
+      ? await fetchViewerTeams(await github(), user.login)
+      : [];
+  const ctx: RuleContext = {
+    viewerLogin: user.login,
+    viewerTeams,
+    now,
+    settings: {
+      includeTeamRequests,
+      hideBots: settings?.hideBots ?? false,
+      includeDrafts: includeDraftsFrom(ruleSettings),
+    },
+  };
+  return (snapshot) => detectItems(ruleSettings, snapshot, ctx);
+}
+
 export interface SavedPr {
   // The PullRequest row id.
   id: string;
@@ -83,7 +141,7 @@ export interface SavedPr {
 // Saves the items each PR has now and resolves the ones it no longer has.
 // Returns the ids of items that are new or have a new event, for notifications.
 export async function saveItems(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   userId: string,
   prs: SavedPr[],
   detect: (snapshot: PrSnapshot) => DetectedItem[],
@@ -145,7 +203,7 @@ export async function saveItems(
 // Resolves open items on PRs this sync didn't find: merged, closed, or no longer involving
 // the user. Run after every found PR's `lastSeenAt` is set to `now`. Returns how many.
 export async function resolveUnseenItems(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   userId: string,
   now: Date,
 ): Promise<number> {
@@ -158,4 +216,50 @@ export async function resolveUnseenItems(
     data: { status: "resolved", resolvedAt: now },
   });
   return count;
+}
+
+// The stored PRs the latest sync found. Older ones already had their items resolved.
+async function latestSyncedPrs(tx: Tx, userId: string): Promise<SavedPr[]> {
+  const { lastSyncedAt } = await tx.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { lastSyncedAt: true },
+  });
+  if (!lastSyncedAt) return [];
+  const rows = await tx.pullRequest.findMany({
+    where: { userId, lastSeenAt: { gte: lastSyncedAt } },
+    select: { id: true, snapshot: true },
+  });
+  return rows.flatMap((row): SavedPr[] => {
+    const parsed = prSnapshot.safeParse(row.snapshot);
+    return parsed.success ? [{ id: row.id, snapshot: parsed.data }] : [];
+  });
+}
+
+// Runs the rules again after the user changes a setting that affects them. Uses the
+// stored snapshots, so it only calls GitHub for the user's teams. Doesn't notify: a
+// settings change isn't something new on GitHub.
+export async function rerunRules(
+  db: Db,
+  userId: string,
+  github: () => Promise<Octokit>,
+  now = new Date(),
+): Promise<void> {
+  // Read first only to prepare the rules, so GitHub isn't called inside the transaction.
+  const before = await latestSyncedPrs(db, userId);
+  if (before.length === 0) return;
+  const detect = await prepareRules(
+    db,
+    userId,
+    before.map((pr) => pr.snapshot),
+    now,
+    github,
+  );
+
+  await db.$transaction(async (tx) => {
+    await lockUserItems(tx, userId);
+    // Read again under the lock, in case a sync saved newer snapshots meanwhile.
+    const prs = await latestSyncedPrs(tx, userId);
+    await saveItems(tx, userId, prs, detect, now);
+    await publishItemsChanged(tx, userId);
+  }, ITEMS_TX);
 }

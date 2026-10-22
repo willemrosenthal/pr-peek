@@ -6,11 +6,11 @@ Updated after every step. Read this first when picking work back up.
 
 |                    |                                                                                                                   |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| **Current plan**   | [06. API and live updates](06-api.md), part A: items. B: settings. C: live updates                                |
-| **Branch**         | `plan-06-1-items`                                                                                                 |
-| **PR**             | [#17](https://github.com/willemrosenthal/pr-peek/pull/17) (part A), draft                                         |
-| **Last step done** | 6.1 and the items, seen, and summary endpoints                                                                    |
-| **Next step**      | Part B (`plan-06-2-settings`) once part A merges                                                                  |
+| **Current plan**   | [06. API and live updates](06-api.md), part B: settings and sync. Part A merged (#17). C: live updates            |
+| **Branch**         | `plan-06-2-settings`                                                                                              |
+| **PR**             | [#18](https://github.com/willemrosenthal/pr-peek/pull/18) (part B), draft                                         |
+| **Last step done** | Settings, rules, and sync endpoints. Rules re-run when settings change                                            |
+| **Next step**      | Part C (`plan-06-3-stream`) once part B merges                                                                    |
 | **Waiting on you** | Plan 04 and 05 "Done when" checks with the worker. Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
 
 - [overview.md](overview.md): what we're building, the architecture, and the tech stack.

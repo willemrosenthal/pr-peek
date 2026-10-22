@@ -13,7 +13,7 @@ import {
   teamQueries,
   type FakePrGitHub,
 } from "../test/pulls";
-import { ITEMS_CHANNEL } from "./items";
+import { ITEMS_CHANNEL, rerunRules } from "./items";
 import { syncUser } from "./sync";
 import { upsertGitHubUser } from "./users";
 
@@ -237,15 +237,16 @@ describe("syncUser", () => {
   });
 });
 
-describe("items", () => {
-  const items = () => db.item.findMany({ orderBy: { kind: "asc" } });
-  const itemOf = async (kind: string) =>
-    db.item.findFirstOrThrow({ where: { kind } });
-  const asked = (pr = githubPr(), updatedAt = "2026-10-21T10:00:00Z") => ({
-    reviewRequested: [searchHit("PR_1", { repoId: WATCHED, updatedAt })],
-    prs: { PR_1: { ...pr, updatedAt } },
-  });
+const items = () => db.item.findMany({ orderBy: { kind: "asc" } });
+const itemOf = async (kind: string) =>
+  db.item.findFirstOrThrow({ where: { kind } });
+// GitHub with PR_1 asking octocat to review. See `githubPr` for what else it has.
+const asked = (pr = githubPr(), updatedAt = "2026-10-21T10:00:00Z") => ({
+  reviewRequested: [searchHit("PR_1", { repoId: WATCHED, updatedAt })],
+  prs: { PR_1: { ...pr, updatedAt } },
+});
 
+describe("items", () => {
   it("saves what the rules find on each fetched PR", async () => {
     const user = await makeUser();
     const { result } = await sync(user.id, asked());
@@ -445,5 +446,73 @@ describe("items", () => {
     } finally {
       await listener.end();
     }
+  });
+});
+
+describe("rerunRules", () => {
+  // Runs the rules again an hour after the sync, with a fake GitHub for the teams query.
+  async function rerun(userId: string, teams: string[] = []) {
+    const { octokit, requests } = fakeGraphQL(prGitHub({ teams }));
+    await rerunRules(db, userId, () => Promise.resolve(octokit), hours(1));
+    return requests;
+  }
+
+  it("applies a rule being turned off", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    await db.ruleSetting.update({
+      where: { userId_ruleId: { userId: user.id, ruleId: "reply" } },
+      data: { enabled: false },
+    });
+
+    await rerun(user.id);
+    expect(await itemOf("reply")).toMatchObject({
+      status: "resolved",
+      resolvedAt: hours(1),
+    });
+    expect((await itemOf("review_requested")).status).toBe("open");
+  });
+
+  it("applies hiding bots", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    await db.userSettings.update({
+      where: { userId: user.id },
+      data: { hideBots: true },
+    });
+
+    await rerun(user.id);
+    expect(await itemOf("reply")).toMatchObject({ eventCount: 1 });
+  });
+
+  it("leaves PRs the latest sync didn't find alone", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    await sync(user.id, {}, hours(1));
+
+    await rerun(user.id);
+    expect(await db.item.count({ where: { status: "open" } })).toBe(0);
+  });
+
+  it("only asks GitHub for the user's teams, and only when needed", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+
+    // The fixture asks a team to review.
+    const requests = await rerun(user.id);
+    expect(requests).toHaveLength(1);
+    expect(teamQueries(requests)).toBe(1);
+
+    await db.userSettings.update({
+      where: { userId: user.id },
+      data: { includeTeamRequests: false },
+    });
+    expect(await rerun(user.id)).toEqual([]);
+  });
+
+  it("does nothing before the first sync", async () => {
+    const user = await makeUser();
+    expect(await rerun(user.id)).toEqual([]);
+    expect(await db.item.count()).toBe(0);
   });
 });
