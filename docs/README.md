@@ -8,7 +8,7 @@ Updated after every step. Read this first when picking work back up.
 | ------------------ | ------------------------------------------------------------------------------------------------------- |
 | **Current plan**   | [04. GitHub sync](04-github-sync.md), part B: fetch PRs. Parts 0 (#11) and A (#10) merged. C: schedule  |
 | **Branch**         | `plan-04-2-fetch`                                                                                       |
-| **PR**             | Not opened yet (part B)                                                                                 |
+| **PR**             | [#12](https://github.com/willemrosenthal/pr-peek/pull/12) (part B), draft                               |
 | **Last step done** | 4.2 to 4.4 Search, skip unchanged, fetch details. Tested (131 tests)                                    |
 | **Next step**      | Part C (`plan-04-3-schedule`): 4.5 to 4.7 once part B merges                                            |
 | **Waiting on you** | Try `sync:once` on a real repo (see PR). Plan 02 worker heartbeat. Branch protection for `main`, `prod` |
