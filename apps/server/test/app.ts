@@ -27,7 +27,7 @@ export function makeTestApp(
       ...(options.routers ?? []),
     ],
   });
-  return { agent: request.agent(app), oauth };
+  return { app, agent: request.agent(app), oauth };
 }
 
 export type Agent = ReturnType<typeof makeTestApp>["agent"];
