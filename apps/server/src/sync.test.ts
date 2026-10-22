@@ -698,11 +698,18 @@ describe("rerunRules", () => {
     expect(await openItemCount()).toBe(0);
   });
 
+  // The fixture asks a team to review. Re-runs happen an hour after `NOW`.
+  it("uses the sync's team list within the hour", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked(), hours(0.5));
+    expect(await rerun(user.id)).toEqual([]);
+  });
+
   it("only asks GitHub for the user's teams, and only when needed", async () => {
     const user = await makeUser();
+    // The team list from this sync is an hour old at the re-run.
     await sync(user.id, asked());
 
-    // The fixture asks a team to review.
     const requests = await rerun(user.id);
     expect(requests).toHaveLength(1);
     expect(teamQueries(requests)).toBe(1);
