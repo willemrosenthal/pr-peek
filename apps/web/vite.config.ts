@@ -1,6 +1,10 @@
 import react from "@vitejs/plugin-react";
+import { loadEnv } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { defineConfig } from "vitest/config";
+
+// The API server's port, from the root .env.
+const apiPort = loadEnv("development", "../..", "").PORT || "3000";
 
 export default defineConfig({
   plugins: [
@@ -45,7 +49,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     // Same origin as the app, so cookies and the Origin check work like in production.
-    proxy: { "/api": "http://localhost:3000" },
+    proxy: { "/api": `http://localhost:${apiPort}` },
   },
   test: {
     environment: "jsdom",

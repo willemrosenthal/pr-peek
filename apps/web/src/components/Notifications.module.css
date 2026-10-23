@@ -7,9 +7,9 @@
 
 .name {
   display: flex;
-  flex: 1;
+  flex: 1 1 var(--row-label-min);
   flex-direction: column;
-  min-width: 0;
+  min-width: min(100%, var(--row-label-min));
   font-weight: 600;
   overflow-wrap: anywhere;
 }
