@@ -21,22 +21,23 @@ const LEAVE_MS = 200;
 // How long after a drag its click can still arrive. Some browsers send it a bit later.
 const CLICK_AFTER_DRAG_MS = 300;
 
-// Stops the click a drag ends with, so the row's link doesn't open. Listens on the window
-// so it runs before the Mac app's link handler on the document.
-function blockNextClick() {
+// Stops the click a drag on `row` ends with, so the row's link doesn't open. Clicks
+// elsewhere go through. Listens on the window so it runs before the Mac app's link
+// handler on the document.
+function blockNextClick(row: Element) {
+  const stop = () => window.removeEventListener("click", block, true);
   const block = (event: MouseEvent) => {
+    stop();
+    if (!(event.target instanceof Node && row.contains(event.target))) return;
     event.preventDefault();
     event.stopImmediatePropagation();
   };
-  window.addEventListener("click", block, { capture: true, once: true });
-  setTimeout(
-    () => window.removeEventListener("click", block, true),
-    CLICK_AFTER_DRAG_MS,
-  );
+  window.addEventListener("click", block, true);
+  setTimeout(stop, CLICK_AFTER_DRAG_MS);
 }
 
-// A list row that quiets its PR, or brings it back, when swiped sideways. The bell
-// button does the same for a mouse or keyboard.
+// A list row that quiets its PR, or brings it back, when swiped sideways. A quiet row
+// also has a bell button that brings it back.
 export function SwipeRow({
   quiet,
   onToggle,
@@ -112,11 +113,11 @@ export function SwipeRow({
     move(moved);
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
     const p = press.current;
     press.current = undefined;
     if (!p?.on) return;
-    blockNextClick();
+    blockNextClick(event.currentTarget);
     release(p.moved);
   };
 
@@ -143,7 +144,6 @@ export function SwipeRow({
   const shown = leaving ?? offset;
   const Icon = quiet ? Bell : BellOff;
   const action = quiet ? "Bring back" : "Quiet";
-  const buttonLabel = quiet ? action : "Quiet until something new happens";
   return (
     <div className={cx(styles.swipe, shown !== 0 && styles.moving)}>
       {shown !== 0 && (
@@ -176,15 +176,17 @@ export function SwipeRow({
       >
         {children}
       </div>
-      <button
-        type="button"
-        className={styles.bell}
-        aria-label={buttonLabel}
-        title={buttonLabel}
-        onClick={onToggle}
-      >
-        <Icon />
-      </button>
+      {quiet && (
+        <button
+          type="button"
+          className={styles.bell}
+          aria-label={action}
+          title={action}
+          onClick={onToggle}
+        >
+          <Icon />
+        </button>
+      )}
     </div>
   );
 }
