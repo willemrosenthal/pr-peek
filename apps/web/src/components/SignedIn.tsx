@@ -2,8 +2,13 @@ import { useEffect } from "react";
 import { Outlet } from "react-router";
 import { api } from "../api";
 import { setBadge } from "../badge";
-import { HEARTBEAT_MS, inDesktopApp, setTrayState } from "../desktop";
-import { useCountStyle } from "../hooks/useCountStyle";
+import {
+  coloredIcon,
+  countStyle,
+  HEARTBEAT_MS,
+  inDesktopApp,
+  setTrayState,
+} from "../desktop";
 import { useLiveUpdates } from "../hooks/useLiveUpdates";
 import { recheckPush } from "../push";
 import { useReloadDevices, useSummary } from "../queries";
@@ -13,12 +18,13 @@ import { useReloadDevices, useSummary } from "../queries";
 export function SignedIn() {
   useLiveUpdates();
   const summary = useSummary().data;
-  const countStyle = useCountStyle();
+  const style = countStyle.useValue();
+  const colored = coloredIcon.useValue();
   useEffect(() => {
     if (!summary) return;
     void setBadge(summary.total);
-    setTrayState(summary, countStyle);
-  }, [summary, countStyle]);
+    setTrayState(summary, style, colored);
+  }, [summary, style, colored]);
 
   // Inside the Mac menu bar app, tells the server it's running.
   useEffect(() => {

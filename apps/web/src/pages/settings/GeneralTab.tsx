@@ -12,14 +12,14 @@ import { SettingSwitch } from "../../components/SettingSwitch";
 import { Switch } from "../../components/Switch";
 import {
   clearTrayState,
+  coloredIcon,
   COUNT_STYLES,
+  countStyle,
   inDesktopApp,
   launchAtLogin,
-  setCountStyle,
   setLaunchAtLogin,
   type CountStyle,
 } from "../../desktop";
-import { useCountStyle } from "../../hooks/useCountStyle";
 import { queryKeys, useMe, useSettings } from "../../queries";
 import { TabHeading } from "./SettingsLayout";
 
@@ -62,6 +62,7 @@ export function GeneralTab() {
         <Card label="Menu bar">
           <LaunchAtLoginRow />
           <MenuBarCountRow />
+          <ColoredIconRow />
         </Card>
       )}
       <GitHubToken />
@@ -108,7 +109,7 @@ function LaunchAtLoginRow() {
 
 // Kept on this Mac, since only its menu bar uses it.
 function MenuBarCountRow() {
-  const style = useCountStyle();
+  const style = countStyle.useValue();
   return (
     <CardRow>
       <RowText
@@ -118,7 +119,7 @@ function MenuBarCountRow() {
       <Select
         aria-label="Menu bar count"
         value={style}
-        onChange={(e) => setCountStyle(e.target.value as CountStyle)}
+        onChange={(e) => countStyle.set(e.target.value as CountStyle)}
       >
         {COUNT_STYLES.map(({ value, label }) => (
           <option key={value} value={value}>
@@ -126,6 +127,23 @@ function MenuBarCountRow() {
           </option>
         ))}
       </Select>
+    </CardRow>
+  );
+}
+
+// Kept on this Mac, like the count.
+function ColoredIconRow() {
+  return (
+    <CardRow>
+      <RowText
+        label="Colored icon"
+        hint="Turns orange when a review is late, and red when a check fails. Off keeps it plain."
+      />
+      <Switch
+        label="Colored icon"
+        checked={coloredIcon.useValue()}
+        onChange={coloredIcon.set}
+      />
     </CardRow>
   );
 }

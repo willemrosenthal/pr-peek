@@ -11,7 +11,6 @@
     "allow-set-tray-state",
     "allow-open-external",
     "allow-hide-window",
-    "allow-quit-app",
     "allow-notify",
     "allow-launch-at-login",
     "allow-set-launch-at-login",

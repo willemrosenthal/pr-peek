@@ -11,7 +11,7 @@ import {
   settingsResponse,
   signedInApi,
 } from "../../test/fake-api";
-import { getCountStyle } from "../../desktop";
+import { coloredIcon, countStyle } from "../../desktop";
 import { renderApp } from "../../test/render";
 import { callsOf, stubTauri } from "../../test/tauri";
 
@@ -108,7 +108,7 @@ it("shows why a setting couldn't be saved, and keeps it as it was", async () => 
   expect(toggle.getAttribute("aria-checked")).toBe("false");
 });
 
-it("sets the menu bar count, only inside the Mac app", async () => {
+it("sets the menu bar count and icon color, only inside the Mac app", async () => {
   fakeApi(signedInApi());
   renderApp("/settings/general");
   await screen.findByRole("switch", { name: "Hide bots" });
@@ -121,7 +121,12 @@ it("sets the menu bar count, only inside the Mac app", async () => {
   expect(select).toHaveProperty("value", "total");
   await userEvent.selectOptions(select, "A dot");
   expect(select).toHaveProperty("value", "dot");
-  expect(getCountStyle()).toBe("dot");
+  expect(countStyle.get()).toBe("dot");
+
+  const colored = screen.getByRole("switch", { name: "Colored icon" });
+  expect(colored.getAttribute("aria-checked")).toBe("true");
+  await userEvent.click(colored);
+  expect(coloredIcon.get()).toBe(false);
 });
 
 it("turns launching at login off, only inside the Mac app", async () => {

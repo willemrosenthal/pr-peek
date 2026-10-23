@@ -212,12 +212,6 @@ fn hide_window(app: AppHandle) {
     }
 }
 
-#[tauri::command]
-fn quit_app(app: AppHandle) {
-    log_command("quit_app");
-    app.exit(0);
-}
-
 const CLEAR: Color = Color(0, 0, 0, 0);
 
 // --color-page in tokens.css, for light or dark mode.
@@ -419,7 +413,6 @@ pub fn run() {
             set_tray_state,
             open_external,
             hide_window,
-            quit_app,
             notify,
             launch_at_login,
             set_launch_at_login,
