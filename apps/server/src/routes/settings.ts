@@ -41,6 +41,7 @@ function toSettingsDto(row: UserSettings): UserSettingsDto {
     digestTime: row.digestTime,
     hideBots: row.hideBots,
     includeTeamRequests: row.includeTeamRequests,
+    showAuthors: row.showAuthors,
   };
 }
 

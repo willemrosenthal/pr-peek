@@ -1,3 +1,8 @@
+import {
+  SHOW_AUTHORS,
+  type ShowAuthors,
+  type UserSettingsDto,
+} from "@pr-peek/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
@@ -21,6 +26,7 @@ import {
   setLaunchAtLogin,
   type CountStyle,
 } from "../../desktop";
+import { useSettingsSaver } from "../../hooks/useSaveSettings";
 import { useLocalSetting } from "../../localSetting";
 import { queryKeys, useMe, useSettings } from "../../queries";
 import { appScale, SCALES, setScale } from "../../scale";
@@ -60,6 +66,7 @@ export function GeneralTab() {
             label="Team review requests"
             hint="Lists PRs that ask one of your teams to review, not just you."
           />
+          <ShowAuthorsRow settings={settings.data.settings} />
         </Card>
       )}
       <Card label="This device">
@@ -80,6 +87,39 @@ export function GeneralTab() {
         </Button>
       </div>
     </>
+  );
+}
+
+const SHOW_AUTHORS_LABELS: Record<ShowAuthors, string> = {
+  off: "Off",
+  review: "Needs my review only",
+  all: "Everywhere",
+};
+
+function ShowAuthorsRow({ settings }: { settings: UserSettingsDto }) {
+  const { save, shown } = useSettingsSaver(settings);
+  return (
+    <CardRow>
+      <RowText
+        label="Show authors"
+        hint="Shows the picture of who opened each PR. Why it's on your list moves to a small badge on the picture."
+      />
+      <Select
+        aria-label="Show authors"
+        value={shown.showAuthors}
+        onChange={(e) =>
+          save.mutate({ showAuthors: e.target.value as ShowAuthors })
+        }
+        disabled={save.isPending}
+      >
+        {SHOW_AUTHORS.map((value) => (
+          <option key={value} value={value}>
+            {SHOW_AUTHORS_LABELS[value]}
+          </option>
+        ))}
+      </Select>
+      {save.isError && <Alert>{save.error.message}</Alert>}
+    </CardRow>
   );
 }
 

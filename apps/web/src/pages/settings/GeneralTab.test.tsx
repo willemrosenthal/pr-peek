@@ -68,6 +68,28 @@ it("turns team review requests off", async () => {
   expect(toggle.getAttribute("aria-checked")).toBe("false");
 });
 
+it("shows authors only under Needs my review", async () => {
+  const fetch = fakeApi(
+    signedInApi({
+      "PATCH /api/settings": () =>
+        json({
+          settings: settingsResponse({ showAuthors: "review" }).settings,
+        }),
+    }),
+  );
+  renderApp("/settings/general");
+
+  const select = await screen.findByRole<HTMLSelectElement>("combobox", {
+    name: "Show authors",
+  });
+  expect(select.value).toBe("off");
+  await userEvent.selectOptions(select, "Needs my review only");
+  expect(sentBodies(fetch, "PATCH /api/settings")).toEqual([
+    { showAuthors: "review" },
+  ]);
+  await waitFor(() => expect(select.value).toBe("review"));
+});
+
 it("keeps both changes when an earlier save answers last", async () => {
   const saved = (fields: Partial<UserSettingsDto>) =>
     json({ settings: settingsResponse(fields).settings });

@@ -20,6 +20,11 @@ const staleHours = z
   .min(1)
   .max(24 * 30);
 
+// Where the list shows PR authors' pictures: nowhere, only under Needs my review, or on
+// every row.
+export const SHOW_AUTHORS = ["off", "review", "all"] as const;
+export type ShowAuthors = (typeof SHOW_AUTHORS)[number];
+
 export const updateSettingsBody = z
   .object({
     timezone: z.string().max(100).refine(isTimeZone, "Unknown timezone"),
@@ -38,6 +43,7 @@ export const updateSettingsBody = z
     digestTime: timeOfDay.nullable(),
     hideBots: z.boolean(),
     includeTeamRequests: z.boolean(),
+    showAuthors: z.enum(SHOW_AUTHORS),
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, "Nothing to update");
@@ -58,6 +64,7 @@ export interface UserSettingsDto {
   digestTime: string | null;
   hideBots: boolean;
   includeTeamRequests: boolean;
+  showAuthors: ShowAuthors;
 }
 
 export const severity = z.enum(["low", "normal", "high"]);

@@ -92,6 +92,7 @@ describe("GET /api/settings", () => {
       digestTime: null,
       hideBots: false,
       includeTeamRequests: true,
+      showAuthors: "off",
     });
     expect(body.rules).toHaveLength(rules.length);
     expect(body.rules.find((r) => r.id === "commented")).toEqual({
@@ -144,6 +145,8 @@ describe("PATCH /api/settings", () => {
     { staleWarnHours: 1.5 },
     { remindEveryHours: 0 },
     { hideBots: "yes" },
+    { showAuthors: true },
+    { showAuthors: "some" },
     {},
   ])("rejects %o", async (body) => {
     const { agent } = await setup();

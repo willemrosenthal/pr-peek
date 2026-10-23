@@ -1,4 +1,4 @@
-import type { MarkSeenBody } from "@pr-peek/core";
+import type { MarkSeenBody, ShowAuthors } from "@pr-peek/core";
 import {
   act,
   cleanup,
@@ -20,6 +20,7 @@ import {
   me,
   noContent,
   sentBodies,
+  settingsResponse,
   syncStatus,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
@@ -49,6 +50,32 @@ describe("sections", () => {
     expect(screen.queryByRole("button", { name: /Replies to me/ })).toBe(null);
     expect(rows()).toHaveLength(3);
   });
+
+  // Whether the review row and the My PRs row have pictures.
+  it.each<[ShowAuthors, boolean[]]>([
+    ["off", [false, false]],
+    ["review", [true, false]],
+    ["all", [true, true]],
+  ])(
+    "shows authors' pictures when the setting is %s",
+    async (showAuthors, shown) => {
+      fakeApi(
+        listApi({
+          "GET /api/settings": () => json(settingsResponse({ showAuthors })),
+          "GET /api/items": () =>
+            json(groups({ review: [item()], mine: [item()] })),
+        }),
+      );
+      renderApp("/");
+
+      await sectionButton(/My PRs/);
+      await waitFor(() =>
+        expect(rows().map((row) => row.querySelector("img") !== null)).toEqual(
+          shown,
+        ),
+      );
+    },
+  );
 
   it("lists the user's idle PRs after their items in My PRs", async () => {
     const idle = idlePr();

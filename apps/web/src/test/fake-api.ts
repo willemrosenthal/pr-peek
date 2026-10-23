@@ -65,6 +65,7 @@ const prRef = (): ItemDto["pr"] => ({
   repo: "web-app",
   number: itemCount,
   url: `https://github.com/acme/web-app/pull/${itemCount}`,
+  author: "sam",
   color: null,
 });
 
@@ -210,6 +211,7 @@ export const settingsResponse = (
     digestTime: null,
     hideBots: false,
     includeTeamRequests: true,
+    showAuthors: "off",
     ...fields,
   },
   rules: rules.map((rule) => ({
