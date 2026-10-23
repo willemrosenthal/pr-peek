@@ -108,6 +108,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
   - `tauri-action` uses these secrets automatically.
 - [ ] Until signing is set up, builds work for you. Right click, then Open the first time to get past the warning.
 - [ ] Add a "Download for Mac" link on the `/install` page that points at the latest release.
+- [ ] Check the Rust code in CI on PRs that change `apps/desktop`: `cargo fmt --check` and `cargo clippy -- -D warnings`. CI's Linux runner checks only the web and server code today.
 
 ## Done when
 
