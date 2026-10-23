@@ -10,6 +10,7 @@ import {
   setTrayState,
 } from "../desktop";
 import { useLiveUpdates } from "../hooks/useLiveUpdates";
+import { useLocalSetting } from "../localSetting";
 import { recheckPush } from "../push";
 import { useReloadDevices, useSummary } from "../queries";
 
@@ -18,8 +19,8 @@ import { useReloadDevices, useSummary } from "../queries";
 export function SignedIn() {
   useLiveUpdates();
   const summary = useSummary().data;
-  const style = countStyle.useValue();
-  const colored = coloredIcon.useValue();
+  const style = useLocalSetting(countStyle);
+  const colored = useLocalSetting(coloredIcon);
   useEffect(() => {
     if (!summary) return;
     void setBadge(summary.total);
