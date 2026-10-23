@@ -46,12 +46,18 @@ async function otherUser() {
 
 const markSeen = (agent: Agent, ids: unknown) =>
   agent.post("/api/items/seen").set("Origin", APP_URL).send({ ids });
+const quiet = (agent: Agent, id: string) =>
+  agent.put(`/api/prs/${id}/quiet`).set("Origin", APP_URL);
+const unquiet = (agent: Agent, id: string) =>
+  agent.delete(`/api/prs/${id}/quiet`).set("Origin", APP_URL);
 
 it("needs sign in for every items endpoint", async () => {
   const { agent } = makeTestApp(db, { routers: [itemsRouter({ db })] });
   expect((await agent.get("/api/items")).status).toBe(401);
   expect((await agent.get("/api/summary")).status).toBe(401);
   expect((await markSeen(agent, ["x"])).status).toBe(401);
+  expect((await quiet(agent, "x")).status).toBe(401);
+  expect((await unquiet(agent, "x")).status).toBe(401);
 });
 
 describe("GET /api/items", () => {
@@ -281,11 +287,6 @@ describe("one row per PR", () => {
 });
 
 describe("quiet PRs", () => {
-  const quiet = (agent: Agent, id: string) =>
-    agent.put(`/api/prs/${id}/quiet`).set("Origin", APP_URL);
-  const unquiet = (agent: Agent, id: string) =>
-    agent.delete(`/api/prs/${id}/quiet`).set("Origin", APP_URL);
-
   it("lists quiet PRs on their own, one row per PR, out of the sections", async () => {
     const { agent, user } = await setup();
     const loud = await makePr(user.id, 7);
@@ -341,12 +342,6 @@ describe("quiet PRs", () => {
       where: { id: theirs.id },
     });
     expect(after.quietAt).toBeNull();
-  });
-
-  it("needs sign in", async () => {
-    const { agent } = makeTestApp(db, { routers: [itemsRouter({ db })] });
-    expect((await quiet(agent, "x")).status).toBe(401);
-    expect((await unquiet(agent, "x")).status).toBe(401);
   });
 });
 

@@ -32,10 +32,13 @@ export async function wakeQuietPrs(
   viewerLogin: string,
 ): Promise<number> {
   if (quiet.length === 0) return 0;
-  const withEvents = await tx.item.findMany({
-    where: { id: { in: newEventItemIds } },
-    select: { pullRequestId: true },
-  });
+  const withEvents =
+    newEventItemIds.length > 0
+      ? await tx.item.findMany({
+          where: { id: { in: newEventItemIds } },
+          select: { pullRequestId: true },
+        })
+      : [];
   const woke = new Set(withEvents.map((item) => item.pullRequestId));
   const after = new Map(fetched.map((pr) => [pr.id, pr.snapshot]));
   for (const pr of quiet) {
