@@ -112,3 +112,33 @@
 .danger {
   color: var(--color-danger);
 }
+
+/* A quiet PR: one grey line, at the bottom of the list. */
+.quiet,
+.quiet:hover,
+.quiet .icon,
+.quiet .age {
+  color: var(--color-text-tertiary);
+}
+
+.quiet {
+  min-height: 32px;
+  padding-block: 6px;
+}
+
+.quiet .title {
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.quiet .age {
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+/* Bigger on touch screens. */
+@media (pointer: coarse) {
+  .quiet {
+    min-height: var(--touch-target);
+  }
+}

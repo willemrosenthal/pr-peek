@@ -1,0 +1,87 @@
+.swipe {
+  position: relative;
+  overflow: hidden;
+}
+
+.slide {
+  position: relative;
+  background: var(--color-surface);
+  /* Vertical swipes still scroll the list. */
+  touch-action: pan-y;
+  transition: transform 0.2s ease;
+}
+
+.dragging {
+  transition: none;
+  user-select: none;
+}
+
+/* Shows behind the row as it slides. */
+.action {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-5);
+  background: var(--color-text-secondary);
+  color: var(--color-surface);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.action svg {
+  width: 16px;
+  height: 16px;
+}
+
+.end {
+  justify-content: flex-end;
+}
+
+.back {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+/* Covers the age on hover, or while it has focus. */
+.bell {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.bell svg {
+  width: 14px;
+  height: 14px;
+}
+
+.bell:hover {
+  background: var(--color-hover);
+}
+
+@media (hover: hover) {
+  .swipe:hover .bell {
+    display: flex;
+  }
+}
+
+.swipe:focus-within .bell {
+  display: flex;
+}
+
+.moving .bell {
+  display: none;
+}
