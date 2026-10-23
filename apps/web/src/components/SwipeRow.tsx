@@ -78,7 +78,7 @@ export function SwipeRow({
     setDragging(false);
     setOffset(0);
     if (Math.abs(at) < SWIPE_PX) return;
-    // Stays slid out, which also ignores the rest of a trackpad swipe. The row leaves this section once the list updates.
+    // Stays slid out until the row moves, which also ignores the rest of a trackpad swipe.
     setLeaving(at < 0 ? -1 : 1);
     leaveTimer.current = window.setTimeout(onToggle, LEAVE_MS);
   };
