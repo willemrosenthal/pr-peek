@@ -1,7 +1,6 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
-import { AWAY_MS } from "../../hooks/useReturnToList";
+import { describe, expect, it } from "vitest";
 import {
   fakeApi,
   json,
@@ -12,8 +11,10 @@ import {
   signedInApi,
   signedOut,
 } from "../../test/fake-api";
+import { stubDisplayMode } from "../../test/install";
 import { renderApp } from "../../test/render";
 import { stubTauri } from "../../test/tauri";
+import { setVisibility } from "../../test/visibility";
 
 it.each(["/settings", "/settings/nope"])(
   "opens General from %s",
@@ -43,30 +44,28 @@ it("switches tabs", async () => {
   ).toBe("page");
 });
 
-describe("after time away", () => {
-  // Leaves the app for `away` ms, then comes back.
-  const leaveFor = (away: number) => {
-    const left = Date.now();
-    const clock = vi.spyOn(Date, "now").mockReturnValue(left);
+describe("when the app hides", () => {
+  const hide = () => {
     act(() => {
       window.dispatchEvent(new Event("pr-peek:hidden"));
     });
-    clock.mockReturnValue(left + away);
-    act(() => {
-      window.dispatchEvent(new Event("pr-peek:shown"));
-    });
-    clock.mockRestore();
   };
 
-  it("goes back to the list in the Mac app, but not after a short trip", async () => {
+  it("goes back to the list in the Mac app", async () => {
     stubTauri();
     fakeApi(listApi());
     const { router } = renderApp("/settings/general?shell=tray");
     await screen.findByRole("heading", { name: "General" });
+    hide();
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+  });
 
-    leaveFor(AWAY_MS - 1000);
-    expect(router.state.location.pathname).toBe("/settings/general");
-    leaveFor(AWAY_MS);
+  it("goes back to the list when the installed app is hidden", async () => {
+    stubDisplayMode({ standalone: true });
+    fakeApi(listApi());
+    const { router } = renderApp("/settings/general");
+    await screen.findByRole("heading", { name: "General" });
+    act(() => setVisibility("hidden"));
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
   });
 
@@ -74,7 +73,7 @@ describe("after time away", () => {
     fakeApi(signedInApi());
     const { router } = renderApp("/settings/general");
     await screen.findByRole("heading", { name: "General" });
-    leaveFor(AWAY_MS);
+    hide();
     expect(router.state.location.pathname).toBe("/settings/general");
   });
 });

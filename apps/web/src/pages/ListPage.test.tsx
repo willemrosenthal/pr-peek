@@ -1,5 +1,11 @@
 import type { MarkSeenBody } from "@pr-peek/core";
-import { act, cleanup, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
@@ -234,28 +240,40 @@ describe("marking seen", () => {
 });
 
 describe("tray mode", () => {
-  const popOutButton = () =>
-    screen.queryByRole("button", { name: "Pop out into a window" });
+  const dragHint = () => screen.queryByTitle("Drag to pop out into a window");
 
-  it("offers pop out only in the Mac app's dropdown", async () => {
-    fakeApi(listApi());
-    renderApp("/?shell=tray");
-    await screen.findByText("Nothing needs you right now");
-    expect(popOutButton()).toBe(null);
-    cleanup();
+  // Drags the header `distance` pixels to the right, then lets go.
+  const dragHeader = async (distance: number) => {
+    const title = await screen.findByRole("heading", { name: "Git Buddy" });
+    fireEvent.mouseDown(title, { clientX: 100, clientY: 20 });
+    fireEvent.mouseMove(window, { clientX: 100 + distance, clientY: 20 });
+    fireEvent.mouseUp(window);
+  };
 
+  it("pops out when the header is dragged, only in the Mac app's dropdown", async () => {
     const invoke = stubTauri();
     fakeApi(listApi());
     renderApp("/?shell=tray");
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Pop out into a window" }),
-    );
+    await dragHeader(10);
+    expect(callsOf(invoke, "pop_out")).toHaveLength(0);
+    await dragHeader(30);
     expect(callsOf(invoke, "pop_out")).toHaveLength(1);
     cleanup();
 
     renderApp("/?shell=window");
-    await screen.findByText("Nothing needs you right now");
-    expect(popOutButton()).toBe(null);
+    await dragHeader(30);
+    expect(dragHint()).toBe(null);
+    expect(callsOf(invoke, "pop_out")).toHaveLength(1);
+  });
+
+  it("doesn't pop out when a header button is dragged", async () => {
+    const invoke = stubTauri();
+    fakeApi(listApi());
+    renderApp("/?shell=tray");
+    const refresh = await screen.findByRole("button", { name: "Refresh" });
+    fireEvent.mouseDown(refresh, { clientX: 100, clientY: 20 });
+    fireEvent.mouseMove(window, { clientX: 200, clientY: 20 });
+    expect(callsOf(invoke, "pop_out")).toHaveLength(0);
   });
 
   it("refreshes from the menu bar's Refresh", async () => {
@@ -282,7 +300,7 @@ describe("tray mode", () => {
       await screen.findByRole("link", { name: "Back to your list" }),
     );
     await screen.findByText("Nothing needs you right now");
-    expect(popOutButton()).toBeTruthy();
+    expect(dragHint()).toBeTruthy();
   });
 });
 
