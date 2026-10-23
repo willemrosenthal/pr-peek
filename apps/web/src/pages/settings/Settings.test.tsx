@@ -31,16 +31,12 @@ it.each(["/settings", "/settings/nope"])(
 it("switches tabs", async () => {
   fakeApi(listApi({ "GET /api/github/repos": () => json(searchResults()) }));
   renderApp("/settings/general");
-  await userEvent.click(
-    await screen.findByRole("link", { name: "Repositories" }),
-  );
+  await userEvent.click(await screen.findByRole("link", { name: "Repos" }));
   expect(
     await screen.findByRole("heading", { name: "Repositories" }),
   ).toBeTruthy();
   expect(
-    screen
-      .getByRole("link", { name: "Repositories" })
-      .getAttribute("aria-current"),
+    screen.getByRole("link", { name: "Repos" }).getAttribute("aria-current"),
   ).toBe("page");
 });
 

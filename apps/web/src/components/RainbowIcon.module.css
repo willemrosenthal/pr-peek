@@ -1,4 +1,5 @@
-.mascot {
+/* Sized by the text around it, so icons in the same font size match. */
+.icon {
   flex: none;
   width: 1.5em;
   height: 1.5em;
@@ -16,12 +17,12 @@
 }
 
 /* Saves battery while the Mac app's dropdown is hidden. See desktop.ts. */
-:global(.app-hidden) .mascot {
+:global(.app-hidden) .icon {
   animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mascot {
+  .icon {
     animation: none;
   }
 }

@@ -1,0 +1,22 @@
+/* The list header's font size, so the arrow matches the mascot. */
+.back {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-lg);
+}
+
+.back:hover {
+  background: var(--color-hover);
+}
+
+@media (pointer: coarse) {
+  .back {
+    width: var(--touch-target);
+    height: var(--touch-target);
+  }
+}

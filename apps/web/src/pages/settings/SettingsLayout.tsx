@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Link, NavLink, Outlet } from "react-router";
+import { NavLink, Outlet } from "react-router";
+import { BackToList } from "../../components/BackToList";
 import { cx } from "../../cx";
 import { useReturnToList } from "../../hooks/useReturnToList";
 import styles from "./Settings.module.css";
@@ -7,20 +8,20 @@ import styles from "./Settings.module.css";
 // Paths are relative to /settings.
 const SETTINGS_TABS = [
   { path: "general", label: "General" },
-  { path: "repos", label: "Repositories" },
+  { path: "repos", label: "Repos" },
   { path: "rules", label: "Rules" },
   { path: "timing", label: "Timing" },
   { path: "devices", label: "Devices" },
 ];
 
-// The settings page: a tab list beside the open tab.
+// The settings page: a tab bar above the open tab.
 export function SettingsLayout() {
   useReturnToList();
   return (
     <main className={styles.page}>
       <div className={styles.panel}>
         <header className={styles.header}>
-          <Link to="/">Back to your list</Link>
+          <BackToList />
           <h1 className={styles.title}>Settings</h1>
         </header>
         <div className={styles.body}>

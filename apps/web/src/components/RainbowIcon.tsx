@@ -1,13 +1,13 @@
-import { useId } from "react";
-import styles from "./Mascot.module.css";
+import { useId, type ReactNode } from "react";
+import styles from "./RainbowIcon.module.css";
 
-// The creature from the app icon (public/icon.svg), drawn in a rainbow that shifts color.
-export function Mascot() {
+// A line icon on a 24 by 24 grid, drawn in a rainbow that shifts color.
+export function RainbowIcon({ children }: { children: ReactNode }) {
   // React's ids have characters that break inside url(#...).
-  const gradient = `mascot${useId().replace(/[^\w-]/g, "")}`;
+  const gradient = `rainbow${useId().replace(/[^\w-]/g, "")}`;
   return (
     <svg
-      className={styles.mascot}
+      className={styles.icon}
       viewBox="0 0 24 24"
       fill="none"
       stroke={`url(#${gradient})`}
@@ -32,6 +32,15 @@ export function Mascot() {
           <stop offset="1" stopColor="#bf5af2" />
         </linearGradient>
       </defs>
+      {children}
+    </svg>
+  );
+}
+
+// The creature from the app icon (public/icon.svg).
+export function Mascot() {
+  return (
+    <RainbowIcon>
       <circle cx="12" cy="9" r="6" />
       <path d="M7.2 12.6c-1 3-4.2 3-4.2 6.4" />
       <path d="M10 14.7c0 2-1 4-3 5.3" />
@@ -41,6 +50,16 @@ export function Mascot() {
       <path d="M10 8.5h.01" />
       <path d="M14 8.5h.01" />
       <path d="M10.5 11q1.5 1 3 0" />
-    </svg>
+    </RainbowIcon>
+  );
+}
+
+// Lucide's arrow-left.
+export function BackArrow() {
+  return (
+    <RainbowIcon>
+      <path d="m12 19-7-7 7-7" />
+      <path d="M19 12H5" />
+    </RainbowIcon>
   );
 }
