@@ -11,8 +11,10 @@ import {
   signedInApi,
   signedOut,
 } from "../../test/fake-api";
+import { stubDisplayMode } from "../../test/install";
 import { renderApp } from "../../test/render";
 import { stubTauri } from "../../test/tauri";
+import { setVisibility } from "../../test/visibility";
 
 it.each(["/settings", "/settings/nope"])(
   "opens General from %s",
@@ -55,6 +57,15 @@ describe("when the app hides", () => {
     const { router } = renderApp("/settings/general?shell=tray");
     await screen.findByRole("heading", { name: "General" });
     hide();
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+  });
+
+  it("goes back to the list when the installed app is hidden", async () => {
+    stubDisplayMode({ standalone: true });
+    fakeApi(listApi());
+    const { router } = renderApp("/settings/general");
+    await screen.findByRole("heading", { name: "General" });
+    act(() => setVisibility("hidden"));
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
   });
 

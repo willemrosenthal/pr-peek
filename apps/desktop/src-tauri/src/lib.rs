@@ -9,8 +9,8 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::utils::config::BackgroundThrottlingPolicy;
 use tauri::window::Color;
 use tauri::{
-    AppHandle, LogicalPosition, LogicalSize, Manager, Theme, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
-    WindowEvent, Wry,
+    AppHandle, LogicalPosition, LogicalSize, Manager, Theme, Url, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder, WindowEvent, Wry,
 };
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
