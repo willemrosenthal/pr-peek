@@ -9,7 +9,7 @@ export function InstallPage() {
       <div className={styles.panel}>
         <header className={styles.header}>
           <Link to="/">Back to your list</Link>
-          <h1 className={styles.title}>Install pr-peek</h1>
+          <h1 className={styles.title}>Install Git Buddy</h1>
           <p className={styles.hint}>
             It opens in its own window, like any other app.
           </p>

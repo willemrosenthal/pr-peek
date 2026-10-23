@@ -111,7 +111,7 @@ describe("turning on notifications", () => {
     renderApp("/settings/devices");
 
     expect(
-      await screen.findByText(/Notifications are blocked for pr-peek/),
+      await screen.findByText(/Notifications are blocked for Git Buddy/),
     ).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "Turn on notifications" }),

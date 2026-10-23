@@ -10,7 +10,9 @@ import {
 import { renderApp } from "../test/render";
 
 const installButton = () =>
-  screen.queryByRole("button", { name: "Install pr-peek" });
+  screen.queryByRole("button", { name: "Install Git Buddy" });
+
+const INSTALLED = "Git Buddy is installed on this device.";
 
 it("installs with the offer Chrome sent before the page opened", async () => {
   stubUserAgent(USER_AGENTS.chrome);
@@ -19,9 +21,7 @@ it("installs with the offer Chrome sent before the page opened", async () => {
 
   await userEvent.click(installButton()!);
   expect(offer.prompt).toHaveBeenCalledOnce();
-  expect(
-    await screen.findByText("pr-peek is installed on this device."),
-  ).toBeTruthy();
+  expect(await screen.findByText(INSTALLED)).toBeTruthy();
 });
 
 it("shows the menu steps after the install dialog is closed", async () => {
@@ -58,7 +58,7 @@ it("says so when the app gets installed from the browser's own menu", () => {
   act(() => {
     window.dispatchEvent(new Event("appinstalled"));
   });
-  expect(screen.getByText("pr-peek is installed on this device.")).toBeTruthy();
+  expect(screen.getByText(INSTALLED)).toBeTruthy();
 });
 
 it("shows iPhone steps on an iPhone, and the rest under other devices", () => {
@@ -93,5 +93,5 @@ it("points to another browser when this one can't install", () => {
 it("says so when opened as the installed app", () => {
   stubDisplayMode({ standalone: true });
   renderApp("/install");
-  expect(screen.getByText("pr-peek is installed on this device.")).toBeTruthy();
+  expect(screen.getByText(INSTALLED)).toBeTruthy();
 });

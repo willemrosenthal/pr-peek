@@ -1,4 +1,4 @@
-export const APP_NAME = "pr-peek";
+export const APP_NAME = "Git Buddy";
 
 export * from "./api/auth";
 export * from "./api/items";

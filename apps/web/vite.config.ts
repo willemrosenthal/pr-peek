@@ -19,8 +19,8 @@ export default defineConfig({
       injectRegister: false,
       manifest: {
         id: "/",
-        name: "pr-peek",
-        short_name: "pr-peek",
+        name: "Git Buddy",
+        short_name: "Git Buddy",
         description: "The pull requests waiting on you, in one list.",
         start_url: "/",
         scope: "/",

@@ -14,7 +14,7 @@ export function RequireAuth() {
   // Keeps the page up when a later check fails for another reason.
   if (me.isError && !me.data) {
     return (
-      <PageMessage title="Can't reach pr-peek">
+      <PageMessage title="Can't reach Git Buddy">
         <p>{me.error.message}</p>
         <Button onClick={() => void me.refetch()}>Try again</Button>
       </PageMessage>

@@ -17,7 +17,7 @@ export function ListHeader({
   return (
     <header className={styles.header}>
       <div className={styles.text}>
-        <h1 className={styles.title}>pr-peek</h1>
+        <h1 className={styles.title}>Git Buddy</h1>
         <UpdatedAt lastSyncedAt={lastSyncedAt} />
       </div>
       <button

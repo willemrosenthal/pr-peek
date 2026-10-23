@@ -13,10 +13,10 @@ const GUIDES: Record<Exclude<Platform, "other">, Guide> = {
   ios: {
     title: "iPhone and iPad",
     steps: [
-      "Open pr-peek in Safari.",
+      "Open Git Buddy in Safari.",
       "Tap Share, the square with an arrow.",
       "Tap Add to Home Screen, then Add.",
-      "Open pr-peek from your Home Screen and sign in again.",
+      "Open Git Buddy from your Home Screen and sign in again.",
     ],
     note: "On iPhone, notifications only work in the Home Screen app.",
   },
@@ -24,7 +24,7 @@ const GUIDES: Record<Exclude<Platform, "other">, Guide> = {
     title: "Android, Chrome, and Edge",
     steps: [
       "Open the browser menu.",
-      "Pick Install pr-peek. In Chrome it's under Cast, save, and share. In Edge it's under Apps. On Android it may say Add to Home screen.",
+      "Pick Install Git Buddy. In Chrome it's under Cast, save, and share. In Edge it's under Apps. On Android it may say Add to Home screen.",
     ],
   },
   "mac-safari": {
@@ -37,12 +37,12 @@ const GUIDES: Record<Exclude<Platform, "other">, Guide> = {
 export function InstallHere() {
   const { installed, canPrompt, platform } = useInstall();
 
-  if (installed) return <p>pr-peek is installed on this device.</p>;
+  if (installed) return <p>Git Buddy is installed on this device.</p>;
   if (canPrompt) {
     return (
       <div>
         <Button variant="primary" onClick={() => void promptInstall()}>
-          Install pr-peek
+          Install Git Buddy
         </Button>
       </div>
     );
@@ -50,7 +50,7 @@ export function InstallHere() {
   if (platform === "other") {
     return (
       <p className={styles.hint}>
-        This browser can't install apps. Open pr-peek in Chrome, Edge, or
+        This browser can't install apps. Open Git Buddy in Chrome, Edge, or
         Safari.
       </p>
     );

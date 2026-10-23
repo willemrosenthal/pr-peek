@@ -1,6 +1,8 @@
-# pr-peek
+# Git Buddy
 
 Tracks the GitHub PRs that need your attention. A web app (PWA), a Mac menu bar app, and push notifications.
+
+The code still uses its first name, `pr-peek`, for package names and the repo.
 
 - What we're building: [docs/overview.md](docs/overview.md)
 - Build plans and status: [docs/README.md](docs/README.md)

@@ -93,7 +93,7 @@ function LaunchAtLoginRow() {
     <CardRow>
       <RowText
         label="Launch at login"
-        hint="Opens pr-peek in the menu bar when you log in to this Mac."
+        hint="Opens Git Buddy in the menu bar when you log in to this Mac."
       />
       <Switch
         label="Launch at login"

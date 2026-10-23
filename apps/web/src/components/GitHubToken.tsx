@@ -29,7 +29,7 @@ export function GitHubToken() {
         <>
           <h2 className={styles.heading}>Use a personal access token</h2>
           <p className={styles.hint}>
-            For orgs that block pr-peek's GitHub app. Syncs use the token
+            For orgs that block Git Buddy's GitHub app. Syncs use the token
             instead of your GitHub sign in.
           </p>
         </>
