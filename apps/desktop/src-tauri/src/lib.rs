@@ -174,21 +174,45 @@ fn set_tray_state(app: AppHandle, state: TrayState) -> Result<(), String> {
         .map_err(|err| err.to_string())
 }
 
-// Opens a web link in the default browser. Other kinds of links are refused.
-fn open_web_link(app: &AppHandle, url: &str) -> Result<(), String> {
+// Only web links open. Other kinds are refused.
+fn web_link(url: &str) -> Result<Url, String> {
     let parsed: Url = url.parse().map_err(|_| "not a URL")?;
     if !matches!(parsed.scheme(), "https" | "http") {
         return Err("only web links open".into());
     }
+    Ok(parsed)
+}
+
+// Opens a web link in the default browser.
+fn open_web_link(app: &AppHandle, url: &str) -> Result<(), String> {
     app.opener()
-        .open_url(parsed.as_str(), None::<&str>)
+        .open_url(web_link(url)?.as_str(), None::<&str>)
         .map_err(|err| err.to_string())
 }
 
+// Opens a web link without bringing the browser to the front, so Git Buddy keeps focus.
+fn open_in_background(url: &str) -> Result<(), String> {
+    let status = std::process::Command::new("open")
+        .arg("-g")
+        .arg(web_link(url)?.as_str())
+        .status()
+        .map_err(|err| err.to_string())?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err("couldn't open the link".into())
+    }
+}
+
+// `background` is for Cmd+click. Older pages leave it out.
 #[tauri::command]
-fn open_external(app: AppHandle, url: String) -> Result<(), String> {
+fn open_external(app: AppHandle, url: String, background: Option<bool>) -> Result<(), String> {
     log_command("open_external");
-    open_web_link(&app, &url)
+    if background == Some(true) {
+        open_in_background(&url)
+    } else {
+        open_web_link(&app, &url)
+    }
 }
 
 // A notification from the server, with the link a click opens.

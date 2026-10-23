@@ -53,7 +53,9 @@ export const setTrayState = (
 // Leaves just the plain icon, as after signing out.
 export const clearTrayState = () => sendTrayState("", "plain");
 
-export const openExternal = (url: string) => call("open_external", { url });
+// `background` keeps the browser behind Git Buddy, for Cmd+click.
+export const openExternal = (url: string, background = false) =>
+  call("open_external", { url, background });
 // Turns the dropdown into a normal window. Closing the window puts it back.
 export const popOut = () => call("pop_out");
 
@@ -84,7 +86,7 @@ function openLinksInBrowser(event: MouseEvent) {
   const external = new URL(link.href).origin !== location.origin;
   if (link.target !== "_blank" && !external) return;
   event.preventDefault();
-  openExternal(link.href);
+  openExternal(link.href, event.metaKey);
 }
 
 // Timers stop while the Mac sleeps, so a long gap between ticks means it woke up.
