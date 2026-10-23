@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 import { cx } from "../../cx";
+import { useReturnToList } from "../../hooks/useReturnToList";
 import styles from "./Settings.module.css";
 
 // Paths are relative to /settings.
@@ -14,6 +15,7 @@ const SETTINGS_TABS = [
 
 // The settings page: a tab list beside the open tab.
 export function SettingsLayout() {
+  useReturnToList();
   return (
     <main className={styles.page}>
       <div className={styles.panel}>

@@ -1,6 +1,7 @@
-import { screen } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { AWAY_MS } from "../../hooks/useReturnToList";
 import {
   fakeApi,
   json,
@@ -12,6 +13,7 @@ import {
   signedOut,
 } from "../../test/fake-api";
 import { renderApp } from "../../test/render";
+import { stubTauri } from "../../test/tauri";
 
 it.each(["/settings", "/settings/nope"])(
   "opens General from %s",
@@ -39,6 +41,42 @@ it("switches tabs", async () => {
       .getByRole("link", { name: "Repositories" })
       .getAttribute("aria-current"),
   ).toBe("page");
+});
+
+describe("after time away", () => {
+  // Leaves the app for `away` ms, then comes back.
+  const leaveFor = (away: number) => {
+    const left = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(left);
+    act(() => {
+      window.dispatchEvent(new Event("pr-peek:hidden"));
+    });
+    clock.mockReturnValue(left + away);
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    clock.mockRestore();
+  };
+
+  it("goes back to the list in the Mac app, but not after a short trip", async () => {
+    stubTauri();
+    fakeApi(listApi());
+    const { router } = renderApp("/settings/general?shell=tray");
+    await screen.findByRole("heading", { name: "General" });
+
+    leaveFor(AWAY_MS - 1000);
+    expect(router.state.location.pathname).toBe("/settings/general");
+    leaveFor(AWAY_MS);
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+  });
+
+  it("stays put in a browser tab", async () => {
+    fakeApi(signedInApi());
+    const { router } = renderApp("/settings/general");
+    await screen.findByRole("heading", { name: "General" });
+    leaveFor(AWAY_MS);
+    expect(router.state.location.pathname).toBe("/settings/general");
+  });
 });
 
 it("signs out and goes to sign in", async () => {
