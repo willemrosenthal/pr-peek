@@ -37,6 +37,18 @@ it("reloads into the new version", async () => {
   expect(updateServiceWorker).toHaveBeenCalledWith(true);
 });
 
+it("updates when the menu bar window hides, only once one is waiting", () => {
+  registerSW(false);
+  const { rerender } = render(<UpdatePrompt />);
+  window.dispatchEvent(new Event("pr-peek:hidden"));
+  expect(updateServiceWorker).not.toHaveBeenCalled();
+
+  registerSW(true);
+  rerender(<UpdatePrompt />);
+  window.dispatchEvent(new Event("pr-peek:hidden"));
+  expect(updateServiceWorker).toHaveBeenCalledWith(true);
+});
+
 it("looks for a new version every hour", () => {
   vi.useFakeTimers();
   registerSW(false);

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { Button } from "./Button";
 import styles from "./UpdatePrompt.module.css";
@@ -19,6 +20,14 @@ export function UpdatePrompt() {
       }, CHECK_EVERY_MS);
     },
   });
+
+  // The Mac app's dropdown never reloads by itself, so it updates when it hides.
+  useEffect(() => {
+    if (!needRefresh) return;
+    const update = () => void updateServiceWorker(true);
+    window.addEventListener("pr-peek:hidden", update);
+    return () => window.removeEventListener("pr-peek:hidden", update);
+  }, [needRefresh, updateServiceWorker]);
 
   if (!needRefresh) return null;
   return (

@@ -1,9 +1,11 @@
 import { Link } from "react-router";
 import { InstallHere, OtherDevices } from "../components/InstallSteps";
+import { useReturnToList } from "../hooks/useReturnToList";
 import styles from "./InstallPage.module.css";
 
 // How to install the app. Open to everyone, so it can be shared before signing in.
 export function InstallPage() {
+  useReturnToList();
   return (
     <main className={styles.page}>
       <div className={styles.panel}>
