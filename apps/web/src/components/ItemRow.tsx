@@ -118,7 +118,10 @@ function Row({
       <span className={cx(styles.age, ageTone)}>{age}</span>
       <span className={styles.summary}>{children}</span>
       <span className={styles.repo}>
-        {pr.repo} #{pr.number}
+        <span style={pr.color ? { color: pr.color } : undefined}>
+          {pr.repo}
+        </span>{" "}
+        #{pr.number}
       </span>
     </a>
   );

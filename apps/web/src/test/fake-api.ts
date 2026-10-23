@@ -64,6 +64,7 @@ const prRef = (): ItemDto["pr"] => ({
   repo: "web-app",
   number: itemCount,
   url: `https://github.com/acme/web-app/pull/${itemCount}`,
+  color: null,
 });
 
 export const item = (fields: Partial<ItemDto> = {}): ItemDto => {
@@ -118,6 +119,8 @@ export const watchedRepo = (
     name: `repo-${repoCount}`,
     enabled: true,
     muted: false,
+    color: null,
+    colorOn: false,
     ...fields,
   };
 };

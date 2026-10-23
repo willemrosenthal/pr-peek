@@ -12,10 +12,43 @@ import {
   type SummaryResponse,
 } from "@pr-peek/core";
 import type { Db } from "./db";
+import type { PullRequest } from "./generated/prisma/client";
 import { loadRuleSettings } from "./items";
 
 const isItemKind = (kind: string): kind is ItemKind =>
   Object.hasOwn(ITEM_GROUPS, kind);
+
+const PR_FIELDS = {
+  githubRepoId: true,
+  title: true,
+  repoOwner: true,
+  repoName: true,
+  number: true,
+  url: true,
+} as const;
+
+type PrRow = Pick<PullRequest, keyof typeof PR_FIELDS>;
+
+// Each watched repo's color, by GitHub repo id. Repos with color off are left out.
+async function repoColors(
+  db: Db,
+  userId: string,
+): Promise<Map<number, string>> {
+  const repos = await db.watchedRepo.findMany({
+    where: { userId, colorOn: true, color: { not: null } },
+    select: { githubRepoId: true, color: true },
+  });
+  return new Map(repos.map((repo) => [repo.githubRepoId, repo.color!]));
+}
+
+const toPrDto = (pr: PrRow, colors: Map<number, string>): ItemDto["pr"] => ({
+  title: pr.title,
+  owner: pr.repoOwner,
+  repo: pr.repoName,
+  number: pr.number,
+  url: pr.url,
+  color: colors.get(pr.githubRepoId) ?? null,
+});
 
 // The user's open items, most urgent first.
 export async function openItems(
@@ -23,20 +56,10 @@ export async function openItems(
   userId: string,
   now: Date,
 ): Promise<ItemDto[]> {
-  const [items, settings, ruleSettings] = await Promise.all([
+  const [items, settings, ruleSettings, colors] = await Promise.all([
     db.item.findMany({
       where: { userId, status: "open" },
-      include: {
-        pullRequest: {
-          select: {
-            title: true,
-            repoOwner: true,
-            repoName: true,
-            number: true,
-            url: true,
-          },
-        },
-      },
+      include: { pullRequest: { select: PR_FIELDS } },
     }),
     db.userSettings.findUniqueOrThrow({
       where: { userId },
@@ -48,6 +71,7 @@ export async function openItems(
       },
     }),
     loadRuleSettings(db, userId),
+    repoColors(db, userId),
   ]);
   const severityOf = new Map(ruleSettings.map((s) => [s.rule.id, s.severity]));
 
@@ -55,7 +79,6 @@ export async function openItems(
     .flatMap((item): ItemDto[] => {
       // Skips kinds from rules that no longer exist.
       if (!isItemKind(item.kind)) return [];
-      const { pullRequest: pr } = item;
       return [
         {
           id: item.id,
@@ -72,13 +95,7 @@ export async function openItems(
           severity: severityOf.get(item.kind) ?? "normal",
           unseen: item.seenAt === null,
           otherIds: [],
-          pr: {
-            title: pr.title,
-            owner: pr.repoOwner,
-            repo: pr.repoName,
-            number: pr.number,
-            url: pr.url,
-          },
+          pr: toPrDto(item.pullRequest, colors),
         },
       ];
     })
@@ -128,26 +145,23 @@ export async function idlePrs(
   user: { id: string; login: string },
   now: Date,
 ): Promise<IdlePrDto[]> {
-  const rows = await db.pullRequest.findMany({
-    where: {
-      userId: user.id,
-      state: "open",
-      authorLogin: { equals: user.login, mode: "insensitive" },
-      items: { none: { status: "open" } },
-    },
-    orderBy: { githubUpdatedAt: "desc" },
-  });
+  const [rows, colors] = await Promise.all([
+    db.pullRequest.findMany({
+      where: {
+        userId: user.id,
+        state: "open",
+        authorLogin: { equals: user.login, mode: "insensitive" },
+        items: { none: { status: "open" } },
+      },
+      orderBy: { githubUpdatedAt: "desc" },
+    }),
+    repoColors(db, user.id),
+  ]);
   return rows.map((row) => ({
     id: row.id,
     isDraft: row.isDraft,
     age: formatAge(row.githubUpdatedAt, now),
-    pr: {
-      title: row.title,
-      owner: row.repoOwner,
-      repo: row.repoName,
-      number: row.number,
-      url: row.url,
-    },
+    pr: toPrDto(row, colors),
   }));
 }
 

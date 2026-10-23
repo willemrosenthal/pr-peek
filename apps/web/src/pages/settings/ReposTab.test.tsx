@@ -1,5 +1,5 @@
 import type { RepoOption, WatchedRepoDto } from "@pr-peek/core";
-import { act, screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
@@ -15,6 +15,7 @@ import {
   signedInApi,
   watchedRepo,
 } from "../../test/fake-api";
+import { SAVE_DELAY_MS } from "../../components/ColorPicker";
 import { renderApp } from "../../test/render";
 
 const watchedList = () => screen.findByRole("list", { name: "Watched repos" });
@@ -41,7 +42,7 @@ describe("watched repos", () => {
   it("lists them", async () => {
     reposApi([watchedRepo({ owner: "acme", name: "web" })]);
     renderApp("/settings/repos");
-    expect(within(await watchedList()).getByText("acme/web")).toBeTruthy();
+    expect(within(await watchedList()).getByText("web")).toBeTruthy();
   });
 
   it("says when there are none", async () => {
@@ -97,6 +98,82 @@ describe("watched repos", () => {
     ]);
   });
 
+  it.each([
+    ["a starting color", null, "#2563eb"],
+    ["its remembered color", "#e11d48", "#e11d48"],
+  ])("turns color on with %s, then off", async (_, kept, sent) => {
+    const repo = watchedRepo({ owner: "acme", name: "web", color: kept });
+    const patch = `PATCH /api/repos/${repo.id}`;
+    const fetch = reposApi([repo], [], {
+      [patch]: () => {
+        Object.assign(repo, sentBodies(fetch, patch).at(-1));
+        return json({ repo });
+      },
+    });
+    renderApp("/settings/repos");
+
+    const toggle = await screen.findByRole("switch", {
+      name: "Color for acme/web",
+    });
+    expect(screen.queryByRole("button", { name: /Pick a color/ })).toBe(null);
+    await userEvent.click(toggle);
+    expect(
+      await screen.findByRole("button", { name: "Pick a color for acme/web" }),
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(toggle.getAttribute("aria-disabled")).not.toBe("true"),
+    );
+    await userEvent.click(toggle);
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /Pick a color/ })).toBe(null),
+    );
+    expect(sentBodies(fetch, patch)).toEqual([
+      { colorOn: true, color: sent },
+      { colorOn: false },
+    ]);
+    expect(repo.color).toBe(sent);
+  });
+
+  // A colored repo with its picker open and `typed` in the hex field. Returns the color
+  // saves sent so far, read when called.
+  async function typeColor(typed: string) {
+    const repo = watchedRepo({
+      owner: "acme",
+      name: "web",
+      color: "#2563eb",
+      colorOn: true,
+    });
+    const patch = `PATCH /api/repos/${repo.id}`;
+    const fetch = reposApi([repo], [], { [patch]: () => json({ repo }) });
+    renderApp("/settings/repos");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Pick a color for acme/web" }),
+    );
+    const input = await screen.findByLabelText("Hex color");
+    await userEvent.clear(input);
+    await userEvent.type(input, typed);
+    return () => sentBodies(fetch, patch);
+  }
+
+  it.each([
+    ["e11d48", "#e11d48"],
+    ["ABC", "#aabbcc"],
+  ])("saves a typed color %s", async (typed, saved) => {
+    const saves = await typeColor(typed);
+    await waitFor(() => expect(saves().at(-1)).toEqual({ color: saved }));
+  });
+
+  it("saves the pick on close, then stays off when color is turned off", async () => {
+    const saves = await typeColor("e11d48");
+    await userEvent.click(
+      screen.getByRole("switch", { name: "Color for acme/web" }),
+    );
+    // Past the point a waiting save would have gone out.
+    await new Promise((resolve) => setTimeout(resolve, SAVE_DELAY_MS + 100));
+    expect(saves()).toEqual([{ color: "#e11d48" }, { colorOn: false }]);
+  });
+
   it("removes one", async () => {
     const watched = [watchedRepo({ owner: "acme", name: "web" })];
     reposApi(watched, [], {
@@ -146,7 +223,7 @@ describe("adding repos", () => {
 
     act(() => finishAdd());
     expect(await within(options).findByText("Watching")).toBeTruthy();
-    expect(within(await watchedList()).getByText("acme/api")).toBeTruthy();
+    expect(within(await watchedList()).getByText("api")).toBeTruthy();
     expect(sentBodies(fetch, "POST /api/repos")).toEqual([
       { owner: "acme", name: "api" },
     ]);

@@ -108,6 +108,7 @@ describe("GET /api/items", () => {
         repo: "web-app",
         number: 7,
         url: "https://github.com/acme/web-app/pull/7",
+        color: null,
       },
     });
     expect(body.replies[0]).toMatchObject({
@@ -179,9 +180,37 @@ describe("GET /api/items", () => {
         repo: "web-app",
         number: 7,
         url: "https://github.com/acme/web-app/pull/7",
+        color: null,
       },
     });
     expect(body.idlePrs[0]?.isDraft).toBe(true);
+  });
+
+  it("adds the watched repo's color to each row while it's on", async () => {
+    const { agent, user } = await setup();
+    const pr = await makePr(user.id, 7, { authorLogin: "octocat" });
+    await makeItem(user.id, (await makePr(user.id, 8)).id, "reply");
+    const repo = await db.watchedRepo.create({
+      data: {
+        userId: user.id,
+        githubRepoId: pr.githubRepoId,
+        owner: "acme",
+        name: "web-app",
+        color: "#e11d48",
+        colorOn: true,
+      },
+    });
+
+    const on = bodyOf<ItemsResponse>(await agent.get("/api/items"));
+    expect(on.replies[0]?.pr.color).toBe("#e11d48");
+    expect(on.idlePrs[0]?.pr.color).toBe("#e11d48");
+
+    await db.watchedRepo.update({
+      where: { id: repo.id },
+      data: { colorOn: false },
+    });
+    const off = bodyOf<ItemsResponse>(await agent.get("/api/items"));
+    expect(off.replies[0]?.pr.color).toBe(null);
   });
 });
 

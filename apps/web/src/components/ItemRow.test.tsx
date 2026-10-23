@@ -15,6 +15,7 @@ it("links to the PR and shows what happened", () => {
           repo: "web-app",
           number: 482,
           url: "https://github.com/acme/web-app/pull/482",
+          color: null,
         },
       })}
     />,
@@ -25,7 +26,18 @@ it("links to the PR and shows what happened", () => {
   );
   expect(link.getAttribute("target")).toBe("_blank");
   expect(screen.getByText("jlee re-requested your review")).toBeTruthy();
-  expect(screen.getByText("web-app #482")).toBeTruthy();
+  expect(link.textContent).toContain("web-app #482");
+});
+
+it("colors the repo name with the repo's color", () => {
+  const row = item();
+  render(<ItemRow item={{ ...row, pr: { ...row.pr, color: "#1e3a8a" } }} />);
+  expect(screen.getByText("web-app").style.color).toBe("rgb(30, 58, 138)");
+});
+
+it("leaves the repo name plain without a color", () => {
+  render(<ItemRow item={item()} />);
+  expect(screen.getByText("web-app").getAttribute("style")).toBe(null);
 });
 
 it("says how many more open items the PR has", () => {
