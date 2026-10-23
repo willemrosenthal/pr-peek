@@ -30,6 +30,8 @@ const browserSubscription = z.object({
 
 export const addPushSubscriptionBody = browserSubscription.extend({
   label: deviceLabel,
+  // A browser on a Mac. While the Mac menu bar app runs, it gets these notifications.
+  onMac: z.boolean().optional(),
 });
 export type AddPushSubscriptionBody = z.infer<typeof addPushSubscriptionBody>;
 
@@ -39,6 +41,7 @@ export const updatePushSubscriptionBody = z
     minSeverity: severity,
     // The browser's new subscription, when it replaced the old one.
     subscription: browserSubscription,
+    onMac: z.boolean(),
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, "Nothing to update");

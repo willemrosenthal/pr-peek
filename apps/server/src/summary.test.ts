@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, resetDb } from "../test/db";
+import { desktopNotifications } from "../test/desktop";
 import { githubTokens, githubUser, hours, TEST_KEY } from "../test/fakes";
 import { itemRows } from "../test/items";
 import { createLogger } from "./logger";
@@ -106,6 +107,21 @@ describe("sendDueSummaries", () => {
     await db.pushSubscription.deleteMany();
     expect(await run()).toBe(0);
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("sends to the running Mac menu bar app, even with no push devices", async () => {
+    const { user, send, run } = await setup();
+    await db.pushSubscription.deleteMany();
+    await db.user.update({
+      where: { id: user.id },
+      data: { desktopSeenAt: new Date(AT_NINE.getTime() - 60_000) },
+    });
+    const toApp = await desktopNotifications(user.id);
+
+    expect(await run()).toBe(1);
+    expect(send).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(toApp).toHaveLength(1));
+    expect(toApp[0]?.payload.title).toBe("Morning summary");
   });
 
   it("does nothing when push is off", async () => {

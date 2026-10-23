@@ -16,7 +16,9 @@ The Tauri window loads the **hosted web app** (`https://www.git-buddy.com/?shell
 
 1. Setup and menu bar: 9.1 and 9.2, except the "Menu bar count" setting.
 2. Bridge: 9.3, 9.4, and the "Menu bar count" setting.
-3. No duplicate alerts: 9.5.
+3. No duplicate alerts: 9.5, in two PRs:
+   - 3a, the server: which devices are Macs, the heartbeat endpoint, the routing rule, and `event: notify` on the stream. Does nothing until a heartbeat arrives.
+   - 3b, the app: the heartbeat, and native notifications.
 4. Launch at login and updates: 9.6 and 9.7, plus their two right click menu items.
 5. Release pipeline: 9.8.
 
@@ -78,8 +80,13 @@ Run it with `pnpm desktop` (and `pnpm dev` for the web app it loads). The deskto
 The Mac browser may also have a push subscription, so the same alert could arrive twice.
 
 - [ ] The Tauri app registers itself as a device of type `desktop-app` through a new `POST /api/devices` endpoint. It sends a heartbeat every minute while running.
-- [ ] Server rule: while a user's `desktop-app` device is online (heartbeat in the last 3 minutes), skip web push to that user's Mac browser subscriptions. Phone pushes are unaffected.
+  - Server side done (3a): `POST /api/desktop/heartbeat` sets `User.desktopSeenAt`. No device row: the app is never a push device. The app sending it is 3b.
+- [x] Server rule: while a user's `desktop-app` device is online (heartbeat in the last 3 minutes), skip web push to that user's Mac browser subscriptions. Phone pushes are unaffected.
+  - Browsers say whether they're on a Mac (`PushSubscription.onMac`), when turned on, and once on open for older devices.
+  - `deliver` in `apps/server/src/push.ts` holds the rule, for item notifications, reminders, batches, and the morning summary. The running app also counts as a device by itself, for every severity.
+  - With two Macs, one running app skips the browsers on both. After Quit, the browsers on the Mac stay skipped for up to 3 minutes.
 - [ ] The server sends `event: notify` over SSE to the desktop app with the same payload as a push. The web app calls the native `notify` command.
+  - Server side done (3a): `deliver` publishes on Postgres channel `user_desktop_notify`, and the stream passes it on as `event: notify`. The app's side is 3b.
 - [ ] Clicking a native notification opens the PR. Check whether Tauri's notification plugin supports click handling and action buttons on macOS desktop in the version you install. If not, clicking opens pr-peek's window, which is fine for v1.
 
 ### 9.6 Launch at login

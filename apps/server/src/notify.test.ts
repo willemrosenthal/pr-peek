@@ -2,7 +2,8 @@ import type { PushPayload, Severity } from "@pr-peek/core";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import webpush from "web-push";
 import { createTestDb, resetDb } from "../test/db";
-import { githubTokens, githubUser, NOW, TEST_KEY } from "../test/fakes";
+import { desktopNotifications } from "../test/desktop";
+import { githubTokens, githubUser, hours, NOW, TEST_KEY } from "../test/fakes";
 import { itemRows } from "../test/items";
 import { createLogger } from "./logger";
 import { BATCH_MIN, notifyItem, notifyItems } from "./notify";
@@ -199,6 +200,52 @@ describe("notifyItem", () => {
         expect(await notify()).toBe(outcome);
       },
     );
+  });
+});
+
+describe("while the Mac menu bar app runs", () => {
+  // The setup, with a browser on the Mac too, and the app's last heartbeat at `seenAt`.
+  async function withDesktop(seenAt: Date) {
+    const ctx = await setup();
+    await db.pushSubscription.create({
+      data: {
+        userId: ctx.user.id,
+        endpoint: endpoint("mac"),
+        ...keys,
+        onMac: true,
+      },
+    });
+    await db.user.update({
+      where: { id: ctx.user.id },
+      data: { desktopSeenAt: seenAt },
+    });
+    return { ...ctx, toApp: await desktopNotifications(ctx.user.id) };
+  }
+
+  it("sends to the app instead of the browsers on the Mac", async () => {
+    const { send, notify, toApp } = await withDesktop(hours(-0.02));
+
+    expect(await notify()).toBe("sent");
+    expect(sentTo(send)).toEqual([endpoint("phone")]);
+    await vi.waitFor(() => expect(toApp).toHaveLength(1));
+    expect(toApp[0]?.payload.title).toBe("review_requested summary");
+  });
+
+  it("sends to the app even with no browser devices", async () => {
+    const { send, notify, toApp } = await withDesktop(hours(-0.02));
+    await db.pushSubscription.deleteMany();
+
+    expect(await notify()).toBe("sent");
+    expect(send).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(toApp).toHaveLength(1));
+  });
+
+  it("goes back to the browsers a few minutes after the last heartbeat", async () => {
+    const { send, notify, toApp } = await withDesktop(hours(-0.1));
+    expect(await notify()).toBe("sent");
+    expect(sentTo(send).sort()).toEqual([endpoint("mac"), endpoint("phone")]);
+    await new Promise((done) => setTimeout(done, 100));
+    expect(toApp).toEqual([]);
   });
 });
 

@@ -1,6 +1,10 @@
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { ITEMS_CHANGED_EVENT, type SummaryResponse } from "@pr-peek/core";
+import {
+  ITEMS_CHANGED_EVENT,
+  NOTIFY_EVENT,
+  type SummaryResponse,
+} from "@pr-peek/core";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { makeTestApp, signIn } from "../../test/app";
 import { createTestDb, resetDb, TEST_DATABASE_URL } from "../../test/db";
@@ -9,6 +13,7 @@ import { itemRows } from "../../test/items";
 import { publishItemsChanged } from "../items";
 import { listenForItemChanges, type ItemsListener } from "../items-listener";
 import { createLogger } from "../logger";
+import { DESKTOP_CHANNEL } from "../push";
 import { streamRouter } from "./stream";
 
 const db = createTestDb();
@@ -132,6 +137,21 @@ it("sends the new summary to the right user only", async () => {
   await makeItem(stream.user.id, pr.id, "reply");
   await publish(stream.user.id);
   expect(await stream.next()).toBe(itemsChanged({ total: 1, replies: 1 }));
+});
+
+it("passes notifications on for the Mac menu bar app", async () => {
+  const stream = await openStream();
+  const payload = {
+    title: "jlee asked for your review",
+    body: "b",
+    url: "/",
+    tag: "i",
+  };
+  const message = JSON.stringify({ userId: stream.user.id, payload });
+  await db.$executeRaw`SELECT pg_notify(${DESKTOP_CHANNEL}, ${message})`;
+  expect(await stream.next()).toBe(
+    `event: ${NOTIFY_EVENT}\ndata: ${JSON.stringify(payload)}\n\n`,
+  );
 });
 
 it("sends a keep-alive comment while quiet", async () => {

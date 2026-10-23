@@ -1,5 +1,5 @@
 import type { PushSubscriptionDto } from "@pr-peek/core";
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
@@ -23,11 +23,19 @@ import {
 import { renderApp } from "../../test/render";
 
 // A server holding `devices`. Tests change the list in place to change what it returns.
+// Each device takes changes, like the one-time "on a Mac" fill on open.
 function devicesApi(devices: PushSubscriptionDto[], overrides: Handlers = {}) {
+  const updates = Object.fromEntries(
+    devices.map((saved) => [
+      `PATCH /api/push/subscriptions/${saved.id}`,
+      () => json({ subscription: saved }),
+    ]),
+  );
   return fakeApi(
     signedInApi({
       "GET /api/push/key": () => json({ publicKey: PUBLIC_KEY }),
       "GET /api/push/subscriptions": () => json({ subscriptions: devices }),
+      ...updates,
       ...overrides,
     }),
   );
@@ -65,6 +73,7 @@ describe("turning on notifications", () => {
         endpoint: THIS_ENDPOINT,
         keys: SUBSCRIPTION_KEYS,
         label: "Mac, Chrome",
+        onMac: true,
       },
     ]);
     const list = await deviceList();
@@ -173,7 +182,10 @@ describe("checking this device on open", () => {
     expect(
       sentBodies(fetch, `PATCH /api/push/subscriptions/${mac.id}`),
     ).toEqual([
-      { subscription: { endpoint: THIS_ENDPOINT, keys: SUBSCRIPTION_KEYS } },
+      {
+        onMac: false,
+        subscription: { endpoint: THIS_ENDPOINT, keys: SUBSCRIPTION_KEYS },
+      },
     ]);
     expect(localStorage.getItem("push-endpoint")).toBe(THIS_ENDPOINT);
   });
@@ -192,14 +204,25 @@ describe("checking this device on open", () => {
     expect(sentBodies(fetch, "POST /api/push/subscriptions")).toEqual([]);
   });
 
-  it("remembers a device saved before it kept track", async () => {
+  it("tells the server once whether an older device is on a Mac", async () => {
+    stubUserAgent(USER_AGENTS.macSafari);
     stubPush({ subscribed: THIS_ENDPOINT });
-    devicesApi([device({ endpoint: THIS_ENDPOINT })]);
+    const mac = device({ endpoint: THIS_ENDPOINT });
+    const fetch = devicesApi([mac]);
     renderApp("/settings/devices");
 
     await waitFor(() =>
       expect(localStorage.getItem("push-endpoint")).toBe(THIS_ENDPOINT),
     );
+    expect(
+      sentBodies(fetch, `PATCH /api/push/subscriptions/${mac.id}`),
+    ).toEqual([{ onMac: true }]);
+    cleanup();
+
+    // Already told, so opening again checks nothing.
+    renderApp("/settings/devices");
+    await deviceList();
+    expect(callsTo(fetch, "/api/push/subscriptions")).toHaveLength(3);
   });
 });
 

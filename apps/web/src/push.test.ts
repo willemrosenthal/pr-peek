@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 import { stubDisplayMode, stubUserAgent, USER_AGENTS } from "./test/install";
 import { stubPush } from "./test/push";
-import { deviceLabel, pushSupport } from "./push";
+import { deviceLabel, onMac, pushSupport } from "./push";
 
 describe("deviceLabel", () => {
   it.each([
@@ -20,6 +20,22 @@ describe("deviceLabel", () => {
     ["Something new", "Browser"],
   ])("names %s as %s", (ua, label) => {
     expect(deviceLabel(ua)).toBe(label);
+  });
+});
+
+describe("onMac", () => {
+  it("is true on a Mac, but not an iPad or iPhone", () => {
+    expect(onMac(USER_AGENTS.macSafari)).toBe(true);
+    expect(onMac(USER_AGENTS.iphone)).toBe(false);
+    // iPads in desktop mode say they're Macs, but have a touch screen.
+    Object.defineProperty(navigator, "maxTouchPoints", {
+      configurable: true,
+      value: 5,
+    });
+    onTestFinished(() => {
+      delete (navigator as { maxTouchPoints?: number }).maxTouchPoints;
+    });
+    expect(onMac(USER_AGENTS.macSafari)).toBe(false);
   });
 });
 

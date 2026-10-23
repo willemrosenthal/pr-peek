@@ -2,7 +2,12 @@ import { summaryDueDate, summaryText } from "@pr-peek/core";
 import type { Logger } from "pino";
 import type { Db } from "./db";
 import { openItems, summarize } from "./item-list";
-import { NOTIFY_TTL_SECONDS, pushToDevices, type SendPush } from "./push";
+import {
+  deliver,
+  NOTIFY_TTL_SECONDS,
+  reachableUsers,
+  type SendPush,
+} from "./push";
 
 export interface SummaryDeps {
   db: Db;
@@ -22,10 +27,7 @@ export async function sendDueSummaries(
   const { db, send } = deps;
   if (!send) return 0;
   const rows = await db.userSettings.findMany({
-    where: {
-      digestTime: { not: null },
-      user: { pushSubscriptions: { some: {} } },
-    },
+    where: { digestTime: { not: null }, user: reachableUsers(now) },
     select: {
       userId: true,
       timezone: true,
@@ -75,10 +77,14 @@ export async function sendSummary(
   const text = summaryText(items, now);
   if (!text) return "nothing_open";
 
-  const devices = await db.pushSubscription.findMany({ where: { userId } });
-  return pushToDevices(
+  const user = await db.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { id: true, desktopSeenAt: true, pushSubscriptions: true },
+  });
+  return deliver(
     deps,
-    devices,
+    user,
+    user.pushSubscriptions,
     {
       title: "Morning summary",
       body: text,
@@ -86,6 +92,6 @@ export async function sendSummary(
       tag: "summary",
       badge: summarize(items).total,
     },
-    { ttlSeconds: NOTIFY_TTL_SECONDS, urgency: "normal" },
+    { ttlSeconds: NOTIFY_TTL_SECONDS, urgency: "normal", now },
   );
 }
