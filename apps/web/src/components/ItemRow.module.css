@@ -93,6 +93,10 @@
   color: var(--color-reply);
 }
 
+.bot {
+  color: var(--color-bot);
+}
+
 .success {
   color: var(--color-success);
 }
