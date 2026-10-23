@@ -4,9 +4,18 @@ import { api } from "../../api";
 import { setBadge } from "../../badge";
 import { Alert } from "../../components/Alert";
 import { Button } from "../../components/Button";
-import { Card } from "../../components/Card";
+import { Card, CardRow } from "../../components/Card";
+import { Select } from "../../components/Field";
 import { GitHubToken } from "../../components/GitHubToken";
+import { RowText } from "../../components/RowText";
 import { SettingSwitch } from "../../components/SettingSwitch";
+import {
+  COUNT_STYLES,
+  inDesktopApp,
+  setCountStyle,
+  type CountStyle,
+} from "../../desktop";
+import { useCountStyle } from "../../hooks/useCountStyle";
 import { useMe, useSettings } from "../../queries";
 import { TabHeading } from "./SettingsLayout";
 
@@ -44,6 +53,11 @@ export function GeneralTab() {
           />
         </Card>
       )}
+      {inDesktopApp() && (
+        <Card label="Menu bar">
+          <MenuBarCountRow />
+        </Card>
+      )}
       <GitHubToken />
       <div>
         <Button onClick={() => signOut.mutate()} disabled={signOut.isPending}>
@@ -51,5 +65,29 @@ export function GeneralTab() {
         </Button>
       </div>
     </>
+  );
+}
+
+// Kept on this Mac, since only its menu bar uses it.
+function MenuBarCountRow() {
+  const style = useCountStyle();
+  return (
+    <CardRow>
+      <RowText
+        label="Menu bar count"
+        hint="Next to the icon. Only on this Mac."
+      />
+      <Select
+        aria-label="Menu bar count"
+        value={style}
+        onChange={(e) => setCountStyle(e.target.value as CountStyle)}
+      >
+        {COUNT_STYLES.map(({ value, label }) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </Select>
+    </CardRow>
   );
 }

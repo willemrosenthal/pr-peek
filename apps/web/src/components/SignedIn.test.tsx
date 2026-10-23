@@ -10,6 +10,7 @@ import {
   type Mock,
   vi,
 } from "vitest";
+import { setCountStyle } from "../desktop";
 import { RECONNECT_MS } from "../hooks/useLiveUpdates";
 import {
   apiError,
@@ -25,6 +26,7 @@ import {
 } from "../test/fake-api";
 import { FakeEventSource, latestStream } from "../test/fake-stream";
 import { renderApp } from "../test/render";
+import { callsOf, stubTauri } from "../test/tauri";
 
 const send = (event: Event) => act(() => latestStream().dispatchEvent(event));
 const itemsChanged = (total: number) =>
@@ -129,10 +131,51 @@ describe("the live stream", () => {
     expect(callsTo(fetch, "/api/me")).toHaveLength(checks);
   });
 
+  it.each(["pr-peek:wake", "online"])(
+    "opens a new stream on %s, and catches up",
+    async (event) => {
+      const fetch = await renderList();
+      const first = latestStream();
+      await send(new Event("open"));
+
+      act(() => {
+        window.dispatchEvent(new Event(event));
+      });
+      expect(first.readyState).toBe(FakeEventSource.CLOSED);
+      expect(FakeEventSource.opened).toHaveLength(2);
+      await send(new Event("open"));
+      await waitFor(() => expect(callsTo(fetch, "/api/items")).toHaveLength(2));
+    },
+  );
+
   it("closes the stream when the page goes", async () => {
     await renderList();
     cleanup();
     expect(latestStream().readyState).toBe(FakeEventSource.CLOSED);
+  });
+});
+
+describe("the Mac menu bar", () => {
+  it("shows the count, follows the stream, and switches style at once", async () => {
+    const invoke = stubTauri();
+    fakeApi(
+      listApi({
+        "GET /api/summary": () =>
+          json(summary({ total: 4, review: 3, mine: 1 })),
+      }),
+    );
+    renderApp("/");
+    const shown = () =>
+      callsOf(invoke, "set_tray_state").map(
+        (args) => (args as { state: { title: string } }).state.title,
+      );
+    await waitFor(() => expect(shown().at(-1)).toBe("4"));
+
+    await itemsChanged(5);
+    await waitFor(() => expect(shown().at(-1)).toBe("5"));
+
+    act(() => setCountStyle("dot"));
+    expect(shown().at(-1)).toBe("•");
   });
 });
 

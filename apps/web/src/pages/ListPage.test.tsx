@@ -4,6 +4,7 @@ import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
   apiError,
+  callsTo,
   fakeApi,
   groups,
   idlePr,
@@ -16,6 +17,7 @@ import {
   syncStatus,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
+import { callsOf, stubTauri } from "../test/tauri";
 import { setVisibility } from "../test/visibility";
 
 const minutesAgo = (n: number) =>
@@ -162,6 +164,21 @@ describe("marking seen", () => {
     expect(seenRequests(fetch)).toEqual([]);
   });
 
+  it("marks them when the menu bar window hides", async () => {
+    const review = [newItem()];
+    const fetch = fakeApi(
+      listApi({ "GET /api/items": () => json(groups({ review })) }),
+    );
+    renderApp("/?shell=tray");
+    await sectionButton(/Needs my review/);
+
+    // The page can still count as visible when the window hides.
+    act(() => {
+      window.dispatchEvent(new Event("pr-peek:hidden"));
+    });
+    expect(seenRequests(fetch)).toEqual([[review[0]!.id]]);
+  });
+
   it("marks each item once", async () => {
     const review = [newItem()];
     const fetch = fakeApi(
@@ -233,6 +250,34 @@ describe("tray mode", () => {
     renderApp("/");
     await screen.findByText("Nothing needs you right now");
     expect(trayFooter()).toBe(null);
+  });
+
+  it("offers Quit inside the menu bar app only", async () => {
+    fakeApi(listApi());
+    renderApp("/?shell=tray");
+    await screen.findByRole("link", { name: "Open in browser" });
+    expect(screen.queryByRole("button", { name: "Quit pr-peek" })).toBe(null);
+    cleanup();
+
+    const invoke = stubTauri();
+    renderApp("/?shell=tray");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Quit pr-peek" }),
+    );
+    expect(callsOf(invoke, "quit_app")).toHaveLength(1);
+  });
+
+  it("refreshes from the menu bar's Refresh", async () => {
+    const fetch = fakeApi(
+      listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),
+    );
+    renderApp("/?shell=tray");
+    await screen.findByText("Nothing needs you right now");
+
+    act(() => {
+      window.dispatchEvent(new Event("pr-peek:refresh"));
+    });
+    await waitFor(() => expect(callsTo(fetch, "/api/sync")).toHaveLength(1));
   });
 
   it("stays on after visiting settings", async () => {
