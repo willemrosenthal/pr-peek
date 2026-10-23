@@ -3,12 +3,13 @@ use std::time::{Duration, Instant};
 
 use serde::Deserialize;
 use tauri::image::Image;
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::utils::config::BackgroundThrottlingPolicy;
 use tauri::{
-    AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent, Wry,
 };
+use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
@@ -192,13 +193,78 @@ fn quit_app(app: AppHandle) {
     app.exit(0);
 }
 
-fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+// The "Launch at login" menu item, kept in step with the setting.
+struct LaunchMenuItem(CheckMenuItem<Wry>);
+
+fn launch_at_login_on(app: &AppHandle) -> bool {
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+// Turns launch at login on or off, and ticks the menu item to match.
+fn apply_launch_at_login(app: &AppHandle, on: bool) -> Result<(), String> {
+    let launcher = app.autolaunch();
+    let result = if on {
+        launcher.enable()
+    } else {
+        launcher.disable()
+    };
+    result.map_err(|err| err.to_string())?;
+    if let Some(item) = app.try_state::<LaunchMenuItem>() {
+        let _ = item.0.set_checked(on);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn launch_at_login(app: AppHandle) -> bool {
+    log_command("launch_at_login");
+    launch_at_login_on(&app)
+}
+
+#[tauri::command]
+fn set_launch_at_login(app: AppHandle, on: bool) -> Result<(), String> {
+    log_command("set_launch_at_login");
+    apply_launch_at_login(&app, on)
+}
+
+// On by default: turned on the first time the installed app runs, once. Dev builds and
+// copies outside Applications are skipped, since the login item points at this copy.
+fn launch_at_login_by_default(app: &AppHandle) {
+    if cfg!(debug_assertions) {
+        return;
+    }
+    let installed = std::env::current_exe().is_ok_and(|exe| exe.starts_with("/Applications"));
+    let Ok(dir) = app.path().app_data_dir() else {
+        return;
+    };
+    let marker = dir.join("launch-at-login-set");
+    if !installed || marker.exists() {
+        return;
+    }
+    if apply_launch_at_login(app, true).is_ok() {
+        let _ = std::fs::create_dir_all(&dir);
+        let _ = std::fs::write(marker, "");
+    }
+}
+
+fn build_tray(app: &AppHandle) -> tauri::Result<CheckMenuItem<Wry>> {
     let refresh = MenuItem::with_id(app, "refresh", "Refresh", true, None::<&str>)?;
     let open = MenuItem::with_id(app, "open", "Open in browser", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+    let launch = CheckMenuItem::with_id(
+        app,
+        "launch",
+        "Launch at login",
+        true,
+        launch_at_login_on(app),
+        None::<&str>,
+    )?;
     let separator = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Quit pr-peek", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&refresh, &open, &settings, &separator, &quit])?;
+    let menu = Menu::with_items(
+        app,
+        &[&refresh, &open, &settings, &launch, &separator, &quit],
+    )?;
 
     TrayIconBuilder::with_id(TRAY)
         .icon(Image::from_bytes(ICON_PLAIN)?)
@@ -223,6 +289,10 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                     show_window(&window);
                 }
             }
+            "launch" => {
+                // Flips the real setting, whatever the checkbox shows.
+                let _ = apply_launch_at_login(app, !launch_at_login_on(app));
+            }
             "quit" => app.exit(0),
             _ => {}
         })
@@ -238,7 +308,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             }
         })
         .build(app)?;
-    Ok(())
+    Ok(launch)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -256,6 +326,7 @@ pub fn run() {
         .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app, shortcut, event| {
@@ -271,7 +342,9 @@ pub fn run() {
             open_external,
             hide_window,
             quit_app,
-            notify
+            notify,
+            launch_at_login,
+            set_launch_at_login
         ])
         .setup(move |app| {
             // No Dock icon. The app lives in the menu bar.
@@ -303,7 +376,9 @@ pub fn run() {
                 }
             });
 
-            build_tray(app.handle())?;
+            let launch = build_tray(app.handle())?;
+            app.manage(LaunchMenuItem(launch));
+            launch_at_login_by_default(app.handle());
 
             let clicked = app.handle().clone();
             app.notification().on_action(move |action| {

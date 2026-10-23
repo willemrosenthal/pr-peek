@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { api } from "../../api";
 import { setBadge } from "../../badge";
@@ -9,15 +9,18 @@ import { Select } from "../../components/Field";
 import { GitHubToken } from "../../components/GitHubToken";
 import { RowText } from "../../components/RowText";
 import { SettingSwitch } from "../../components/SettingSwitch";
+import { Switch } from "../../components/Switch";
 import {
   clearTrayState,
   COUNT_STYLES,
   inDesktopApp,
+  launchAtLogin,
   setCountStyle,
+  setLaunchAtLogin,
   type CountStyle,
 } from "../../desktop";
 import { useCountStyle } from "../../hooks/useCountStyle";
-import { useMe, useSettings } from "../../queries";
+import { queryKeys, useMe, useSettings } from "../../queries";
 import { TabHeading } from "./SettingsLayout";
 
 export function GeneralTab() {
@@ -57,6 +60,7 @@ export function GeneralTab() {
       )}
       {inDesktopApp() && (
         <Card label="Menu bar">
+          <LaunchAtLoginRow />
           <MenuBarCountRow />
         </Card>
       )}
@@ -67,6 +71,38 @@ export function GeneralTab() {
         </Button>
       </div>
     </>
+  );
+}
+
+// The same switch as "Launch at login" in the menu bar icon's right click menu.
+function LaunchAtLoginRow() {
+  const queryClient = useQueryClient();
+  const state = useQuery({
+    queryKey: queryKeys.launchAtLogin,
+    queryFn: launchAtLogin,
+  });
+  const save = useMutation({
+    mutationFn: setLaunchAtLogin,
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.launchAtLogin }),
+  });
+  // Shows the new state while it saves.
+  const on = save.isPending ? save.variables : (state.data ?? false);
+
+  return (
+    <CardRow>
+      <RowText
+        label="Launch at login"
+        hint="Opens pr-peek in the menu bar when you log in to this Mac."
+      />
+      <Switch
+        label="Launch at login"
+        checked={on}
+        onChange={(checked) => save.mutate(checked)}
+        disabled={state.isPending || save.isPending}
+      />
+      {save.isError && <Alert>Couldn't change it. Try again.</Alert>}
+    </CardRow>
   );
 }
 

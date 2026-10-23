@@ -30,6 +30,7 @@ export const queryKeys = {
   pushKey: ["push-key"],
   devices: ["devices"],
   thisDevice: ["this-device"],
+  launchAtLogin: ["launch-at-login"],
 } as const;
 
 // Ages and stale colors change with time, so lists refetch this often.

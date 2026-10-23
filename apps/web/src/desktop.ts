@@ -48,6 +48,11 @@ export const clearTrayState = () => sendTrayState("", "plain");
 export const openExternal = (url: string) => call("open_external", { url });
 export const quitApp = () => call("quit_app");
 
+// Whether the app opens when the user logs in to the Mac.
+export const launchAtLogin = () => invoke<boolean>("launch_at_login");
+export const setLaunchAtLogin = (on: boolean) =>
+  invoke("set_launch_at_login", { on });
+
 // The count style, kept on this Mac. One copy, so the tray and Settings stay in step.
 const STYLE_KEY = "pr-peek:count-style";
 const styleListeners = new Set<() => void>();

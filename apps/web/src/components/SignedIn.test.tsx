@@ -235,7 +235,9 @@ describe("the Mac menu bar", () => {
       expect(callsOf(invoke, "set_tray_state")).toHaveLength(1),
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sign out" }),
+    );
     await screen.findByRole("link", { name: "Sign in with GitHub" });
     expect(callsOf(invoke, "set_tray_state").at(-1)).toEqual({
       state: { title: "", icon: "plain" },

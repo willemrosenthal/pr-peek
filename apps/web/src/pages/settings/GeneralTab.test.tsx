@@ -13,7 +13,7 @@ import {
 } from "../../test/fake-api";
 import { getCountStyle } from "../../desktop";
 import { renderApp } from "../../test/render";
-import { stubTauri } from "../../test/tauri";
+import { callsOf, stubTauri } from "../../test/tauri";
 
 it("turns hiding bots on, and reloads the list", async () => {
   let hideBots = false;
@@ -115,11 +115,27 @@ it("sets the menu bar count, only inside the Mac app", async () => {
   expect(screen.queryByLabelText("Menu bar count")).toBe(null);
   cleanup();
 
-  stubTauri();
+  stubTauri({ launch_at_login: true });
   renderApp("/settings/general");
   const select = await screen.findByLabelText("Menu bar count");
   expect(select).toHaveProperty("value", "total");
   await userEvent.selectOptions(select, "A dot");
   expect(select).toHaveProperty("value", "dot");
   expect(getCountStyle()).toBe("dot");
+});
+
+it("turns launching at login off, only inside the Mac app", async () => {
+  fakeApi(signedInApi());
+  renderApp("/settings/general");
+  await screen.findByRole("switch", { name: "Hide bots" });
+  expect(screen.queryByRole("switch", { name: "Launch at login" })).toBe(null);
+  cleanup();
+
+  const invoke = stubTauri({ launch_at_login: true });
+  renderApp("/settings/general");
+  const toggle = await screen.findByRole("switch", { name: "Launch at login" });
+  await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("true"));
+
+  await userEvent.click(toggle);
+  expect(callsOf(invoke, "set_launch_at_login")).toEqual([{ on: false }]);
 });
