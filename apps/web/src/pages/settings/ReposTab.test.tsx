@@ -15,6 +15,7 @@ import {
   signedInApi,
   watchedRepo,
 } from "../../test/fake-api";
+import { SAVE_DELAY_MS } from "../../components/ColorPicker";
 import { renderApp } from "../../test/render";
 
 const watchedList = () => screen.findByRole("list", { name: "Watched repos" });
@@ -129,10 +130,9 @@ describe("watched repos", () => {
     ]);
   });
 
-  it.each([
-    ["e11d48", "#e11d48"],
-    ["ABC", "#aabbcc"],
-  ])("saves a typed color %s once typing pauses", async (typed, saved) => {
+  // A colored repo with its picker open and `typed` in the hex field. Returns the color
+  // saves sent so far, read when called.
+  async function typeColor(typed: string) {
     const repo = watchedRepo({ owner: "acme", name: "web", color: "#2563eb" });
     const patch = `PATCH /api/repos/${repo.id}`;
     const fetch = reposApi([repo], [], { [patch]: () => json({ repo }) });
@@ -144,28 +144,25 @@ describe("watched repos", () => {
     const input = await screen.findByLabelText("Hex color");
     await userEvent.clear(input);
     await userEvent.type(input, typed);
-    await waitFor(() => expect(sentBodies(fetch, patch)).toHaveLength(1));
-    expect(sentBodies(fetch, patch)).toEqual([{ color: saved }]);
+    return () => sentBodies(fetch, patch);
+  }
+
+  it.each([
+    ["e11d48", "#e11d48"],
+    ["ABC", "#aabbcc"],
+  ])("saves a typed color %s", async (typed, saved) => {
+    const saves = await typeColor(typed);
+    await waitFor(() => expect(saves().at(-1)).toEqual({ color: saved }));
   });
 
-  it("stays off when color is turned off right after a pick", async () => {
-    const repo = watchedRepo({ owner: "acme", name: "web", color: "#2563eb" });
-    const patch = `PATCH /api/repos/${repo.id}`;
-    const fetch = reposApi([repo], [], { [patch]: () => json({ repo }) });
-    renderApp("/settings/repos");
-
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Pick a color for acme/web" }),
-    );
-    const input = await screen.findByLabelText("Hex color");
-    await userEvent.clear(input);
-    await userEvent.type(input, "e11d48");
-    act(() => input.blur());
+  it("saves the pick on close, then stays off when color is turned off", async () => {
+    const saves = await typeColor("e11d48");
     await userEvent.click(
       screen.getByRole("switch", { name: "Color for acme/web" }),
     );
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    expect(sentBodies(fetch, patch).at(-1)).toEqual({ color: null });
+    // Past the point a waiting save would have gone out.
+    await new Promise((resolve) => setTimeout(resolve, SAVE_DELAY_MS + 100));
+    expect(saves()).toEqual([{ color: "#e11d48" }, { color: null }]);
   });
 
   it("removes one", async () => {

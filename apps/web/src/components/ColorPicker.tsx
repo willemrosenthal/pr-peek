@@ -4,7 +4,7 @@ import { HexColorInput, HexColorPicker } from "react-colorful";
 import styles from "./ColorPicker.module.css";
 
 // Waits this long after the last drag before saving.
-const SAVE_DELAY_MS = 300;
+export const SAVE_DELAY_MS = 300;
 
 // "#abc" to "#aabbcc", so saved colors always have six digits.
 const longHex = (hex: string) =>
