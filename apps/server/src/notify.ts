@@ -10,7 +10,12 @@ import type { Db } from "./db";
 import type { PushSubscription } from "./generated/prisma/client";
 import { openItems, summarize } from "./item-list";
 import { loadRuleSettings } from "./items";
-import { NOTIFY_TTL_SECONDS, pushToDevices, type SendPush } from "./push";
+import {
+  deliver,
+  isDesktopOnline,
+  NOTIFY_TTL_SECONDS,
+  type SendPush,
+} from "./push";
 
 // This many or more notifications for one user at once go out as one push.
 export const BATCH_MIN = 3;
@@ -48,6 +53,7 @@ export type NotifyOutcome =
 // A notification that passed every check, ready to claim and send.
 interface Ready {
   userId: string;
+  desktopSeenAt: Date | null;
   logKey: { itemId: string; eventId: string; channel: "push" };
   devices: PushSubscription[];
   severity: Severity;
@@ -155,10 +161,13 @@ async function decide(
   const devices = user.pushSubscriptions.filter((device) =>
     isAtLeast(setting.severity, device.minSeverity),
   );
-  if (devices.length === 0) return "no_devices";
+  // The running Mac menu bar app takes every severity.
+  const desktop = isDesktopOnline(user.desktopSeenAt, now);
+  if (devices.length === 0 && !desktop) return "no_devices";
 
   return {
     userId,
+    desktopSeenAt: user.desktopSeenAt,
     logKey: {
       itemId,
       eventId: reminder
@@ -204,11 +213,16 @@ async function sendClaimed(
       ).values(),
     ];
     const urgent = readies.some((r) => r.severity === "high");
-    outcome = await pushToDevices(
+    outcome = await deliver(
       { db, send, logger },
+      { id: userId, desktopSeenAt: first?.desktopSeenAt ?? null },
       devices,
       { ...payload, badge },
-      { ttlSeconds: NOTIFY_TTL_SECONDS, urgency: urgent ? "high" : "normal" },
+      {
+        ttlSeconds: NOTIFY_TTL_SECONDS,
+        urgency: urgent ? "high" : "normal",
+        now,
+      },
     );
   } catch (err) {
     logger.error({ err, userId }, "notify failed");

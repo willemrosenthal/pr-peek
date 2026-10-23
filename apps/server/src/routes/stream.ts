@@ -1,4 +1,4 @@
-import { ITEMS_CHANGED_EVENT } from "@pr-peek/core";
+import { ITEMS_CHANGED_EVENT, NOTIFY_EVENT } from "@pr-peek/core";
 import express, { type Router } from "express";
 import type { Db } from "../db";
 import { openItems, summarize } from "../item-list";
@@ -21,7 +21,8 @@ export function streamRouter(deps: StreamDeps): Router {
   const router = express.Router();
   const now = () => (deps.now ?? (() => new Date()))();
 
-  // Server-Sent Events. Sends the new summary each time the user's items change.
+  // Server-Sent Events. Sends the new summary each time the user's items change, and
+  // notifications for the Mac menu bar app.
   router.get("/stream", requireUser(deps.db), (req, res) => {
     const userId = currentUser(res).id;
     // Skips writes once the stream has ended or the client has left.
@@ -37,7 +38,13 @@ export function streamRouter(deps: StreamDeps): Router {
         `event: ${ITEMS_CHANGED_EVENT}\ndata: ${JSON.stringify(summary)}\n\n`,
       );
     };
-    const unsubscribe = deps.listener.subscribe(userId, () => {
+    const unsubscribe = deps.listener.subscribe(userId, (event) => {
+      if (event.type === "notify") {
+        write(
+          `event: ${NOTIFY_EVENT}\ndata: ${JSON.stringify(event.payload)}\n\n`,
+        );
+        return;
+      }
       sending = sending.then(sendSummary).catch((err: unknown) => {
         req.log.error({ err }, "stream update failed");
       });

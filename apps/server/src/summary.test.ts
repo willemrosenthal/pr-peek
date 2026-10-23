@@ -1,7 +1,16 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTestDb, resetDb } from "../test/db";
+import {
+  afterAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
+import { createTestDb, resetDb, TEST_DATABASE_URL } from "../test/db";
 import { githubTokens, githubUser, hours, TEST_KEY } from "../test/fakes";
 import { itemRows } from "../test/items";
+import { listenForItemChanges } from "./items-listener";
 import { createLogger } from "./logger";
 import type { SendPush } from "./push";
 import { sendDueSummaries } from "./summary";
@@ -106,6 +115,30 @@ describe("sendDueSummaries", () => {
     await db.pushSubscription.deleteMany();
     expect(await run()).toBe(0);
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("sends to the running Mac menu bar app, even with no push devices", async () => {
+    const { user, send, run } = await setup();
+    await db.pushSubscription.deleteMany();
+    await db.user.update({
+      where: { id: user.id },
+      data: { desktopSeenAt: new Date(AT_NINE.getTime() - 60_000) },
+    });
+    const listener = await listenForItemChanges({
+      connectionString: TEST_DATABASE_URL,
+      logger,
+    });
+    onTestFinished(() => listener.stop());
+    const toApp = vi.fn();
+    listener.subscribe(user.id, toApp);
+
+    expect(await run()).toBe(1);
+    expect(send).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(toApp).toHaveBeenCalledOnce());
+    expect(toApp.mock.calls[0]?.[0]).toMatchObject({
+      type: "notify",
+      payload: { title: "Morning summary" },
+    });
   });
 
   it("does nothing when push is off", async () => {

@@ -1,12 +1,18 @@
+import type { PushPayload } from "@pr-peek/core";
 import pg from "pg";
 import type { Logger } from "pino";
 import { ITEMS_CHANNEL } from "./items";
+import { DESKTOP_CHANNEL } from "./push";
 
 const RECONNECT_MS = 5_000;
 
+// "items": the user's items changed. "notify": a notification for the Mac menu bar app.
+export type UserEvent =
+  { type: "items" } | { type: "notify"; payload: PushPayload };
+
 export interface ItemsListener {
-  // Calls `handler` each time the user's items change. Returns a function that stops it.
-  subscribe(userId: string, handler: () => void): () => void;
+  // Calls `handler` with each of the user's events. Returns a function that stops it.
+  subscribe(userId: string, handler: (event: UserEvent) => void): () => void;
   stop(): Promise<void>;
 }
 
@@ -16,20 +22,38 @@ export interface ItemsListenerOptions {
   reconnectMs?: number;
 }
 
-// Listens for `publishItemsChanged` on its own connection, since LISTEN holds it open.
-// Reconnects if the connection drops, then tells every subscriber, in case they missed one.
+// Listens for `publishItemsChanged` and `deliver` on its own connection, since LISTEN
+// holds it open. Reconnects if the connection drops, then tells every subscriber their
+// items changed, in case they missed one.
 export async function listenForItemChanges(
   options: ItemsListenerOptions,
 ): Promise<ItemsListener> {
   const { connectionString, logger } = options;
   const reconnectMs = options.reconnectMs ?? RECONNECT_MS;
-  const handlers = new Map<string, Set<() => void>>();
+  const handlers = new Map<string, Set<(event: UserEvent) => void>>();
   let client: pg.Client | null = null;
   let retry: NodeJS.Timeout | undefined;
   let stopped = false;
 
-  const notify = (userId: string) => {
-    for (const handler of handlers.get(userId) ?? []) handler();
+  const emit = (userId: string, event: UserEvent) => {
+    for (const handler of handlers.get(userId) ?? []) handler(event);
+  };
+
+  const onMessage = (msg: pg.Notification) => {
+    if (!msg.payload) return;
+    if (msg.channel === ITEMS_CHANNEL) {
+      emit(msg.payload, { type: "items" });
+      return;
+    }
+    try {
+      const { userId, payload } = JSON.parse(msg.payload) as {
+        userId: string;
+        payload: PushPayload;
+      };
+      emit(userId, { type: "notify", payload });
+    } catch (err) {
+      logger.warn({ err }, "unreadable desktop notification");
+    }
   };
 
   // Throws if it can't connect.
@@ -47,13 +71,12 @@ export async function listenForItemChanges(
     };
     next.on("error", onLost);
     next.on("end", () => onLost());
-    next.on("notification", (msg) => {
-      if (msg.payload) notify(msg.payload);
-    });
+    next.on("notification", onMessage);
 
     try {
       await next.connect();
       await next.query(`LISTEN ${ITEMS_CHANNEL}`);
+      await next.query(`LISTEN ${DESKTOP_CHANNEL}`);
     } catch (err) {
       await next.end().catch(() => undefined);
       throw err;
@@ -72,7 +95,9 @@ export async function listenForItemChanges(
       connect().then(
         () => {
           logger.info("items listener reconnected");
-          for (const userId of handlers.keys()) notify(userId);
+          for (const userId of handlers.keys()) {
+            emit(userId, { type: "items" });
+          }
         },
         (err: unknown) => {
           logger.warn({ err }, "items listener could not reconnect");

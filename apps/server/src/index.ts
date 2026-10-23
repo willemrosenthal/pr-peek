@@ -12,6 +12,7 @@ import { listenForItemChanges } from "./items-listener";
 import { createBoss, createQueues, queueSync } from "./jobs";
 import { vapidFrom, webPushSender } from "./push";
 import { authRouter } from "./routes/auth";
+import { desktopRouter } from "./routes/desktop";
 import { githubTokenRouter } from "./routes/github-token";
 import { itemsRouter } from "./routes/items";
 import { pushRouter } from "./routes/push";
@@ -72,6 +73,7 @@ const app = createApp({
     itemsRouter({ db }),
     settingsRouter({ db, github }),
     syncRouter({ db, requestSync: (userId) => queueSync(boss, userId) }),
+    desktopRouter({ db }),
     streamRouter({ db, listener, signal: streams.signal }),
     pushRouter({
       db,

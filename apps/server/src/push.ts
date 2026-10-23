@@ -1,4 +1,4 @@
-import type { PushPayload } from "@pr-peek/core";
+import { DESKTOP_ONLINE_MS, type PushPayload } from "@pr-peek/core";
 import type { Logger } from "pino";
 import webpush from "web-push";
 import type { Config } from "./config";
@@ -108,6 +108,43 @@ export async function pushToDevice(
     data: { lastSuccessAt: new Date(), failureCount: 0 },
   });
   return "sent";
+}
+
+// Postgres NOTIFY channel for notifications to the Mac menu bar app. The payload is
+// `{ userId, payload }`. The web service passes it down the user's live streams.
+export const DESKTOP_CHANNEL = "user_desktop_notify";
+
+export const isDesktopOnline = (seenAt: Date | null, now: Date) =>
+  seenAt !== null && now.getTime() - seenAt.getTime() < DESKTOP_ONLINE_MS;
+
+// Users with somewhere to send a notification: a push device, or the running Mac app.
+export const reachableUsers = (now: Date) => ({
+  OR: [
+    { pushSubscriptions: { some: {} } },
+    { desktopSeenAt: { gt: new Date(now.getTime() - DESKTOP_ONLINE_MS) } },
+  ],
+});
+
+// Sends a notification to the user's `devices`. While their Mac menu bar app runs, it
+// goes to the app instead of the browsers on that Mac. "sent" if anything got it.
+export async function deliver(
+  deps: PushDeps,
+  user: { id: string; desktopSeenAt: Date | null },
+  devices: PushSubscription[],
+  payload: PushPayload,
+  { now, ...options }: PushOptions & { now: Date },
+): Promise<"sent" | "failed"> {
+  const desktop = isDesktopOnline(user.desktopSeenAt, now);
+  if (desktop) {
+    const message = JSON.stringify({ userId: user.id, payload });
+    await deps.db.$executeRaw`SELECT pg_notify(${DESKTOP_CHANNEL}, ${message})`;
+  }
+  const targets = desktop ? devices.filter((device) => !device.onMac) : devices;
+  const pushed =
+    targets.length > 0
+      ? await pushToDevices(deps, targets, payload, options)
+      : "failed";
+  return desktop || pushed === "sent" ? "sent" : "failed";
 }
 
 // Sends to each device at once. "sent" if any device got it.

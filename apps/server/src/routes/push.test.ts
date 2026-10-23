@@ -133,6 +133,25 @@ describe("POST /api/push/subscriptions", () => {
     expect(saved.user.login).toBe("octocat");
   });
 
+  it("saves whether the browser is on a Mac, and leaves it when not sent", async () => {
+    const { agent } = await setup();
+    await subscribe(agent, { onMac: true });
+    await subscribe(agent);
+    const saved = await db.pushSubscription.findUniqueOrThrow({
+      where: { endpoint: endpoint() },
+    });
+    expect(saved.onMac).toBe(true);
+
+    await agent
+      .patch(`/api/push/subscriptions/${saved.id}`)
+      .set("Origin", APP_URL)
+      .send({ onMac: false });
+    const updated = await db.pushSubscription.findUniqueOrThrow({
+      where: { id: saved.id },
+    });
+    expect(updated.onMac).toBe(false);
+  });
+
   it("refuses an endpoint that isn't a push service", async () => {
     const { agent } = await setup();
     const res = await subscribe(agent, { endpoint: "https://localhost/push" });

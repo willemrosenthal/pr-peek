@@ -1,8 +1,9 @@
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createTestDb, TEST_DATABASE_URL } from "../test/db";
-import { ITEMS_CHANNEL, publishItemsChanged } from "./items";
+import { publishItemsChanged } from "./items";
 import { listenForItemChanges, type ItemsListener } from "./items-listener";
 import { createLogger } from "./logger";
+import { DESKTOP_CHANNEL } from "./push";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
@@ -52,9 +53,26 @@ it("reconnects after losing its connection and tells every subscriber", async ()
 
   await db.$executeRaw`
     SELECT pg_terminate_backend(pid) FROM pg_stat_activity
-    WHERE query = ${`LISTEN ${ITEMS_CHANNEL}`}`;
-  await vi.waitFor(() => expect(handler).toHaveBeenCalledOnce());
+    WHERE query LIKE 'LISTEN %'`;
+  await vi.waitFor(() =>
+    expect(handler).toHaveBeenCalledExactlyOnceWith({ type: "items" }),
+  );
 
   await publish("me");
   await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
+});
+
+it("passes on notifications for the user's Mac menu bar app", async () => {
+  const handler = vi.fn();
+  listener.subscribe("me", handler);
+  const payload = { title: "t", body: "b", url: "/", tag: "x" };
+
+  const message = JSON.stringify({ userId: "me", payload });
+  await db.$executeRaw`SELECT pg_notify(${DESKTOP_CHANNEL}, ${message})`;
+  await vi.waitFor(() =>
+    expect(handler).toHaveBeenCalledExactlyOnceWith({
+      type: "notify",
+      payload,
+    }),
+  );
 });

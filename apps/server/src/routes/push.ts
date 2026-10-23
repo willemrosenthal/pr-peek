@@ -66,10 +66,11 @@ export function pushRouter(deps: PushRouteDeps): Router {
   // Also called each time the app opens, so sending the same device again just updates it.
   router.post("/push/subscriptions", async (req, res) => {
     const userId = currentUser(res).id;
-    const { endpoint, keys, label } = parseInput(
+    const { endpoint, keys, label, onMac } = parseInput(
       addPushSubscriptionBody,
       req.body,
     );
+    const known = onMac === undefined ? {} : { onMac };
 
     const others = await db.pushSubscription.count({
       where: { userId, endpoint: { not: endpoint } },
@@ -86,15 +87,16 @@ export function pushRouter(deps: PushRouteDeps): Router {
       where: { endpoint },
     });
     const isMine = existing?.userId === userId;
-    const fresh = { userId, label, ...keys };
+    const fresh = { userId, label, ...keys, ...known };
     const saved = await db.pushSubscription.upsert({
       where: { endpoint },
       create: { endpoint, ...fresh },
       // Someone else signed in on this browser: start over as their device.
       update: isMine
-        ? keys
+        ? { ...keys, ...known }
         : {
             ...fresh,
+            onMac: onMac ?? null,
             minSeverity: "low",
             lastSuccessAt: null,
             failureCount: 0,

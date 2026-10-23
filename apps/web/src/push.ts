@@ -72,12 +72,17 @@ export async function turnOnPush(publicKey: string) {
     "/push/subscriptions",
     {
       method: "POST",
-      body: { ...subscription.toJSON(), label: deviceLabel() },
+      body: { ...subscription.toJSON(), label: deviceLabel(), onMac: onMac() },
     },
   );
-  remember(device.endpoint);
+  store(SAVED_ENDPOINT_KEY, device.endpoint);
+  store(MAC_SENT_KEY, device.endpoint);
   return device;
 }
+
+// A browser on a Mac. iPads in desktop mode say they're Macs too, but have touch.
+export const onMac = (ua = navigator.userAgent) =>
+  /Macintosh/.test(ua) && !(navigator.maxTouchPoints > 1);
 
 async function currentSubscription() {
   if (pushSupport() !== "supported") return null;
@@ -92,51 +97,62 @@ export async function thisDeviceEndpoint() {
 
 export async function unsubscribeThisDevice() {
   await (await currentSubscription())?.unsubscribe();
-  remember(null);
+  store(SAVED_ENDPOINT_KEY, null);
 }
 
 // The endpoint this browser last saved as a device, to spot when the browser changes it.
 const SAVED_ENDPOINT_KEY = "push-endpoint";
+// The endpoint whose device the server knows is or isn't on a Mac.
+const MAC_SENT_KEY = "push-on-mac-sent";
 
-function remembered() {
+function stored(key: string) {
   try {
-    return localStorage.getItem(SAVED_ENDPOINT_KEY);
+    return localStorage.getItem(key);
   } catch {
     return null;
   }
 }
 
-function remember(endpoint: string | null) {
+function store(key: string, value: string | null) {
   try {
-    if (endpoint) localStorage.setItem(SAVED_ENDPOINT_KEY, endpoint);
-    else localStorage.removeItem(SAVED_ENDPOINT_KEY);
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
   } catch {
     // Private windows can block storage. The next check just finds nothing to compare.
   }
 }
 
 // Run when the app opens. If the browser replaced its subscription, moves this device to
-// the new one. A device removed from another device stays removed. Returns true if it
-// changed the device.
+// the new one. Tells the server once whether the device is on a Mac, for devices saved
+// before it asked. A device removed from another device stays removed. Returns true if
+// it changed the device.
 export async function recheckPush(): Promise<boolean> {
   const current = await currentSubscription();
-  const saved = remembered();
-  if (!current || current.endpoint === saved) return false;
+  if (!current) return false;
+  const saved = stored(SAVED_ENDPOINT_KEY);
+  const macSent = stored(MAC_SENT_KEY) === current.endpoint;
+  if (current.endpoint === saved && macSent) return false;
 
   const { subscriptions } = await api<PushSubscriptionsResponse>(
     "/push/subscriptions",
   );
-  if (subscriptions.some((device) => device.endpoint === current.endpoint)) {
-    // Saved before this browser remembered its endpoint.
-    remember(current.endpoint);
-    return false;
-  }
-  const old = subscriptions.find((device) => device.endpoint === saved);
+  const mine = subscriptions.find(
+    (device) => device.endpoint === current.endpoint,
+  );
+  // Saved before this browser remembered its endpoint, or whether it's on a Mac.
+  const old = mine ?? subscriptions.find((device) => device.endpoint === saved);
   if (!old) return false;
-  await api(`/push/subscriptions/${old.id}`, {
-    method: "PATCH",
-    body: { subscription: current.toJSON() },
-  });
-  remember(current.endpoint);
-  return true;
+  const moved = !mine;
+  if (moved || !macSent) {
+    await api(`/push/subscriptions/${old.id}`, {
+      method: "PATCH",
+      body: {
+        onMac: onMac(),
+        ...(moved && { subscription: current.toJSON() }),
+      },
+    });
+  }
+  store(SAVED_ENDPOINT_KEY, current.endpoint);
+  store(MAC_SENT_KEY, current.endpoint);
+  return moved;
 }

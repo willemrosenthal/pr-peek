@@ -1,5 +1,6 @@
 import { reminderStage, waitingFor } from "@pr-peek/core";
 import { notifyItems, type NotifyDeps, type NotifyRequest } from "./notify";
+import { reachableUsers } from "./push";
 
 // Sends a reminder for each review request that reached a new stage: orange, red, or
 // another interval past red. A user's reminders go together, so several become one push.
@@ -12,7 +13,7 @@ export async function sendDueReminders(
   if (!deps.send) return 0;
   // Only review requests wait, so only they have `waitingSince`.
   const users = await db.user.findMany({
-    where: { pushSubscriptions: { some: {} } },
+    where: reachableUsers(now),
     select: {
       id: true,
       settings: true,
