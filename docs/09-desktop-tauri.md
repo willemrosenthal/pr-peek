@@ -36,7 +36,7 @@ For a copy that loads the live site, `pnpm desktop:build` makes `apps/desktop/sr
   - Written by hand instead: the generator asks questions as it runs and makes files we don't need.
 - [x] In `tauri.conf.json`:
   - The main window loads the app URL from an env based setting: `http://localhost:5173/?shell=tray` in dev, the prod URL in release builds.
-  - The window starts hidden, with no decorations (title bar), fixed size about 380 by 600, and skips the taskbar.
+  - The window starts hidden, with no decorations (title bar), fixed size about 420 by 600, and skips the taskbar.
   - The window is made in `src-tauri/src/lib.rs` instead, so the URL can depend on the build. `PR_PEEK_URL` overrides it.
 - [x] Add `apps/desktop/src-tauri/target` and `apps/desktop/src-tauri/gen` to `.gitignore`.
 - [x] Set the macOS activation policy to "accessory", so there's no Dock icon. The app lives only in the menu bar.

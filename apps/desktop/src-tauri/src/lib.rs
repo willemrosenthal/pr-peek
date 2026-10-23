@@ -354,7 +354,7 @@ pub fn run() {
             let window =
                 WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::External(tray_page("/")))
                     .title("pr-peek")
-                    .inner_size(380.0, 600.0)
+                    .inner_size(420.0, 600.0)
                     .resizable(false)
                     .decorations(false)
                     .always_on_top(true)
