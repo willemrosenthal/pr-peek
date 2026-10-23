@@ -143,12 +143,13 @@ it("sizes the app on this device, once the slider is let go", async () => {
   const root = document.documentElement;
   expect(size.getAttribute("aria-valuetext")).toBe("100%");
   try {
-    fireEvent.change(size, { target: { value: "3" } });
+    // Dragging fires input events. Letting go fires change.
+    fireEvent.input(size, { target: { value: "3" } });
     expect(size.getAttribute("aria-valuetext")).toBe("120%");
     expect(appScale.get()).toBe(1);
     expect(root.style.getPropertyValue("--scale")).toBe("");
 
-    fireEvent.pointerUp(size);
+    fireEvent.change(size);
     expect(appScale.get()).toBe(1.2);
     expect(root.style.getPropertyValue("--scale")).toBe("1.2");
   } finally {
