@@ -69,7 +69,9 @@
   grid-template-columns: 28px minmax(0, 1fr) auto;
 }
 
-.withAuthor > :first-child {
+/* The icon is there in place of a picture that can't load. */
+.author,
+.withAuthor .icon {
   grid-row: span 2;
 }
 

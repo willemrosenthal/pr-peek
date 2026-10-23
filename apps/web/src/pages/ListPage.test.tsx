@@ -63,8 +63,9 @@ describe("sections", () => {
       renderApp("/");
 
       await sectionButton(/Needs my review/);
+      const [row] = rows();
       await waitFor(() =>
-        expect(rows()[0]?.querySelector("img") !== null).toBe(showAuthors),
+        expect(row!.querySelector("img") !== null).toBe(showAuthors),
       );
     },
   );
