@@ -67,9 +67,14 @@ textarea {
 }
 
 /* Mac app dropdown: the window is see-through, so the page draws the rounded corners.
-   The body scrolls instead of the window, which keeps the scrollbar inside them. */
+   The body scrolls instead of the window, which keeps the scrollbar inside them. Both
+   html and body are clear, or the body's color would fill the whole window. */
 .dropdown {
   overflow: hidden;
+}
+
+.dropdown,
+.dropdown body {
   background: transparent;
 }
 
@@ -77,6 +82,11 @@ textarea {
   height: 100dvh;
   overflow-y: auto;
   border-radius: var(--radius-xl);
+}
+
+.dropdown #root {
+  min-height: 100%;
+  background: var(--color-page);
 }
 
 /* Hidden on screen, still read by screen readers. */
