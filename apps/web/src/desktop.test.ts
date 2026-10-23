@@ -46,7 +46,7 @@ describe("the menu bar", () => {
 describe("startDesktop", () => {
   // Clicks a link. True if pr-peek stopped the click. The test stops it after, since
   // jsdom can't load other pages.
-  const clickLink = (href: string, target?: string) => {
+  const clickLink = (href: string, target?: string, metaKey = false) => {
     const link = document.createElement("a");
     link.href = href;
     if (target) link.target = target;
@@ -57,7 +57,7 @@ describe("startDesktop", () => {
       event.preventDefault();
     };
     document.addEventListener("click", after);
-    link.click();
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true, metaKey }));
     document.removeEventListener("click", after);
     link.remove();
     return stopped;
@@ -70,10 +70,12 @@ describe("startDesktop", () => {
       const pr = "https://github.com/acme/web-app/pull/7";
       expect(clickLink(pr, "_blank")).toBe(true);
       expect(clickLink(pr)).toBe(true);
+      expect(clickLink(pr, "_blank", true)).toBe(true);
       expect(clickLink("/settings")).toBe(false);
       expect(callsOf(invoke, "open_external")).toEqual([
-        { url: pr },
-        { url: pr },
+        { url: pr, background: false },
+        { url: pr, background: false },
+        { url: pr, background: true },
       ]);
     } finally {
       stop();
