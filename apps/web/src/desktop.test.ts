@@ -126,6 +126,22 @@ describe("startDesktop", () => {
     expect(root.classList.contains("desktop-app")).toBe(false);
   });
 
+  it("clears focus when the window hides or shows", () => {
+    stubTauri();
+    const button = document.body.appendChild(document.createElement("button"));
+    const stop = startDesktop();
+    try {
+      for (const event of ["pr-peek:hidden", "pr-peek:shown"]) {
+        button.focus();
+        window.dispatchEvent(new Event(event));
+        expect(document.activeElement).not.toBe(button);
+      }
+    } finally {
+      stop();
+      button.remove();
+    }
+  });
+
   it("rounds the dropdown after a reload that lost ?shell=tray", () => {
     stubTauri();
     sessionStorage.setItem("pr-peek:shell", "tray");

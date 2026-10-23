@@ -122,6 +122,12 @@ function showScrollbarWhileScrolling() {
   };
 }
 
+function clearFocus() {
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+}
+
 // A native Mac notification, instead of a push to the browsers on this Mac.
 function showNotification(event: Event) {
   const { title, body, url } = (event as CustomEvent<PushPayload>).detail;
@@ -135,9 +141,16 @@ export function startDesktop(): () => void {
   const root = document.documentElement;
   root.classList.add("desktop-app");
   root.classList.toggle("dropdown", inDropdown());
-  // Marks the page while the window is hidden, so animations can pause.
-  const onHidden = () => root.classList.add("app-hidden");
-  const onShown = () => root.classList.remove("app-hidden");
+  // Marks the page while the window is hidden, so animations can pause. Clears focus,
+  // so the window never opens with a focus ring on a button.
+  const onHidden = () => {
+    root.classList.add("app-hidden");
+    clearFocus();
+  };
+  const onShown = () => {
+    root.classList.remove("app-hidden");
+    clearFocus();
+  };
   document.addEventListener("click", openLinksInBrowser, true);
   window.addEventListener("pr-peek:notify", showNotification);
   window.addEventListener("pr-peek:hidden", onHidden);
