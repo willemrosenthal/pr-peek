@@ -3,6 +3,6 @@ import { APP_NAME } from "./index";
 
 describe("core", () => {
   it("exports the app name", () => {
-    expect(APP_NAME).toBe("pr-peek");
+    expect(APP_NAME).toBe("Git Buddy");
   });
 });

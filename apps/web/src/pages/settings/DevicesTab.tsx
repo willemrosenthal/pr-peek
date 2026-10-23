@@ -26,13 +26,13 @@ export function DevicesTab() {
   return (
     <>
       <TabHeading title="Devices">
-        Where pr-peek sends notifications. Turn them on from each device.
+        Where Git Buddy sends notifications. Turn them on from each device.
       </TabHeading>
       {!isTray && <TurnOnNotifications />}
       <DeviceList />
       {!isTray && (
         <p>
-          <Link to="/install">Install pr-peek on your devices</Link>
+          <Link to="/install">Install Git Buddy on your devices</Link>
         </p>
       )}
     </>

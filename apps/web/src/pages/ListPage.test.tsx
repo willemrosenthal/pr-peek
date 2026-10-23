@@ -256,13 +256,15 @@ describe("tray mode", () => {
     fakeApi(listApi());
     renderApp("/?shell=tray");
     await screen.findByRole("link", { name: "Open in browser" });
-    expect(screen.queryByRole("button", { name: "Quit pr-peek" })).toBe(null);
+    expect(
+      screen.queryByRole("button", { name: "Quit Git Buddy" }),
+    ).toBe(null);
     cleanup();
 
     const invoke = stubTauri();
     renderApp("/?shell=tray");
     await userEvent.click(
-      await screen.findByRole("button", { name: "Quit pr-peek" }),
+      await screen.findByRole("button", { name: "Quit Git Buddy" }),
     );
     expect(callsOf(invoke, "quit_app")).toHaveLength(1);
   });

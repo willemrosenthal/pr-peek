@@ -6,8 +6,8 @@ export function ReposTab() {
   return (
     <>
       <TabHeading title="Repositories">
-        pr-peek only looks at these repos. New ones show up in your list within
-        a minute.
+        Git Buddy only looks at these repos. New ones show up in your list
+        within a minute.
       </TabHeading>
       <WatchedRepos />
       <RepoPicker />

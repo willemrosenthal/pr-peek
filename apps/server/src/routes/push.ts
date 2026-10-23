@@ -22,7 +22,7 @@ export interface PushRouteDeps {
 }
 
 const TEST_PUSH: PushPayload = {
-  title: "pr-peek",
+  title: "Git Buddy",
   body: "Notifications work on this device.",
   url: "/",
   tag: "test",

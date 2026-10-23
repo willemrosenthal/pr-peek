@@ -1,6 +1,9 @@
-# pr-peek
+# Git Buddy (code name pr-peek)
 
 A tool that tracks GitHub PRs that need your attention. Web app (PWA), Mac menu bar app (Tauri), push notifications.
+
+- Call it **Git Buddy** in anything people see: UI text, notifications, docs.
+- Keep `pr-peek` for internal names: packages, storage keys, DOM events, the database. The Mac app's ID (`com.git-buddy.pr-peek`) must never change, or users lose their login and launch at login.
 
 - What we're building and the tech stack: [docs/overview.md](docs/overview.md)
 - Build plans, in order: [docs/README.md](docs/README.md)

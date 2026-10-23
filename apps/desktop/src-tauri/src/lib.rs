@@ -234,6 +234,7 @@ fn launch_at_login_by_default(app: &AppHandle) {
     if cfg!(debug_assertions) || !installed {
         return;
     }
+    replace_old_login_item(app);
     let Ok(dir) = app.path().app_data_dir() else {
         return;
     };
@@ -244,6 +245,18 @@ fn launch_at_login_by_default(app: &AppHandle) {
     if apply_launch_at_login(app, true).is_ok() {
         let _ = std::fs::create_dir_all(&dir);
         let _ = std::fs::write(marker, "");
+    }
+}
+
+// The app used to be called pr-peek. Its login item has that name and opens the old app,
+// so it's swapped for one that opens this copy.
+fn replace_old_login_item(app: &AppHandle) {
+    let Ok(home) = app.path().home_dir() else {
+        return;
+    };
+    let old = home.join("Library/LaunchAgents/pr-peek.plist");
+    if std::fs::remove_file(old).is_ok() {
+        let _ = apply_launch_at_login(app, true);
     }
 }
 
@@ -260,7 +273,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<CheckMenuItem<Wry>> {
         None::<&str>,
     )?;
     let separator = PredefinedMenuItem::separator(app)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit pr-peek", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit Git Buddy", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
         &[&refresh, &open, &settings, &launch, &separator, &quit],
@@ -353,7 +366,7 @@ pub fn run() {
 
             let window =
                 WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::External(tray_page("/")))
-                    .title("pr-peek")
+                    .title("Git Buddy")
                     .inner_size(420.0, 600.0)
                     .resizable(false)
                     .decorations(false)

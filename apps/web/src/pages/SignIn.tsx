@@ -30,7 +30,7 @@ export function SignIn() {
     <main className={styles.page}>
       <div className={styles.panel}>
         <header className={styles.header}>
-          <h1 className={styles.title}>pr-peek</h1>
+          <h1 className={styles.title}>Git Buddy</h1>
           <p className={styles.tagline}>
             The pull requests waiting on you, in one list.
           </p>
@@ -55,12 +55,12 @@ export function SignIn() {
             Public repos only
           </label>
           <p className={styles.hint}>
-            GitHub will ask to let pr-peek see your repos, teams, and
-            notifications. pr-peek only reads. It never changes anything on
+            GitHub will ask to let Git Buddy see your repos, teams, and
+            notifications. Git Buddy only reads. It never changes anything on
             GitHub. Pick "Public repos only" to keep private repos out.
           </p>
           <p className={styles.hint}>
-            If your company blocks pr-peek, sign in anyway. You can add a
+            If your company blocks Git Buddy, sign in anyway. You can add a
             personal access token after.
           </p>
         </section>

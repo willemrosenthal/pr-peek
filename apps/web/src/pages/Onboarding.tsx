@@ -26,7 +26,7 @@ export function Onboarding() {
     <main className={styles.page}>
       <div className={styles.panel}>
         <header className={styles.header}>
-          <h1 className={styles.title}>Welcome to pr-peek</h1>
+          <h1 className={styles.title}>Welcome to Git Buddy</h1>
           <p className={styles.hint}>
             Step {STEPS.indexOf(step) + 1} of {STEPS.length}
           </p>
@@ -49,7 +49,7 @@ function ReposStep({ onNext }: { onNext: () => void }) {
     <section className={styles.step}>
       <h2 className={styles.stepTitle}>Pick the repos to watch</h2>
       <p className={styles.hint}>
-        pr-peek only looks at these. You can change them later in settings.
+        Git Buddy only looks at these. You can change them later in settings.
       </p>
       <WatchedRepos />
       <RepoPicker />

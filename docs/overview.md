@@ -1,4 +1,6 @@
-# pr-peek
+# Git Buddy
+
+Git Buddy is the product name. The code still uses its first name, `pr-peek`, for package names, storage keys, events, and the repo.
 
 A tool that watches the GitHub repos you care about and tells you what needs your attention: reviews you owe, replies to your comments, and problems on your own PRs. It runs as a web app you can install on your phone (a PWA), as a Mac menu bar app, and it sends push notifications to both.
 

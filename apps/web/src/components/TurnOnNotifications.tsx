@@ -43,7 +43,7 @@ export function TurnOnNotifications() {
   if (Notification.permission === "denied") {
     return (
       <p className={styles.hint}>
-        Notifications are blocked for pr-peek. Allow them in this browser's
+        Notifications are blocked for Git Buddy. Allow them in this browser's
         settings for the site, then reload.
       </p>
     );

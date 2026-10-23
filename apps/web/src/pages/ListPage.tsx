@@ -55,7 +55,7 @@ export function ListPage() {
             </a>
             {inDesktopApp() && (
               <button type="button" className={styles.quit} onClick={quitApp}>
-                Quit pr-peek
+                Quit Git Buddy
               </button>
             )}
           </footer>
@@ -135,7 +135,7 @@ function EmptyList() {
       <div className={styles.message}>
         <p className={styles.emptyTitle}>You're not watching any repos yet</p>
         <p>
-          Pick the repos pr-peek should watch in{" "}
+          Pick the repos Git Buddy should watch in{" "}
           <Link to="/settings/repos">settings</Link>.
         </p>
       </div>
