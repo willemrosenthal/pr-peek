@@ -20,9 +20,15 @@ const SECTIONS: { group: ItemGroup; title: string }[] = [
   { group: "mine", title: "My PRs" },
 ];
 
-const isGroupList = (value: unknown): value is ItemGroup[] =>
+// The sections that can collapse: each group, and Quiet at the bottom.
+type SectionKey = ItemGroup | "quiet";
+
+const isSectionList = (value: unknown): value is SectionKey[] =>
   Array.isArray(value) &&
-  value.every((group) => SECTIONS.some((section) => section.group === group));
+  value.every(
+    (key) =>
+      key === "quiet" || SECTIONS.some((section) => section.group === key),
+  );
 
 export function ListPage() {
   const me = useMe();
@@ -76,14 +82,14 @@ function ListBody() {
 }
 
 function Sections({ groups }: { groups: ItemsResponse }) {
-  const [collapsed, setCollapsed] = useStoredState<ItemGroup[]>(
+  const [collapsed, setCollapsed] = useStoredState<SectionKey[]>(
     "pr-peek:collapsed",
     [],
-    isGroupList,
+    isSectionList,
   );
-  const setOpen = (group: ItemGroup, open: boolean) =>
+  const setOpen = (key: SectionKey, open: boolean) =>
     setCollapsed(
-      open ? collapsed.filter((g) => g !== group) : [...collapsed, group],
+      open ? collapsed.filter((k) => k !== key) : [...collapsed, key],
     );
 
   const unseenIds = useMemo(
@@ -97,20 +103,35 @@ function Sections({ groups }: { groups: ItemsResponse }) {
   );
   useMarkSeen(unseenIds);
 
-  return SECTIONS.map(({ group, title }) => {
-    const idle = group === "mine" ? groups.idlePrs : [];
-    if (groups[group].length + idle.length === 0) return null;
-    return (
-      <ItemSection
-        key={group}
-        title={title}
-        items={groups[group]}
-        idle={idle}
-        open={!collapsed.includes(group)}
-        onOpenChange={(open) => setOpen(group, open)}
-      />
-    );
-  });
+  const { quiet } = groups;
+  return (
+    <>
+      {SECTIONS.map(({ group, title }) => {
+        const idle = group === "mine" ? groups.idlePrs : [];
+        if (groups[group].length + idle.length === 0) return null;
+        return (
+          <ItemSection
+            key={group}
+            title={title}
+            items={groups[group]}
+            idle={idle}
+            open={!collapsed.includes(group)}
+            onOpenChange={(open) => setOpen(group, open)}
+          />
+        );
+      })}
+      {quiet.items.length + quiet.idlePrs.length > 0 && (
+        <ItemSection
+          title="Quiet"
+          items={quiet.items}
+          idle={quiet.idlePrs}
+          quiet
+          open={!collapsed.includes("quiet")}
+          onOpenChange={(open) => setOpen("quiet", open)}
+        />
+      )}
+    </>
+  );
 }
 
 function EmptyList() {

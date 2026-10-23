@@ -31,6 +31,8 @@ const minutesAgo = (n: number) =>
 
 const sectionButton = (name: RegExp) => screen.findByRole("button", { name });
 const rows = () => screen.queryAllByRole("link", { name: /PR/ });
+// The Quiet section's button, not a row's "Quiet until..." button.
+const QUIET = /^Quiet\s*\d/;
 
 describe("sections", () => {
   it("shows each section with items, and its count", async () => {
@@ -95,6 +97,96 @@ describe("sections", () => {
     renderApp("/");
     const again = await sectionButton(/Needs my review/);
     expect(again.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("puts quiet PRs in a Quiet section at the bottom", async () => {
+    const loud = item();
+    const hushed = item({ kind: "reply" });
+    const idle = idlePr();
+    fakeApi(
+      listApi({
+        "GET /api/items": () =>
+          json(
+            groups({
+              review: [loud],
+              quiet: { items: [hushed], idlePrs: [idle] },
+            }),
+          ),
+      }),
+    );
+    renderApp("/");
+
+    expect((await sectionButton(QUIET)).textContent).toContain("2");
+    expect(screen.queryByRole("button", { name: /Replies to me/ })).toBe(null);
+    expect(rows().map((row) => row.textContent)).toEqual([
+      expect.stringContaining(loud.pr.title),
+      expect.stringContaining(hushed.pr.title),
+      expect.stringContaining(idle.pr.title),
+    ]);
+    // One line: no summary.
+    expect(rows()[1]!.textContent).not.toContain(hushed.summary);
+  });
+
+  // A list that moves `row` into or out of Quiet once the save answers. The save waits
+  // for `finish`.
+  function quietApi(row: ReturnType<typeof item>, quietAfter: boolean) {
+    let quiet = !quietAfter;
+    let finish = () => {};
+    const method = quietAfter ? "PUT" : "DELETE";
+    const fetch = fakeApi(
+      listApi({
+        "GET /api/items": () =>
+          json(
+            quiet
+              ? groups({ quiet: { items: [row], idlePrs: [] } })
+              : groups({ review: [row] }),
+          ),
+        [`${method} /api/prs/${row.pr.id}/quiet`]: () =>
+          new Promise((resolve) => {
+            finish = () => {
+              quiet = quietAfter;
+              resolve(noContent());
+            };
+          }),
+      }),
+    );
+    return { fetch, finish: () => act(() => finish()) };
+  }
+
+  it("quiets a PR right away, then saves it", async () => {
+    const asked = item();
+    const { fetch, finish } = quietApi(asked, true);
+    renderApp("/");
+
+    await sectionButton(/Needs my review/);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Quiet until something new happens" }),
+    );
+    // Moved before the save answers.
+    expect(await sectionButton(QUIET)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Needs my review/ })).toBe(
+      null,
+    );
+    expect(callsTo(fetch, `/api/prs/${asked.pr.id}/quiet`)).toHaveLength(1);
+
+    finish();
+    await waitFor(() =>
+      expect(callsTo(fetch, "/api/items").length).toBeGreaterThan(1),
+    );
+    expect(await sectionButton(QUIET)).toBeTruthy();
+  });
+
+  it("brings a quiet PR back", async () => {
+    const hushed = item();
+    const { fetch, finish } = quietApi(hushed, false);
+    renderApp("/");
+
+    await sectionButton(QUIET);
+    await userEvent.click(screen.getByRole("button", { name: "Bring back" }));
+    expect(await sectionButton(/Needs my review/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: QUIET })).toBe(null);
+    expect(callsTo(fetch, `/api/prs/${hushed.pr.id}/quiet`)).toHaveLength(1);
+    finish();
   });
 
   it("ignores a bad saved collapse state", async () => {
