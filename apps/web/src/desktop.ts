@@ -1,5 +1,6 @@
 import type { PushPayload, SummaryResponse } from "@pr-peek/core";
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { inTray } from "./hooks/useIsTray";
 
 // The Mac menu bar app (apps/desktop). Everything here does nothing in a browser. The
 // native side fires `pr-peek:hidden` and `pr-peek:refresh` on `window`. This module
@@ -139,8 +140,7 @@ export function startDesktop(): () => void {
   // Styles for the Mac app. The dropdown under the icon also gets rounded corners.
   const root = document.documentElement;
   root.classList.add("desktop-app");
-  const dropdown = new URLSearchParams(location.search).get("shell") === "tray";
-  root.classList.toggle("dropdown", dropdown);
+  root.classList.toggle("dropdown", inTray());
   document.addEventListener("click", openLinksInBrowser, true);
   window.addEventListener("pr-peek:notify", showNotification);
   const wake = watchForWake();

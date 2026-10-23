@@ -121,6 +121,14 @@ describe("startDesktop", () => {
     expect(root.classList.contains("desktop-app")).toBe(false);
   });
 
+  it("rounds the dropdown after a reload that lost ?shell=tray", () => {
+    stubTauri();
+    sessionStorage.setItem("pr-peek:shell", "tray");
+    const stop = startDesktop();
+    expect(document.documentElement.classList.contains("dropdown")).toBe(true);
+    stop();
+  });
+
   it("says when the Mac wakes from sleep", () => {
     stubTauri();
     vi.useFakeTimers();
