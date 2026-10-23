@@ -9,7 +9,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::utils::config::BackgroundThrottlingPolicy;
 use tauri::window::Color;
 use tauri::{
-    AppHandle, LogicalPosition, LogicalSize, Manager, Theme, Url, WebviewUrl, WebviewWindow,
+    AppHandle, LogicalSize, Manager, PhysicalPosition, Theme, Url, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder, WindowEvent, Wry,
 };
 use tauri_plugin_autostart::ManagerExt;
@@ -86,17 +86,22 @@ fn show_window(window: &WebviewWindow) {
     tell_page(window, "shown");
 }
 
-// Moves the dropdown a little below the tray icon.
+// Centers the dropdown under the tray icon, a little below the menu bar.
 fn place_under_icon(window: &WebviewWindow) {
-    // The tray position is only known after the icon is clicked once.
-    if window.move_window(Position::TrayBottomCenter).is_err() {
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let icon = window
+        .app_handle()
+        .tray_by_id(TRAY)
+        .and_then(|tray| tray.rect().ok().flatten());
+    let (Some(icon), Ok(size)) = (icon, window.outer_size()) else {
         let _ = window.move_window(Position::TopRight);
-    }
-    let (Ok(position), Ok(scale)) = (window.outer_position(), window.scale_factor()) else {
         return;
     };
-    let position = position.to_logical::<f64>(scale);
-    let _ = window.set_position(LogicalPosition::new(position.x, position.y + MENU_BAR_GAP));
+    let at = icon.position.to_physical::<f64>(scale);
+    let icon_size = icon.size.to_physical::<f64>(scale);
+    let x = at.x + icon_size.width / 2.0 - f64::from(size.width) / 2.0;
+    let y = at.y + icon_size.height + MENU_BAR_GAP * scale;
+    let _ = window.set_position(PhysicalPosition::new(x, y));
 }
 
 // Every hide goes through here, so the page always hears about it.
@@ -383,7 +388,6 @@ fn build_tray(app: &AppHandle) -> tauri::Result<CheckMenuItem<Wry>> {
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            tauri_plugin_positioner::on_tray_event(tray.app_handle(), &event);
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
