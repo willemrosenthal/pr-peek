@@ -38,13 +38,15 @@ const AGE_TONES: Record<StaleLevel, string | undefined> = {
 // One item, as two lines: what PR and how long, then what happened and where.
 export function ItemRow({ item }: { item: ItemDto }) {
   const { Icon: KindIcon, tone } = KIND_ICONS[item.kind];
+  const botComment = item.actorIsBot && item.kind === "commented";
   return (
     <Row
       pr={item.pr}
       className={item.unseen && styles.unseen}
       // Keeps the kind's color, so a bot's approval still reads as an approval.
+      // Bot comments get their own, since gray is for drafts.
       Icon={item.actorIsBot ? BotMessageSquare : KindIcon}
-      tone={tone}
+      tone={botComment ? styles.bot : tone}
       title={
         <>
           {item.unseen && <span className="visually-hidden">New: </span>}

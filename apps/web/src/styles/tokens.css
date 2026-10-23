@@ -21,6 +21,8 @@
   --color-warning-bg: #fff0db;
   --color-success: #1e6b34;
   --color-reply: #5b33b6;
+  /* Bot comments. Not gray, which is for drafts. */
+  --color-bot: #9a7fb8;
 
   --font-family:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial,
@@ -75,6 +77,7 @@
     --color-warning-bg: #3a2a12;
     --color-success: #6fd08a;
     --color-reply: #c2a8ff;
+    --color-bot: #b78dc9;
     --shadow-panel: 0 12px 32px rgb(0 0 0 / 50%);
     --color-scrollbar: rgb(255 255 255 / 35%);
   }
