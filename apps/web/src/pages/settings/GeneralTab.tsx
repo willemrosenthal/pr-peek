@@ -20,6 +20,7 @@ import {
   setLaunchAtLogin,
   type CountStyle,
 } from "../../desktop";
+import { useLocalSetting } from "../../localSetting";
 import { queryKeys, useMe, useSettings } from "../../queries";
 import { TabHeading } from "./SettingsLayout";
 
@@ -109,7 +110,7 @@ function LaunchAtLoginRow() {
 
 // Kept on this Mac, since only its menu bar uses it.
 function MenuBarCountRow() {
-  const style = countStyle.useValue();
+  const style = useLocalSetting(countStyle);
   return (
     <CardRow>
       <RowText
@@ -133,6 +134,7 @@ function MenuBarCountRow() {
 
 // Kept on this Mac, like the count.
 function ColoredIconRow() {
+  const colored = useLocalSetting(coloredIcon);
   return (
     <CardRow>
       <RowText
@@ -141,7 +143,7 @@ function ColoredIconRow() {
       />
       <Switch
         label="Colored icon"
-        checked={coloredIcon.useValue()}
+        checked={colored}
         onChange={coloredIcon.set}
       />
     </CardRow>

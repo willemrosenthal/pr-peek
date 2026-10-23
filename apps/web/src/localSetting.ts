@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from "react";
 
-// A setting kept on this device in localStorage. Every component reading it updates
-// together. Falls back to `fallback` if storage fails or holds something `isValid`
-// rejects.
+// A setting kept on this device in localStorage. Every component reading it with
+// useLocalSetting updates together. Falls back to `fallback` if storage fails or holds
+// something `isValid` rejects. Values must be primitives, since each read parses again.
 export function localSetting<T>(
   key: string,
   fallback: T,
@@ -35,8 +35,13 @@ export function localSetting<T>(
     return () => listeners.delete(listener);
   };
 
-  return { get, set, useValue: () => useSyncExternalStore(subscribe, get) };
+  return { get, set, subscribe };
 }
+
+export type LocalSetting<T> = ReturnType<typeof localSetting<T>>;
+
+export const useLocalSetting = <T>(setting: LocalSetting<T>) =>
+  useSyncExternalStore(setting.subscribe, setting.get);
 
 // Older settings were saved as plain text, not JSON.
 function parse(stored: string): unknown {
