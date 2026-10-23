@@ -12,12 +12,14 @@ import type {
 import {
   keepPreviousData,
   useInfiniteQuery,
+  useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { api, ApiError, isUnauthorized } from "./api";
 import { thisDeviceEndpoint } from "./push";
+import { moveQuiet } from "./quiet";
 
 export const queryKeys = {
   me: ["me"],
@@ -51,6 +53,36 @@ export function useItems() {
     queryKey: queryKeys.items,
     queryFn: () => api<ItemsResponse>("/items"),
     refetchInterval: REFETCH_MS,
+  });
+}
+
+const SET_QUIET = ["set-quiet"];
+
+// Quiets a PR until something new happens on it, or brings it back. The row moves
+// right away, then the list and counts reload.
+export function useSetQuiet() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: SET_QUIET,
+    mutationFn: ({ prId, quiet }: { prId: string; quiet: boolean }) =>
+      api(`/prs/${prId}/quiet`, { method: quiet ? "PUT" : "DELETE" }),
+    onMutate: async ({ prId, quiet }) => {
+      // Stops a list that's loading from undoing the move.
+      await queryClient.cancelQueries({ queryKey: queryKeys.items });
+      queryClient.setQueryData<ItemsResponse>(
+        queryKeys.items,
+        (old) => old && moveQuiet(old, prId, quiet),
+      );
+    },
+    onSettled: () => {
+      // Waits for the last of several quick saves, so a reload doesn't undo a later move.
+      // This save still counts until it settles.
+      if (queryClient.isMutating({ mutationKey: SET_QUIET }) > 1) return;
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.items }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.summary }),
+      ]);
+    },
   });
 }
 

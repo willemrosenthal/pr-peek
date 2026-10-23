@@ -35,21 +35,31 @@ const AGE_TONES: Record<StaleLevel, string | undefined> = {
   late: styles.danger,
 };
 
-// One item, as two lines: what PR and how long, then what happened and where.
-export function ItemRow({ item }: { item: ItemDto }) {
+// One item, as two lines: what PR and how long, then what happened and where. A quiet
+// one is a single grey line.
+export function ItemRow({
+  item,
+  quiet = false,
+}: {
+  item: ItemDto;
+  quiet?: boolean;
+}) {
   const { Icon: KindIcon, tone } = KIND_ICONS[item.kind];
   const botComment = item.actorIsBot && item.kind === "commented";
   return (
     <Row
       pr={item.pr}
-      className={item.unseen && styles.unseen}
+      quiet={quiet}
+      className={item.unseen && !quiet ? styles.unseen : undefined}
       // Keeps the kind's color, so a bot's approval still reads as an approval.
       // Bot comments get their own color.
       Icon={item.actorIsBot ? BotMessageSquare : KindIcon}
       tone={botComment ? styles.bot : tone}
       title={
         <>
-          {item.unseen && <span className="visually-hidden">New: </span>}
+          {item.unseen && !quiet && (
+            <span className="visually-hidden">New: </span>
+          )}
           {item.pr.title}
         </>
       }
@@ -66,11 +76,18 @@ export function ItemRow({ item }: { item: ItemDto }) {
 }
 
 // One of the user's PRs with nothing to do. Drafts are dimmed.
-export function IdlePrRow({ pr }: { pr: IdlePrDto }) {
+export function IdlePrRow({
+  pr,
+  quiet = false,
+}: {
+  pr: IdlePrDto;
+  quiet?: boolean;
+}) {
   return (
     <Row
       pr={pr.pr}
-      className={pr.isDraft && styles.draft}
+      quiet={quiet}
+      className={pr.isDraft && !quiet ? styles.draft : undefined}
       Icon={pr.isDraft ? SquircleDashed : Squircle}
       tone={styles.muted}
       title={pr.pr.title}
@@ -84,9 +101,11 @@ export function IdlePrRow({ pr }: { pr: IdlePrDto }) {
   );
 }
 
-// The two line layout both rows share. Children are the second line's text.
+// The two line layout both rows share. Children are the second line's text, which a
+// quiet row leaves out.
 function Row({
   pr,
+  quiet,
   className,
   Icon,
   tone,
@@ -96,7 +115,8 @@ function Row({
   children,
 }: {
   pr: ItemDto["pr"];
-  className: string | false | undefined;
+  quiet: boolean;
+  className: string | undefined;
   Icon: LucideIcon;
   tone: string | undefined;
   title: ReactNode;
@@ -106,7 +126,7 @@ function Row({
 }) {
   return (
     <a
-      className={cx(styles.row, className)}
+      className={cx(styles.row, quiet && styles.quiet, className)}
       href={pr.url}
       target="_blank"
       rel="noopener noreferrer"
@@ -116,13 +136,17 @@ function Row({
       </span>
       <span className={styles.title}>{title}</span>
       <span className={cx(styles.age, ageTone)}>{age}</span>
-      <span className={styles.summary}>{children}</span>
-      <span className={styles.repo}>
-        <span style={pr.color ? { color: pr.color } : undefined}>
-          {pr.repo}
-        </span>{" "}
-        #{pr.number}
-      </span>
+      {!quiet && (
+        <>
+          <span className={styles.summary}>{children}</span>
+          <span className={styles.repo}>
+            <span style={pr.color ? { color: pr.color } : undefined}>
+              {pr.repo}
+            </span>{" "}
+            #{pr.number}
+          </span>
+        </>
+      )}
     </a>
   );
 }
