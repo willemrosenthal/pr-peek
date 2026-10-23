@@ -3,8 +3,9 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { inTray } from "./hooks/useIsTray";
 
 // The Mac menu bar app (apps/desktop). Everything here does nothing in a browser. The
-// native side fires `pr-peek:hidden` and `pr-peek:refresh` on `window`. This module
-// fires `pr-peek:wake`, and shows each `pr-peek:notify` from the live stream.
+// native side fires `pr-peek:hidden`, `pr-peek:shown`, and `pr-peek:refresh` on
+// `window`. This module fires `pr-peek:wake`, and shows each `pr-peek:notify` from the
+// live stream.
 
 export const inDesktopApp = () => isTauri();
 
