@@ -6,6 +6,7 @@ import { inDesktopApp, popOut } from "../desktop";
 import { useIsDropdown } from "../hooks/useIsTray";
 import { useNow } from "../hooks/useNow";
 import styles from "./ListHeader.module.css";
+import { Mascot } from "./Mascot";
 
 export function ListHeader({
   lastSyncedAt,
@@ -20,7 +21,10 @@ export function ListHeader({
   return (
     <header className={styles.header}>
       <div className={styles.text}>
-        <h1 className={styles.title}>Git Buddy</h1>
+        <h1 className={styles.title}>
+          <Mascot />
+          Git Buddy
+        </h1>
         <UpdatedAt lastSyncedAt={lastSyncedAt} />
       </div>
       <button

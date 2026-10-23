@@ -5,7 +5,6 @@ fn main() {
             "set_tray_state",
             "open_external",
             "hide_window",
-            "quit_app",
             "notify",
             "launch_at_login",
             "set_launch_at_login",

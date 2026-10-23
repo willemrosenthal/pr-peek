@@ -27,6 +27,8 @@ The Tauri window loads the **hosted web app** (`https://www.git-buddy.com/?shell
    - 6a: thin scrollbar and rounded corners.
    - 6b: back to the list after time away, and updates while the dropdown is hidden.
    - 6c: pop out into a window.
+   - 6d: no footer, and a switch for the colored icon.
+   - 6e: a scale setting and the mascot, for every version of the app.
 
 Run it with `pnpm desktop` (and `pnpm dev` for the web app it loads). The desktop package has no `dev` or `build` script on purpose, so `pnpm dev` and Render's `pnpm build` don't compile Rust.
 
@@ -66,7 +68,7 @@ For a copy that loads the live site, `pnpm desktop:build` makes `apps/desktop/sr
   - `notify({ title, body, url, itemId })`: shows a native Mac notification. (As built: `notify({ alert: { title, body, url } })`, in PR 3b.)
   - `open_external(url)`: opens a PR in the default browser.
   - `hide_window()`.
-  - As built: `set_tray_state({ title, icon })`, since the page works out the text. `icon` is `plain`, `stale` (orange), or `failing` (red). Also `quit_app()`. `open_external` only opens http and https links. Debug builds print each call in the `pnpm desktop` terminal.
+  - As built: `set_tray_state({ title, icon })`, since the page works out the text. `icon` is `plain`, `stale` (orange), or `failing` (red). `open_external` only opens http and https links. Debug builds print each call in the `pnpm desktop` terminal.
 - [x] In Tauri capabilities, allow only the app's own domain (prod and localhost) to call these commands. (`src-tauri/capabilities/web-app.json`. A `PR_PEEK_URL` on another domain loads, but can't call them.)
 - [x] In `apps/web`, a `desktop.ts` module detects Tauri (`isTauri()` from `@tauri-apps/api/core`) and:
   - Calls `set_tray_state` whenever the summary changes.
@@ -109,7 +111,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 - [ ] Generate an updater signing key pair with `pnpm tauri signer generate`. The public key goes in `tauri.conf.json`. **(You)** Save the private key and password as GitHub Actions secrets.
 - [ ] Updater plugin settings:
   - Check on launch and every 6 hours.
-  - Show "Update ready. Restart?" in the dropdown footer rather than restarting on its own.
+  - Show "Update ready. Restart?" in the dropdown rather than restarting on its own.
 - [ ] **Where updates are hosted:** release files on a **private** repo's GitHub Releases can't be downloaded by other people's apps. Pick one:
   - Make the repo public, or
   - Publish releases to a separate public `pr-peek-releases` repo, or
@@ -144,6 +146,12 @@ The Mac browser may also have a push subscription, so the same alert could arriv
   - The page reloads with `?shell=window` instead of `?shell=tray`. `useIsTray` is true for both. Only the corners and the pop out button need the dropdown itself.
   - The menu bar icon and the shortcut bring the popped out window to the front instead of hiding it.
   - Not yet: a Dock icon or Cmd+Tab for the window, and remembering its size and place.
+- [x] No footer in the dropdown. "Open in browser" and "Quit" are in the icon's right click menu. The `quit_app` command went with it.
+- [x] A "Colored icon" switch in Settings, General, Menu bar. Off keeps the icon plain. Kept on this Mac, like the count style. Both use `localSetting.ts`.
+- [x] A "Size" slider in Settings, General, in every version: 90%, 100%, 110%, 120%. Kept on each device (`scale.ts`).
+  - CSS `zoom` on `#root`, like Cmd+ in a browser. Set before the first render, so there's no flash.
+  - Inside `#root`, pages fill the screen with flex, never `dvh`. Browsers disagree on how zoom scales viewport units.
+- [x] The mascot from the app icon sits left of "Git Buddy" in the list header, in a rainbow that shifts color. It pauses while the dropdown is hidden, and stays still for people who turn on Reduce Motion.
 
 ## Done when
 

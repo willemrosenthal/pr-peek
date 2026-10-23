@@ -26,17 +26,17 @@ describe("the menu bar", () => {
   });
 
   it("colors the icon for failing checks over late reviews", () => {
-    expect(trayIcon(summary())).toBe("plain");
-    expect(trayIcon(summary({ hasStale: true }))).toBe("stale");
-    expect(trayIcon(summary({ hasStale: true, hasFailing: true }))).toBe(
-      "failing",
-    );
+    const failing = summary({ hasStale: true, hasFailing: true });
+    expect(trayIcon(summary(), true)).toBe("plain");
+    expect(trayIcon(summary({ hasStale: true }), true)).toBe("stale");
+    expect(trayIcon(failing, true)).toBe("failing");
+    expect(trayIcon(failing, false)).toBe("plain");
   });
 
   it("sends the state to the app, and nothing in a browser", () => {
-    setTrayState(counts, "total");
+    setTrayState(counts, "total", true);
     const invoke = stubTauri();
-    setTrayState(counts, "split");
+    setTrayState(counts, "split", true);
     expect(callsOf(invoke, "set_tray_state")).toEqual([
       { state: { title: "3 · 1 · 3", icon: "plain" } },
     ]);
@@ -114,6 +114,11 @@ describe("startDesktop", () => {
       expect(root.classList.contains("scrolling")).toBe(true);
       vi.advanceTimersByTime(1000);
       expect(root.classList.contains("scrolling")).toBe(false);
+
+      window.dispatchEvent(new Event("pr-peek:hidden"));
+      expect(root.classList.contains("app-hidden")).toBe(true);
+      window.dispatchEvent(new Event("pr-peek:shown"));
+      expect(root.classList.contains("app-hidden")).toBe(false);
     } finally {
       stop();
       vi.useRealTimers();

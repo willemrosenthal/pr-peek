@@ -1,6 +1,7 @@
 import type { PushPayload, SummaryResponse } from "@pr-peek/core";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { inDropdown } from "./hooks/useIsTray";
+import { localSetting } from "./localSetting";
 
 // The Mac menu bar app (apps/desktop). Everything here does nothing in a browser. The
 // native side fires `pr-peek:hidden`, `pr-peek:shown`, and `pr-peek:refresh` on
@@ -34,21 +35,25 @@ export function trayTitle(summary: SummaryResponse, style: CountStyle) {
   return String(summary.total);
 }
 
-// A failing check shows over a late review.
-export const trayIcon = (summary: SummaryResponse) =>
-  summary.hasFailing ? "failing" : summary.hasStale ? "stale" : "plain";
+// A failing check shows over a late review. With `colored` off, the icon stays plain.
+export function trayIcon(summary: SummaryResponse, colored: boolean) {
+  if (!colored) return "plain";
+  return summary.hasFailing ? "failing" : summary.hasStale ? "stale" : "plain";
+}
 
 const sendTrayState = (title: string, icon: ReturnType<typeof trayIcon>) =>
   call("set_tray_state", { state: { title, icon } });
 
-export const setTrayState = (summary: SummaryResponse, style: CountStyle) =>
-  sendTrayState(trayTitle(summary, style), trayIcon(summary));
+export const setTrayState = (
+  summary: SummaryResponse,
+  style: CountStyle,
+  colored: boolean,
+) => sendTrayState(trayTitle(summary, style), trayIcon(summary, colored));
 
 // Leaves just the plain icon, as after signing out.
 export const clearTrayState = () => sendTrayState("", "plain");
 
 export const openExternal = (url: string) => call("open_external", { url });
-export const quitApp = () => call("quit_app");
 // Turns the dropdown into a normal window. Closing the window puts it back.
 export const popOut = () => call("pop_out");
 
@@ -57,34 +62,20 @@ export const launchAtLogin = () => invoke<boolean>("launch_at_login");
 export const setLaunchAtLogin = (on: boolean) =>
   invoke("set_launch_at_login", { on });
 
-// The count style, kept on this Mac. One copy, so the tray and Settings stay in step.
-const STYLE_KEY = "pr-peek:count-style";
-const styleListeners = new Set<() => void>();
+// Menu bar settings, kept on this Mac.
+export const countStyle = localSetting<CountStyle>(
+  "pr-peek:count-style",
+  "total",
+  (value): value is CountStyle =>
+    COUNT_STYLES.some((style) => style.value === value),
+);
 
-export function getCountStyle(): CountStyle {
-  try {
-    const stored = localStorage.getItem(STYLE_KEY);
-    return COUNT_STYLES.some(({ value }) => value === stored)
-      ? (stored as CountStyle)
-      : "total";
-  } catch {
-    return "total";
-  }
-}
-
-export function setCountStyle(style: CountStyle) {
-  try {
-    localStorage.setItem(STYLE_KEY, style);
-  } catch {
-    // Private storage can be blocked. The tray keeps the old style next time.
-  }
-  for (const listener of styleListeners) listener();
-}
-
-export function subscribeCountStyle(listener: () => void) {
-  styleListeners.add(listener);
-  return () => styleListeners.delete(listener);
-}
+// Whether the icon turns orange for late reviews and red for failing checks.
+export const coloredIcon = localSetting<boolean>(
+  "pr-peek:colored-icon",
+  true,
+  (value): value is boolean => typeof value === "boolean",
+);
 
 // Links that would open a new window open in the default browser instead.
 function openLinksInBrowser(event: MouseEvent) {
@@ -144,14 +135,21 @@ export function startDesktop(): () => void {
   const root = document.documentElement;
   root.classList.add("desktop-app");
   root.classList.toggle("dropdown", inDropdown());
+  // Marks the page while the window is hidden, so animations can pause.
+  const onHidden = () => root.classList.add("app-hidden");
+  const onShown = () => root.classList.remove("app-hidden");
   document.addEventListener("click", openLinksInBrowser, true);
   window.addEventListener("pr-peek:notify", showNotification);
+  window.addEventListener("pr-peek:hidden", onHidden);
+  window.addEventListener("pr-peek:shown", onShown);
   const wake = watchForWake();
   const stopScrollbar = showScrollbarWhileScrolling();
   return () => {
-    root.classList.remove("desktop-app", "dropdown");
+    root.classList.remove("desktop-app", "dropdown", "app-hidden");
     document.removeEventListener("click", openLinksInBrowser, true);
     window.removeEventListener("pr-peek:notify", showNotification);
+    window.removeEventListener("pr-peek:hidden", onHidden);
+    window.removeEventListener("pr-peek:shown", onShown);
     clearInterval(wake);
     stopScrollbar();
   };

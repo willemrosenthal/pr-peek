@@ -234,42 +234,16 @@ describe("marking seen", () => {
 });
 
 describe("tray mode", () => {
-  const trayFooter = () =>
-    screen.queryByRole("link", { name: "Open in browser" });
+  const popOutButton = () =>
+    screen.queryByRole("button", { name: "Pop out into a window" });
 
-  it("adds the footer in the menu bar app", async () => {
+  it("offers pop out only in the Mac app's dropdown", async () => {
     fakeApi(listApi());
     renderApp("/?shell=tray");
-    expect(
-      await screen.findByRole("link", { name: "Open in browser" }),
-    ).toBeTruthy();
-  });
-
-  it("has no footer in a browser", async () => {
-    fakeApi(listApi());
-    renderApp("/");
     await screen.findByText("Nothing needs you right now");
-    expect(trayFooter()).toBe(null);
-  });
-
-  it("offers Quit inside the menu bar app only", async () => {
-    fakeApi(listApi());
-    renderApp("/?shell=tray");
-    await screen.findByRole("link", { name: "Open in browser" });
-    expect(screen.queryByRole("button", { name: "Quit Git Buddy" })).toBe(null);
+    expect(popOutButton()).toBe(null);
     cleanup();
 
-    const invoke = stubTauri();
-    renderApp("/?shell=tray");
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Quit Git Buddy" }),
-    );
-    expect(callsOf(invoke, "quit_app")).toHaveLength(1);
-  });
-
-  it("pops out from the dropdown, and keeps the footer in the window", async () => {
-    const popOutButton = () =>
-      screen.queryByRole("button", { name: "Pop out into a window" });
     const invoke = stubTauri();
     fakeApi(listApi());
     renderApp("/?shell=tray");
@@ -280,7 +254,7 @@ describe("tray mode", () => {
     cleanup();
 
     renderApp("/?shell=window");
-    await screen.findByRole("link", { name: "Open in browser" });
+    await screen.findByText("Nothing needs you right now");
     expect(popOutButton()).toBe(null);
   });
 
@@ -298,6 +272,7 @@ describe("tray mode", () => {
   });
 
   it("stays on after visiting settings", async () => {
+    stubTauri();
     fakeApi(listApi());
     renderApp("/?shell=tray");
     await userEvent.click(
@@ -307,7 +282,7 @@ describe("tray mode", () => {
       await screen.findByRole("link", { name: "Back to your list" }),
     );
     await screen.findByText("Nothing needs you right now");
-    expect(trayFooter()).toBeTruthy();
+    expect(popOutButton()).toBeTruthy();
   });
 });
 

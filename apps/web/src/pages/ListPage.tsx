@@ -7,7 +7,6 @@ import { Button } from "../components/Button";
 import { ItemSection } from "../components/ItemSection";
 import { ListHeader } from "../components/ListHeader";
 import { cx } from "../cx";
-import { inDesktopApp, quitApp } from "../desktop";
 import { useIsTray } from "../hooks/useIsTray";
 import { useMarkSeen } from "../hooks/useMarkSeen";
 import { useStoredState } from "../hooks/useStoredState";
@@ -47,19 +46,6 @@ export function ListPage() {
           )}
         </div>
         <ListBody />
-        {tray && (
-          <footer className={styles.footer}>
-            {/* The menu bar app opens this in the default browser. */}
-            <a href="/" target="_blank" rel="noopener noreferrer">
-              Open in browser
-            </a>
-            {inDesktopApp() && (
-              <button type="button" className={styles.quit} onClick={quitApp}>
-                Quit Git Buddy
-              </button>
-            )}
-          </footer>
-        )}
       </div>
     </main>
   );

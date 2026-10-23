@@ -12,15 +12,18 @@ import { SettingSwitch } from "../../components/SettingSwitch";
 import { Switch } from "../../components/Switch";
 import {
   clearTrayState,
+  coloredIcon,
   COUNT_STYLES,
+  countStyle,
   inDesktopApp,
   launchAtLogin,
-  setCountStyle,
   setLaunchAtLogin,
   type CountStyle,
 } from "../../desktop";
-import { useCountStyle } from "../../hooks/useCountStyle";
+import { useLocalSetting } from "../../localSetting";
 import { queryKeys, useMe, useSettings } from "../../queries";
+import { appScale, SCALES, setScale } from "../../scale";
+import styles from "./GeneralTab.module.css";
 import { TabHeading } from "./SettingsLayout";
 
 export function GeneralTab() {
@@ -58,10 +61,14 @@ export function GeneralTab() {
           />
         </Card>
       )}
+      <Card label="This device">
+        <SizeRow />
+      </Card>
       {inDesktopApp() && (
         <Card label="Menu bar">
           <LaunchAtLoginRow />
           <MenuBarCountRow />
+          <ColoredIconRow />
         </Card>
       )}
       <GitHubToken />
@@ -71,6 +78,33 @@ export function GeneralTab() {
         </Button>
       </div>
     </>
+  );
+}
+
+const percent = (scale: number) => `${Math.round(scale * 100)}%`;
+
+function SizeRow() {
+  const scale = useLocalSetting(appScale);
+  return (
+    <CardRow>
+      <RowText
+        label="Size"
+        hint="Makes everything bigger or smaller, like zooming in a browser. Only on this device."
+      />
+      <span className={styles.size}>
+        <input
+          type="range"
+          min={0}
+          max={SCALES.length - 1}
+          step={1}
+          value={SCALES.indexOf(scale)}
+          aria-label="Size"
+          aria-valuetext={percent(scale)}
+          onChange={(e) => setScale(SCALES[Number(e.target.value)] ?? 1)}
+        />
+        <span aria-hidden="true">{percent(scale)}</span>
+      </span>
+    </CardRow>
   );
 }
 
@@ -108,7 +142,7 @@ function LaunchAtLoginRow() {
 
 // Kept on this Mac, since only its menu bar uses it.
 function MenuBarCountRow() {
-  const style = useCountStyle();
+  const style = useLocalSetting(countStyle);
   return (
     <CardRow>
       <RowText
@@ -118,7 +152,7 @@ function MenuBarCountRow() {
       <Select
         aria-label="Menu bar count"
         value={style}
-        onChange={(e) => setCountStyle(e.target.value as CountStyle)}
+        onChange={(e) => countStyle.set(e.target.value as CountStyle)}
       >
         {COUNT_STYLES.map(({ value, label }) => (
           <option key={value} value={value}>
@@ -126,6 +160,24 @@ function MenuBarCountRow() {
           </option>
         ))}
       </Select>
+    </CardRow>
+  );
+}
+
+// Kept on this Mac, like the count.
+function ColoredIconRow() {
+  const colored = useLocalSetting(coloredIcon);
+  return (
+    <CardRow>
+      <RowText
+        label="Colored icon"
+        hint="Turns orange when a review is late, and red when a check fails. Off keeps it plain."
+      />
+      <Switch
+        label="Colored icon"
+        checked={colored}
+        onChange={coloredIcon.set}
+      />
     </CardRow>
   );
 }

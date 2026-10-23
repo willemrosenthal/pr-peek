@@ -9,6 +9,8 @@ html {
 }
 
 body {
+  display: flex;
+  flex-direction: column;
   margin: 0;
   min-height: 100dvh;
   background: var(--color-page);
@@ -17,6 +19,15 @@ body {
   font-size: var(--text-md);
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
+}
+
+/* The app, at the size picked in Settings (scale.ts), like zooming a browser. Pages fill
+   it with flex, never dvh, since zoom would scale those. */
+#root {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  zoom: var(--scale, 1);
 }
 
 h1,
@@ -85,7 +96,6 @@ textarea {
 }
 
 .dropdown #root {
-  min-height: 100%;
   background: var(--color-page);
 }
 

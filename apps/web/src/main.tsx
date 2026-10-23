@@ -6,12 +6,15 @@ import { RouterProvider } from "react-router";
 import { UpdatePrompt } from "./components/UpdatePrompt";
 import { startDesktop } from "./desktop";
 import { createRouter } from "./router";
+import { applyScale } from "./scale";
 // Starts listening for the browser's install offer. See install.ts.
 import "./install";
 import "./styles/tokens.css";
 import "./styles/global.css";
 
 const queryClient = new QueryClient();
+// Before the first render, so the app never shows at the wrong size.
+applyScale();
 startDesktop();
 
 createRoot(document.getElementById("root")!).render(

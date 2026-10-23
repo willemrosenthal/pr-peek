@@ -1,0 +1,27 @@
+.mascot {
+  flex: none;
+  width: 1.5em;
+  height: 1.5em;
+  animation: rainbow 8s linear infinite;
+}
+
+@keyframes rainbow {
+  from {
+    filter: hue-rotate(0deg);
+  }
+
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+
+/* Saves battery while the Mac app's dropdown is hidden. See desktop.ts. */
+:global(.app-hidden) .mascot {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot {
+    animation: none;
+  }
+}

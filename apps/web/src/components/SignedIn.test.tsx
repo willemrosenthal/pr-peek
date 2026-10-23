@@ -10,7 +10,7 @@ import {
   type Mock,
   vi,
 } from "vitest";
-import { HEARTBEAT_MS, setCountStyle } from "../desktop";
+import { coloredIcon, countStyle, HEARTBEAT_MS } from "../desktop";
 import { RECONNECT_MS } from "../hooks/useLiveUpdates";
 import {
   apiError,
@@ -191,8 +191,27 @@ describe("the Mac menu bar", () => {
     await itemsChanged(5);
     await waitFor(() => expect(shown().at(-1)).toBe("5"));
 
-    act(() => setCountStyle("dot"));
+    act(() => countStyle.set("dot"));
     expect(shown().at(-1)).toBe("•");
+  });
+
+  it("keeps the icon plain with the colored icon off", async () => {
+    const invoke = stubTauri();
+    fakeApi(
+      listApi({
+        "GET /api/summary": () =>
+          json(summary({ total: 1, review: 1, hasFailing: true })),
+      }),
+    );
+    renderApp("/");
+    const icon = () =>
+      callsOf(invoke, "set_tray_state").map(
+        (args) => (args as { state: { icon: string } }).state.icon,
+      );
+    await waitFor(() => expect(icon().at(-1)).toBe("failing"));
+
+    act(() => coloredIcon.set(false));
+    expect(icon().at(-1)).toBe("plain");
   });
 
   it("tells the server it's running, every minute, only inside the app", async () => {

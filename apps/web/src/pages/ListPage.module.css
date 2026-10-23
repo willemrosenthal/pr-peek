@@ -1,6 +1,8 @@
 /* Desktop: a centered column, like the menu bar dropdown. */
 .page {
   display: flex;
+  flex: 1;
+  align-items: flex-start;
   justify-content: center;
   padding: var(--space-5) var(--space-4);
 }
@@ -30,37 +32,14 @@
   color: var(--color-text);
 }
 
-.footer {
-  display: flex;
-  justify-content: space-between;
-  position: sticky;
-  bottom: 0;
-  margin-top: auto;
-  padding: var(--space-2) 14px;
-  border-top: 1px solid var(--color-divider);
-  background: var(--color-surface);
-  font-size: var(--text-xs);
-}
-
-.quit {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-text-secondary);
-  font: inherit;
-  cursor: pointer;
-}
-
-/* Menu bar app: the list fills its window, with the footer at the bottom. */
+/* Menu bar app: the list fills its window. */
 .tray {
+  align-items: stretch;
   padding: 0;
 }
 
 .tray .panel {
-  display: flex;
-  flex-direction: column;
   max-width: none;
-  min-height: 100dvh;
   overflow: visible;
   border: 0;
   border-radius: 0;
@@ -76,12 +55,12 @@
 /* Phone: the list fills the screen and the header stays on top. */
 @media (max-width: 600px) {
   .page {
+    align-items: stretch;
     padding: 0;
   }
 
   .panel {
     max-width: none;
-    min-height: 100dvh;
     /* Hidden overflow would stop the header sticking. */
     overflow: visible;
     border: 0;

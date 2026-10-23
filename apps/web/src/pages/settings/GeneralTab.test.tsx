@@ -1,5 +1,11 @@
 import type { UserSettingsDto } from "@pr-peek/core";
-import { act, cleanup, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
 import {
@@ -11,7 +17,8 @@ import {
   settingsResponse,
   signedInApi,
 } from "../../test/fake-api";
-import { getCountStyle } from "../../desktop";
+import { coloredIcon, countStyle } from "../../desktop";
+import { appScale } from "../../scale";
 import { renderApp } from "../../test/render";
 import { callsOf, stubTauri } from "../../test/tauri";
 
@@ -108,7 +115,7 @@ it("shows why a setting couldn't be saved, and keeps it as it was", async () => 
   expect(toggle.getAttribute("aria-checked")).toBe("false");
 });
 
-it("sets the menu bar count, only inside the Mac app", async () => {
+it("sets the menu bar count and icon color, only inside the Mac app", async () => {
   fakeApi(signedInApi());
   renderApp("/settings/general");
   await screen.findByRole("switch", { name: "Hide bots" });
@@ -121,7 +128,28 @@ it("sets the menu bar count, only inside the Mac app", async () => {
   expect(select).toHaveProperty("value", "total");
   await userEvent.selectOptions(select, "A dot");
   expect(select).toHaveProperty("value", "dot");
-  expect(getCountStyle()).toBe("dot");
+  expect(countStyle.get()).toBe("dot");
+
+  const colored = screen.getByRole("switch", { name: "Colored icon" });
+  expect(colored.getAttribute("aria-checked")).toBe("true");
+  await userEvent.click(colored);
+  expect(coloredIcon.get()).toBe(false);
+});
+
+it("sizes the app on this device", async () => {
+  fakeApi(signedInApi());
+  renderApp("/settings/general");
+  const size = await screen.findByRole("slider", { name: "Size" });
+  expect(size.getAttribute("aria-valuetext")).toBe("100%");
+  try {
+    fireEvent.change(size, { target: { value: "3" } });
+    expect(size.getAttribute("aria-valuetext")).toBe("120%");
+    expect(appScale.get()).toBe(1.2);
+    const root = document.documentElement;
+    expect(root.style.getPropertyValue("--scale")).toBe("1.2");
+  } finally {
+    document.documentElement.style.removeProperty("--scale");
+  }
 });
 
 it("turns launching at login off, only inside the Mac app", async () => {
