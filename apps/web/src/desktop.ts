@@ -1,6 +1,6 @@
 import type { PushPayload, SummaryResponse } from "@pr-peek/core";
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { inTray } from "./hooks/useIsTray";
+import { inDropdown } from "./hooks/useIsTray";
 
 // The Mac menu bar app (apps/desktop). Everything here does nothing in a browser. The
 // native side fires `pr-peek:hidden`, `pr-peek:shown`, and `pr-peek:refresh` on
@@ -49,6 +49,8 @@ export const clearTrayState = () => sendTrayState("", "plain");
 
 export const openExternal = (url: string) => call("open_external", { url });
 export const quitApp = () => call("quit_app");
+// Turns the dropdown into a normal window. Closing the window puts it back.
+export const popOut = () => call("pop_out");
 
 // Whether the app opens when the user logs in to the Mac.
 export const launchAtLogin = () => invoke<boolean>("launch_at_login");
@@ -141,7 +143,7 @@ export function startDesktop(): () => void {
   // Styles for the Mac app. The dropdown under the icon also gets rounded corners.
   const root = document.documentElement;
   root.classList.add("desktop-app");
-  root.classList.toggle("dropdown", inTray());
+  root.classList.toggle("dropdown", inDropdown());
   document.addEventListener("click", openLinksInBrowser, true);
   window.addEventListener("pr-peek:notify", showNotification);
   const wake = watchForWake();
