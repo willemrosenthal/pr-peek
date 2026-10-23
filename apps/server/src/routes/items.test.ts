@@ -103,6 +103,7 @@ describe("GET /api/items", () => {
       unseen: false,
       otherIds: [],
       pr: {
+        id: pr.id,
         title: "Add login",
         owner: "acme",
         repo: "web-app",
@@ -140,7 +141,13 @@ describe("GET /api/items", () => {
     await makeItem(user.id, pr.id, "constructor");
 
     const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
-    expect(body).toEqual({ review: [], replies: [], mine: [], idlePrs: [] });
+    expect(body).toEqual({
+      review: [],
+      replies: [],
+      mine: [],
+      idlePrs: [],
+      quiet: { items: [], idlePrs: [] },
+    });
   });
 
   it("lists the user's open PRs with nothing to do, newest change first", async () => {
@@ -175,6 +182,7 @@ describe("GET /api/items", () => {
       isDraft: false,
       age: "5h",
       pr: {
+        id: older.id,
         title: "Add login",
         owner: "acme",
         repo: "web-app",
@@ -272,7 +280,97 @@ describe("one row per PR", () => {
   });
 });
 
+describe("quiet PRs", () => {
+  const quiet = (agent: Agent, id: string) =>
+    agent.put(`/api/prs/${id}/quiet`).set("Origin", APP_URL);
+  const unquiet = (agent: Agent, id: string) =>
+    agent.delete(`/api/prs/${id}/quiet`).set("Origin", APP_URL);
+
+  it("lists quiet PRs on their own, one row per PR, out of the sections", async () => {
+    const { agent, user } = await setup();
+    const loud = await makePr(user.id, 7);
+    await makeItem(user.id, loud.id, "reply");
+    const hushed = await makePr(user.id, 8, { quietAt: hours(-1) });
+    const asked = await makeItem(user.id, hushed.id, "review_requested");
+    const mention = await makeItem(user.id, hushed.id, "mention");
+    const idle = await makePr(user.id, 9, { authorLogin: "octocat" });
+    const quietIdle = await makePr(user.id, 10, {
+      authorLogin: "octocat",
+      quietAt: hours(-1),
+    });
+
+    const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
+    expect(body.review).toEqual([]);
+    expect(body.replies.map((row) => row.pr.id)).toEqual([loud.id]);
+    expect(body.idlePrs.map((pr) => pr.id)).toEqual([idle.id]);
+    expect(body.quiet.items).toHaveLength(1);
+    expect(body.quiet.items[0]).toMatchObject({
+      id: asked.id,
+      otherIds: [mention.id],
+    });
+    expect(body.quiet.idlePrs.map((pr) => pr.id)).toEqual([quietIdle.id]);
+  });
+
+  it("quiets a PR and brings it back", async () => {
+    const { agent, user } = await setup();
+    const pr = await makePr(user.id);
+
+    expect((await quiet(agent, pr.id)).status).toBe(204);
+    const quieted = await db.pullRequest.findUniqueOrThrow({
+      where: { id: pr.id },
+    });
+    expect(quieted.quietAt).toEqual(NOW);
+
+    expect((await unquiet(agent, pr.id)).status).toBe(204);
+    const back = await db.pullRequest.findUniqueOrThrow({
+      where: { id: pr.id },
+    });
+    expect(back.quietAt).toBeNull();
+  });
+
+  it("can't quiet another user's PR", async () => {
+    const { agent } = await setup();
+    const other = await otherUser();
+    const theirs = await makePr(other.id);
+
+    const res = await quiet(agent, theirs.id);
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ error: { code: "not_found" } });
+    expect((await unquiet(agent, "missing")).status).toBe(404);
+    const after = await db.pullRequest.findUniqueOrThrow({
+      where: { id: theirs.id },
+    });
+    expect(after.quietAt).toBeNull();
+  });
+
+  it("needs sign in", async () => {
+    const { agent } = makeTestApp(db, { routers: [itemsRouter({ db })] });
+    expect((await quiet(agent, "x")).status).toBe(401);
+    expect((await unquiet(agent, "x")).status).toBe(401);
+  });
+});
+
 describe("GET /api/summary", () => {
+  it("leaves out quiet PRs", async () => {
+    const { agent, user } = await setup();
+    await makeItem(user.id, (await makePr(user.id, 7)).id, "reply");
+    const hushed = await makePr(user.id, 8, { quietAt: hours(-1) });
+    await makeItem(user.id, hushed.id, "review_requested", {
+      waitingSince: hours(-30),
+    });
+    await makeItem(user.id, hushed.id, "check_failed");
+
+    const res = await agent.get("/api/summary");
+    expect(bodyOf<SummaryResponse>(res)).toEqual({
+      total: 1,
+      review: 0,
+      replies: 1,
+      mine: 0,
+      hasStale: false,
+      hasFailing: false,
+    });
+  });
+
   it("counts PRs with open items, like the list", async () => {
     const { agent, user } = await setup();
     const asked = await makePr(user.id, 7);

@@ -59,6 +59,7 @@ let itemCount = 0;
 
 // A PR numbered and titled after the row count, so each row's text differs.
 const prRef = (): ItemDto["pr"] => ({
+  id: `pr-${itemCount}`,
   title: `PR ${itemCount}`,
   owner: "acme",
   repo: "web-app",
@@ -103,6 +104,7 @@ export const groups = (fields: Partial<ItemsResponse> = {}): ItemsResponse => ({
   replies: [],
   mine: [],
   idlePrs: [],
+  quiet: { items: [], idlePrs: [] },
   ...fields,
 });
 

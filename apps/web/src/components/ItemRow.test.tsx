@@ -10,6 +10,7 @@ it("links to the PR and shows what happened", () => {
       item={item({
         summary: "jlee re-requested your review",
         pr: {
+          id: "pr-482",
           title: "Add saved filters",
           owner: "acme",
           repo: "web-app",

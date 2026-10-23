@@ -18,6 +18,7 @@ import {
   trackedPrs,
   type SavedPr,
 } from "./items";
+import { quietPrs, wakeQuietPrs } from "./quiet";
 
 // PRs with no open items that no search has found for this long are deleted.
 const KEEP_UNSEEN_MS = 7 * 24 * 60 * 60 * 1000;
@@ -93,6 +94,7 @@ interface FromGitHub {
   details: PrDetails;
   // The client used, if GitHub was called.
   octokit: Octokit | null;
+  viewerLogin: string;
 }
 
 // Searches find new PRs. Tracked PRs the searches missed are checked by id, since the
@@ -137,7 +139,14 @@ async function fetchFromGitHub(
   );
   if (watched.length === 0) {
     const details = { snapshots: [], failed: [] };
-    return { searchedIds: [], open: [], ended, details, octokit: null };
+    return {
+      searchedIds: [],
+      open: [],
+      ended,
+      details,
+      octokit: null,
+      viewerLogin: user.login,
+    };
   }
 
   const octokit = await deps.github(userId);
@@ -169,7 +178,14 @@ async function fetchFromGitHub(
     .filter((pr) => needsDetails(pr, storedById.get(pr.id), user.login))
     .map((pr) => pr.id);
   const details = await fetchPrDetails(octokit, changedIds);
-  return { searchedIds, open, ended, details, octokit };
+  return {
+    searchedIds,
+    open,
+    ended,
+    details,
+    octokit,
+    viewerLogin: user.login,
+  };
 }
 
 // Brings the user's stored PRs and items up to date with GitHub.
@@ -179,10 +195,8 @@ export async function syncUser(
 ): Promise<SyncResult> {
   const { db } = deps;
   const now = (deps.now ?? (() => new Date()))();
-  const { searchedIds, open, ended, details, octokit } = await fetchFromGitHub(
-    deps,
-    userId,
-  );
+  const { searchedIds, open, ended, details, octokit, viewerLogin } =
+    await fetchFromGitHub(deps, userId);
   // The rules run on every tracked PR, not just the ones that changed, so a wrong item
   // heals on the next sync and a new rule reaches PRs that haven't changed.
   const fetchedIds = new Set(details.snapshots.map((snapshot) => snapshot.id));
@@ -205,6 +219,8 @@ export async function syncUser(
       where: { userId, githubNodeId: { in: searchedIds } },
       data: { lastSeenAt: now },
     });
+    // Read before the upserts, to compare their old snapshots.
+    const quiet = await quietPrs(tx, userId);
     const saved: SavedPr[] = [];
     for (const snapshot of details.snapshots) {
       // Details are only fetched for PRs in `open`.
@@ -225,6 +241,13 @@ export async function syncUser(
       detect,
       now,
     );
+    const woke = await wakeQuietPrs(
+      tx,
+      quiet,
+      saved,
+      items.newEventIds,
+      viewerLogin,
+    );
 
     // Rows stay, so the items reopen without notifying if the PR comes back.
     for (const state of new Set(ended.values())) {
@@ -237,7 +260,7 @@ export async function syncUser(
     await resolveItemsOf(tx, userId, [...ended.keys()], now);
     // A fetched PR may show a new title, even if its items didn't change. An ended PR
     // leaves My PRs, even with no items.
-    if (saved.length > 0 || items.changed || ended.size > 0) {
+    if (saved.length > 0 || items.changed || ended.size > 0 || woke > 0) {
       await publishItemsChanged(tx, userId);
     }
     return items.newEventIds;
