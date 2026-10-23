@@ -1,4 +1,4 @@
-import { onTestFinished, vi } from "vitest";
+import { vi } from "vitest";
 
 // Makes the page look like it's inside the Mac menu bar app. Returns the fake `invoke`
 // that receives command calls.
@@ -8,7 +8,6 @@ export function stubTauri() {
   );
   vi.stubGlobal("isTauri", true);
   vi.stubGlobal("__TAURI_INTERNALS__", { invoke });
-  onTestFinished(() => localStorage.removeItem("pr-peek:count-style"));
   return invoke;
 }
 

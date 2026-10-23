@@ -177,6 +177,31 @@ describe("the Mac menu bar", () => {
     act(() => setCountStyle("dot"));
     expect(shown().at(-1)).toBe("•");
   });
+
+  it("clears the count and color on sign out", async () => {
+    const invoke = stubTauri();
+    let signedIn = true;
+    fakeApi(
+      signedInApi({
+        "GET /api/me": () => (signedIn ? json(me()) : signedOut()),
+        "GET /api/summary": () => json(summary({ total: 4, hasFailing: true })),
+        "POST /api/auth/signout": () => {
+          signedIn = false;
+          return noContent();
+        },
+      }),
+    );
+    renderApp("/settings");
+    await waitFor(() =>
+      expect(callsOf(invoke, "set_tray_state")).toHaveLength(1),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    await screen.findByRole("link", { name: "Sign in with GitHub" });
+    expect(callsOf(invoke, "set_tray_state").at(-1)).toEqual({
+      state: { title: "", icon: "plain" },
+    });
+  });
 });
 
 describe("the app badge", () => {

@@ -42,6 +42,10 @@ export function setTrayState(summary: SummaryResponse, style: CountStyle) {
   });
 }
 
+// Leaves just the plain icon, as after signing out.
+export const clearTrayState = () =>
+  call("set_tray_state", { state: { title: "", icon: "plain" } });
+
 export const openExternal = (url: string) => call("open_external", { url });
 export const quitApp = () => call("quit_app");
 

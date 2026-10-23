@@ -10,6 +10,7 @@ import { GitHubToken } from "../../components/GitHubToken";
 import { RowText } from "../../components/RowText";
 import { SettingSwitch } from "../../components/SettingSwitch";
 import {
+  clearTrayState,
   COUNT_STYLES,
   inDesktopApp,
   setCountStyle,
@@ -29,6 +30,7 @@ export function GeneralTab() {
     onSuccess: async () => {
       queryClient.clear();
       void setBadge(0);
+      clearTrayState();
       await navigate("/signin", { replace: true });
     },
   });
