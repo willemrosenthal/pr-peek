@@ -26,22 +26,18 @@ it("links to the PR and shows what happened", () => {
   );
   expect(link.getAttribute("target")).toBe("_blank");
   expect(screen.getByText("jlee re-requested your review")).toBeTruthy();
-  expect(screen.getByText("web-app #482")).toBeTruthy();
+  expect(link.textContent).toContain("web-app #482");
 });
 
-it("puts the repo name in a pill of the repo's color", () => {
+it("colors the repo name with the repo's color", () => {
   const row = item();
   render(<ItemRow item={{ ...row, pr: { ...row.pr, color: "#1e3a8a" } }} />);
-  const tag = screen.getByText("web-app");
-  expect(tag.style.background).toBe("rgb(30, 58, 138)");
-  expect(tag.style.color).not.toBe("");
+  expect(screen.getByText("web-app").style.color).toBe("rgb(30, 58, 138)");
 });
 
 it("leaves the repo name plain without a color", () => {
-  const row = item();
-  render(<ItemRow item={row} />);
-  const repo = screen.getByText(`web-app #${row.pr.number}`);
-  expect(repo.querySelector("[style]")).toBe(null);
+  render(<ItemRow item={item()} />);
+  expect(screen.getByText("web-app").getAttribute("style")).toBe(null);
 });
 
 it("says how many more open items the PR has", () => {

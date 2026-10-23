@@ -7,7 +7,6 @@ import { Button } from "./Button";
 import { Card, CardRow } from "./Card";
 import { ColorPicker } from "./ColorPicker";
 import { Control, Controls } from "./Control";
-import { RepoTag } from "./RepoTag";
 import styles from "./Repos.module.css";
 import { Switch } from "./Switch";
 
@@ -73,14 +72,17 @@ function WatchedRepo({
   const saving = update.isPending ? update.variables : {};
   const enabled = saving.enabled ?? repo.enabled;
   const muted = saving.muted ?? repo.muted;
-  // Null turns color off, so only a missing field falls back.
-  const color = saving.color !== undefined ? saving.color : repo.color;
+  const color = saving.color ?? repo.color;
+  const colorOn = saving.colorOn ?? repo.colorOn;
+  const shownColor = colorOn ? color : null;
   const error = update.error ?? remove.error;
 
   return (
     <CardRow>
       <span className={styles.name}>
-        <RepoTag color={color}>{name}</RepoTag>
+        <span style={shownColor ? { color: shownColor } : undefined}>
+          {name}
+        </span>
         {!enabled && <span className={styles.hint}>Paused</span>}
         {enabled && muted && <span className={styles.hint}>Muted</span>}
       </span>
@@ -104,17 +106,22 @@ function WatchedRepo({
         <Control name="Color">
           <Switch
             label={`Color for ${name}`}
-            checked={color !== null}
+            checked={colorOn}
+            // Turning on brings back the last picked color.
             onChange={(on) =>
-              update.mutate({ color: on ? defaultColor : null })
+              update.mutate(
+                on
+                  ? { colorOn: true, color: color ?? defaultColor }
+                  : { colorOn: false },
+              )
             }
             disabled={update.isPending}
           />
         </Control>
-        {color && (
+        {shownColor && (
           <ColorPicker
             label={`Pick a color for ${name}`}
-            color={color}
+            color={shownColor}
             onChange={(picked) => update.mutate({ color: picked })}
           />
         )}

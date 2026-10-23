@@ -20,7 +20,8 @@ export const updateRepoBody = z
   .object({
     enabled: z.boolean(),
     muted: z.boolean(),
-    color: repoColor.nullable(),
+    color: repoColor,
+    colorOn: z.boolean(),
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, "Nothing to update");
@@ -52,8 +53,10 @@ export interface WatchedRepoDto {
   name: string;
   enabled: boolean;
   muted: boolean;
-  // Colors the repo name on the list. Null when off.
+  // The picked color, kept while turned off. Null until one is picked.
   color: string | null;
+  // Whether the list shows the color.
+  colorOn: boolean;
 }
 
 export interface WatchedReposResponse {

@@ -30,6 +30,7 @@ function toDto(repo: WatchedRepo): WatchedRepoDto {
     enabled: repo.enabled,
     muted: repo.muted,
     color: repo.color,
+    colorOn: repo.colorOn,
   };
 }
 

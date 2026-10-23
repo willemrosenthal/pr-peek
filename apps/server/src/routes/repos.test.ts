@@ -124,6 +124,7 @@ describe("POST /api/repos", () => {
       enabled: true,
       muted: false,
       color: null,
+      colorOn: false,
     });
 
     const list = await agent.get("/api/repos");
@@ -198,16 +199,23 @@ describe("PATCH and DELETE /api/repos/:id", () => {
     });
   });
 
-  it("sets and clears a repo's color", async () => {
+  it("keeps a repo's color while its color is turned off", async () => {
     const { agent, id } = await withRepo();
-    const setColor = (color: unknown) =>
-      agent.patch(`/api/repos/${id}`).set("Origin", APP_URL).send({ color });
+    const patch = (body: object) =>
+      agent.patch(`/api/repos/${id}`).set("Origin", APP_URL).send(body);
 
-    const set = await setColor("#e11d48");
-    expect(bodyOf<OneRepo>(set).repo.color).toBe("#e11d48");
-    const cleared = await setColor(null);
-    expect(bodyOf<OneRepo>(cleared).repo.color).toBe(null);
-    expect((await setColor("red")).status).toBe(400);
+    const on = await patch({ colorOn: true, color: "#e11d48" });
+    expect(bodyOf<OneRepo>(on).repo).toMatchObject({
+      colorOn: true,
+      color: "#e11d48",
+    });
+    const off = await patch({ colorOn: false });
+    expect(bodyOf<OneRepo>(off).repo).toMatchObject({
+      colorOn: false,
+      color: "#e11d48",
+    });
+    expect((await patch({ color: "red" })).status).toBe(400);
+    expect((await patch({ color: null })).status).toBe(400);
   });
 
   it("rejects an empty update", async () => {

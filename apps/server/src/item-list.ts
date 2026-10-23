@@ -29,13 +29,13 @@ const PR_FIELDS = {
 
 type PrRow = Pick<PullRequest, keyof typeof PR_FIELDS>;
 
-// Each watched repo's color, by GitHub repo id. Repos with no color are left out.
+// Each watched repo's color, by GitHub repo id. Repos with color off are left out.
 async function repoColors(
   db: Db,
   userId: string,
 ): Promise<Map<number, string>> {
   const repos = await db.watchedRepo.findMany({
-    where: { userId, color: { not: null } },
+    where: { userId, colorOn: true, color: { not: null } },
     select: { githubRepoId: true, color: true },
   });
   return new Map(repos.map((repo) => [repo.githubRepoId, repo.color!]));

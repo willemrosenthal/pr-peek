@@ -186,23 +186,31 @@ describe("GET /api/items", () => {
     expect(body.idlePrs[0]?.isDraft).toBe(true);
   });
 
-  it("adds the watched repo's color to each row", async () => {
+  it("adds the watched repo's color to each row while it's on", async () => {
     const { agent, user } = await setup();
     const pr = await makePr(user.id, 7, { authorLogin: "octocat" });
     await makeItem(user.id, (await makePr(user.id, 8)).id, "reply");
-    await db.watchedRepo.create({
+    const repo = await db.watchedRepo.create({
       data: {
         userId: user.id,
         githubRepoId: pr.githubRepoId,
         owner: "acme",
         name: "web-app",
         color: "#e11d48",
+        colorOn: true,
       },
     });
 
-    const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
-    expect(body.replies[0]?.pr.color).toBe("#e11d48");
-    expect(body.idlePrs[0]?.pr.color).toBe("#e11d48");
+    const on = bodyOf<ItemsResponse>(await agent.get("/api/items"));
+    expect(on.replies[0]?.pr.color).toBe("#e11d48");
+    expect(on.idlePrs[0]?.pr.color).toBe("#e11d48");
+
+    await db.watchedRepo.update({
+      where: { id: repo.id },
+      data: { colorOn: false },
+    });
+    const off = bodyOf<ItemsResponse>(await agent.get("/api/items"));
+    expect(off.replies[0]?.pr.color).toBe(null);
   });
 });
 

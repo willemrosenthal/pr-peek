@@ -120,6 +120,7 @@ export const watchedRepo = (
     enabled: true,
     muted: false,
     color: null,
+    colorOn: false,
     ...fields,
   };
 };

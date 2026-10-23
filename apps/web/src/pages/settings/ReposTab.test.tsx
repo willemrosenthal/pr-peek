@@ -98,8 +98,11 @@ describe("watched repos", () => {
     ]);
   });
 
-  it("colors one, then turns its color off", async () => {
-    const repo = watchedRepo({ owner: "acme", name: "web" });
+  it.each([
+    ["a starting color", null, "#2563eb"],
+    ["its remembered color", "#e11d48", "#e11d48"],
+  ])("turns color on with %s, then off", async (_, kept, sent) => {
+    const repo = watchedRepo({ owner: "acme", name: "web", color: kept });
     const patch = `PATCH /api/repos/${repo.id}`;
     const fetch = reposApi([repo], [], {
       [patch]: () => {
@@ -125,15 +128,21 @@ describe("watched repos", () => {
       expect(screen.queryByRole("button", { name: /Pick a color/ })).toBe(null),
     );
     expect(sentBodies(fetch, patch)).toEqual([
-      { color: "#2563eb" },
-      { color: null },
+      { colorOn: true, color: sent },
+      { colorOn: false },
     ]);
+    expect(repo.color).toBe(sent);
   });
 
   // A colored repo with its picker open and `typed` in the hex field. Returns the color
   // saves sent so far, read when called.
   async function typeColor(typed: string) {
-    const repo = watchedRepo({ owner: "acme", name: "web", color: "#2563eb" });
+    const repo = watchedRepo({
+      owner: "acme",
+      name: "web",
+      color: "#2563eb",
+      colorOn: true,
+    });
     const patch = `PATCH /api/repos/${repo.id}`;
     const fetch = reposApi([repo], [], { [patch]: () => json({ repo }) });
     renderApp("/settings/repos");
@@ -162,7 +171,7 @@ describe("watched repos", () => {
     );
     // Past the point a waiting save would have gone out.
     await new Promise((resolve) => setTimeout(resolve, SAVE_DELAY_MS + 100));
-    expect(saves()).toEqual([{ color: "#e11d48" }, { color: null }]);
+    expect(saves()).toEqual([{ color: "#e11d48" }, { colorOn: false }]);
   });
 
   it("removes one", async () => {

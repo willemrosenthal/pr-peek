@@ -15,8 +15,6 @@ import {
 import type { ReactNode } from "react";
 import { cx } from "../cx";
 import styles from "./ItemRow.module.css";
-import { RepoTag } from "./RepoTag";
-
 const KIND_ICONS: Record<
   ItemKind,
   { Icon: LucideIcon; tone: string | undefined }
@@ -119,7 +117,10 @@ function Row({
       <span className={cx(styles.age, ageTone)}>{age}</span>
       <span className={styles.summary}>{children}</span>
       <span className={styles.repo}>
-        <RepoTag color={pr.color}>{pr.repo}</RepoTag> #{pr.number}
+        <span style={pr.color ? { color: pr.color } : undefined}>
+          {pr.repo}
+        </span>{" "}
+        #{pr.number}
       </span>
     </a>
   );
