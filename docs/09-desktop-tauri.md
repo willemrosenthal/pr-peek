@@ -42,7 +42,7 @@ For a copy that loads the live site, `pnpm desktop:build` makes `apps/desktop/sr
   - Written by hand instead: the generator asks questions as it runs and makes files we don't need.
 - [x] In `tauri.conf.json`:
   - The main window loads the app URL from an env based setting: `http://localhost:5173/?shell=tray` in dev, the prod URL in release builds.
-  - The window starts hidden, with no decorations (title bar), fixed size about 420 by 600, and skips the taskbar.
+  - The window starts hidden, with no decorations (title bar), fixed size about 420 by 720, and skips the taskbar.
   - The window is made in `src-tauri/src/lib.rs` instead, so the URL can depend on the build. `PR_PEEK_URL` overrides it.
 - [x] Add `apps/desktop/src-tauri/target` and `apps/desktop/src-tauri/gen` to `.gitignore`.
 - [x] Set the macOS activation policy to "accessory", so there's no Dock icon. The app lives only in the menu bar.
@@ -139,11 +139,14 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 ### 9.9 Dropdown polish
 
 - [x] A thin scrollbar with no track, only while scrolling. Styled with `::-webkit-scrollbar`, since the app only runs in WebKit. `desktop.ts` marks the page while it scrolls.
-- [x] Rounded corners like macOS 26. The window is see-through (`transparent`, which needs `macOSPrivateApi`), and the page rounds its own corners. The body scrolls instead of the window, so the scrollbar stays inside them.
-- [x] Settings and the install page go back to the list after 2 minutes away (`AWAY_MS` in `useReturnToList.ts`), in the dropdown and the installed PWA. Not right away, so a trip to GitHub for a token doesn't lose the page. A browser tab stays where it was.
+- [x] Rounded corners like macOS 26. The window is see-through (`transparent`, which needs `macOSPrivateApi`), and the page rounds its own corners. The body scrolls instead of the window. It's rounded with `clip-path`, since `border-radius` doesn't clip the scrollbar or the sticky header in WebKit. The scrollbar's track takes 6px beside the page, so it's painted the list's white instead of see-through.
+- [x] The dropdown sits 12px below the menu bar, and is as tall as the popped out window (720).
+- [x] Settings and the install page go back to the list whenever the app hides or is minimized (`useReturnToList.ts`), in the dropdown and the installed PWA. So it always opens on the list. A browser tab stays where it was.
+  - A trip to GitHub for a token hides the dropdown too. Open Settings again to paste it.
 - [x] A waiting new version installs when the dropdown hides, instead of waiting for a click on "Reload".
-- [x] A "Pop out" button turns the dropdown into a normal window you can move and resize. Closing it puts it back under the icon. One window, so notifications still show once.
-  - The page reloads with `?shell=window` instead of `?shell=tray`. `useIsTray` is true for both. Only the corners and the pop out button need the dropdown itself.
+- [x] Dragging the dropdown's header pops it out into a normal window you can move and resize. The window follows the pointer (`start_dragging`) until you let go. Closing it puts it back under the icon. One window, so notifications still show once.
+  - The header shows a grab cursor. It pops out after 20px, so a click doesn't.
+  - The page reloads with `?shell=window` instead of `?shell=tray`. `useIsTray` is true for both. Only the corners and the drag need the dropdown itself.
   - The menu bar icon and the shortcut bring the popped out window to the front instead of hiding it.
   - Not yet: a Dock icon or Cmd+Tab for the window, and remembering its size and place.
 - [x] No footer in the dropdown. "Open in browser" and "Quit" are in the icon's right click menu. The `quit_app` command went with it.

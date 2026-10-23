@@ -78,8 +78,8 @@ textarea {
 }
 
 /* Mac app dropdown: the window is see-through, so the page draws the rounded corners.
-   The body scrolls instead of the window, which keeps the scrollbar inside them. Both
-   html and body are clear, or the body's color would fill the whole window. */
+   clip-path rounds the scrollbar and the sticky header too, which border-radius misses.
+   Both html and body are clear, or the body's color would fill the whole window. */
 .dropdown {
   overflow: hidden;
 }
@@ -92,11 +92,16 @@ textarea {
 .dropdown body {
   height: 100dvh;
   overflow-y: auto;
-  border-radius: var(--radius-xl);
+  clip-path: inset(0 round var(--radius-xl));
 }
 
 .dropdown #root {
   background: var(--color-page);
+}
+
+/* The scrollbar's track sits beside #root, so it needs a color too. The list's. */
+.dropdown body::-webkit-scrollbar {
+  background: var(--color-surface);
 }
 
 /* Hidden on screen, still read by screen readers. */

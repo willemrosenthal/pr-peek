@@ -1,5 +1,6 @@
 import { formatAge } from "@pr-peek/core";
-import { PictureInPicture2, RotateCw, Settings } from "lucide-react";
+import { RotateCw, Settings } from "lucide-react";
+import { useEffect, useRef, type MouseEvent } from "react";
 import { Link } from "react-router";
 import { cx } from "../cx";
 import { inDesktopApp, popOut } from "../desktop";
@@ -7,6 +8,9 @@ import { useIsDropdown } from "../hooks/useIsTray";
 import { useNow } from "../hooks/useNow";
 import styles from "./ListHeader.module.css";
 import { Mascot } from "./Mascot";
+
+// How far the header moves before the dropdown pops out.
+const POP_OUT_DRAG_PX = 20;
 
 export function ListHeader({
   lastSyncedAt,
@@ -18,9 +22,16 @@ export function ListHeader({
   onRefresh: () => void;
 }) {
   const canPopOut = useIsDropdown() && inDesktopApp();
+  const startDrag = usePopOutDrag();
   return (
-    <header className={styles.header}>
-      <div className={styles.text}>
+    <header
+      className={cx(styles.header, canPopOut && styles.draggable)}
+      onMouseDown={canPopOut ? startDrag : undefined}
+    >
+      <div
+        className={styles.text}
+        title={canPopOut ? "Drag to pop out into a window" : undefined}
+      >
         <h1 className={styles.title}>
           <Mascot />
           Git Buddy
@@ -37,22 +48,41 @@ export function ListHeader({
       >
         <RotateCw className={cx(refreshing && styles.spin)} />
       </button>
-      {canPopOut && (
-        <button
-          type="button"
-          className={styles.iconButton}
-          aria-label="Pop out into a window"
-          title="Pop out into a window"
-          onClick={popOut}
-        >
-          <PictureInPicture2 />
-        </button>
-      )}
       <Link to="/settings" className={styles.iconButton} aria-label="Settings">
         <Settings />
       </Link>
     </header>
   );
+}
+
+// Pops the dropdown out into a window once a drag on the header goes far enough.
+function usePopOutDrag() {
+  const stop = useRef<() => void>(undefined);
+  useEffect(() => () => stop.current?.(), []);
+
+  return (event: MouseEvent) => {
+    const onControl = (event.target as Element).closest("button, a");
+    if (event.button !== 0 || onControl) return;
+    const { clientX, clientY } = event;
+    const move = (moved: globalThis.MouseEvent) => {
+      const distance = Math.hypot(
+        moved.clientX - clientX,
+        moved.clientY - clientY,
+      );
+      if (distance < POP_OUT_DRAG_PX) return;
+      end();
+      popOut();
+    };
+    const end = () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", end);
+      stop.current = undefined;
+    };
+    stop.current?.();
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", end);
+    stop.current = end;
+  };
 }
 
 function UpdatedAt({

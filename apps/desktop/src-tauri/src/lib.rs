@@ -9,7 +9,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::utils::config::BackgroundThrottlingPolicy;
 use tauri::window::Color;
 use tauri::{
-    AppHandle, LogicalSize, Manager, Theme, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    AppHandle, LogicalPosition, LogicalSize, Manager, Theme, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
     WindowEvent, Wry,
 };
 use tauri_plugin_autostart::ManagerExt;
@@ -23,9 +23,12 @@ const TRAY: &str = "main";
 // A click on the tray icon first blurs the open window, which hides it. A toggle this
 // soon after leaves it hidden instead of showing it again.
 const REOPEN_GUARD: Duration = Duration::from_millis(300);
-const DROPDOWN_SIZE: (f64, f64) = (420.0, 600.0);
+const HEIGHT: f64 = 720.0;
+const DROPDOWN_SIZE: (f64, f64) = (420.0, HEIGHT);
 // The popped out window's size when it opens. The user can resize it after.
-const WINDOW_SIZE: (f64, f64) = (480.0, 720.0);
+const WINDOW_SIZE: (f64, f64) = (480.0, HEIGHT);
+// Space between the menu bar and the top of the dropdown.
+const MENU_BAR_GAP: f64 = 12.0;
 
 const ICON_PLAIN: &[u8] = include_bytes!("../icons/tray.png");
 const ICON_STALE: &[u8] = include_bytes!("../icons/tray-stale.png");
@@ -75,15 +78,25 @@ fn tell_page(window: &WebviewWindow, name: &str) {
 // Shows the window and focuses it. The dropdown moves under the tray icon. A popped out
 // window stays where the user put it.
 fn show_window(window: &WebviewWindow) {
-    // The tray position is only known after the icon is clicked once.
-    if !popped_out(window.app_handle())
-        && window.move_window(Position::TrayBottomCenter).is_err()
-    {
-        let _ = window.move_window(Position::TopRight);
+    if !popped_out(window.app_handle()) {
+        place_under_icon(window);
     }
     let _ = window.show();
     let _ = window.set_focus();
     tell_page(window, "shown");
+}
+
+// Moves the dropdown a little below the tray icon.
+fn place_under_icon(window: &WebviewWindow) {
+    // The tray position is only known after the icon is clicked once.
+    if window.move_window(Position::TrayBottomCenter).is_err() {
+        let _ = window.move_window(Position::TopRight);
+    }
+    let (Ok(position), Ok(scale)) = (window.outer_position(), window.scale_factor()) else {
+        return;
+    };
+    let position = position.to_logical::<f64>(scale);
+    let _ = window.set_position(LogicalPosition::new(position.x, position.y + MENU_BAR_GAP));
 }
 
 // Every hide goes through here, so the page always hears about it.
@@ -222,15 +235,18 @@ fn page_color(window: &WebviewWindow) -> Color {
     }
 }
 
+// Called while the user drags the dropdown's header. The new window keeps following the
+// pointer until they let go.
 #[tauri::command]
 fn pop_out(app: AppHandle) -> Result<(), String> {
     log_command("pop_out");
     let window = main_window(&app).ok_or("no window")?;
-    set_popped_out(&app, &window, true).map_err(|err| err.to_string())
+    set_popped_out(&app, &window, true).map_err(|err| err.to_string())?;
+    window.start_dragging().map_err(|err| err.to_string())
 }
 
-// Turns the dropdown into a normal window you can move and resize, or back. The page
-// reloads in the matching shell, and opens on the list.
+// Turns the dropdown into a normal window you can move and resize, or back. The window
+// stays where it is. The page reloads in the matching shell, and opens on the list.
 fn set_popped_out(app: &AppHandle, window: &WebviewWindow, popped: bool) -> tauri::Result<()> {
     app.state::<PoppedOut>().0.store(popped, Ordering::Relaxed);
     window.set_always_on_top(!popped)?;
@@ -243,7 +259,6 @@ fn set_popped_out(app: &AppHandle, window: &WebviewWindow, popped: bool) -> taur
     window.set_size(LogicalSize::new(width, height))?;
     window.navigate(app_page("/", popped))?;
     if popped {
-        window.center()?;
         show_window(window);
     } else {
         hide(window);

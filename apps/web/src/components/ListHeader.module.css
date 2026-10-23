@@ -6,6 +6,16 @@
   background: var(--color-surface);
 }
 
+/* Mac app dropdown: dragging the header pops it out. */
+.draggable {
+  cursor: grab;
+  user-select: none;
+}
+
+.draggable:active {
+  cursor: grabbing;
+}
+
 .text {
   display: flex;
   flex: 1;
