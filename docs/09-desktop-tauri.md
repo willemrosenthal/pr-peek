@@ -24,6 +24,8 @@ The Tauri window loads the **hosted web app** (`https://www.git-buddy.com/?shell
 
 Run it with `pnpm desktop` (and `pnpm dev` for the web app it loads). The desktop package has no `dev` or `build` script on purpose, so `pnpm dev` and Render's `pnpm build` don't compile Rust.
 
+For a copy that loads the live site, `pnpm desktop:build` makes `apps/desktop/src-tauri/target/release/bundle/macos/pr-peek.app`. Drag it into Applications. To open it at login, add it in System Settings, General, Login Items & Extensions, until PR 4 adds the app's own switch.
+
 ## Steps
 
 ### 9.1 Project setup

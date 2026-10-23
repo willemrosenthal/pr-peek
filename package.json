@@ -22,6 +22,7 @@
     "test": "vitest run",
     "e2e": "pnpm --filter @pr-peek/web e2e",
     "desktop": "pnpm --filter @pr-peek/desktop tauri dev",
+    "desktop:build": "pnpm --filter @pr-peek/desktop tauri build --bundles app",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
