@@ -36,15 +36,14 @@ export function trayTitle(summary: SummaryResponse, style: CountStyle) {
 export const trayIcon = (summary: SummaryResponse) =>
   summary.hasFailing ? "failing" : summary.hasStale ? "stale" : "plain";
 
-export function setTrayState(summary: SummaryResponse, style: CountStyle) {
-  call("set_tray_state", {
-    state: { title: trayTitle(summary, style), icon: trayIcon(summary) },
-  });
-}
+const sendTrayState = (title: string, icon: ReturnType<typeof trayIcon>) =>
+  call("set_tray_state", { state: { title, icon } });
+
+export const setTrayState = (summary: SummaryResponse, style: CountStyle) =>
+  sendTrayState(trayTitle(summary, style), trayIcon(summary));
 
 // Leaves just the plain icon, as after signing out.
-export const clearTrayState = () =>
-  call("set_tray_state", { state: { title: "", icon: "plain" } });
+export const clearTrayState = () => sendTrayState("", "plain");
 
 export const openExternal = (url: string) => call("open_external", { url });
 export const quitApp = () => call("quit_app");
