@@ -55,12 +55,15 @@ fn just_opened_link(app: &AppHandle) -> bool {
         .is_some_and(|at| at.elapsed() < LINK_GUARD)
 }
 
-// Takes focus back from the browser, after it has come forward.
+// Takes focus back from the browser, after it has come forward. Skipped if the window
+// hid meanwhile, since focusing would show it again.
 fn refocus_soon(window: &WebviewWindow) {
     let window = window.clone();
     std::thread::spawn(move || {
         std::thread::sleep(REFOCUS_DELAY);
-        let _ = window.set_focus();
+        if window.is_visible().unwrap_or(false) {
+            let _ = window.set_focus();
+        }
     });
 }
 
