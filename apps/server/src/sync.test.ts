@@ -8,6 +8,7 @@ import {
   detailIds,
   githubPr,
   prGitHub,
+  recentCommit,
   searchHit,
   searchQueries,
   statusIds,
@@ -687,6 +688,105 @@ describe("items", () => {
     } finally {
       await listener.end();
     }
+  });
+});
+
+describe("quiet PRs", () => {
+  const quietAt = async () => (await db.pullRequest.findFirstOrThrow()).quietAt;
+  const hush = () => db.pullRequest.updateMany({ data: { quietAt: NOW } });
+
+  // PR_1 with one push, `sha`, and no checks.
+  const pushed = (sha: string, overrides: Record<string, unknown> = {}) =>
+    githubPr({
+      recentCommits: {
+        nodes: [recentCommit(sha, "2026-10-21T07:00:00Z", null)],
+      },
+      commits: {
+        nodes: [
+          {
+            commit: {
+              oid: sha,
+              committedDate: "2026-10-21T07:00:00Z",
+              statusCheckRollup: null,
+            },
+          },
+        ],
+      },
+      ...overrides,
+    });
+  const own = (sha: string, updatedAt = "2026-10-21T10:00:00Z") => ({
+    authored: [searchHit("PR_1", { repoId: WATCHED, updatedAt })],
+    prs: {
+      PR_1: {
+        ...pushed(sha, { author: { __typename: "User", login: "octocat" } }),
+        updatedAt,
+      },
+    },
+  });
+
+  it("stays quiet when nothing new happens", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    await hush();
+
+    await sync(user.id, asked(githubPr(), "2026-10-21T11:00:00Z"), hours(1));
+    expect(await quietAt()).toEqual(NOW);
+  });
+
+  it("wakes when something new happens on it", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    await hush();
+
+    const pr = githubPr({
+      comments: {
+        nodes: [
+          ...githubPr().comments.nodes,
+          {
+            id: "IC_2",
+            author: { __typename: "User", login: "jlee" },
+            bodyText: "Ping @octocat",
+            createdAt: "2026-10-21T11:30:00Z",
+          },
+        ],
+      },
+    });
+    const { result } = await sync(
+      user.id,
+      asked(pr, "2026-10-21T12:00:00Z"),
+      hours(1),
+    );
+    expect(result.newEventItemIds).toHaveLength(1);
+    expect(await quietAt()).toBeNull();
+  });
+
+  it("wakes the user's own PR on new commits", async () => {
+    const user = await makeUser();
+    await sync(user.id, own("abc123"));
+    await hush();
+
+    const { result } = await sync(
+      user.id,
+      own("def456", "2026-10-21T11:00:00Z"),
+      hours(1),
+    );
+    // Only the push is new.
+    expect(result.newEventItemIds).toEqual([]);
+    expect(await quietAt()).toBeNull();
+  });
+
+  it("keeps other people's PRs quiet on new commits", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked(pushed("abc123")));
+    await hush();
+
+    const { result } = await sync(
+      user.id,
+      asked(pushed("def456"), "2026-10-21T11:00:00Z"),
+      hours(1),
+    );
+    expect(result.newEventItemIds).toEqual([]);
+    expect(await quietAt()).toEqual(NOW);
   });
 });
 

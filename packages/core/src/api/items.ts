@@ -42,6 +42,8 @@ export interface ItemDto {
   // The PR's other open items. The list shows one row per PR.
   otherIds: string[];
   pr: {
+    // The stored PR's id, for quieting it.
+    id: string;
     title: string;
     owner: string;
     repo: string;
@@ -67,9 +69,11 @@ export interface IdlePrDto {
 export interface ItemsResponse extends ItemGroups {
   // Newest change first.
   idlePrs: IdlePrDto[];
+  // PRs the user quieted, in the same orders. Left out of the sections above.
+  quiet: { items: ItemDto[]; idlePrs: IdlePrDto[] };
 }
 
-// Counts for the app badge and the menu bar icon.
+// Counts for the app badge and the menu bar icon. Quiet PRs don't count.
 export interface SummaryResponse {
   total: number;
   review: number;

@@ -19,6 +19,7 @@ const isItemKind = (kind: string): kind is ItemKind =>
   Object.hasOwn(ITEM_GROUPS, kind);
 
 const PR_FIELDS = {
+  id: true,
   githubRepoId: true,
   title: true,
   repoOwner: true,
@@ -42,6 +43,7 @@ async function repoColors(
 }
 
 const toPrDto = (pr: PrRow, colors: Map<number, string>): ItemDto["pr"] => ({
+  id: pr.id,
   title: pr.title,
   owner: pr.repoOwner,
   repo: pr.repoName,
@@ -50,15 +52,21 @@ const toPrDto = (pr: PrRow, colors: Map<number, string>): ItemDto["pr"] => ({
   color: colors.get(pr.githubRepoId) ?? null,
 });
 
-// The user's open items, most urgent first.
+// Matches PRs the user quieted, or the rest.
+const quietWhere = (quiet: boolean) => ({
+  quietAt: quiet ? { not: null } : null,
+});
+
+// The user's open items, most urgent first. Only those on quiet PRs when `quiet`.
 export async function openItems(
   db: Db,
   userId: string,
   now: Date,
+  quiet = false,
 ): Promise<ItemDto[]> {
   const [items, settings, ruleSettings, colors] = await Promise.all([
     db.item.findMany({
-      where: { userId, status: "open" },
+      where: { userId, status: "open", pullRequest: quietWhere(quiet) },
       include: { pullRequest: { select: PR_FIELDS } },
     }),
     db.userSettings.findUniqueOrThrow({
@@ -139,17 +147,20 @@ export function onePerPr(items: ItemDto[]): ItemDto[] {
   });
 }
 
-// The user's open PRs that have no open items, newest change first.
+// The user's open PRs that have no open items, newest change first. Only quiet ones
+// when `quiet`.
 export async function idlePrs(
   db: Db,
   user: { id: string; login: string },
   now: Date,
+  quiet = false,
 ): Promise<IdlePrDto[]> {
   const [rows, colors] = await Promise.all([
     db.pullRequest.findMany({
       where: {
         userId: user.id,
         state: "open",
+        ...quietWhere(quiet),
         authorLogin: { equals: user.login, mode: "insensitive" },
         items: { none: { status: "open" } },
       },

@@ -57,7 +57,9 @@ describe("startDesktop", () => {
       event.preventDefault();
     };
     document.addEventListener("click", after);
-    link.dispatchEvent(new MouseEvent("click", { bubbles: true, metaKey }));
+    link.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true, metaKey }),
+    );
     document.removeEventListener("click", after);
     link.remove();
     return stopped;

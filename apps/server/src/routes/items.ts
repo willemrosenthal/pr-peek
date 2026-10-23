@@ -1,8 +1,15 @@
 import { markSeenBody, type ItemsResponse } from "@pr-peek/core";
 import express, { type Router } from "express";
 import type { Db } from "../db";
-import { parseInput } from "../http-error";
-import { groupItems, idlePrs, openItems, summarize } from "../item-list";
+import { HttpError, parseInput } from "../http-error";
+import {
+  groupItems,
+  idlePrs,
+  onePerPr,
+  openItems,
+  summarize,
+} from "../item-list";
+import { publishItemsChanged } from "../items";
 import { currentUser, requireUser } from "./auth";
 
 export interface ItemDeps {
@@ -13,15 +20,21 @@ export interface ItemDeps {
 export function itemsRouter(deps: ItemDeps): Router {
   const router = express.Router();
   const now = () => (deps.now ?? (() => new Date()))();
-  router.use(["/items", "/summary"], requireUser(deps.db));
+  router.use(["/items", "/summary", "/prs"], requireUser(deps.db));
 
   router.get("/items", async (_req, res) => {
     const user = currentUser(res);
-    const [items, idle] = await Promise.all([
+    const [items, idle, quietItems, quietIdle] = await Promise.all([
       openItems(deps.db, user.id, now()),
       idlePrs(deps.db, user, now()),
+      openItems(deps.db, user.id, now(), true),
+      idlePrs(deps.db, user, now(), true),
     ]);
-    const body: ItemsResponse = { ...groupItems(items), idlePrs: idle };
+    const body: ItemsResponse = {
+      ...groupItems(items),
+      idlePrs: idle,
+      quiet: { items: onePerPr(quietItems), idlePrs: quietIdle },
+    };
     res.json(body);
   });
 
@@ -40,5 +53,34 @@ export function itemsRouter(deps: ItemDeps): Router {
     res.sendStatus(204);
   });
 
+  // Quiets a PR until something new happens on it.
+  router.put("/prs/:id/quiet", async (req, res) => {
+    await setQuietAt(deps.db, currentUser(res).id, req.params.id, now());
+    res.sendStatus(204);
+  });
+
+  router.delete("/prs/:id/quiet", async (req, res) => {
+    await setQuietAt(deps.db, currentUser(res).id, req.params.id, null);
+    res.sendStatus(204);
+  });
+
   return router;
+}
+
+// Sets when the user's PR went quiet, or null to bring it back. Tells the user's other
+// devices.
+async function setQuietAt(
+  db: Db,
+  userId: string,
+  prId: string,
+  quietAt: Date | null,
+): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const { count } = await tx.pullRequest.updateMany({
+      where: { id: prId, userId },
+      data: { quietAt },
+    });
+    if (count === 0) throw new HttpError(404, "not_found", "PR not found");
+    await publishItemsChanged(tx, userId);
+  });
 }

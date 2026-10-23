@@ -80,6 +80,15 @@ describe("sendDueReminders", () => {
     expect(send).toHaveBeenCalledTimes(2);
   });
 
+  it("skips PRs the user quieted", async () => {
+    const { pr, run } = await setup();
+    await db.pullRequest.update({
+      where: { id: pr.id },
+      data: { quietAt: NOW },
+    });
+    expect(await run(hours(5))).toBe(0);
+  });
+
   it("waits out quiet hours, then sends", async () => {
     const { run, settings } = await setup();
     // NOW is 12:00 UTC, so orange is at 16:00.

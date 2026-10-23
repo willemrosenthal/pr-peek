@@ -8,6 +8,7 @@ export * from "./api/settings";
 export * from "./api/stream";
 export * from "./api/sync";
 export * from "./pr-snapshot";
+export * from "./quiet";
 export * from "./quiet-hours";
 export * from "./rules";
 export * from "./summary";
