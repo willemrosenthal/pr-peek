@@ -44,6 +44,9 @@
   --radius-lg: 12px;
   --shadow-panel: 0 12px 32px rgb(0 0 0 / 18%);
 
+  /* Narrowest a row's label gets before its controls wrap below it. */
+  --row-label-min: 12rem;
+
   /* Smallest comfortable touch target. */
   --touch-target: 44px;
 }

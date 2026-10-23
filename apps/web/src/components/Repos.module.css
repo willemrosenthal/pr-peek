@@ -4,13 +4,12 @@
   gap: var(--space-3);
 }
 
-/* Never narrower than 12rem, so controls wrap below it instead of squeezing it. */
 .name {
   display: flex;
-  flex: 1 1 12rem;
+  flex: 1 1 var(--row-label-min);
   flex-wrap: wrap;
   gap: var(--space-2);
-  min-width: min(100%, 12rem);
+  min-width: min(100%, var(--row-label-min));
   font-weight: 600;
   overflow-wrap: anywhere;
 }

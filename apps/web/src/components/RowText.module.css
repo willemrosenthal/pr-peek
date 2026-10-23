@@ -1,10 +1,9 @@
-/* Never narrower than 12rem, so controls wrap below it instead of squeezing it. */
 .text {
   display: flex;
-  flex: 1 1 12rem;
+  flex: 1 1 var(--row-label-min);
   flex-direction: column;
   gap: 2px;
-  min-width: min(100%, 12rem);
+  min-width: min(100%, var(--row-label-min));
   overflow-wrap: anywhere;
 }
 

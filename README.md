@@ -30,26 +30,26 @@ When you're done, stop the app with Ctrl+C. Stop the database with `pnpm db:down
 
 ### Ports
 
-| Port | What                                               |
-| ---- | -------------------------------------------------- |
-| 5173 | The web app. Open this one                         |
-| 3001 | The API server. Set by `PORT` in `.env`            |
-| 5433 | The database, in Docker                            |
+| Port | What                                    |
+| ---- | --------------------------------------- |
+| 5173 | The web app. Open this one              |
+| 3001 | The API server. Set by `PORT` in `.env` |
+| 5433 | The database, in Docker                 |
 
 If a port is taken by another app, change `PORT` in `.env`. The web app follows it.
 
 ## Other commands
 
-| Command              | What it does                                    |
-| -------------------- | ----------------------------------------------- |
-| `pnpm test`          | Runs the tests                                  |
-| `pnpm lint`          | Checks the code for mistakes                    |
-| `pnpm typecheck`     | Checks the TypeScript types                     |
-| `pnpm format`        | Formats every file with Prettier                |
-| `pnpm build`         | Builds everything for production                |
+| Command              | What it does                                     |
+| -------------------- | ------------------------------------------------ |
+| `pnpm test`          | Runs the tests                                   |
+| `pnpm lint`          | Checks the code for mistakes                     |
+| `pnpm typecheck`     | Checks the TypeScript types                      |
+| `pnpm format`        | Formats every file with Prettier                 |
+| `pnpm build`         | Builds everything for production                 |
 | `pnpm desktop`       | Runs the Mac menu bar app (needs `pnpm dev` too) |
-| `pnpm desktop:build` | Builds the Mac menu bar app                     |
-| `pnpm db:migrate`    | Applies new database changes                    |
+| `pnpm desktop:build` | Builds the Mac menu bar app                      |
+| `pnpm db:migrate`    | Applies new database changes                     |
 
 ## Branches
 
