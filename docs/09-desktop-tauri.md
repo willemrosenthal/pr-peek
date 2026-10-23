@@ -45,29 +45,33 @@ Run it with `pnpm desktop` (and `pnpm dev` for the web app it loads). The deskto
   - Launch at login and Check for updates come with their plugins in PR 4.
 - [x] A global shortcut (default Option+Command+P, changeable) toggles the window.
   - Changing it comes later, with the other Mac settings.
-- [ ] A "Menu bar count" setting (total, split like `3 · 1 · 3`, or dot only), moved here from plan 07's General tab. Keep it on the Mac, since only the tray uses it. (PR 2.)
+- [x] A "Menu bar count" setting (total, split like `3 · 1 · 3`, or dot only), moved here from plan 07's General tab. Keep it on the Mac, since only the tray uses it.
+  - In Settings, General, shown only inside the app. Kept in the window's localStorage. "Dot" is `•` when anything is open. "None" shows only the icon, which still turns orange or red. Nothing shows when nothing is open.
 - [x] The single instance plugin stops a second copy from launching.
 
 ### 9.3 Bridge between the web app and native code
 
-- [ ] Expose a few Tauri commands (Rust functions the web page can call):
+- [x] Expose a few Tauri commands (Rust functions the web page can call):
   - `set_tray_state({ total, hasStale, hasFailing, countStyle })`: updates the tray title (the text next to the icon, e.g. `7` or `3 · 1 · 3`) and swaps the icon for stale or failing states. These are the states from the Icons artboard.
-  - `notify({ title, body, url, itemId })`: shows a native Mac notification.
+  - `notify({ title, body, url, itemId })`: shows a native Mac notification. (PR 3, with 9.5.)
   - `open_external(url)`: opens a PR in the default browser.
   - `hide_window()`.
-- [ ] In Tauri capabilities, allow only the app's own domain (prod and localhost) to call these commands.
-- [ ] In `apps/web`, a `desktop.ts` module detects Tauri (`isTauri()` from `@tauri-apps/api/core`) and:
+  - As built: `set_tray_state({ title, icon })`, since the page works out the text. `icon` is `plain`, `stale` (orange), or `failing` (red). Also `quit_app()`. `open_external` only opens http and https links. Debug builds print each call in the `pnpm desktop` terminal.
+- [x] In Tauri capabilities, allow only the app's own domain (prod and localhost) to call these commands. (`src-tauri/capabilities/web-app.json`. A `PR_PEEK_URL` on another domain loads, but can't call them.)
+- [x] In `apps/web`, a `desktop.ts` module detects Tauri (`isTauri()` from `@tauri-apps/api/core`) and:
   - Calls `set_tray_state` whenever the summary changes.
-  - Routes "open PR" clicks through `open_external`.
+  - Routes "open PR" clicks through `open_external`. (Every link that would open a new window, or go to another site.)
   - Does nothing in a normal browser.
+  - The native side talks back by firing DOM events in the page: `pr-peek:hidden` and `pr-peek:refresh`. So the page needs no Tauri event permissions.
 
 ### 9.4 Keeping it live while hidden
 
-- [ ] The hidden window keeps the page and its SSE connection alive. Summary updates keep the tray count current.
-- [ ] Turn off the web view's background throttling so SSE and timers keep running when the window is hidden. Verify on battery power.
-- [ ] After sleep or wake, or a network change, reconnect SSE and refetch.
-- [ ] Check that hiding the window sets `document.visibilityState` to `hidden`. The list marks items seen then (plan 07 part 3b). If it doesn't, mark them seen on the window's own hide event.
-- [ ] Add the Quit button to the tray footer (`ListPage.tsx`, plan 07 part 3b), and route "Open in browser" through `open_external`.
+- [x] The hidden window keeps the page and its SSE connection alive. Summary updates keep the tray count current.
+- [x] Turn off the web view's background throttling so SSE and timers keep running when the window is hidden. **(You)** Verify on battery power.
+- [x] After sleep or wake, or a network change, reconnect SSE and refetch. (A 30 second timer that notices a long gap means the Mac slept. That, or the browser's `online` event, restarts the stream.)
+- [x] Check that hiding the window sets `document.visibilityState` to `hidden`. The list marks items seen then (plan 07 part 3b). If it doesn't, mark them seen on the window's own hide event.
+  - Done both ways: every hide fires `pr-peek:hidden`, which marks them seen too.
+- [x] Add the Quit button to the tray footer (`ListPage.tsx`, plan 07 part 3b), and route "Open in browser" through `open_external`.
 
 ### 9.5 Notifications without duplicates
 

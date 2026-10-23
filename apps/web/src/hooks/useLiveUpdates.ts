@@ -43,10 +43,22 @@ export function useLiveUpdates() {
       });
     };
 
+    // After sleep or a network change, a stream can look open but be dead. Starts over,
+    // and the "open" handler catches up.
+    const reconnect = () => {
+      clearTimeout(retry);
+      source.close();
+      connect();
+    };
+
     connect();
+    window.addEventListener("online", reconnect);
+    window.addEventListener("pr-peek:wake", reconnect);
     return () => {
       clearTimeout(retry);
       source.close();
+      window.removeEventListener("online", reconnect);
+      window.removeEventListener("pr-peek:wake", reconnect);
     };
   }, [queryClient]);
 }

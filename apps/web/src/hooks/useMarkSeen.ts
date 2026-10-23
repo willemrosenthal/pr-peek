@@ -45,8 +45,11 @@ export function useMarkSeen(ids: string[]) {
       else for (const id of onScreen.current) shown.current.add(id);
     };
     document.addEventListener("visibilitychange", onChange);
+    // The Mac menu bar app's window can hide while the page still counts as visible.
+    window.addEventListener("pr-peek:hidden", flush);
     return () => {
       document.removeEventListener("visibilitychange", onChange);
+      window.removeEventListener("pr-peek:hidden", flush);
       // A tick later, so dev mode's extra remount doesn't count as leaving.
       leaving.current = setTimeout(flush, 0);
     };

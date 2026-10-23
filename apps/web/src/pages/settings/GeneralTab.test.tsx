@@ -1,5 +1,5 @@
 import type { UserSettingsDto } from "@pr-peek/core";
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
 import {
@@ -11,7 +11,9 @@ import {
   settingsResponse,
   signedInApi,
 } from "../../test/fake-api";
+import { getCountStyle } from "../../desktop";
 import { renderApp } from "../../test/render";
+import { stubTauri } from "../../test/tauri";
 
 it("turns hiding bots on, and reloads the list", async () => {
   let hideBots = false;
@@ -104,4 +106,20 @@ it("shows why a setting couldn't be saved, and keeps it as it was", async () => 
   await userEvent.click(toggle);
   expect((await screen.findByRole("alert")).textContent).toBe("Couldn't save");
   expect(toggle.getAttribute("aria-checked")).toBe("false");
+});
+
+it("sets the menu bar count, only inside the Mac app", async () => {
+  fakeApi(signedInApi());
+  renderApp("/settings/general");
+  await screen.findByRole("switch", { name: "Hide bots" });
+  expect(screen.queryByLabelText("Menu bar count")).toBe(null);
+  cleanup();
+
+  stubTauri();
+  renderApp("/settings/general");
+  const select = await screen.findByLabelText("Menu bar count");
+  expect(select).toHaveProperty("value", "total");
+  await userEvent.selectOptions(select, "A dot");
+  expect(select).toHaveProperty("value", "dot");
+  expect(getCountStyle()).toBe("dot");
 });

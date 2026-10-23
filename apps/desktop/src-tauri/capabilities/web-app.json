@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "web-app",
+  "description": "Lets the hosted web app, and only it, update the tray, open links, and hide or quit the app.",
+  "windows": ["main"],
+  "local": false,
+  "remote": {
+    "urls": ["https://www.git-buddy.com/*", "http://localhost:5173/*"]
+  },
+  "permissions": [
+    "allow-set-tray-state",
+    "allow-open-external",
+    "allow-hide-window",
+    "allow-quit-app"
+  ]
+}

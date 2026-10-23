@@ -50,6 +50,14 @@ export function useSync() {
     },
   });
 
+  // The Mac menu bar app's Refresh menu item.
+  const { mutate } = refresh;
+  useEffect(() => {
+    const onRefresh = () => mutate();
+    window.addEventListener("pr-peek:refresh", onRefresh);
+    return () => window.removeEventListener("pr-peek:refresh", onRefresh);
+  }, [mutate]);
+
   // Loads the list the sync just updated.
   const finished = started !== null && !refreshing;
   useEffect(() => {
