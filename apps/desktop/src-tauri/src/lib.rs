@@ -9,7 +9,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::utils::config::BackgroundThrottlingPolicy;
 use tauri::window::Color;
 use tauri::{
-    AppHandle, LogicalSize, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    AppHandle, LogicalSize, Manager, Theme, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
     WindowEvent, Wry,
 };
 use tauri_plugin_autostart::ManagerExt;
@@ -217,6 +217,16 @@ fn quit_app(app: AppHandle) {
     app.exit(0);
 }
 
+const CLEAR: Color = Color(0, 0, 0, 0);
+
+// --color-page in tokens.css, for light or dark mode.
+fn page_color(window: &WebviewWindow) -> Color {
+    match window.theme() {
+        Ok(Theme::Dark) => Color(17, 17, 19, 255),
+        _ => Color(242, 242, 245, 255),
+    }
+}
+
 #[tauri::command]
 fn pop_out(app: AppHandle) -> Result<(), String> {
     log_command("pop_out");
@@ -231,8 +241,9 @@ fn set_popped_out(app: &AppHandle, window: &WebviewWindow, popped: bool) -> taur
     window.set_always_on_top(!popped)?;
     window.set_decorations(popped)?;
     window.set_resizable(popped)?;
-    // The see-through dropdown would also make the title bar see-through.
-    window.set_background_color((!popped).then_some(Color(0, 0, 0, 0)))?;
+    // The title bar shows the window's color, so the popped out window needs a solid one.
+    let color = if popped { page_color(window) } else { CLEAR };
+    window.set_background_color(Some(color))?;
     let (width, height) = if popped { WINDOW_SIZE } else { DROPDOWN_SIZE };
     window.set_size(LogicalSize::new(width, height))?;
     window.navigate(app_page("/", popped))?;
