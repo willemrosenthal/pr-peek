@@ -12,26 +12,41 @@ The Tauri window loads the **hosted web app** (`https://www.git-buddy.com/?shell
 - **Cost:** it needs internet to open. That's fine, since it needs GitHub anyway. It also needs Tauri's security settings (capabilities) to allow our domain to call the native features we expose, and nothing else.
 - **Fallback if this causes trouble:** bundle `apps/web/dist` into the app and call the API with a token instead of a cookie. The React code stays the same.
 
+## PRs
+
+1. Setup and menu bar: 9.1 and 9.2, except the "Menu bar count" setting.
+2. Bridge: 9.3, 9.4, and the "Menu bar count" setting.
+3. No duplicate alerts: 9.5.
+4. Launch at login and updates: 9.6 and 9.7, plus their two right click menu items.
+5. Release pipeline: 9.8.
+
+Run it with `pnpm desktop` (and `pnpm dev` for the web app it loads). The desktop package has no `dev` or `build` script on purpose, so `pnpm dev` and Render's `pnpm build` don't compile Rust.
+
 ## Steps
 
 ### 9.1 Project setup
 
-- [ ] `pnpm create tauri-app` into `apps/desktop` with no frontend template, since we load a URL.
-- [ ] In `tauri.conf.json`:
+- [x] `pnpm create tauri-app` into `apps/desktop` with no frontend template, since we load a URL.
+  - Written by hand instead: the generator asks questions as it runs and makes files we don't need.
+- [x] In `tauri.conf.json`:
   - The main window loads the app URL from an env based setting: `http://localhost:5173/?shell=tray` in dev, the prod URL in release builds.
   - The window starts hidden, with no decorations (title bar), fixed size about 380 by 600, and skips the taskbar.
-- [ ] Add `apps/desktop/src-tauri/target` and `apps/desktop/src-tauri/gen` to `.gitignore`.
-- [ ] Set the macOS activation policy to "accessory", so there's no Dock icon. The app lives only in the menu bar.
+  - The window is made in `src-tauri/src/lib.rs` instead, so the URL can depend on the build. `PR_PEEK_URL` overrides it.
+- [x] Add `apps/desktop/src-tauri/target` and `apps/desktop/src-tauri/gen` to `.gitignore`.
+- [x] Set the macOS activation policy to "accessory", so there's no Dock icon. The app lives only in the menu bar.
 
 ### 9.2 Menu bar icon and dropdown
 
-- [ ] Create a tray icon with a template image (a black and transparent PNG that macOS tints for light and dark menu bars). Use the Wavey octopus from `apps/web/public/icon.svg` (the white strokes only, at 1.5 stroke width).
-- [ ] Left click toggles the window. Use the positioner plugin to place it just under the tray icon.
-- [ ] Hide the window when it loses focus, like a real menu.
-- [ ] Right click shows a small native menu: Refresh, Open in browser, Settings, Launch at login (checkbox), Check for updates, Quit.
-- [ ] A global shortcut (default Option+Command+P, changeable) toggles the window.
-- [ ] A "Menu bar count" setting (total, split like `3 · 1 · 3`, or dot only), moved here from plan 07's General tab. Keep it on the Mac, since only the tray uses it.
-- [ ] The single instance plugin stops a second copy from launching.
+- [x] Create a tray icon with a template image (a black and transparent PNG that macOS tints for light and dark menu bars). Use the Wavey octopus from `apps/web/public/icon.svg` (the white strokes only, at 1.5 stroke width).
+  - Source: `src-tauri/icons/tray.svg`. Made into `tray.png` with `pnpm --filter @pr-peek/desktop tauri icon src-tauri/icons/tray.svg -o <folder>`, taking its `64x64.png`.
+- [x] Left click toggles the window. Use the positioner plugin to place it just under the tray icon.
+- [x] Hide the window when it loses focus, like a real menu.
+- [x] Right click shows a small native menu: Refresh, Open in browser, Settings, Launch at login (checkbox), Check for updates, Quit.
+  - Launch at login and Check for updates come with their plugins in PR 4.
+- [x] A global shortcut (default Option+Command+P, changeable) toggles the window.
+  - Changing it comes later, with the other Mac settings.
+- [ ] A "Menu bar count" setting (total, split like `3 · 1 · 3`, or dot only), moved here from plan 07's General tab. Keep it on the Mac, since only the tray uses it. (PR 2.)
+- [x] The single instance plugin stops a second copy from launching.
 
 ### 9.3 Bridge between the web app and native code
 
@@ -93,6 +108,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
   - `tauri-action` uses these secrets automatically.
 - [ ] Until signing is set up, builds work for you. Right click, then Open the first time to get past the warning.
 - [ ] Add a "Download for Mac" link on the `/install` page that points at the latest release.
+- [ ] Check the Rust code in CI on PRs that change `apps/desktop`: `cargo fmt --check` and `cargo clippy -- -D warnings`. CI's Linux runner checks only the web and server code today.
 
 ## Done when
 

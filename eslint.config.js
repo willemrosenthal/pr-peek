@@ -7,7 +7,12 @@ import tseslint from "typescript-eslint";
 
 export default defineConfig(
   {
-    ignores: ["**/dist/**", "**/coverage/**", "apps/server/src/generated/**"],
+    ignores: [
+      "**/dist/**",
+      "**/coverage/**",
+      "apps/server/src/generated/**",
+      "apps/desktop/src-tauri/target/**",
+    ],
   },
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
