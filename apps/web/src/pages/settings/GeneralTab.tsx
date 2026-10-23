@@ -83,7 +83,6 @@ export function GeneralTab() {
 
 const percent = (scale: number) => `${Math.round(scale * 100)}%`;
 
-// Kept on this device, since screens differ.
 function SizeRow() {
   const scale = useLocalSetting(appScale);
   return (
