@@ -273,8 +273,9 @@ describe("tray mode", () => {
     const invoke = stubTauri();
     fakeApi(listApi());
     renderApp("/?shell=tray");
-    await screen.findByRole("link", { name: "Open in browser" });
-    await userEvent.click(popOutButton()!);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Pop out into a window" }),
+    );
     expect(callsOf(invoke, "pop_out")).toHaveLength(1);
     cleanup();
 

@@ -3,7 +3,7 @@ import { PictureInPicture2, RotateCw, Settings } from "lucide-react";
 import { Link } from "react-router";
 import { cx } from "../cx";
 import { inDesktopApp, popOut } from "../desktop";
-import { inDropdown } from "../hooks/useIsTray";
+import { useIsDropdown } from "../hooks/useIsTray";
 import { useNow } from "../hooks/useNow";
 import styles from "./ListHeader.module.css";
 
@@ -16,6 +16,7 @@ export function ListHeader({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
+  const canPopOut = useIsDropdown() && inDesktopApp();
   return (
     <header className={styles.header}>
       <div className={styles.text}>
@@ -32,7 +33,7 @@ export function ListHeader({
       >
         <RotateCw className={cx(refreshing && styles.spin)} />
       </button>
-      {inDesktopApp() && inDropdown() && (
+      {canPopOut && (
         <button
           type="button"
           className={styles.iconButton}
