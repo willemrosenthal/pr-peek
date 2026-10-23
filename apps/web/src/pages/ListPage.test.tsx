@@ -256,9 +256,7 @@ describe("tray mode", () => {
     fakeApi(listApi());
     renderApp("/?shell=tray");
     await screen.findByRole("link", { name: "Open in browser" });
-    expect(
-      screen.queryByRole("button", { name: "Quit Git Buddy" }),
-    ).toBe(null);
+    expect(screen.queryByRole("button", { name: "Quit Git Buddy" })).toBe(null);
     cleanup();
 
     const invoke = stubTauri();
