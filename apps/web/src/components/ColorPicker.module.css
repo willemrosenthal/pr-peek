@@ -15,7 +15,8 @@
   cursor: pointer;
 }
 
-/* A bigger tap area than the dot, without changing the layout. */
+/* A bigger tap area than the dot, without changing the layout. Sideways it stays short
+   of the Color switch, 11px away. */
 .trigger::after {
   content: "";
   position: absolute;
@@ -24,7 +25,7 @@
 
 @media (pointer: coarse) {
   .trigger::after {
-    inset: -15px;
+    inset: -15px -8px;
   }
 }
 
