@@ -85,7 +85,7 @@ const percent = (scale: number) => `${Math.round(scale * 100)}%`;
 
 // Kept on this device, since screens differ.
 function SizeRow() {
-  const scale = appScale.useValue();
+  const scale = useLocalSetting(appScale);
   return (
     <CardRow>
       <RowText
