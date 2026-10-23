@@ -1,7 +1,7 @@
 import { localSetting } from "./localSetting";
 
 // The sizes Settings offers, like Cmd- and Cmd+ in a browser. 1 is the normal size.
-export const SCALES = [0.9, 1, 1.1, 1.2];
+export const SCALES = [0.9, 0.95, 1, 1.05, 1.1, 1.15];
 
 // Kept on this device, since screens differ.
 export const appScale = localSetting<number>(
