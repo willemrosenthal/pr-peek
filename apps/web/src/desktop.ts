@@ -1,9 +1,9 @@
-import type { SummaryResponse } from "@pr-peek/core";
+import type { PushPayload, SummaryResponse } from "@pr-peek/core";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 
 // The Mac menu bar app (apps/desktop). Everything here does nothing in a browser. The
 // native side fires `pr-peek:hidden` and `pr-peek:refresh` on `window`. This module
-// fires `pr-peek:wake`.
+// fires `pr-peek:wake`, and shows each `pr-peek:notify` from the live stream.
 
 export const inDesktopApp = () => isTauri();
 
@@ -101,13 +101,25 @@ function watchForWake() {
   }, WAKE_CHECK_MS);
 }
 
+// A native Mac notification, instead of a push to the browsers on this Mac.
+function showNotification(event: Event) {
+  const { title, body, url } = (event as CustomEvent<PushPayload>).detail;
+  call("notify", { alert: { title, body, url } });
+}
+
 // Run once at startup. Returns a function that stops it, for tests.
 export function startDesktop(): () => void {
   if (!isTauri()) return () => undefined;
   document.addEventListener("click", openLinksInBrowser, true);
+  window.addEventListener("pr-peek:notify", showNotification);
   const wake = watchForWake();
   return () => {
     document.removeEventListener("click", openLinksInBrowser, true);
+    window.removeEventListener("pr-peek:notify", showNotification);
     clearInterval(wake);
   };
 }
+
+// While the app runs, the server sends it notifications instead of the browsers on this
+// Mac. It counts as running for a few minutes after each of these.
+export const HEARTBEAT_MS = 60_000;

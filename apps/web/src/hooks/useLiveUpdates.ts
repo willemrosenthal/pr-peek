@@ -1,4 +1,9 @@
-import { ITEMS_CHANGED_EVENT, type SummaryResponse } from "@pr-peek/core";
+import {
+  ITEMS_CHANGED_EVENT,
+  NOTIFY_EVENT,
+  type PushPayload,
+  type SummaryResponse,
+} from "@pr-peek/core";
 import { type QueryKey, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { queryKeys } from "../queries";
@@ -26,6 +31,15 @@ export function useLiveUpdates() {
         if (opened)
           invalidate(queryKeys.items, queryKeys.summary, queryKeys.syncStatus);
         opened = true;
+      });
+      // For the Mac menu bar app, which shows it natively. Browser tabs ignore it.
+      source.addEventListener(NOTIFY_EVENT, (event) => {
+        const payload = JSON.parse(
+          (event as MessageEvent<string>).data,
+        ) as PushPayload;
+        window.dispatchEvent(
+          new CustomEvent("pr-peek:notify", { detail: payload }),
+        );
       });
       source.addEventListener(ITEMS_CHANGED_EVENT, (event) => {
         const summary = JSON.parse(

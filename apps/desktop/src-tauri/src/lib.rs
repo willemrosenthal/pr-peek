@@ -10,6 +10,7 @@ use tauri::{
     AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_positioner::{Position, WindowExt};
 
@@ -130,9 +131,7 @@ fn set_tray_state(app: AppHandle, state: TrayState) -> Result<(), String> {
 }
 
 // Opens a web link in the default browser. Other kinds of links are refused.
-#[tauri::command]
-fn open_external(app: AppHandle, url: String) -> Result<(), String> {
-    log_command("open_external");
+fn open_web_link(app: &AppHandle, url: &str) -> Result<(), String> {
     let parsed: Url = url.parse().map_err(|_| "not a URL")?;
     if !matches!(parsed.scheme(), "https" | "http") {
         return Err("only web links open".into());
@@ -140,6 +139,43 @@ fn open_external(app: AppHandle, url: String) -> Result<(), String> {
     app.opener()
         .open_url(parsed.as_str(), None::<&str>)
         .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn open_external(app: AppHandle, url: String) -> Result<(), String> {
+    log_command("open_external");
+    open_web_link(&app, &url)
+}
+
+// A notification from the server, with the link a click opens.
+#[derive(Deserialize)]
+struct Alert {
+    title: String,
+    body: String,
+    url: String,
+}
+
+#[tauri::command]
+fn notify(app: AppHandle, alert: Alert) -> Result<(), String> {
+    log_command(&format!("notify {:?}", alert.title));
+    app.notification()
+        .builder()
+        .title(alert.title)
+        .body(alert.body)
+        .extra("url", alert.url)
+        .show()
+        .map_err(|err| err.to_string())
+}
+
+// A click on a notification opens its PR in the browser. Links within pr-peek, like the
+// morning summary's, open the dropdown instead.
+fn on_notification_click(app: &AppHandle, url: Option<&str>) {
+    let opened = url.is_some_and(|url| open_web_link(app, url).is_ok());
+    if !opened {
+        if let Some(window) = main_window(app) {
+            show_window(&window);
+        }
+    }
 }
 
 #[tauri::command]
@@ -219,6 +255,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app, shortcut, event| {
@@ -233,7 +270,8 @@ pub fn run() {
             set_tray_state,
             open_external,
             hide_window,
-            quit_app
+            quit_app,
+            notify
         ])
         .setup(move |app| {
             // No Dock icon. The app lives in the menu bar.
@@ -266,6 +304,16 @@ pub fn run() {
             });
 
             build_tray(app.handle())?;
+
+            let clicked = app.handle().clone();
+            app.notification().on_action(move |action| {
+                let url = action
+                    .notification()
+                    .and_then(|shown| shown.extra().get("url"))
+                    .and_then(|url| url.as_str());
+                on_notification_click(&clicked, url);
+            })?;
+
             // Another app may own the shortcut. The tray icon still works without it.
             if let Err(err) = app.global_shortcut().register(toggle_shortcut) {
                 eprintln!("pr-peek: couldn't register Option+Command+P: {err}");

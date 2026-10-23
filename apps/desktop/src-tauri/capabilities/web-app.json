@@ -11,6 +11,7 @@
     "allow-set-tray-state",
     "allow-open-external",
     "allow-hide-window",
-    "allow-quit-app"
+    "allow-quit-app",
+    "allow-notify"
   ]
 }

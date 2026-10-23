@@ -55,7 +55,7 @@ Run it with `pnpm desktop` (and `pnpm dev` for the web app it loads). The deskto
 
 - [x] Expose a few Tauri commands (Rust functions the web page can call):
   - `set_tray_state({ total, hasStale, hasFailing, countStyle })`: updates the tray title (the text next to the icon, e.g. `7` or `3 · 1 · 3`) and swaps the icon for stale or failing states. These are the states from the Icons artboard.
-  - `notify({ title, body, url, itemId })`: shows a native Mac notification. (PR 3, with 9.5.)
+  - `notify({ title, body, url, itemId })`: shows a native Mac notification. (As built: `notify({ alert: { title, body, url } })`, in PR 3b.)
   - `open_external(url)`: opens a PR in the default browser.
   - `hide_window()`.
   - As built: `set_tray_state({ title, icon })`, since the page works out the text. `icon` is `plain`, `stale` (orange), or `failing` (red). Also `quit_app()`. `open_external` only opens http and https links. Debug builds print each call in the `pnpm desktop` terminal.
@@ -79,15 +79,16 @@ Run it with `pnpm desktop` (and `pnpm dev` for the web app it loads). The deskto
 
 The Mac browser may also have a push subscription, so the same alert could arrive twice.
 
-- [ ] The Tauri app registers itself as a device of type `desktop-app` through a new `POST /api/devices` endpoint. It sends a heartbeat every minute while running.
-  - Server side done (3a): `POST /api/desktop/heartbeat` sets `User.desktopSeenAt`. No device row: the app is never a push device. The app sending it is 3b.
+- [x] The Tauri app registers itself as a device of type `desktop-app` through a new `POST /api/devices` endpoint. It sends a heartbeat every minute while running.
+  - As built: `POST /api/desktop/heartbeat` sets `User.desktopSeenAt`. No device row, since the app is never a push device. The page inside the app sends it every minute while signed in (`SignedIn.tsx`).
 - [x] Server rule: while a user's `desktop-app` device is online (heartbeat in the last 3 minutes), skip web push to that user's Mac browser subscriptions. Phone pushes are unaffected.
   - Browsers say whether they're on a Mac (`PushSubscription.onMac`), when turned on, and once on open for older devices.
   - `deliver` in `apps/server/src/push.ts` holds the rule, for item notifications, reminders, batches, and the morning summary. The running app also counts as a device by itself, for every severity.
   - With two Macs, one running app skips the browsers on both. After Quit, the browsers on the Mac stay skipped for up to 3 minutes.
-- [ ] The server sends `event: notify` over SSE to the desktop app with the same payload as a push. The web app calls the native `notify` command.
-  - Server side done (3a): `deliver` publishes on Postgres channel `user_desktop_notify`, and the stream passes it on as `event: notify`. The app's side is 3b.
-- [ ] Clicking a native notification opens the PR. Check whether Tauri's notification plugin supports click handling and action buttons on macOS desktop in the version you install. If not, clicking opens pr-peek's window, which is fine for v1.
+- [x] The server sends `event: notify` over SSE to the desktop app with the same payload as a push. The web app calls the native `notify` command.
+  - `deliver` publishes on Postgres channel `user_desktop_notify`, and the stream passes it on as `event: notify`. `useLiveUpdates` fires `pr-peek:notify`, and `desktop.ts` calls `notify`. Browser tabs ignore it.
+- [x] Clicking a native notification opens the PR. Check whether Tauri's notification plugin supports click handling and action buttons on macOS desktop in the version you install. If not, clicking opens pr-peek's window, which is fine for v1.
+  - `tauri-plugin-notification` 2.7 reports clicks on macOS (`on_action`). Each notification carries its link. A PR link opens in the browser. The morning summary and batches, which link to the list, open the dropdown. Dev builds show notifications as coming from Terminal.
 
 ### 9.6 Launch at login
 
