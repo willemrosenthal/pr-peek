@@ -53,7 +53,7 @@ describe("after time away", () => {
     });
     clock.mockReturnValue(left + away);
     act(() => {
-      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(new Event("pr-peek:shown"));
     });
     clock.mockRestore();
   };

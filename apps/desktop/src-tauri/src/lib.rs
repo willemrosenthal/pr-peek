@@ -83,6 +83,7 @@ fn show_window(window: &WebviewWindow) {
     }
     let _ = window.show();
     let _ = window.set_focus();
+    tell_page(window, "shown");
 }
 
 // Every hide goes through here, so the page always hears about it.

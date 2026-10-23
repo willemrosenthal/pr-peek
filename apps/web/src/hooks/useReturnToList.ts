@@ -15,7 +15,7 @@ export function useReturnToList() {
     if (!inDesktopApp() && !isStandalone()) return;
     let leftAt: number | null = null;
     const leave = () => {
-      leftAt ??= Date.now();
+      leftAt = Date.now();
     };
     // Checks the time on return, since timers stop while a phone app is in the background.
     const back = () => {
@@ -27,10 +27,12 @@ export function useReturnToList() {
 
     // The Mac app's window can hide while the page still counts as visible.
     window.addEventListener("pr-peek:hidden", leave);
+    window.addEventListener("pr-peek:shown", back);
     window.addEventListener("focus", back);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("pr-peek:hidden", leave);
+      window.removeEventListener("pr-peek:shown", back);
       window.removeEventListener("focus", back);
       document.removeEventListener("visibilitychange", onVisibility);
     };
