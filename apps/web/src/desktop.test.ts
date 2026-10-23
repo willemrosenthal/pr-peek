@@ -16,7 +16,8 @@ describe("the menu bar", () => {
     ["total", "7"],
     ["split", "3 · 1 · 3"],
     ["dot", "•"],
-  ])("shows the %s count as %s", (style, title) => {
+    ["none", ""],
+  ])("shows the %s count as %o", (style, title) => {
     expect(trayTitle(counts, style)).toBe(title);
   });
 

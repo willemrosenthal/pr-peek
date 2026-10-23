@@ -46,7 +46,7 @@ Run it with `pnpm desktop` (and `pnpm dev` for the web app it loads). The deskto
 - [x] A global shortcut (default Option+Command+P, changeable) toggles the window.
   - Changing it comes later, with the other Mac settings.
 - [x] A "Menu bar count" setting (total, split like `3 · 1 · 3`, or dot only), moved here from plan 07's General tab. Keep it on the Mac, since only the tray uses it.
-  - In Settings, General, shown only inside the app. Kept in the window's localStorage. "Dot" is `•` when anything is open. Nothing shows when nothing is open.
+  - In Settings, General, shown only inside the app. Kept in the window's localStorage. "Dot" is `•` when anything is open. "None" shows only the icon, which still turns orange or red. Nothing shows when nothing is open.
 - [x] The single instance plugin stops a second copy from launching.
 
 ### 9.3 Bridge between the web app and native code

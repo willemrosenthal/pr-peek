@@ -14,16 +14,17 @@ function call(command: string, args?: Record<string, unknown>) {
 }
 
 // The text next to the menu bar icon.
-export type CountStyle = "total" | "split" | "dot";
+export type CountStyle = "total" | "split" | "dot" | "none";
 
 export const COUNT_STYLES: { value: CountStyle; label: string }[] = [
   { value: "total", label: "Total, like 7" },
   { value: "split", label: "Each section, like 3 · 1 · 3" },
   { value: "dot", label: "A dot" },
+  { value: "none", label: "Nothing, just the icon" },
 ];
 
 export function trayTitle(summary: SummaryResponse, style: CountStyle) {
-  if (summary.total === 0) return "";
+  if (summary.total === 0 || style === "none") return "";
   if (style === "dot") return "•";
   if (style === "split") {
     return [summary.review, summary.replies, summary.mine].join(" · ");
