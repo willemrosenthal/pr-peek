@@ -12,7 +12,7 @@ export const addRepoBody = z.object({ owner: githubName, name: githubName });
 export type AddRepoBody = z.infer<typeof addRepoBody>;
 
 // "#rrggbb".
-export const repoColor = z
+const repoColor = z
   .string()
   .regex(/^#[0-9a-f]{6}$/i, "Use a hex color, like #3b82f6");
 

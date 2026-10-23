@@ -129,6 +129,45 @@ describe("watched repos", () => {
     ]);
   });
 
+  it.each([
+    ["e11d48", "#e11d48"],
+    ["ABC", "#aabbcc"],
+  ])("saves a typed color %s once typing pauses", async (typed, saved) => {
+    const repo = watchedRepo({ owner: "acme", name: "web", color: "#2563eb" });
+    const patch = `PATCH /api/repos/${repo.id}`;
+    const fetch = reposApi([repo], [], { [patch]: () => json({ repo }) });
+    renderApp("/settings/repos");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Pick a color for acme/web" }),
+    );
+    const input = await screen.findByLabelText("Hex color");
+    await userEvent.clear(input);
+    await userEvent.type(input, typed);
+    await waitFor(() => expect(sentBodies(fetch, patch)).toHaveLength(1));
+    expect(sentBodies(fetch, patch)).toEqual([{ color: saved }]);
+  });
+
+  it("stays off when color is turned off right after a pick", async () => {
+    const repo = watchedRepo({ owner: "acme", name: "web", color: "#2563eb" });
+    const patch = `PATCH /api/repos/${repo.id}`;
+    const fetch = reposApi([repo], [], { [patch]: () => json({ repo }) });
+    renderApp("/settings/repos");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Pick a color for acme/web" }),
+    );
+    const input = await screen.findByLabelText("Hex color");
+    await userEvent.clear(input);
+    await userEvent.type(input, "e11d48");
+    act(() => input.blur());
+    await userEvent.click(
+      screen.getByRole("switch", { name: "Color for acme/web" }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(sentBodies(fetch, patch).at(-1)).toEqual({ color: null });
+  });
+
   it("removes one", async () => {
     const watched = [watchedRepo({ owner: "acme", name: "web" })];
     reposApi(watched, [], {

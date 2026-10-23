@@ -24,21 +24,41 @@ export function ColorPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(color);
-  const timer = useRef<number | undefined>(undefined);
+  // The pick waiting to be saved.
+  const pending = useRef<{ timer: number; hex: string } | null>(null);
   const shown = open ? draft : color;
 
+  // Drops the waiting pick. Returns it, if there was one.
+  const takePending = () => {
+    const waiting = pending.current;
+    if (waiting) window.clearTimeout(waiting.timer);
+    pending.current = null;
+    return waiting;
+  };
+
+  const flush = () => {
+    const waiting = takePending();
+    if (waiting) onChange(waiting.hex);
+  };
+
+  // The draft stays as typed. Changing it mid-typing, like "#e11" to "#ee1111", would
+  // rewrite the hex field under the cursor.
   const pick = (next: string) => {
-    const hex = longHex(next.toLowerCase());
-    setDraft(hex);
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => onChange(hex), SAVE_DELAY_MS);
+    setDraft(next);
+    takePending();
+    pending.current = {
+      timer: window.setTimeout(flush, SAVE_DELAY_MS),
+      hex: longHex(next.toLowerCase()),
+    };
   };
 
   return (
     <Popover.Root
       open={open}
       onOpenChange={(next) => {
+        // Opening starts from the saved color. Closing saves the last pick right away.
         if (next) setDraft(color);
+        else flush();
         setOpen(next);
       }}
     >
