@@ -173,7 +173,10 @@ pub fn run() {
             });
 
             build_tray(app.handle())?;
-            app.global_shortcut().register(toggle_shortcut)?;
+            // Another app may own the shortcut. The tray icon still works without it.
+            if let Err(err) = app.global_shortcut().register(toggle_shortcut) {
+                eprintln!("pr-peek: couldn't register Option+Command+P: {err}");
+            }
             Ok(())
         })
         .run(tauri::generate_context!())
