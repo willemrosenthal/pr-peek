@@ -14,6 +14,7 @@
     "allow-quit-app",
     "allow-notify",
     "allow-launch-at-login",
-    "allow-set-launch-at-login"
+    "allow-set-launch-at-login",
+    "allow-pop-out"
   ]
 }

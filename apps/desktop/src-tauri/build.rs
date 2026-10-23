@@ -9,6 +9,7 @@ fn main() {
             "notify",
             "launch_at_login",
             "set_launch_at_login",
+            "pop_out",
         ]),
     ))
     .expect("tauri-build failed");

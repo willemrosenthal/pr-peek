@@ -1,7 +1,9 @@
 import { formatAge } from "@pr-peek/core";
-import { RotateCw, Settings } from "lucide-react";
+import { PictureInPicture2, RotateCw, Settings } from "lucide-react";
 import { Link } from "react-router";
 import { cx } from "../cx";
+import { inDesktopApp, popOut } from "../desktop";
+import { inDropdown } from "../hooks/useIsTray";
 import { useNow } from "../hooks/useNow";
 import styles from "./ListHeader.module.css";
 
@@ -30,6 +32,17 @@ export function ListHeader({
       >
         <RotateCw className={cx(refreshing && styles.spin)} />
       </button>
+      {inDesktopApp() && inDropdown() && (
+        <button
+          type="button"
+          className={styles.iconButton}
+          aria-label="Pop out into a window"
+          title="Pop out into a window"
+          onClick={popOut}
+        >
+          <PictureInPicture2 />
+        </button>
+      )}
       <Link to="/settings" className={styles.iconButton} aria-label="Settings">
         <Settings />
       </Link>

@@ -3,8 +3,12 @@ import { useSearchParams } from "react-router";
 
 const KEY = "pr-peek:shell";
 
-// True in the Mac menu bar app, which opens the page with `?shell=tray`. Kept for the
-// session, so it holds on other pages and after a reload.
+// The Mac menu bar app opens the page with `?shell=tray` in the dropdown under its icon,
+// and `?shell=window` once popped out into a window. Kept for the session, so it holds
+// on other pages and after a reload.
+const shellOf = (fromUrl: string | null) => fromUrl ?? readStored();
+
+// True in the Mac menu bar app, in the dropdown or popped out.
 export function useIsTray(): boolean {
   const [params] = useSearchParams();
   const fromUrl = params.get("shell");
@@ -18,15 +22,13 @@ export function useIsTray(): boolean {
     }
   }, [fromUrl]);
 
-  return isTrayShell(fromUrl);
+  const shell = shellOf(fromUrl);
+  return shell === "tray" || shell === "window";
 }
 
-// The same check outside React, like at startup.
-export const inTray = () =>
-  isTrayShell(new URLSearchParams(location.search).get("shell"));
-
-const isTrayShell = (fromUrl: string | null) =>
-  (fromUrl ?? readStored()) === "tray";
+// True in the dropdown under the icon. Works outside React, like at startup.
+export const inDropdown = () =>
+  shellOf(new URLSearchParams(location.search).get("shell")) === "tray";
 
 function readStored(): string | null {
   try {

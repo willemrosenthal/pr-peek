@@ -267,6 +267,22 @@ describe("tray mode", () => {
     expect(callsOf(invoke, "quit_app")).toHaveLength(1);
   });
 
+  it("pops out from the dropdown, and keeps the footer in the window", async () => {
+    const popOutButton = () =>
+      screen.queryByRole("button", { name: "Pop out into a window" });
+    const invoke = stubTauri();
+    fakeApi(listApi());
+    renderApp("/?shell=tray");
+    await screen.findByRole("link", { name: "Open in browser" });
+    await userEvent.click(popOutButton()!);
+    expect(callsOf(invoke, "pop_out")).toHaveLength(1);
+    cleanup();
+
+    renderApp("/?shell=window");
+    await screen.findByRole("link", { name: "Open in browser" });
+    expect(popOutButton()).toBe(null);
+  });
+
   it("refreshes from the menu bar's Refresh", async () => {
     const fetch = fakeApi(
       listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),

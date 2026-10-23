@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -6,8 +7,10 @@ use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::utils::config::BackgroundThrottlingPolicy;
+use tauri::window::Color;
 use tauri::{
-    AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent, Wry,
+    AppHandle, LogicalSize, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    WindowEvent, Wry,
 };
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
@@ -20,6 +23,9 @@ const TRAY: &str = "main";
 // A click on the tray icon first blurs the open window, which hides it. A toggle this
 // soon after leaves it hidden instead of showing it again.
 const REOPEN_GUARD: Duration = Duration::from_millis(300);
+const DROPDOWN_SIZE: (f64, f64) = (420.0, 600.0);
+// The popped out window's size when it opens. The user can resize it after.
+const WINDOW_SIZE: (f64, f64) = (480.0, 720.0);
 
 const ICON_PLAIN: &[u8] = include_bytes!("../icons/tray.png");
 const ICON_STALE: &[u8] = include_bytes!("../icons/tray-stale.png");
@@ -28,6 +34,14 @@ const ICON_FAILING: &[u8] = include_bytes!("../icons/tray-failing.png");
 // When the window last hid because it lost focus.
 #[derive(Default)]
 struct HiddenAt(Mutex<Option<Instant>>);
+
+// True while the dropdown is popped out into a normal window.
+#[derive(Default)]
+struct PoppedOut(AtomicBool);
+
+fn popped_out(app: &AppHandle) -> bool {
+    app.state::<PoppedOut>().0.load(Ordering::Relaxed)
+}
 
 // The hosted web app. Dev builds use the local Vite server. PR_PEEK_URL overrides both,
 // but only the URLs in capabilities/web-app.json can call the commands below.
@@ -40,9 +54,11 @@ fn app_url() -> String {
     std::env::var("PR_PEEK_URL").unwrap_or_else(|_| default.to_string())
 }
 
-// A page of the web app in tray mode, like "/" or "/settings".
-fn tray_page(path: &str) -> Url {
-    format!("{}{path}?shell=tray", app_url())
+// A page of the web app, like "/" or "/settings", in the dropdown or the popped out
+// window. The page styles itself to match.
+fn app_page(path: &str, popped: bool) -> Url {
+    let shell = if popped { "window" } else { "tray" };
+    format!("{}{path}?shell={shell}", app_url())
         .parse()
         .expect("the app URL is valid")
 }
@@ -56,10 +72,13 @@ fn tell_page(window: &WebviewWindow, name: &str) {
     let _ = window.eval(format!("window.dispatchEvent(new Event('pr-peek:{name}'))"));
 }
 
-// Shows the window under the tray icon and focuses it.
+// Shows the window and focuses it. The dropdown moves under the tray icon. A popped out
+// window stays where the user put it.
 fn show_window(window: &WebviewWindow) {
     // The tray position is only known after the icon is clicked once.
-    if window.move_window(Position::TrayBottomCenter).is_err() {
+    if !popped_out(window.app_handle())
+        && window.move_window(Position::TrayBottomCenter).is_err()
+    {
         let _ = window.move_window(Position::TopRight);
     }
     let _ = window.show();
@@ -76,6 +95,11 @@ fn toggle_window(app: &AppHandle) {
     let Some(window) = main_window(app) else {
         return;
     };
+    // A popped out window comes to the front instead of hiding.
+    if popped_out(app) {
+        show_window(&window);
+        return;
+    }
     if window.is_visible().unwrap_or(false) {
         hide(&window);
         return;
@@ -193,6 +217,34 @@ fn quit_app(app: AppHandle) {
     app.exit(0);
 }
 
+#[tauri::command]
+fn pop_out(app: AppHandle) -> Result<(), String> {
+    log_command("pop_out");
+    let window = main_window(&app).ok_or("no window")?;
+    set_popped_out(&app, &window, true).map_err(|err| err.to_string())
+}
+
+// Turns the dropdown into a normal window you can move and resize, or back. The page
+// reloads in the matching shell, and opens on the list.
+fn set_popped_out(app: &AppHandle, window: &WebviewWindow, popped: bool) -> tauri::Result<()> {
+    app.state::<PoppedOut>().0.store(popped, Ordering::Relaxed);
+    window.set_always_on_top(!popped)?;
+    window.set_decorations(popped)?;
+    window.set_resizable(popped)?;
+    // The see-through dropdown would also make the title bar see-through.
+    window.set_background_color((!popped).then_some(Color(0, 0, 0, 0)))?;
+    let (width, height) = if popped { WINDOW_SIZE } else { DROPDOWN_SIZE };
+    window.set_size(LogicalSize::new(width, height))?;
+    window.navigate(app_page("/", popped))?;
+    if popped {
+        window.center()?;
+        show_window(window);
+    } else {
+        hide(window);
+    }
+    Ok(())
+}
+
 // The "Launch at login" menu item, kept in step with the setting.
 struct LaunchMenuItem(CheckMenuItem<Wry>);
 
@@ -298,7 +350,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<CheckMenuItem<Wry>> {
             }
             "settings" => {
                 if let Some(window) = main_window(app) {
-                    let _ = window.navigate(tray_page("/settings"));
+                    let _ = window.navigate(app_page("/settings", popped_out(app)));
                     show_window(&window);
                 }
             }
@@ -350,6 +402,7 @@ pub fn run() {
                 .build(),
         )
         .manage(HiddenAt::default())
+        .manage(PoppedOut::default())
         .invoke_handler(tauri::generate_handler![
             set_tray_state,
             open_external,
@@ -357,7 +410,8 @@ pub fn run() {
             quit_app,
             notify,
             launch_at_login,
-            set_launch_at_login
+            set_launch_at_login,
+            pop_out
         ])
         .setup(move |app| {
             // No Dock icon. The app lives in the menu bar.
@@ -365,9 +419,9 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             let window =
-                WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::External(tray_page("/")))
+                WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::External(app_page("/", false)))
                     .title("Git Buddy")
-                    .inner_size(420.0, 600.0)
+                    .inner_size(DROPDOWN_SIZE.0, DROPDOWN_SIZE.1)
                     .resizable(false)
                     .decorations(false)
                     // See-through, so the page can round its corners.
@@ -379,16 +433,22 @@ pub fn run() {
                     .background_throttling(BackgroundThrottlingPolicy::Disabled)
                     .build()?;
 
-            // Hides like a menu when the user clicks elsewhere.
             let handle = app.handle().clone();
-            let blurred = window.clone();
-            window.on_window_event(move |event| {
-                if let WindowEvent::Focused(false) = event {
-                    hide(&blurred);
+            let watched = window.clone();
+            window.on_window_event(move |event| match event {
+                // The dropdown hides like a menu when the user clicks elsewhere.
+                WindowEvent::Focused(false) if !popped_out(&handle) => {
+                    hide(&watched);
                     if let Ok(mut at) = handle.state::<HiddenAt>().0.lock() {
                         *at = Some(Instant::now());
                     }
                 }
+                // Closing the popped out window puts it back under the icon.
+                WindowEvent::CloseRequested { api, .. } => {
+                    api.prevent_close();
+                    let _ = set_popped_out(&handle, &watched, false);
+                }
+                _ => {}
             });
 
             let launch = build_tray(app.handle())?;

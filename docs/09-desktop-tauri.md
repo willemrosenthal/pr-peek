@@ -140,7 +140,10 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 - [x] Rounded corners like macOS 26. The window is see-through (`transparent`, which needs `macOSPrivateApi`), and the page rounds its own corners. The body scrolls instead of the window, so the scrollbar stays inside them.
 - [x] Settings and the install page go back to the list after 2 minutes away (`AWAY_MS` in `useReturnToList.ts`), in the dropdown and the installed PWA. Not right away, so a trip to GitHub for a token doesn't lose the page. A browser tab stays where it was.
 - [x] A waiting new version installs when the dropdown hides, instead of waiting for a click on "Reload".
-- [ ] A "Pop out" button turns the dropdown into a normal window you can move and resize. Closing it puts it back under the icon. One window, so notifications still show once.
+- [x] A "Pop out" button turns the dropdown into a normal window you can move and resize. Closing it puts it back under the icon. One window, so notifications still show once.
+  - The page reloads with `?shell=window` instead of `?shell=tray`. `useIsTray` is true for both. Only the corners and the pop out button need the dropdown itself.
+  - The menu bar icon and the shortcut bring the popped out window to the front instead of hiding it.
+  - Not yet: a Dock icon or Cmd+Tab for the window, and remembering its size and place.
 
 ## Done when
 
