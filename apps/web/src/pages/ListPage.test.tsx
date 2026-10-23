@@ -189,6 +189,40 @@ describe("sections", () => {
     finish();
   });
 
+  it("reloads once after several quick quiets, so none jump back", async () => {
+    const first = item();
+    const second = item();
+    const saves: (() => void)[] = [];
+    const held = () =>
+      new Promise<Response>((resolve) =>
+        saves.push(() => resolve(noContent())),
+      );
+    const fetch = fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ review: [first, second] })),
+        [`PUT /api/prs/${first.pr.id}/quiet`]: held,
+        [`PUT /api/prs/${second.pr.id}/quiet`]: held,
+      }),
+    );
+    renderApp("/");
+    await sectionButton(/Needs my review/);
+    const loads = () => callsTo(fetch, "/api/items").length;
+    const before = loads();
+
+    const quietButtons = () =>
+      screen.getAllByRole("button", {
+        name: "Quiet until something new happens",
+      });
+    await userEvent.click(quietButtons()[0]!);
+    await userEvent.click(quietButtons()[0]!);
+    expect(saves).toHaveLength(2);
+
+    await act(() => Promise.resolve(saves[0]!()));
+    expect(loads()).toBe(before);
+    await act(() => Promise.resolve(saves[1]!()));
+    await waitFor(() => expect(loads()).toBe(before + 1));
+  });
+
   it("ignores a bad saved collapse state", async () => {
     localStorage.setItem("pr-peek:collapsed", "42");
     fakeApi(

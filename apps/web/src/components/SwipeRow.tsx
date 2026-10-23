@@ -18,6 +18,8 @@ const START_PX = 8;
 const WHEEL_END_MS = 150;
 // How long the row takes to slide out.
 const LEAVE_MS = 200;
+// How long after a drag its click can still arrive. Some browsers send it a bit later.
+const CLICK_AFTER_DRAG_MS = 300;
 
 // Stops the click a drag ends with, so the row's link doesn't open. Listens on the window
 // so it runs before the Mac app's link handler on the document.
@@ -27,7 +29,10 @@ function blockNextClick() {
     event.stopImmediatePropagation();
   };
   window.addEventListener("click", block, { capture: true, once: true });
-  setTimeout(() => window.removeEventListener("click", block, true), 0);
+  setTimeout(
+    () => window.removeEventListener("click", block, true),
+    CLICK_AFTER_DRAG_MS,
+  );
 }
 
 // A list row that quiets its PR, or brings it back, when swiped sideways. The bell
@@ -45,10 +50,15 @@ export function SwipeRow({
   const [dragging, setDragging] = useState(false);
   // -1 or 1 while the row slides out that way.
   const [leaving, setLeaving] = useState<-1 | 1 | null>(null);
-  const press = useRef<{ x: number; y: number; id: number; on: boolean }>(
-    undefined,
-  );
-  const wheel = useRef({ offset: 0, timer: 0, until: 0 });
+  // `moved` is kept here too, since the last move may not have rendered by release.
+  const press = useRef<{
+    x: number;
+    y: number;
+    id: number;
+    on: boolean;
+    moved: number;
+  }>(undefined);
+  const wheel = useRef({ offset: 0, timer: 0 });
   const leaveTimer = useRef(0);
 
   useEffect(
@@ -68,13 +78,9 @@ export function SwipeRow({
     setDragging(false);
     setOffset(0);
     if (Math.abs(at) < SWIPE_PX) return;
-    // Ignores the rest of a trackpad swipe's scroll events.
-    wheel.current.until = Date.now() + LEAVE_MS * 3;
+    // Stays slid out, which also ignores the rest of a trackpad swipe. The row leaves this section once the list updates.
     setLeaving(at < 0 ? -1 : 1);
-    leaveTimer.current = window.setTimeout(() => {
-      setLeaving(null);
-      onToggle();
-    }, LEAVE_MS);
+    leaveTimer.current = window.setTimeout(onToggle, LEAVE_MS);
   };
 
   const onPointerDown = (event: PointerEvent) => {
@@ -84,6 +90,7 @@ export function SwipeRow({
       y: event.clientY,
       id: event.pointerId,
       on: false,
+      moved: 0,
     };
   };
 
@@ -101,6 +108,7 @@ export function SwipeRow({
       p.on = true;
       event.currentTarget.setPointerCapture(p.id);
     }
+    p.moved = moved;
     move(moved);
   };
 
@@ -109,7 +117,7 @@ export function SwipeRow({
     press.current = undefined;
     if (!p?.on) return;
     blockNextClick();
-    release(offset);
+    release(p.moved);
   };
 
   const onPointerCancel = () => {
@@ -121,7 +129,7 @@ export function SwipeRow({
   const onWheel = (event: WheelEvent) => {
     const w = wheel.current;
     if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
-    if (leaving || Date.now() < w.until) return;
+    if (leaving) return;
     w.offset -= event.deltaX;
     move(w.offset);
     clearTimeout(w.timer);
@@ -134,7 +142,8 @@ export function SwipeRow({
 
   const shown = leaving ?? offset;
   const Icon = quiet ? Bell : BellOff;
-  const label = quiet ? "Bring back" : "Quiet";
+  const action = quiet ? "Bring back" : "Quiet";
+  const buttonLabel = quiet ? action : "Quiet until something new happens";
   return (
     <div className={cx(styles.swipe, shown !== 0 && styles.moving)}>
       {shown !== 0 && (
@@ -147,7 +156,7 @@ export function SwipeRow({
           aria-hidden="true"
         >
           <Icon />
-          {label}
+          {action}
         </div>
       )}
       <div
@@ -170,8 +179,8 @@ export function SwipeRow({
       <button
         type="button"
         className={styles.bell}
-        aria-label={quiet ? "Bring back" : "Quiet until something new happens"}
-        title={quiet ? "Bring back" : "Quiet until something new happens"}
+        aria-label={buttonLabel}
+        title={buttonLabel}
         onClick={onToggle}
       >
         <Icon />

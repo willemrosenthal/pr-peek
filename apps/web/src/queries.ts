@@ -56,11 +56,14 @@ export function useItems() {
   });
 }
 
+const SET_QUIET = ["set-quiet"];
+
 // Quiets a PR until something new happens on it, or brings it back. The row moves
 // right away, then the list and counts reload.
 export function useSetQuiet() {
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: SET_QUIET,
     mutationFn: ({ prId, quiet }: { prId: string; quiet: boolean }) =>
       api(`/prs/${prId}/quiet`, { method: quiet ? "PUT" : "DELETE" }),
     onMutate: async ({ prId, quiet }) => {
@@ -71,11 +74,15 @@ export function useSetQuiet() {
         (old) => old && moveQuiet(old, prId, quiet),
       );
     },
-    onSettled: () =>
-      Promise.all([
+    onSettled: () => {
+      // Waits for the last of several quick saves, so a reload doesn't undo a later move.
+      // This save still counts until it settles.
+      if (queryClient.isMutating({ mutationKey: SET_QUIET }) > 1) return;
+      return Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.items }),
         queryClient.invalidateQueries({ queryKey: queryKeys.summary }),
-      ]),
+      ]);
+    },
   });
 }
 

@@ -6,9 +6,7 @@ import { SwipeRow } from "./SwipeRow";
 
 // jsdom has no pointer capture.
 beforeAll(() => {
-  if (!("setPointerCapture" in Element.prototype)) {
-    Element.prototype.setPointerCapture = () => {};
-  }
+  Element.prototype.setPointerCapture = () => {};
 });
 
 function setup(quiet = false) {
@@ -53,12 +51,14 @@ function drag(el: Element, dx: number, dy = 0) {
 }
 
 describe("SwipeRow", () => {
-  it("quiets the PR when swiped far enough either way", async () => {
+  it.each([-120, 120])("quiets the PR when swiped %ipx, once", async (dx) => {
     const { onToggle, link } = setup();
-    drag(link, -120);
+    drag(link, dx);
     await waitFor(() => expect(onToggle).toHaveBeenCalledTimes(1));
-    drag(link, 120);
-    await waitFor(() => expect(onToggle).toHaveBeenCalledTimes(2));
+    // Slid out, so another swipe does nothing.
+    drag(link, dx);
+    await new Promise((done) => setTimeout(done, 300));
+    expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
   it("doesn't open the link when a swipe ends", () => {
@@ -66,9 +66,9 @@ describe("SwipeRow", () => {
     drag(link, -120);
     fireEvent.click(link);
     expect(onLinkClick).not.toHaveBeenCalled();
-    // The next click opens it.
+    // Only that click is blocked.
     fireEvent.click(link);
-    return waitFor(() => expect(onLinkClick).toHaveBeenCalled());
+    expect(onLinkClick).toHaveBeenCalledTimes(1);
   });
 
   it("springs back from a short swipe", async () => {
