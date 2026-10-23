@@ -148,7 +148,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
   - Not yet: a Dock icon or Cmd+Tab for the window, and remembering its size and place.
 - [x] No footer in the dropdown. "Open in browser" and "Quit" are in the icon's right click menu. The `quit_app` command went with it.
 - [x] A "Colored icon" switch in Settings, General, Menu bar. Off keeps the icon plain. Kept on this Mac, like the count style. Both use `localSetting.ts`.
-- [x] A "Size" slider in Settings, General, in every version: 90%, 100%, 110%, 120%. Kept on each device (`scale.ts`).
+- [x] A "Size" slider in Settings, General, in every version: 90% to 115%, in steps of 5%. Kept on each device (`scale.ts`).
   - CSS `zoom` on `#root`, like Cmd+ in a browser. Set before the first render, so there's no flash.
   - Applied when the slider is let go (the browser's own `change` event), not while dragging. Resizing mid-drag moves the slider under the pointer and picks another size.
   - Inside `#root`, pages fill the screen with flex, never `dvh`. Browsers disagree on how zoom scales viewport units.
