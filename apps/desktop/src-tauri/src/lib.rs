@@ -370,6 +370,8 @@ pub fn run() {
                     .inner_size(420.0, 600.0)
                     .resizable(false)
                     .decorations(false)
+                    // See-through, so the page can round its corners.
+                    .transparent(true)
                     .always_on_top(true)
                     .skip_taskbar(true)
                     .visible(false)
