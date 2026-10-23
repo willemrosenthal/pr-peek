@@ -58,6 +58,11 @@ textarea {
   outline-offset: 2px;
 }
 
+/* Mac app: no focus ring until a key is pressed. See desktop.ts. */
+.quiet-focus :focus-visible {
+  outline: none;
+}
+
 /* Mac app: a thin scrollbar with no track, shown only while scrolling. See desktop.ts. */
 .desktop-app::-webkit-scrollbar,
 .desktop-app ::-webkit-scrollbar {

@@ -157,7 +157,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
   - Inside `#root`, pages fill the screen with flex, never `dvh`. Browsers disagree on how zoom scales viewport units.
 - [x] The mascot from the app icon sits left of "Git Buddy" in the list header, in a rainbow that shifts color. It pauses while the dropdown is hidden, and stays still for people who turn on Reduce Motion.
 - [x] Settings uses a classic tab bar (underlined tabs), with "Repos" for short, so all five fit side by side in the dropdown. A rainbow back arrow (`RainbowIcon.tsx`, the mascot's stroke and size) replaces "Back to your list", in Settings and on the install page. A line separates the token from "Sign out".
-- [x] Focus clears when the window hides or shows, so it never opens with a focus ring on a button.
+- [x] No focus ring when the window opens. macOS can focus the first button (Refresh) as the window becomes active, for example after closing the popped out window. Focus rings stay hidden (`quiet-focus`) each time the window opens, until a key is pressed.
 
 ## Done when
 

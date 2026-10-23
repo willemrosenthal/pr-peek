@@ -126,20 +126,21 @@ describe("startDesktop", () => {
     expect(root.classList.contains("desktop-app")).toBe(false);
   });
 
-  it("clears focus when the window hides or shows", () => {
+  it("hides focus rings until a key is pressed, again each time the window opens", () => {
     stubTauri();
-    const button = document.body.appendChild(document.createElement("button"));
+    const root = document.documentElement;
+    const quiet = () => root.classList.contains("quiet-focus");
     const stop = startDesktop();
     try {
-      for (const event of ["pr-peek:hidden", "pr-peek:shown"]) {
-        button.focus();
-        window.dispatchEvent(new Event(event));
-        expect(document.activeElement).not.toBe(button);
-      }
+      expect(quiet()).toBe(true);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }));
+      expect(quiet()).toBe(false);
+      window.dispatchEvent(new Event("pr-peek:shown"));
+      expect(quiet()).toBe(true);
     } finally {
       stop();
-      button.remove();
     }
+    expect(quiet()).toBe(false);
   });
 
   it("rounds the dropdown after a reload that lost ?shell=tray", () => {
