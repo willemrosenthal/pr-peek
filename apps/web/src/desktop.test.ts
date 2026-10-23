@@ -126,6 +126,23 @@ describe("startDesktop", () => {
     expect(root.classList.contains("desktop-app")).toBe(false);
   });
 
+  it("hides focus rings until a key is pressed, again each time the window opens", () => {
+    stubTauri();
+    const root = document.documentElement;
+    const quiet = () => root.classList.contains("quiet-focus");
+    const stop = startDesktop();
+    try {
+      expect(quiet()).toBe(true);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }));
+      expect(quiet()).toBe(false);
+      window.dispatchEvent(new Event("pr-peek:shown"));
+      expect(quiet()).toBe(true);
+    } finally {
+      stop();
+    }
+    expect(quiet()).toBe(false);
+  });
+
   it("rounds the dropdown after a reload that lost ?shell=tray", () => {
     stubTauri();
     sessionStorage.setItem("pr-peek:shell", "tray");

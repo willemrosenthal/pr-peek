@@ -122,6 +122,12 @@ function showScrollbarWhileScrolling() {
   };
 }
 
+// macOS can focus the first button when the window opens. Its ring stays hidden until
+// the user presses a key.
+const quietFocus = () => document.documentElement.classList.add("quiet-focus");
+const showFocus = () =>
+  document.documentElement.classList.remove("quiet-focus");
+
 // A native Mac notification, instead of a push to the browsers on this Mac.
 function showNotification(event: Event) {
   const { title, body, url } = (event as CustomEvent<PushPayload>).detail;
@@ -137,7 +143,12 @@ export function startDesktop(): () => void {
   root.classList.toggle("dropdown", inDropdown());
   // Marks the page while the window is hidden, so animations can pause.
   const onHidden = () => root.classList.add("app-hidden");
-  const onShown = () => root.classList.remove("app-hidden");
+  const onShown = () => {
+    root.classList.remove("app-hidden");
+    quietFocus();
+  };
+  quietFocus();
+  document.addEventListener("keydown", showFocus, true);
   document.addEventListener("click", openLinksInBrowser, true);
   window.addEventListener("pr-peek:notify", showNotification);
   window.addEventListener("pr-peek:hidden", onHidden);
@@ -145,7 +156,13 @@ export function startDesktop(): () => void {
   const wake = watchForWake();
   const stopScrollbar = showScrollbarWhileScrolling();
   return () => {
-    root.classList.remove("desktop-app", "dropdown", "app-hidden");
+    root.classList.remove(
+      "desktop-app",
+      "dropdown",
+      "app-hidden",
+      "quiet-focus",
+    );
+    document.removeEventListener("keydown", showFocus, true);
     document.removeEventListener("click", openLinksInBrowser, true);
     window.removeEventListener("pr-peek:notify", showNotification);
     window.removeEventListener("pr-peek:hidden", onHidden);

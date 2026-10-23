@@ -87,8 +87,8 @@
 
 @media (max-width: 600px) {
   .page {
-    /* padding: var(--space-4); */
-    padding: var(--space-2);
+    padding: var(--space-4);
+    /* padding: var(--space-2); */
   }
 }
 
