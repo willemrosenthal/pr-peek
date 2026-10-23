@@ -18,8 +18,15 @@ export function useIsTray(): boolean {
     }
   }, [fromUrl]);
 
-  return (fromUrl ?? readStored()) === "tray";
+  return isTrayShell(fromUrl);
 }
+
+// The same check outside React, like at startup.
+export const inTray = () =>
+  isTrayShell(new URLSearchParams(location.search).get("shell"));
+
+const isTrayShell = (fromUrl: string | null) =>
+  (fromUrl ?? readStored()) === "tray";
 
 function readStored(): string | null {
   try {

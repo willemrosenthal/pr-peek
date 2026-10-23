@@ -5,6 +5,7 @@
   "identifier": "com.git-buddy.pr-peek",
   "build": {},
   "app": {
+    "macOSPrivateApi": true,
     "windows": [],
     "security": {
       "csp": null

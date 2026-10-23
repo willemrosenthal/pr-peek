@@ -102,6 +102,33 @@ describe("startDesktop", () => {
     stop();
   });
 
+  it("marks the page for the app's styles, and shows the scrollbar while scrolling", () => {
+    stubTauri();
+    vi.useFakeTimers();
+    const root = document.documentElement;
+    const stop = startDesktop();
+    try {
+      expect(root.classList.contains("desktop-app")).toBe(true);
+      expect(root.classList.contains("scrolling")).toBe(false);
+      document.body.dispatchEvent(new Event("scroll"));
+      expect(root.classList.contains("scrolling")).toBe(true);
+      vi.advanceTimersByTime(1000);
+      expect(root.classList.contains("scrolling")).toBe(false);
+    } finally {
+      stop();
+      vi.useRealTimers();
+    }
+    expect(root.classList.contains("desktop-app")).toBe(false);
+  });
+
+  it("rounds the dropdown after a reload that lost ?shell=tray", () => {
+    stubTauri();
+    sessionStorage.setItem("pr-peek:shell", "tray");
+    const stop = startDesktop();
+    expect(document.documentElement.classList.contains("dropdown")).toBe(true);
+    stop();
+  });
+
   it("says when the Mac wakes from sleep", () => {
     stubTauri();
     vi.useFakeTimers();

@@ -1,5 +1,6 @@
 import type { PushPayload, SummaryResponse } from "@pr-peek/core";
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { inTray } from "./hooks/useIsTray";
 
 // The Mac menu bar app (apps/desktop). Everything here does nothing in a browser. The
 // native side fires `pr-peek:hidden` and `pr-peek:refresh` on `window`. This module
@@ -106,6 +107,27 @@ function watchForWake() {
   }, WAKE_CHECK_MS);
 }
 
+// How long the scrollbar stays after scrolling stops.
+const SCROLLBAR_MS = 800;
+
+// Marks the page while it scrolls, so the scrollbar only shows then.
+function showScrollbarWhileScrolling() {
+  const root = document.documentElement;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const onScroll = () => {
+    root.classList.add("scrolling");
+    clearTimeout(timer);
+    timer = setTimeout(() => root.classList.remove("scrolling"), SCROLLBAR_MS);
+  };
+  // Scroll events don't bubble, so this catches every scroller on the way down.
+  document.addEventListener("scroll", onScroll, true);
+  return () => {
+    document.removeEventListener("scroll", onScroll, true);
+    clearTimeout(timer);
+    root.classList.remove("scrolling");
+  };
+}
+
 // A native Mac notification, instead of a push to the browsers on this Mac.
 function showNotification(event: Event) {
   const { title, body, url } = (event as CustomEvent<PushPayload>).detail;
@@ -115,13 +137,20 @@ function showNotification(event: Event) {
 // Run once at startup. Returns a function that stops it, for tests.
 export function startDesktop(): () => void {
   if (!isTauri()) return () => undefined;
+  // Styles for the Mac app. The dropdown under the icon also gets rounded corners.
+  const root = document.documentElement;
+  root.classList.add("desktop-app");
+  root.classList.toggle("dropdown", inTray());
   document.addEventListener("click", openLinksInBrowser, true);
   window.addEventListener("pr-peek:notify", showNotification);
   const wake = watchForWake();
+  const stopScrollbar = showScrollbarWhileScrolling();
   return () => {
+    root.classList.remove("desktop-app", "dropdown");
     document.removeEventListener("click", openLinksInBrowser, true);
     window.removeEventListener("pr-peek:notify", showNotification);
     clearInterval(wake);
+    stopScrollbar();
   };
 }
 

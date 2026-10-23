@@ -23,6 +23,10 @@ The Tauri window loads the **hosted web app** (`https://www.git-buddy.com/?shell
    - 4a: 9.6, launch at login.
    - 4b: 9.7, updates, and the "Check for updates" menu item.
 5. Release pipeline: 9.8.
+6. Dropdown polish: 9.9, in three PRs:
+   - 6a: thin scrollbar and rounded corners.
+   - 6b: back to the list after time away, and updates while the dropdown is hidden.
+   - 6c: pop out into a window.
 
 Run it with `pnpm desktop` (and `pnpm dev` for the web app it loads). The desktop package has no `dev` or `build` script on purpose, so `pnpm dev` and Render's `pnpm build` don't compile Rust.
 
@@ -129,6 +133,14 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 - [ ] Until signing is set up, builds work for you. Right click, then Open the first time to get past the warning.
 - [ ] Add a "Download for Mac" link on the `/install` page that points at the latest release.
 - [ ] Check the Rust code in CI on PRs that change `apps/desktop`: `cargo fmt --check` and `cargo clippy -- -D warnings`. CI's Linux runner checks only the web and server code today.
+
+### 9.9 Dropdown polish
+
+- [x] A thin scrollbar with no track, only while scrolling. Styled with `::-webkit-scrollbar`, since the app only runs in WebKit. `desktop.ts` marks the page while it scrolls.
+- [x] Rounded corners like macOS 26. The window is see-through (`transparent`, which needs `macOSPrivateApi`), and the page rounds its own corners. The body scrolls instead of the window, so the scrollbar stays inside them.
+- [ ] Settings and the install page go back to the list after a couple of minutes away, in the dropdown and the installed PWA. Not right away, so a trip to GitHub for a token doesn't lose the page.
+- [ ] A waiting new version installs while the dropdown is hidden, instead of waiting for a click on "Reload".
+- [ ] A "Pop out" button turns the dropdown into a normal window you can move and resize. Closing it puts it back under the icon. One window, so notifications still show once.
 
 ## Done when
 

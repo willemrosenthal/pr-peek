@@ -47,6 +47,48 @@ textarea {
   outline-offset: 2px;
 }
 
+/* Mac app: a thin scrollbar with no track, shown only while scrolling. See desktop.ts. */
+.desktop-app::-webkit-scrollbar,
+.desktop-app ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background: transparent;
+}
+
+.desktop-app::-webkit-scrollbar-thumb,
+.desktop-app ::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: transparent;
+}
+
+.desktop-app.scrolling::-webkit-scrollbar-thumb,
+.desktop-app.scrolling ::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar);
+}
+
+/* Mac app dropdown: the window is see-through, so the page draws the rounded corners.
+   The body scrolls instead of the window, which keeps the scrollbar inside them. Both
+   html and body are clear, or the body's color would fill the whole window. */
+.dropdown {
+  overflow: hidden;
+}
+
+.dropdown,
+.dropdown body {
+  background: transparent;
+}
+
+.dropdown body {
+  height: 100dvh;
+  overflow-y: auto;
+  border-radius: var(--radius-xl);
+}
+
+.dropdown #root {
+  min-height: 100%;
+  background: var(--color-page);
+}
+
 /* Hidden on screen, still read by screen readers. */
 .visually-hidden {
   position: absolute;

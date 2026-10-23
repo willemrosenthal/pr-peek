@@ -42,7 +42,10 @@
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 12px;
+  /* The menu bar dropdown's corners, like macOS 26's menus. */
+  --radius-xl: 16px;
   --shadow-panel: 0 12px 32px rgb(0 0 0 / 18%);
+  --color-scrollbar: rgb(0 0 0 / 35%);
 
   /* Narrowest a row's label gets before its controls wrap below it. */
   --row-label-min: 12rem;
@@ -73,5 +76,6 @@
     --color-success: #6fd08a;
     --color-reply: #c2a8ff;
     --shadow-panel: 0 12px 32px rgb(0 0 0 / 50%);
+    --color-scrollbar: rgb(255 255 255 / 35%);
   }
 }
