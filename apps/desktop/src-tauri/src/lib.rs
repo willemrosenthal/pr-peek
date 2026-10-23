@@ -9,8 +9,8 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::utils::config::BackgroundThrottlingPolicy;
 use tauri::window::Color;
 use tauri::{
-    AppHandle, LogicalSize, Manager, PhysicalPosition, Theme, Url, WebviewUrl, WebviewWindow,
-    WebviewWindowBuilder, WindowEvent, Wry,
+    AppHandle, LogicalSize, Manager, PhysicalPosition, Rect, Theme, Url, WebviewUrl,
+    WebviewWindow, WebviewWindowBuilder, WindowEvent, Wry,
 };
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
@@ -23,6 +23,10 @@ const TRAY: &str = "main";
 // A click on the tray icon first blurs the open window, which hides it. A toggle this
 // soon after leaves it hidden instead of showing it again.
 const REOPEN_GUARD: Duration = Duration::from_millis(300);
+// How long after a Cmd+click the browser may take focus without hiding the dropdown.
+const LINK_GUARD: Duration = Duration::from_millis(1500);
+// Wait for the browser to finish coming forward before taking focus back.
+const REFOCUS_DELAY: Duration = Duration::from_millis(150);
 const HEIGHT: f64 = 720.0;
 const DROPDOWN_SIZE: (f64, f64) = (420.0, HEIGHT);
 // The popped out window's size when it opens. The user can resize it after.
@@ -37,6 +41,32 @@ const ICON_FAILING: &[u8] = include_bytes!("../icons/tray-failing.png");
 // When the window last hid because it lost focus.
 #[derive(Default)]
 struct HiddenAt(Mutex<Option<Instant>>);
+
+// When a link last opened in the background.
+#[derive(Default)]
+struct LinkOpenedAt(Mutex<Option<Instant>>);
+
+fn just_opened_link(app: &AppHandle) -> bool {
+    app.state::<LinkOpenedAt>()
+        .0
+        .lock()
+        .ok()
+        .and_then(|at| *at)
+        .is_some_and(|at| at.elapsed() < LINK_GUARD)
+}
+
+// Takes focus back from the browser, after it has come forward.
+fn refocus_soon(window: &WebviewWindow) {
+    let window = window.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(REFOCUS_DELAY);
+        let _ = window.set_focus();
+    });
+}
+
+// Where the tray icon was at its last click.
+#[derive(Default)]
+struct IconRect(Mutex<Option<Rect>>);
 
 // True while the dropdown is popped out into a normal window.
 #[derive(Default)]
@@ -86,13 +116,16 @@ fn show_window(window: &WebviewWindow) {
     tell_page(window, "shown");
 }
 
-// Centers the dropdown under the tray icon, a little below the menu bar.
+// Centers the dropdown under the tray icon, a little below the menu bar. Before the
+// first click, it goes to the top right.
 fn place_under_icon(window: &WebviewWindow) {
     let scale = window.scale_factor().unwrap_or(1.0);
     let icon = window
-        .app_handle()
-        .tray_by_id(TRAY)
-        .and_then(|tray| tray.rect().ok().flatten());
+        .state::<IconRect>()
+        .0
+        .lock()
+        .ok()
+        .and_then(|rect| rect.clone());
     let (Some(icon), Ok(size)) = (icon, window.outer_size()) else {
         let _ = window.move_window(Position::TopRight);
         return;
@@ -190,8 +223,12 @@ fn open_web_link(app: &AppHandle, url: &str) -> Result<(), String> {
         .map_err(|err| err.to_string())
 }
 
-// Opens a web link without bringing the browser to the front, so Git Buddy keeps focus.
-fn open_in_background(url: &str) -> Result<(), String> {
+// Opens a web link and asks the browser to stay behind. Some browsers, like Chrome, come
+// forward anyway, so the window takes focus back (see `just_opened_link`).
+fn open_in_background(app: &AppHandle, url: &str) -> Result<(), String> {
+    if let Ok(mut at) = app.state::<LinkOpenedAt>().0.lock() {
+        *at = Some(Instant::now());
+    }
     let status = std::process::Command::new("open")
         .arg("-g")
         .arg(web_link(url)?.as_str())
@@ -209,7 +246,7 @@ fn open_in_background(url: &str) -> Result<(), String> {
 fn open_external(app: AppHandle, url: String, background: Option<bool>) -> Result<(), String> {
     log_command("open_external");
     if background == Some(true) {
-        open_in_background(&url)
+        open_in_background(&app, &url)
     } else {
         open_web_link(&app, &url)
     }
@@ -415,10 +452,15 @@ fn build_tray(app: &AppHandle) -> tauri::Result<CheckMenuItem<Wry>> {
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
+                rect,
                 ..
             } = event
             {
-                toggle_window(tray.app_handle());
+                let app = tray.app_handle();
+                if let Ok(mut icon) = app.state::<IconRect>().0.lock() {
+                    *icon = Some(rect);
+                }
+                toggle_window(app);
             }
         })
         .build(app)?;
@@ -451,6 +493,8 @@ pub fn run() {
                 .build(),
         )
         .manage(HiddenAt::default())
+        .manage(IconRect::default())
+        .manage(LinkOpenedAt::default())
         .manage(PoppedOut::default())
         .invoke_handler(tauri::generate_handler![
             set_tray_state,
@@ -484,6 +528,10 @@ pub fn run() {
             let handle = app.handle().clone();
             let watched = window.clone();
             window.on_window_event(move |event| match event {
+                // Right after a Cmd+click, the browser took focus. Take it back.
+                WindowEvent::Focused(false) if just_opened_link(&handle) => {
+                    refocus_soon(&watched);
+                }
                 // The dropdown hides like a menu when the user clicks elsewhere.
                 WindowEvent::Focused(false) if !popped_out(&handle) => {
                     hide(&watched);
