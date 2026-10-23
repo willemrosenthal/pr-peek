@@ -1,0 +1,50 @@
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.trigger:hover {
+  background: var(--color-hover);
+}
+
+.swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+
+.popup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+}
+
+.popup :global(.react-colorful) {
+  width: 180px;
+  height: 160px;
+}
+
+.input {
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-transform: lowercase;
+}

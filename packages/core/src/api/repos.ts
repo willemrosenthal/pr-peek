@@ -11,8 +11,17 @@ const githubName = z
 export const addRepoBody = z.object({ owner: githubName, name: githubName });
 export type AddRepoBody = z.infer<typeof addRepoBody>;
 
+// "#rrggbb".
+export const repoColor = z
+  .string()
+  .regex(/^#[0-9a-f]{6}$/i, "Use a hex color, like #3b82f6");
+
 export const updateRepoBody = z
-  .object({ enabled: z.boolean(), muted: z.boolean() })
+  .object({
+    enabled: z.boolean(),
+    muted: z.boolean(),
+    color: repoColor.nullable(),
+  })
   .partial()
   .refine((body) => Object.keys(body).length > 0, "Nothing to update");
 export type UpdateRepoBody = z.infer<typeof updateRepoBody>;
@@ -43,6 +52,8 @@ export interface WatchedRepoDto {
   name: string;
   enabled: boolean;
   muted: boolean;
+  // Colors the repo name on the list. Null when off.
+  color: string | null;
 }
 
 export interface WatchedReposResponse {

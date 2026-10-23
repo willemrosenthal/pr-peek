@@ -1,5 +1,5 @@
 import type { RepoOption, WatchedRepoDto } from "@pr-peek/core";
-import { act, screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
@@ -94,6 +94,38 @@ describe("watched repos", () => {
     expect(toggle.getAttribute("aria-checked")).toBe("false");
     expect(sentBodies(fetch, `PATCH /api/repos/${repo.id}`)).toEqual([
       { muted: true },
+    ]);
+  });
+
+  it("colors one, then turns its color off", async () => {
+    const repo = watchedRepo({ owner: "acme", name: "web" });
+    const patch = `PATCH /api/repos/${repo.id}`;
+    const fetch = reposApi([repo], [], {
+      [patch]: () => {
+        Object.assign(repo, sentBodies(fetch, patch).at(-1));
+        return json({ repo });
+      },
+    });
+    renderApp("/settings/repos");
+
+    const toggle = await screen.findByRole("switch", {
+      name: "Color for acme/web",
+    });
+    expect(screen.queryByRole("button", { name: /Pick a color/ })).toBe(null);
+    await userEvent.click(toggle);
+    expect(
+      await screen.findByRole("button", { name: "Pick a color for acme/web" }),
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(toggle.getAttribute("aria-disabled")).not.toBe("true"),
+    );
+    await userEvent.click(toggle);
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /Pick a color/ })).toBe(null),
+    );
+    expect(sentBodies(fetch, patch)).toEqual([
+      { color: "#2563eb" },
+      { color: null },
     ]);
   });
 

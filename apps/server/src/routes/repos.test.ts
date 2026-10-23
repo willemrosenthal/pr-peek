@@ -123,6 +123,7 @@ describe("POST /api/repos", () => {
       name: "web-app",
       enabled: true,
       muted: false,
+      color: null,
     });
 
     const list = await agent.get("/api/repos");
@@ -195,6 +196,18 @@ describe("PATCH and DELETE /api/repos/:id", () => {
       muted: true,
       enabled: false,
     });
+  });
+
+  it("sets and clears a repo's color", async () => {
+    const { agent, id } = await withRepo();
+    const setColor = (color: unknown) =>
+      agent.patch(`/api/repos/${id}`).set("Origin", APP_URL).send({ color });
+
+    const set = await setColor("#e11d48");
+    expect(bodyOf<OneRepo>(set).repo.color).toBe("#e11d48");
+    const cleared = await setColor(null);
+    expect(bodyOf<OneRepo>(cleared).repo.color).toBe(null);
+    expect((await setColor("red")).status).toBe(400);
   });
 
   it("rejects an empty update", async () => {

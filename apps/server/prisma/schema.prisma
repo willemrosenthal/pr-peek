@@ -138,6 +138,8 @@ model WatchedRepo {
   name         String
   enabled      Boolean  @default(true)
   muted        Boolean  @default(false)
+  // "#rrggbb" for the repo name on the list. Null keeps the default color.
+  color        String?
   createdAt    DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
