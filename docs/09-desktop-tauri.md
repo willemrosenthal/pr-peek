@@ -19,7 +19,9 @@ The Tauri window loads the **hosted web app** (`https://www.git-buddy.com/?shell
 3. No duplicate alerts: 9.5, in two PRs:
    - 3a, the server: which devices are Macs, the heartbeat endpoint, the routing rule, and `event: notify` on the stream. Does nothing until a heartbeat arrives.
    - 3b, the app: the heartbeat, and native notifications.
-4. Launch at login and updates: 9.6 and 9.7, plus their two right click menu items.
+4. Launch at login and updates, in two PRs:
+   - 4a: 9.6, launch at login.
+   - 4b: 9.7, updates, and the "Check for updates" menu item.
 5. Release pipeline: 9.8.
 
 Run it with `pnpm desktop` (and `pnpm dev` for the web app it loads). The desktop package has no `dev` or `build` script on purpose, so `pnpm dev` and Render's `pnpm build` don't compile Rust.
@@ -94,7 +96,9 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 
 ### 9.6 Launch at login
 
-- [ ] The autostart plugin, on by default after first launch. A toggle in the right click menu and in Settings, General (shown only inside Tauri).
+- [x] The autostart plugin, on by default after first launch. A toggle in the right click menu and in Settings, General (shown only inside Tauri).
+  - "On by default" happens once, the first time the app runs from Applications. Dev builds and copies elsewhere are skipped, since the login item points at the copy that turned it on.
+  - The menu item and the Settings switch both change the real setting. The menu item is ticked to match.
 
 ### 9.7 Auto updates
 
