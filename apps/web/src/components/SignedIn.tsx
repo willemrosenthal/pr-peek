@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Outlet } from "react-router";
-import { setBadge } from "../badge";
 import { api } from "../api";
+import { setBadge } from "../badge";
 import { HEARTBEAT_MS, inDesktopApp, setTrayState } from "../desktop";
 import { useCountStyle } from "../hooks/useCountStyle";
 import { useLiveUpdates } from "../hooks/useLiveUpdates";

@@ -307,6 +307,10 @@ pub fn run() {
 
             let clicked = app.handle().clone();
             app.notification().on_action(move |action| {
+                // A click on the notification itself, not on one of its buttons.
+                if action.action_id() != "tap" {
+                    return;
+                }
                 let url = action
                     .notification()
                     .and_then(|shown| shown.extra().get("url"))
