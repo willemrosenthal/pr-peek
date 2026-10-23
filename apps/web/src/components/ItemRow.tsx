@@ -44,7 +44,7 @@ export function ItemRow({ item }: { item: ItemDto }) {
       pr={item.pr}
       className={item.unseen && styles.unseen}
       // Keeps the kind's color, so a bot's approval still reads as an approval.
-      // Bot comments get their own, since gray is for drafts.
+      // Bot comments get their own color.
       Icon={item.actorIsBot ? BotMessageSquare : KindIcon}
       tone={botComment ? styles.bot : tone}
       title={

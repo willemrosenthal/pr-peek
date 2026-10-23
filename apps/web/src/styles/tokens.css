@@ -21,7 +21,7 @@
   --color-warning-bg: #fff0db;
   --color-success: #1e6b34;
   --color-reply: #5b33b6;
-  /* Bot comments. Not gray, which is for drafts. */
+  /* Bot comments. */
   --color-bot: #9a7fb8;
 
   --font-family:
