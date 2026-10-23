@@ -136,16 +136,20 @@ it("sets the menu bar count and icon color, only inside the Mac app", async () =
   expect(coloredIcon.get()).toBe(false);
 });
 
-it("sizes the app on this device", async () => {
+it("sizes the app on this device, once the slider is let go", async () => {
   fakeApi(signedInApi());
   renderApp("/settings/general");
   const size = await screen.findByRole("slider", { name: "Size" });
+  const root = document.documentElement;
   expect(size.getAttribute("aria-valuetext")).toBe("100%");
   try {
     fireEvent.change(size, { target: { value: "3" } });
     expect(size.getAttribute("aria-valuetext")).toBe("120%");
+    expect(appScale.get()).toBe(1);
+    expect(root.style.getPropertyValue("--scale")).toBe("");
+
+    fireEvent.pointerUp(size);
     expect(appScale.get()).toBe(1.2);
-    const root = document.documentElement;
     expect(root.style.getPropertyValue("--scale")).toBe("1.2");
   } finally {
     document.documentElement.style.removeProperty("--scale");

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { api } from "../../api";
 import { setBadge } from "../../badge";
@@ -83,8 +84,16 @@ export function GeneralTab() {
 
 const percent = (scale: number) => `${Math.round(scale * 100)}%`;
 
+// Applies the size when the user lets go. Resizing mid-drag would move the slider under
+// the pointer and pick another size by accident.
 function SizeRow() {
-  const scale = useLocalSetting(appScale);
+  const saved = useLocalSetting(appScale);
+  const [dragging, setDragging] = useState<number | null>(null);
+  const scale = dragging ?? saved;
+  const apply = () => {
+    if (dragging !== null) setScale(dragging);
+    setDragging(null);
+  };
   return (
     <CardRow>
       <RowText
@@ -100,7 +109,10 @@ function SizeRow() {
           value={SCALES.indexOf(scale)}
           aria-label="Size"
           aria-valuetext={percent(scale)}
-          onChange={(e) => setScale(SCALES[Number(e.target.value)] ?? 1)}
+          onChange={(e) => setDragging(SCALES[Number(e.target.value)] ?? 1)}
+          onPointerUp={apply}
+          onKeyUp={apply}
+          onBlur={apply}
         />
         <span aria-hidden="true">{percent(scale)}</span>
       </span>
