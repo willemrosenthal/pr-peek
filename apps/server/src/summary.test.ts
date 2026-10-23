@@ -1,16 +1,8 @@
-import {
-  afterAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  onTestFinished,
-  vi,
-} from "vitest";
-import { createTestDb, resetDb, TEST_DATABASE_URL } from "../test/db";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestDb, resetDb } from "../test/db";
+import { desktopNotifications } from "../test/desktop";
 import { githubTokens, githubUser, hours, TEST_KEY } from "../test/fakes";
 import { itemRows } from "../test/items";
-import { listenForItemChanges } from "./items-listener";
 import { createLogger } from "./logger";
 import type { SendPush } from "./push";
 import { sendDueSummaries } from "./summary";
@@ -124,21 +116,12 @@ describe("sendDueSummaries", () => {
       where: { id: user.id },
       data: { desktopSeenAt: new Date(AT_NINE.getTime() - 60_000) },
     });
-    const listener = await listenForItemChanges({
-      connectionString: TEST_DATABASE_URL,
-      logger,
-    });
-    onTestFinished(() => listener.stop());
-    const toApp = vi.fn();
-    listener.subscribe(user.id, toApp);
+    const toApp = await desktopNotifications(user.id);
 
     expect(await run()).toBe(1);
     expect(send).not.toHaveBeenCalled();
-    await vi.waitFor(() => expect(toApp).toHaveBeenCalledOnce());
-    expect(toApp.mock.calls[0]?.[0]).toMatchObject({
-      type: "notify",
-      payload: { title: "Morning summary" },
-    });
+    await vi.waitFor(() => expect(toApp).toHaveLength(1));
+    expect(toApp[0]?.payload.title).toBe("Morning summary");
   });
 
   it("does nothing when push is off", async () => {

@@ -1,18 +1,10 @@
 import type { PushPayload, Severity } from "@pr-peek/core";
-import {
-  afterAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  onTestFinished,
-  vi,
-} from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import webpush from "web-push";
-import { createTestDb, resetDb, TEST_DATABASE_URL } from "../test/db";
+import { createTestDb, resetDb } from "../test/db";
+import { desktopNotifications } from "../test/desktop";
 import { githubTokens, githubUser, hours, NOW, TEST_KEY } from "../test/fakes";
 import { itemRows } from "../test/items";
-import { listenForItemChanges, type UserEvent } from "./items-listener";
 import { createLogger } from "./logger";
 import { BATCH_MIN, notifyItem, notifyItems } from "./notify";
 import type { SendPush } from "./push";
@@ -227,14 +219,7 @@ describe("while the Mac menu bar app runs", () => {
       where: { id: ctx.user.id },
       data: { desktopSeenAt: seenAt },
     });
-    const listener = await listenForItemChanges({
-      connectionString: TEST_DATABASE_URL,
-      logger,
-    });
-    onTestFinished(() => listener.stop());
-    const toApp: UserEvent[] = [];
-    listener.subscribe(ctx.user.id, (event) => toApp.push(event));
-    return { ...ctx, toApp };
+    return { ...ctx, toApp: await desktopNotifications(ctx.user.id) };
   }
 
   it("sends to the app instead of the browsers on the Mac", async () => {
@@ -243,10 +228,7 @@ describe("while the Mac menu bar app runs", () => {
     expect(await notify()).toBe("sent");
     expect(sentTo(send)).toEqual([endpoint("phone")]);
     await vi.waitFor(() => expect(toApp).toHaveLength(1));
-    expect(toApp[0]).toMatchObject({
-      type: "notify",
-      payload: { title: "review_requested summary" },
-    });
+    expect(toApp[0]?.payload.title).toBe("review_requested summary");
   });
 
   it("sends to the app even with no browser devices", async () => {
