@@ -15,6 +15,7 @@ import {
 import type { ReactNode } from "react";
 import { cx } from "../cx";
 import styles from "./ItemRow.module.css";
+
 const KIND_ICONS: Record<
   ItemKind,
   { Icon: LucideIcon; tone: string | undefined }

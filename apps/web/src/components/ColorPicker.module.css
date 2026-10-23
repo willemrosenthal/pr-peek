@@ -1,5 +1,6 @@
 /* The color fills the button. The ring is a shadow, so the two can't drift apart. */
 .trigger {
+  position: relative;
   flex: none;
   width: 14px;
   height: 14px;
@@ -12,6 +13,19 @@
     0 0 0 2px var(--color-surface),
     0 0 0 3px var(--color-border);
   cursor: pointer;
+}
+
+/* A bigger tap area than the dot, without changing the layout. */
+.trigger::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+
+@media (pointer: coarse) {
+  .trigger::after {
+    inset: -15px;
+  }
 }
 
 .trigger:hover,
