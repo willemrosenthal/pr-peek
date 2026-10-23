@@ -114,6 +114,11 @@ describe("startDesktop", () => {
       expect(root.classList.contains("scrolling")).toBe(true);
       vi.advanceTimersByTime(1000);
       expect(root.classList.contains("scrolling")).toBe(false);
+
+      window.dispatchEvent(new Event("pr-peek:hidden"));
+      expect(root.classList.contains("app-hidden")).toBe(true);
+      window.dispatchEvent(new Event("pr-peek:shown"));
+      expect(root.classList.contains("app-hidden")).toBe(false);
     } finally {
       stop();
       vi.useRealTimers();

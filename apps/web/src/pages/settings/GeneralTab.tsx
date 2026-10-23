@@ -21,6 +21,8 @@ import {
   type CountStyle,
 } from "../../desktop";
 import { queryKeys, useMe, useSettings } from "../../queries";
+import { appScale, SCALES, setScale } from "../../scale";
+import styles from "./GeneralTab.module.css";
 import { TabHeading } from "./SettingsLayout";
 
 export function GeneralTab() {
@@ -58,6 +60,9 @@ export function GeneralTab() {
           />
         </Card>
       )}
+      <Card label="This device">
+        <SizeRow />
+      </Card>
       {inDesktopApp() && (
         <Card label="Menu bar">
           <LaunchAtLoginRow />
@@ -72,6 +77,34 @@ export function GeneralTab() {
         </Button>
       </div>
     </>
+  );
+}
+
+const percent = (scale: number) => `${Math.round(scale * 100)}%`;
+
+// Kept on this device, since screens differ.
+function SizeRow() {
+  const scale = appScale.useValue();
+  return (
+    <CardRow>
+      <RowText
+        label="Size"
+        hint="Makes everything bigger or smaller, like zooming in a browser. Only on this device."
+      />
+      <span className={styles.size}>
+        <input
+          type="range"
+          min={0}
+          max={SCALES.length - 1}
+          step={1}
+          value={SCALES.indexOf(scale)}
+          aria-label="Size"
+          aria-valuetext={percent(scale)}
+          onChange={(e) => setScale(SCALES[Number(e.target.value)] ?? 1)}
+        />
+        <span aria-hidden="true">{percent(scale)}</span>
+      </span>
+    </CardRow>
   );
 }
 

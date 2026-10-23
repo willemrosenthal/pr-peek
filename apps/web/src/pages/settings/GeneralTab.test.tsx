@@ -1,5 +1,11 @@
 import type { UserSettingsDto } from "@pr-peek/core";
-import { act, cleanup, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
 import {
@@ -12,6 +18,7 @@ import {
   signedInApi,
 } from "../../test/fake-api";
 import { coloredIcon, countStyle } from "../../desktop";
+import { appScale } from "../../scale";
 import { renderApp } from "../../test/render";
 import { callsOf, stubTauri } from "../../test/tauri";
 
@@ -127,6 +134,22 @@ it("sets the menu bar count and icon color, only inside the Mac app", async () =
   expect(colored.getAttribute("aria-checked")).toBe("true");
   await userEvent.click(colored);
   expect(coloredIcon.get()).toBe(false);
+});
+
+it("sizes the app on this device", async () => {
+  fakeApi(signedInApi());
+  renderApp("/settings/general");
+  const size = await screen.findByRole("slider", { name: "Size" });
+  expect(size.getAttribute("aria-valuetext")).toBe("100%");
+  try {
+    fireEvent.change(size, { target: { value: "3" } });
+    expect(size.getAttribute("aria-valuetext")).toBe("120%");
+    expect(appScale.get()).toBe(1.2);
+    const root = document.documentElement;
+    expect(root.style.getPropertyValue("--scale")).toBe("1.2");
+  } finally {
+    document.documentElement.style.removeProperty("--scale");
+  }
 });
 
 it("turns launching at login off, only inside the Mac app", async () => {
