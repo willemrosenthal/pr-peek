@@ -126,6 +126,8 @@ model UserSettings {
   lastSummaryDate     String?
   includeTeamRequests Boolean @default(true)
   hideBots            Boolean @default(false)
+  // Shows each PR author's picture on the list.
+  showAuthors         Boolean @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

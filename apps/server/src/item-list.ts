@@ -26,6 +26,7 @@ const PR_FIELDS = {
   repoName: true,
   number: true,
   url: true,
+  authorLogin: true,
 } as const;
 
 type PrRow = Pick<PullRequest, keyof typeof PR_FIELDS>;
@@ -49,6 +50,7 @@ const toPrDto = (pr: PrRow, colors: Map<number, string>): ItemDto["pr"] => ({
   repo: pr.repoName,
   number: pr.number,
   url: pr.url,
+  author: pr.authorLogin,
   color: colors.get(pr.githubRepoId) ?? null,
 });
 

@@ -92,6 +92,7 @@ describe("GET /api/settings", () => {
       digestTime: null,
       hideBots: false,
       includeTeamRequests: true,
+      showAuthors: false,
     });
     expect(body.rules).toHaveLength(rules.length);
     expect(body.rules.find((r) => r.id === "commented")).toEqual({

@@ -11,7 +11,7 @@ import { useIsTray } from "../hooks/useIsTray";
 import { useMarkSeen } from "../hooks/useMarkSeen";
 import { useStoredState } from "../hooks/useStoredState";
 import { useSync } from "../hooks/useSync";
-import { useItems, useMe, useRepos } from "../queries";
+import { useItems, useMe, useRepos, useSettings } from "../queries";
 import styles from "./ListPage.module.css";
 
 const SECTIONS: { group: ItemGroup; title: string }[] = [
@@ -102,6 +102,7 @@ function Sections({ groups }: { groups: ItemsResponse }) {
     [groups, collapsed],
   );
   useMarkSeen(unseenIds);
+  const showAuthors = useSettings().data?.settings.showAuthors ?? false;
 
   const { quiet } = groups;
   return (
@@ -115,6 +116,7 @@ function Sections({ groups }: { groups: ItemsResponse }) {
             title={title}
             items={groups[group]}
             idle={idle}
+            showAuthors={showAuthors}
             open={!collapsed.includes(group)}
             onOpenChange={(open) => setOpen(group, open)}
           />

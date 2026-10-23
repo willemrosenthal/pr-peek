@@ -163,6 +163,16 @@ describe("serving the PWA", () => {
     expect(res.text).toContain("pr-peek");
   });
 
+  it("lets the page load GitHub avatars, and other images only from here", async () => {
+    const res = await request(makeApp({ webDir })).get("/");
+    const imgSrc = String(res.headers["content-security-policy"])
+      .split(";")
+      .find((directive) => directive.startsWith("img-src"));
+    expect(imgSrc).toBe(
+      "img-src 'self' data: https://avatars.githubusercontent.com",
+    );
+  });
+
   it("serves files that exist", async () => {
     const res = await request(makeApp({ webDir })).get("/assets/app.js");
     expect(res.status).toBe(200);

@@ -12,7 +12,7 @@ import {
   SquircleDashed,
   type LucideIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { cx } from "../cx";
 import styles from "./ItemRow.module.css";
 
@@ -40,9 +40,11 @@ const AGE_TONES: Record<StaleLevel, string | undefined> = {
 export function ItemRow({
   item,
   quiet = false,
+  showAuthor = false,
 }: {
   item: ItemDto;
   quiet?: boolean;
+  showAuthor?: boolean;
 }) {
   const { Icon: KindIcon, tone } = KIND_ICONS[item.kind];
   const botComment = item.actorIsBot && item.kind === "commented";
@@ -50,6 +52,7 @@ export function ItemRow({
     <Row
       pr={item.pr}
       quiet={quiet}
+      showAuthor={showAuthor}
       className={item.unseen && !quiet ? styles.unseen : undefined}
       // Keeps the kind's color, so a bot's approval still reads as an approval.
       // Bot comments get their own color.
@@ -79,14 +82,17 @@ export function ItemRow({
 export function IdlePrRow({
   pr,
   quiet = false,
+  showAuthor = false,
 }: {
   pr: IdlePrDto;
   quiet?: boolean;
+  showAuthor?: boolean;
 }) {
   return (
     <Row
       pr={pr.pr}
       quiet={quiet}
+      showAuthor={showAuthor}
       className={pr.isDraft && !quiet ? styles.draft : undefined}
       Icon={pr.isDraft ? SquircleDashed : Squircle}
       tone={styles.muted}
@@ -102,10 +108,11 @@ export function IdlePrRow({
 }
 
 // The two line layout both rows share. Children are the second line's text, which a
-// quiet row leaves out.
+// quiet row leaves out. Quiet rows keep the plain icon, without the author.
 function Row({
   pr,
   quiet,
+  showAuthor,
   className,
   Icon,
   tone,
@@ -116,6 +123,7 @@ function Row({
 }: {
   pr: ItemDto["pr"];
   quiet: boolean;
+  showAuthor: boolean;
   className: string | undefined;
   Icon: LucideIcon;
   tone: string | undefined;
@@ -124,16 +132,24 @@ function Row({
   ageTone: string | undefined;
   children: ReactNode;
 }) {
+  const withAuthor = showAuthor && !quiet;
   return (
     <a
-      className={cx(styles.row, quiet && styles.quiet, className)}
+      className={cx(
+        styles.row,
+        quiet && styles.quiet,
+        withAuthor && styles.withAuthor,
+        className,
+      )}
       href={pr.url}
       target="_blank"
       rel="noopener noreferrer"
     >
-      <span className={cx(styles.icon, tone)}>
-        <Icon />
-      </span>
+      {withAuthor ? (
+        <Author login={pr.author} Icon={Icon} tone={tone} />
+      ) : (
+        <RowIcon Icon={Icon} tone={tone} />
+      )}
       <span className={styles.title}>{title}</span>
       <span className={cx(styles.age, ageTone)}>{age}</span>
       {!quiet && (
@@ -148,5 +164,43 @@ function Row({
         </>
       )}
     </a>
+  );
+}
+
+interface IconProps {
+  Icon: LucideIcon;
+  tone: string | undefined;
+}
+
+// Why the PR is on the list.
+function RowIcon({ Icon, tone }: IconProps) {
+  return (
+    <span className={cx(styles.icon, tone)}>
+      <Icon />
+    </span>
+  );
+}
+
+const avatarUrl = (login: string) =>
+  `https://avatars.githubusercontent.com/${encodeURIComponent(login)}?s=56`;
+
+// The author's picture, with the row's icon in a badge on its corner. Just the icon if
+// the picture can't load.
+function Author({ login, Icon, tone }: IconProps & { login: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <RowIcon Icon={Icon} tone={tone} />;
+  return (
+    <span className={styles.author}>
+      <img
+        className={styles.avatar}
+        src={avatarUrl(login)}
+        alt=""
+        title={login}
+        onError={() => setFailed(true)}
+      />
+      <span className={cx(styles.badge, tone)}>
+        <Icon />
+      </span>
+    </span>
   );
 }

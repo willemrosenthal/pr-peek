@@ -20,6 +20,7 @@ import {
   me,
   noContent,
   sentBodies,
+  settingsResponse,
   syncStatus,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
@@ -49,6 +50,24 @@ describe("sections", () => {
     expect(screen.queryByRole("button", { name: /Replies to me/ })).toBe(null);
     expect(rows()).toHaveLength(3);
   });
+
+  it.each([true, false])(
+    "shows authors' pictures when the setting is %s",
+    async (showAuthors) => {
+      fakeApi(
+        listApi({
+          "GET /api/settings": () => json(settingsResponse({ showAuthors })),
+          "GET /api/items": () => json(groups({ review: [item()] })),
+        }),
+      );
+      renderApp("/");
+
+      await sectionButton(/Needs my review/);
+      await waitFor(() =>
+        expect(rows()[0]?.querySelector("img") !== null).toBe(showAuthors),
+      );
+    },
+  );
 
   it("lists the user's idle PRs after their items in My PRs", async () => {
     const idle = idlePr();

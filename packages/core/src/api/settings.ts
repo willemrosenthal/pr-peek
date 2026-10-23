@@ -38,6 +38,7 @@ export const updateSettingsBody = z
     digestTime: timeOfDay.nullable(),
     hideBots: z.boolean(),
     includeTeamRequests: z.boolean(),
+    showAuthors: z.boolean(),
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, "Nothing to update");
@@ -58,6 +59,8 @@ export interface UserSettingsDto {
   digestTime: string | null;
   hideBots: boolean;
   includeTeamRequests: boolean;
+  // Shows each PR author's picture on the list.
+  showAuthors: boolean;
 }
 
 export const severity = z.enum(["low", "normal", "high"]);

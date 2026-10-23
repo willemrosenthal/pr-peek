@@ -1,6 +1,6 @@
 import type { ItemKind, StaleLevel } from "@pr-peek/core";
-import { render, screen } from "@testing-library/react";
-import { expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { idlePr, item } from "../test/fake-api";
 import { IdlePrRow, ItemRow } from "./ItemRow";
 
@@ -16,6 +16,7 @@ it("links to the PR and shows what happened", () => {
           repo: "web-app",
           number: 482,
           url: "https://github.com/acme/web-app/pull/482",
+          author: "sam",
           color: null,
         },
       })}
@@ -102,4 +103,45 @@ it.each<[StaleLevel | null, string]>([
 ])("colors a %s age %s", (staleLevel, tone) => {
   render(<ItemRow item={item({ staleLevel, age: "5h" })} />);
   expect(screen.getByText("5h").className).toContain(tone);
+});
+
+describe("showing the author", () => {
+  const avatar = () => screen.getByRole("link").querySelector("img");
+  // The row's own icon, in the badge or on its own.
+  const icon = () => screen.getByRole("link").querySelector("svg");
+
+  it("shows the author's picture with the kind icon in its badge", () => {
+    const row = item({ kind: "check_failed" });
+    render(
+      <ItemRow
+        item={{ ...row, pr: { ...row.pr, author: "jlee[bot]" } }}
+        showAuthor
+      />,
+    );
+    expect(avatar()?.getAttribute("src")).toBe(
+      "https://avatars.githubusercontent.com/jlee%5Bbot%5D?s=56",
+    );
+    expect(icon()?.parentElement?.className).toContain("badge");
+    expect(icon()?.parentElement?.className).toContain("danger");
+  });
+
+  it("shows idle PRs' authors too", () => {
+    render(<IdlePrRow pr={idlePr()} showAuthor />);
+    expect(avatar()).not.toBe(null);
+  });
+
+  it("falls back to the plain icon when the picture can't load", () => {
+    render(<ItemRow item={item()} showAuthor />);
+    fireEvent.error(avatar()!);
+    expect(avatar()).toBe(null);
+    expect(icon()?.parentElement?.className).not.toContain("badge");
+  });
+
+  it.each([
+    ["off", false, false],
+    ["on, in a quiet row", true, true],
+  ])("leaves it out when the setting is %s", (_, showAuthor, quiet) => {
+    render(<ItemRow item={item()} showAuthor={showAuthor} quiet={quiet} />);
+    expect(avatar()).toBe(null);
+  });
 });

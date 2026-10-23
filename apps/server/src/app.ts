@@ -18,6 +18,7 @@ const HEALTH = "/health";
 const CACHE_FOREVER = "public, max-age=31536000, immutable";
 // Everything else (index.html, sw.js, the manifest, icons) is checked with us each time.
 const NO_CACHE = "no-cache";
+const GITHUB_AVATARS = "https://avatars.githubusercontent.com";
 
 export interface AppDeps {
   logger: Logger;
@@ -45,7 +46,14 @@ export function createApp(deps: AppDeps): Express {
       autoLogging: { ignore: (req) => req.url === `${API}${HEALTH}` },
     }),
   );
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        // PR authors' pictures come from GitHub.
+        directives: { "img-src": ["'self'", "data:", GITHUB_AVATARS] },
+      },
+    }),
+  );
   app.use(express.json({ limit: "100kb" }));
 
   app.use(

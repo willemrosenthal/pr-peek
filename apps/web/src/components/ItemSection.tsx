@@ -13,6 +13,7 @@ export function ItemSection({
   items,
   idle = [],
   quiet = false,
+  showAuthors = false,
   open,
   onOpenChange,
 }: {
@@ -20,6 +21,7 @@ export function ItemSection({
   items: ItemDto[];
   idle?: IdlePrDto[];
   quiet?: boolean;
+  showAuthors?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -38,12 +40,12 @@ export function ItemSection({
       <Collapsible.Panel>
         {items.map((item) => (
           <SwipeRow key={item.id} quiet={quiet} onToggle={toggle(item.pr.id)}>
-            <ItemRow item={item} quiet={quiet} />
+            <ItemRow item={item} quiet={quiet} showAuthor={showAuthors} />
           </SwipeRow>
         ))}
         {idle.map((pr) => (
           <SwipeRow key={pr.id} quiet={quiet} onToggle={toggle(pr.id)}>
-            <IdlePrRow pr={pr} quiet={quiet} />
+            <IdlePrRow pr={pr} quiet={quiet} showAuthor={showAuthors} />
           </SwipeRow>
         ))}
       </Collapsible.Panel>

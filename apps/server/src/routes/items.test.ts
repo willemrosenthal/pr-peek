@@ -115,6 +115,7 @@ describe("GET /api/items", () => {
         repo: "web-app",
         number: 7,
         url: "https://github.com/acme/web-app/pull/7",
+        author: "sam",
         color: null,
       },
     });
@@ -194,6 +195,7 @@ describe("GET /api/items", () => {
         repo: "web-app",
         number: 7,
         url: "https://github.com/acme/web-app/pull/7",
+        author: "Octocat",
         color: null,
       },
     });

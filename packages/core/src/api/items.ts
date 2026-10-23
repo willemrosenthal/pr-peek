@@ -49,6 +49,8 @@ export interface ItemDto {
     repo: string;
     number: number;
     url: string;
+    // The GitHub login of who opened the PR.
+    author: string;
     // The watched repo's color. Null when off.
     color: string | null;
   };

@@ -64,6 +64,53 @@
   white-space: nowrap;
 }
 
+/* The author's picture in place of the icon, centered across both lines. */
+.withAuthor {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+}
+
+.withAuthor > :first-child {
+  grid-row: span 2;
+}
+
+.author {
+  position: relative;
+  display: flex;
+  width: 28px;
+  height: 28px;
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--color-surface-muted);
+}
+
+/* Why it's on the list, on the picture's corner. The background rings it off. */
+.badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-surface);
+}
+
+.row:hover .badge {
+  background: var(--color-hover);
+}
+
+.badge svg {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.5;
+}
+
 /* Arrived since the user last looked. */
 .unseen .title {
   font-weight: 700;

@@ -60,6 +60,12 @@ export function GeneralTab() {
             label="Team review requests"
             hint="Lists PRs that ask one of your teams to review, not just you."
           />
+          <SettingSwitch
+            settings={settings.data.settings}
+            field="showAuthors"
+            label="Show authors"
+            hint="Shows the picture of who opened each PR. Why it's on your list moves to a small badge on the picture."
+          />
         </Card>
       )}
       <Card label="This device">
