@@ -42,7 +42,7 @@ describe("watched repos", () => {
   it("lists them", async () => {
     reposApi([watchedRepo({ owner: "acme", name: "web" })]);
     renderApp("/settings/repos");
-    expect(within(await watchedList()).getByText("acme/web")).toBeTruthy();
+    expect(within(await watchedList()).getByText("web")).toBeTruthy();
   });
 
   it("says when there are none", async () => {
@@ -223,7 +223,7 @@ describe("adding repos", () => {
 
     act(() => finishAdd());
     expect(await within(options).findByText("Watching")).toBeTruthy();
-    expect(within(await watchedList()).getByText("acme/api")).toBeTruthy();
+    expect(within(await watchedList()).getByText("api")).toBeTruthy();
     expect(sentBodies(fetch, "POST /api/repos")).toEqual([
       { owner: "acme", name: "api" },
     ]);

@@ -1,9 +1,9 @@
 import type { UpdateRepoBody, WatchedRepoDto } from "@pr-peek/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { api } from "../api";
 import { queryKeys, useReloadWatchList, useRepos } from "../queries";
 import { Alert } from "./Alert";
-import { Button } from "./Button";
 import { Card, CardRow } from "./Card";
 import { ColorPicker } from "./ColorPicker";
 import { Control, Controls } from "./Control";
@@ -79,13 +79,28 @@ function WatchedRepo({
 
   return (
     <CardRow>
-      <span className={styles.name}>
-        <span style={shownColor ? { color: shownColor } : undefined}>
-          {name}
+      <div className={styles.watchedHeader}>
+        <span className={styles.name}>
+          <span>
+            <span className={styles.owner}>{repo.owner}/</span>
+            <span style={shownColor ? { color: shownColor } : undefined}>
+              {repo.name}
+            </span>
+          </span>
+          {!enabled && <span className={styles.hint}>Paused</span>}
+          {enabled && muted && <span className={styles.hint}>Muted</span>}
         </span>
-        {!enabled && <span className={styles.hint}>Paused</span>}
-        {enabled && muted && <span className={styles.hint}>Muted</span>}
-      </span>
+        <button
+          type="button"
+          className={styles.remove}
+          aria-label={`Remove ${name}`}
+          title="Remove"
+          onClick={() => remove.mutate()}
+          disabled={remove.isPending}
+        >
+          <X size={16} />
+        </button>
+      </div>
       <Controls>
         <Control name="Notify">
           <Switch
@@ -117,22 +132,15 @@ function WatchedRepo({
             }
             disabled={update.isPending}
           />
+          {shownColor && (
+            <ColorPicker
+              label={`Pick a color for ${name}`}
+              color={shownColor}
+              onChange={(picked) => update.mutate({ color: picked })}
+            />
+          )}
         </Control>
-        {shownColor && (
-          <ColorPicker
-            label={`Pick a color for ${name}`}
-            color={shownColor}
-            onChange={(picked) => update.mutate({ color: picked })}
-          />
-        )}
       </Controls>
-      <Button
-        aria-label={`Remove ${name}`}
-        onClick={() => remove.mutate()}
-        disabled={remove.isPending}
-      >
-        Remove
-      </Button>
       {error && <Alert>{error.message}</Alert>}
     </CardRow>
   );

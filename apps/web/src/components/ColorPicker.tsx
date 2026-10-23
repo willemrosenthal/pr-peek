@@ -62,9 +62,11 @@ export function ColorPicker({
         setOpen(next);
       }}
     >
-      <Popover.Trigger className={styles.trigger} aria-label={label}>
-        <span className={styles.swatch} style={{ background: shown }} />
-      </Popover.Trigger>
+      <Popover.Trigger
+        className={styles.trigger}
+        style={{ background: shown }}
+        aria-label={label}
+      />
       <Popover.Portal>
         <Popover.Positioner sideOffset={8}>
           <Popover.Popup className={styles.popup}>

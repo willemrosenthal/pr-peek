@@ -1,24 +1,24 @@
+/* The color fills the button. The ring is a shadow, so the two can't drift apart. */
 .trigger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  /* Room for the ring, so it matches a switch's 20px height. */
+  margin: 3px;
   padding: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  border: 0;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 3px var(--color-border);
   cursor: pointer;
 }
 
-.trigger:hover {
-  background: var(--color-hover);
-}
-
-.swatch {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
+.trigger:hover,
+.trigger[data-popup-open] {
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 3px var(--color-text-tertiary);
 }
 
 .popup {

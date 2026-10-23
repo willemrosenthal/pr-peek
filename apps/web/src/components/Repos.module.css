@@ -14,6 +14,51 @@
   overflow-wrap: anywhere;
 }
 
+/* A watched repo's first line: its name, and the remove button on the right. */
+.watchedHeader {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.owner {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.remove {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-right: calc(-1 * var(--space-2));
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+.remove:hover {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.remove:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+@media (pointer: coarse) {
+  .remove {
+    width: var(--touch-target);
+    height: var(--touch-target);
+  }
+}
+
 .adding {
   display: flex;
   align-items: center;
