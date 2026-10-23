@@ -1,4 +1,4 @@
-import type { ItemGroup, ItemsResponse } from "@pr-peek/core";
+import type { ItemGroup, ItemsResponse, ShowAuthors } from "@pr-peek/core";
 import { useMemo } from "react";
 import { Link } from "react-router";
 import { Alert } from "../components/Alert";
@@ -19,6 +19,10 @@ const SECTIONS: { group: ItemGroup; title: string }[] = [
   { group: "replies", title: "Replies to me" },
   { group: "mine", title: "My PRs" },
 ];
+
+// Whether a section's rows show their authors' pictures.
+const showsAuthors = (setting: ShowAuthors, group: ItemGroup) =>
+  setting === "all" || (setting === "review" && group === "review");
 
 // The sections that can collapse: each group, and Quiet at the bottom.
 type SectionKey = ItemGroup | "quiet";
@@ -102,7 +106,7 @@ function Sections({ groups }: { groups: ItemsResponse }) {
     [groups, collapsed],
   );
   useMarkSeen(unseenIds);
-  const showAuthors = useSettings().data?.settings.showAuthors ?? false;
+  const showAuthors = useSettings().data?.settings.showAuthors ?? "off";
 
   const { quiet } = groups;
   return (
@@ -116,7 +120,7 @@ function Sections({ groups }: { groups: ItemsResponse }) {
             title={title}
             items={groups[group]}
             idle={idle}
-            showAuthors={showAuthors}
+            showAuthors={showsAuthors(showAuthors, group)}
             open={!collapsed.includes(group)}
             onOpenChange={(open) => setOpen(group, open)}
           />

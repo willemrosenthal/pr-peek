@@ -1,4 +1,4 @@
-import type { MarkSeenBody } from "@pr-peek/core";
+import type { MarkSeenBody, ShowAuthors } from "@pr-peek/core";
 import {
   act,
   cleanup,
@@ -51,21 +51,28 @@ describe("sections", () => {
     expect(rows()).toHaveLength(3);
   });
 
-  it.each([true, false])(
+  // Whether the review row and the My PRs row have pictures.
+  it.each<[ShowAuthors, boolean[]]>([
+    ["off", [false, false]],
+    ["review", [true, false]],
+    ["all", [true, true]],
+  ])(
     "shows authors' pictures when the setting is %s",
-    async (showAuthors) => {
+    async (showAuthors, shown) => {
       fakeApi(
         listApi({
           "GET /api/settings": () => json(settingsResponse({ showAuthors })),
-          "GET /api/items": () => json(groups({ review: [item()] })),
+          "GET /api/items": () =>
+            json(groups({ review: [item()], mine: [item()] })),
         }),
       );
       renderApp("/");
 
-      await sectionButton(/Needs my review/);
-      const [row] = rows();
+      await sectionButton(/My PRs/);
       await waitFor(() =>
-        expect(row!.querySelector("img") !== null).toBe(showAuthors),
+        expect(rows().map((row) => row.querySelector("img") !== null)).toEqual(
+          shown,
+        ),
       );
     },
   );

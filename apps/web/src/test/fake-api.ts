@@ -211,7 +211,7 @@ export const settingsResponse = (
     digestTime: null,
     hideBots: false,
     includeTeamRequests: true,
-    showAuthors: false,
+    showAuthors: "off",
     ...fields,
   },
   rules: rules.map((rule) => ({
