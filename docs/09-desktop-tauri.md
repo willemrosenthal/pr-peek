@@ -156,6 +156,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
   - Applied when the slider is let go (the browser's own `change` event), not while dragging. Resizing mid-drag moves the slider under the pointer and picks another size.
   - Inside `#root`, pages fill the screen with flex, never `dvh`. Browsers disagree on how zoom scales viewport units.
 - [x] The mascot from the app icon sits left of "Git Buddy" in the list header, in a rainbow that shifts color. It pauses while the dropdown is hidden, and stays still for people who turn on Reduce Motion.
+- [x] Settings uses a classic tab bar (underlined tabs), with "Repos" for short, so all five fit side by side in the dropdown. A rainbow back arrow (`RainbowIcon.tsx`, the mascot's stroke and size) replaces "Back to your list", in Settings and on the install page. A line separates the token from "Sign out".
 
 ## Done when
 

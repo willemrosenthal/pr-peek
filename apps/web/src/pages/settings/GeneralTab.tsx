@@ -73,6 +73,7 @@ export function GeneralTab() {
         </Card>
       )}
       <GitHubToken />
+      <hr className={styles.divider} />
       <div>
         <Button onClick={() => signOut.mutate()} disabled={signOut.isPending}>
           Sign out

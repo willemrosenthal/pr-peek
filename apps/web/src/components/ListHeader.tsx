@@ -7,7 +7,7 @@ import { inDesktopApp, popOut } from "../desktop";
 import { useIsDropdown } from "../hooks/useIsTray";
 import { useNow } from "../hooks/useNow";
 import styles from "./ListHeader.module.css";
-import { Mascot } from "./Mascot";
+import { Mascot } from "./RainbowIcon";
 
 // How far the header moves before the dropdown pops out.
 const POP_OUT_DRAG_PX = 20;

@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { BackToList } from "../components/BackToList";
 import { InstallHere, OtherDevices } from "../components/InstallSteps";
 import { useReturnToList } from "../hooks/useReturnToList";
 import styles from "./InstallPage.module.css";
@@ -10,7 +10,7 @@ export function InstallPage() {
     <main className={styles.page}>
       <div className={styles.panel}>
         <header className={styles.header}>
-          <Link to="/">Back to your list</Link>
+          <BackToList />
           <h1 className={styles.title}>Install Git Buddy</h1>
           <p className={styles.hint}>
             It opens in its own window, like any other app.
