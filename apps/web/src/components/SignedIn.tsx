@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { Outlet } from "react-router";
+import { api } from "../api";
 import { setBadge } from "../badge";
-import { setTrayState } from "../desktop";
+import { HEARTBEAT_MS, inDesktopApp, setTrayState } from "../desktop";
 import { useCountStyle } from "../hooks/useCountStyle";
 import { useLiveUpdates } from "../hooks/useLiveUpdates";
 import { recheckPush } from "../push";
@@ -18,6 +19,17 @@ export function SignedIn() {
     void setBadge(summary.total);
     setTrayState(summary, countStyle);
   }, [summary, countStyle]);
+
+  // Inside the Mac menu bar app, tells the server it's running.
+  useEffect(() => {
+    if (!inDesktopApp()) return;
+    const beat = () => {
+      api("/desktop/heartbeat", { method: "POST" }).catch(() => undefined);
+    };
+    beat();
+    const timer = setInterval(beat, HEARTBEAT_MS);
+    return () => clearInterval(timer);
+  }, []);
 
   const reloadDevices = useReloadDevices();
   useEffect(() => {

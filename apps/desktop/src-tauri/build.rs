@@ -6,6 +6,7 @@ fn main() {
             "open_external",
             "hide_window",
             "quit_app",
+            "notify",
         ]),
     ))
     .expect("tauri-build failed");

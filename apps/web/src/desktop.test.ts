@@ -80,6 +80,22 @@ describe("startDesktop", () => {
     }
   });
 
+  it("shows notifications from the server natively", () => {
+    const invoke = stubTauri();
+    const stop = startDesktop();
+    try {
+      const payload = { title: "t", body: "b", url: "/x", tag: "i", badge: 3 };
+      window.dispatchEvent(
+        new CustomEvent("pr-peek:notify", { detail: payload }),
+      );
+      expect(callsOf(invoke, "notify")).toEqual([
+        { alert: { title: "t", body: "b", url: "/x" } },
+      ]);
+    } finally {
+      stop();
+    }
+  });
+
   it("does nothing in a browser", () => {
     const stop = startDesktop();
     expect(clickLink("https://github.com", "_blank")).toBe(false);

@@ -1,4 +1,4 @@
-import { ITEMS_CHANGED_EVENT } from "@pr-peek/core";
+import { ITEMS_CHANGED_EVENT, NOTIFY_EVENT } from "@pr-peek/core";
 import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import {
@@ -10,7 +10,7 @@ import {
   type Mock,
   vi,
 } from "vitest";
-import { setCountStyle } from "../desktop";
+import { HEARTBEAT_MS, setCountStyle } from "../desktop";
 import { RECONNECT_MS } from "../hooks/useLiveUpdates";
 import {
   apiError,
@@ -47,6 +47,23 @@ describe("the live stream", () => {
   it("opens the stream once signed in", async () => {
     await renderList();
     expect(FakeEventSource.opened.map((s) => s.url)).toEqual(["/api/stream"]);
+  });
+
+  it("passes notifications for the Mac menu bar app on to the page", async () => {
+    await renderList();
+    const received = vi.fn();
+    window.addEventListener("pr-peek:notify", received);
+    try {
+      const payload = { title: "t", body: "b", url: "/", tag: "x" };
+      await send(
+        new MessageEvent(NOTIFY_EVENT, { data: JSON.stringify(payload) }),
+      );
+      expect((received.mock.calls[0]?.[0] as CustomEvent).detail).toEqual(
+        payload,
+      );
+    } finally {
+      window.removeEventListener("pr-peek:notify", received);
+    }
   });
 
   it("reloads the list when items change", async () => {
@@ -176,6 +193,28 @@ describe("the Mac menu bar", () => {
 
     act(() => setCountStyle("dot"));
     expect(shown().at(-1)).toBe("•");
+  });
+
+  it("tells the server it's running, every minute, only inside the app", async () => {
+    const fetch = fakeApi(listApi());
+    renderApp("/");
+    await screen.findByText("Nothing needs you right now");
+    expect(callsTo(fetch, "/api/desktop/heartbeat")).toEqual([]);
+    cleanup();
+
+    // Real time still passes, so the page can load.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      stubTauri();
+      renderApp("/");
+      await waitFor(() =>
+        expect(callsTo(fetch, "/api/desktop/heartbeat")).toHaveLength(1),
+      );
+      await act(() => vi.advanceTimersByTimeAsync(HEARTBEAT_MS));
+      expect(callsTo(fetch, "/api/desktop/heartbeat")).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("clears the count and color on sign out", async () => {
