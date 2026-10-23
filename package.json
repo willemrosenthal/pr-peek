@@ -15,6 +15,9 @@
   },
   "scripts": {
     "dev": "pnpm -r --parallel --if-present dev",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose stop",
+    "db:migrate": "pnpm --filter @pr-peek/server db:migrate",
     "build": "pnpm -r --if-present build",
     "render:build": "pnpm install --frozen-lockfile --prod=false && pnpm build",
     "lint": "eslint .",
