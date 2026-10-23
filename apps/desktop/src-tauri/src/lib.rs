@@ -230,15 +230,15 @@ fn set_launch_at_login(app: AppHandle, on: bool) -> Result<(), String> {
 // On by default: turned on the first time the installed app runs, once. Dev builds and
 // copies outside Applications are skipped, since the login item points at this copy.
 fn launch_at_login_by_default(app: &AppHandle) {
-    if cfg!(debug_assertions) {
+    let installed = std::env::current_exe().is_ok_and(|exe| exe.starts_with("/Applications"));
+    if cfg!(debug_assertions) || !installed {
         return;
     }
-    let installed = std::env::current_exe().is_ok_and(|exe| exe.starts_with("/Applications"));
     let Ok(dir) = app.path().app_data_dir() else {
         return;
     };
     let marker = dir.join("launch-at-login-set");
-    if !installed || marker.exists() {
+    if marker.exists() {
         return;
     }
     if apply_launch_at_login(app, true).is_ok() {
