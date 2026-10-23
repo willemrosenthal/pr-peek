@@ -21,6 +21,7 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
     "e2e": "pnpm --filter @pr-peek/web e2e",
+    "desktop": "pnpm --filter @pr-peek/desktop tauri dev",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
