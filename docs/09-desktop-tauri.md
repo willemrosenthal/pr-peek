@@ -107,6 +107,8 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 
   Decide before the first public release.
 
+  **Decided: make the repo public.** Releases and `latest.json` live on this repo's GitHub Releases. History was checked first: it holds only fake test tokens and the local database's default password, no real secrets.
+
 ### 9.8 Build and release pipeline
 
 - [ ] `.github/workflows/desktop-release.yml`, triggered by pushing a tag like `desktop-v0.1.0`:
