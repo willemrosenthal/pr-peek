@@ -51,7 +51,7 @@ For a copy that loads the live site, `pnpm desktop:build` makes `apps/desktop/sr
 
 - [x] Create a tray icon with a template image (a black and transparent PNG that macOS tints for light and dark menu bars). Use the Wavey octopus from `apps/web/public/icon.svg` (the white strokes only, at 1.5 stroke width).
   - Source: `src-tauri/icons/tray.svg`. Made into `tray.png` with `pnpm --filter @pr-peek/desktop tauri icon src-tauri/icons/tray.svg -o <folder>`, taking its `64x64.png`.
-- [x] Left click toggles the window. It opens centered under the tray icon, 12px below the menu bar, from the icon's spot (`tray.rect()`).
+- [x] Left click toggles the window. It opens centered under the tray icon, 12px below the menu bar, from the icon's spot that each click reports. Asking the icon itself (`tray.rect()`) inside its click handler froze the app. Before the first click, the shortcut opens it at the top right.
 - [x] Hide the window when it loses focus, like a real menu.
 - [x] Right click shows a small native menu: Refresh, Open in browser, Settings, Launch at login (checkbox), Check for updates, Quit.
   - Launch at login and Check for updates come with their plugins in PR 4.
@@ -158,7 +158,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 - [x] The mascot from the app icon sits left of "Git Buddy" in the list header, in a rainbow that shifts color. It pauses while the dropdown is hidden, and stays still for people who turn on Reduce Motion.
 - [x] Settings uses a classic tab bar (underlined tabs), with "Repos" for short, so all five fit side by side in the dropdown. A rainbow back arrow (`RainbowIcon.tsx`, the mascot's stroke and size) replaces "Back to your list", in Settings and on the install page. A line separates the token from "Sign out".
 - [x] No focus ring when the window opens. macOS can focus the first button (Refresh) as the window becomes active, for example after closing the popped out window. Focus rings stay hidden (`quiet-focus`) each time the window opens, until a key is pressed.
-- [x] Cmd+click on a link opens it in the background (`open -g`), so the browser stays behind and the dropdown stays open. Click several in a row to open them all. A plain click still brings the browser forward.
+- [x] Cmd+click on a link opens it in the background (`open -g`), and the dropdown stays open. Click several in a row to open them all. Chrome comes forward anyway, so for 1.5s after a Cmd+click, losing focus doesn't hide the window: it takes focus back instead (`LINK_GUARD`). The dropdown floats above other windows, so it stays visible throughout. A plain click still brings the browser forward.
 
 ## Done when
 
