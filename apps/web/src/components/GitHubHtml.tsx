@@ -127,8 +127,8 @@ function propsFor(el: Element, tag: string): Record<string, unknown> | null {
           }
         : null;
     case "ol": {
-      // Most lists have no start, and Number(null) is 0.
-      const start = Number(el.getAttribute("start") ?? Number.NaN);
+      // NaN when there's no start, so the list counts from 1.
+      const start = Number.parseInt(el.getAttribute("start") ?? "", 10);
       return Number.isInteger(start) ? { start } : {};
     }
     case "th":

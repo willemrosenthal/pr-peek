@@ -16,6 +16,7 @@ it("keeps GitHub's formatting", () => {
 
 it("numbers lists from 1, or from their start", () => {
   expect(html("<ol><li>One</li></ol>")).toBe("<ol><li>One</li></ol>");
+  expect(html('<ol start=""><li>One</li></ol>')).toBe("<ol><li>One</li></ol>");
   expect(html('<ol start="3"><li>Three</li></ol>')).toBe(
     '<ol start="3"><li>Three</li></ol>',
   );
