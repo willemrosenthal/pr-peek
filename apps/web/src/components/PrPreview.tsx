@@ -304,6 +304,11 @@ function Comments({
             }
             focus={isFocus}
             muted={found !== -1 && hidden.length + index < focus}
+            style={
+              isFocus
+                ? ({ "--tone": focusTone(comment, kind) } as CSSProperties)
+                : undefined
+            }
           />
         );
       })}
@@ -320,6 +325,17 @@ const KIND_LABELS: Partial<Record<ItemKind, Label>> = {
   reply: { text: "replied to you", tone: styles.talk },
   mention: { text: "mentioned you", tone: styles.talk },
 };
+
+// The item's comment is outlined in the color of its kind's icon in the list.
+function focusTone(comment: PreviewCommentDto, kind: ItemKind | null): string {
+  if (comment.reviewState === "APPROVED") return "var(--color-kind-approved)";
+  if (comment.reviewState === "CHANGES_REQUESTED") {
+    return "var(--color-kind-failed)";
+  }
+  if (kind === "reply" || kind === "mention") return "var(--color-kind-talk)";
+  if (kind === "commented") return "var(--color-kind-comment)";
+  return "var(--color-accent)";
+}
 
 function reviewLabel(comment: PreviewCommentDto): Label | undefined {
   switch (comment.reviewState) {
@@ -345,7 +361,7 @@ function Comment({
   label: Label | undefined;
   focus?: boolean;
   muted?: boolean;
-  style?: CSSProperties;
+  style?: CSSProperties | undefined;
 }) {
   return (
     <div

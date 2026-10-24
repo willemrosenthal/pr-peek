@@ -238,9 +238,14 @@
   color: var(--color-text-secondary);
 }
 
-/* The comment the item is about, in the accent blue the list uses for what's new. */
-.focus {
-  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+/* The comment the item is about: a thin outline in its action's color (`--tone`). Set
+   in from the card's edge, with less padding, so its text lines up with the others. */
+.comment.focus {
+  margin: 6px;
+  padding: 6px 10px;
+  border-top: none;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1.5px var(--tone, var(--color-accent));
 }
 
 .avatar {

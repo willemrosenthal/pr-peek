@@ -36,6 +36,13 @@ const preview = (
   ...fields,
 });
 
+// The outline color of the marked comment holding `text`.
+const toneOf = (text: string) =>
+  screen
+    .getByText(text)
+    .closest<HTMLElement>(`.${styles.focus}`)
+    ?.style.getPropertyValue("--tone");
+
 function setup(answer: () => Response, fields: Partial<ItemDto> = {}) {
   const row = item({
     kind: "reply",
@@ -93,6 +100,7 @@ it("shows the reply and the comment before it, with the rest behind a button", a
   const muted = `.${styles.mutedComment}`;
   expect(screen.getByText("Comment C_3").closest(muted)).toBeTruthy();
   expect(screen.getByText("Comment C_4").closest(muted)).toBeNull();
+  expect(toneOf("Comment C_4")).toBe("var(--color-kind-talk)");
 
   await userEvent.click(more);
   expect(more.getAttribute("aria-expanded")).toBe("true");
@@ -113,6 +121,7 @@ it("labels reviews by what they did, and comments by their file", async () => {
     ),
   );
   expect(await screen.findByText("requested changes")).toBeTruthy();
+  expect(toneOf("Comment R_1")).toBe("var(--color-kind-failed)");
   expect(screen.getByText("Email.tsx:18")).toBeTruthy();
 });
 
