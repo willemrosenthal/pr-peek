@@ -24,7 +24,7 @@ import {
   syncStatus,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
-import { drag, stubPointerCapture } from "../test/swipe";
+import { drag, FAR_ENOUGH, stubPointerCapture } from "../test/swipe";
 import { callsOf, stubTauri } from "../test/tauri";
 import { setVisibility } from "../test/visibility";
 
@@ -197,7 +197,7 @@ describe("sections", () => {
     renderApp("/");
 
     await sectionButton(/Needs my review/);
-    drag(rowOf(asked), -120);
+    drag(rowOf(asked), -FAR_ENOUGH);
     // Moved before the save answers.
     expect(await sectionButton(QUIET)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Needs my review/ })).toBe(
@@ -245,8 +245,8 @@ describe("sections", () => {
     const loads = () => callsTo(fetch, "/api/items").length;
     const before = loads();
 
-    drag(rowOf(first), -120);
-    drag(rowOf(second), -120);
+    drag(rowOf(first), -FAR_ENOUGH);
+    drag(rowOf(second), -FAR_ENOUGH);
     await waitFor(() => expect(saves).toHaveLength(2));
 
     await act(() => Promise.resolve(saves[0]!()));

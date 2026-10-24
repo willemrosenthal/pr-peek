@@ -10,13 +10,16 @@ import {
 import { cx } from "../cx";
 import styles from "./SwipeRow.module.css";
 
-// How far a row moves before letting go quiets it.
-const SWIPE_PX = 80;
+// How far a row moves before letting go quiets it: a share of its width, but at least
+// `SWIPE_MIN_PX`.
+const SWIPE_SHARE = 0.45;
+const SWIPE_MIN_PX = 140;
 // How far a press moves before it counts as a swipe, not a click.
 const START_PX = 8;
 // A trackpad swipe ends when its scroll events stop for this long.
 const WHEEL_END_MS = 150;
-// How long the row takes to slide out.
+// How long after letting go the row moves. Longer than its slide out (`.leaving` in
+// SwipeRow.module.css), so it pauses off to the side first.
 const LEAVE_MS = 200;
 // How long after a drag its click can still arrive. Some browsers send it a bit later.
 const CLICK_AFTER_DRAG_MS = 300;
@@ -61,6 +64,16 @@ export function SwipeRow({
   }>(undefined);
   const wheel = useRef({ offset: 0, timer: 0 });
   const leaveTimer = useRef(0);
+  const rowRef = useRef<HTMLDivElement>(null);
+  // How far this drag must go, measured when it starts.
+  const swipePx = useRef(SWIPE_MIN_PX);
+  // Past `swipePx`, so letting go quiets it.
+  const [armed, setArmed] = useState(false);
+
+  const measure = () => {
+    const width = rowRef.current?.offsetWidth ?? 0;
+    swipePx.current = Math.max(SWIPE_MIN_PX, width * SWIPE_SHARE);
+  };
 
   useEffect(
     () => () => {
@@ -73,12 +86,23 @@ export function SwipeRow({
   const move = (to: number) => {
     setDragging(true);
     setOffset(to);
+    setArmed(Math.abs(to) >= swipePx.current);
+  };
+
+  // Springs back to where it was.
+  const snapBack = () => {
+    setDragging(false);
+    setOffset(0);
+    setArmed(false);
   };
 
   const release = (at: number) => {
+    if (Math.abs(at) < swipePx.current) {
+      snapBack();
+      return;
+    }
     setDragging(false);
     setOffset(0);
-    if (Math.abs(at) < SWIPE_PX) return;
     // Stays slid out until the row moves, which also ignores the rest of a trackpad swipe.
     setLeaving(at < 0 ? -1 : 1);
     leaveTimer.current = window.setTimeout(onToggle, LEAVE_MS);
@@ -108,6 +132,7 @@ export function SwipeRow({
       }
       p.on = true;
       event.currentTarget.setPointerCapture(p.id);
+      measure();
     }
     p.moved = moved;
     move(moved);
@@ -123,14 +148,14 @@ export function SwipeRow({
 
   const onPointerCancel = () => {
     press.current = undefined;
-    setDragging(false);
-    setOffset(0);
+    snapBack();
   };
 
   const onWheel = (event: WheelEvent) => {
     const w = wheel.current;
     if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
     if (leaving) return;
+    if (w.offset === 0) measure();
     w.offset -= event.deltaX;
     move(w.offset);
     clearTimeout(w.timer);
@@ -145,13 +170,16 @@ export function SwipeRow({
   const Icon = quiet ? Bell : BellOff;
   const action = quiet ? "Bring back" : "Quiet";
   return (
-    <div className={cx(styles.swipe, shown !== 0 && styles.moving)}>
+    <div
+      ref={rowRef}
+      className={cx(styles.swipe, shown !== 0 && styles.moving)}
+    >
       {shown !== 0 && (
         <div
           className={cx(
             styles.action,
             shown < 0 && styles.end,
-            quiet && styles.back,
+            armed && (quiet ? styles.back : styles.armed),
           )}
           aria-hidden="true"
         >
@@ -160,7 +188,11 @@ export function SwipeRow({
         </div>
       )}
       <div
-        className={cx(styles.slide, dragging && styles.dragging)}
+        className={cx(
+          styles.slide,
+          dragging && styles.dragging,
+          leaving && styles.leaving,
+        )}
         style={{
           transform: leaving
             ? `translateX(${leaving * 100}%)`

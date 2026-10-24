@@ -5,15 +5,24 @@ export function stubPointerCapture() {
   Element.prototype.setPointerCapture = () => {};
 }
 
+// Far enough to quiet a row in jsdom, where rows have no width.
+export const FAR_ENOUGH = 200;
+
+const at = (dx: number, dy: number, share: number) => ({
+  pointerId: 1,
+  clientX: 200 + dx * share,
+  clientY: 20 + dy * share,
+});
+
+// Presses on `el` and moves `dx` across and `dy` down, without letting go.
+export function hold(el: Element, dx: number, dy = 0) {
+  fireEvent.pointerDown(el, { button: 0, ...at(dx, dy, 0) });
+  fireEvent.pointerMove(el, at(dx, dy, 0.5));
+  fireEvent.pointerMove(el, at(dx, dy, 1));
+}
+
 // Presses on `el`, moves `dx` across and `dy` down, then lets go.
 export function drag(el: Element, dx: number, dy = 0) {
-  const at = (share: number) => ({
-    pointerId: 1,
-    clientX: 200 + dx * share,
-    clientY: 20 + dy * share,
-  });
-  fireEvent.pointerDown(el, { button: 0, ...at(0) });
-  fireEvent.pointerMove(el, at(0.5));
-  fireEvent.pointerMove(el, at(1));
-  fireEvent.pointerUp(el, at(1));
+  hold(el, dx, dy);
+  fireEvent.pointerUp(el, at(dx, dy, 1));
 }
