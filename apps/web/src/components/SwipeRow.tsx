@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent,
   type ReactNode,
   type WheelEvent,
@@ -23,6 +24,11 @@ const WHEEL_END_MS = 150;
 const LEAVE_MS = 200;
 // How long after a drag its click can still arrive. Some browsers send it a bit later.
 const CLICK_AFTER_DRAG_MS = 300;
+// How long a press is held, without moving, to open the preview.
+const LONG_PRESS_MS = 450;
+// How long it's held before the preview starts loading. Taps and scrolls end sooner,
+// so they don't ask GitHub for anything.
+const PRESS_START_MS = 150;
 
 // Stops the click a drag on `row` ends with, so the row's link doesn't open. Clicks
 // elsewhere go through. Listens on the window so it runs before the Mac app's link
@@ -40,14 +46,20 @@ function blockNextClick(row: Element) {
 }
 
 // A list row that quiets its PR, or brings it back, when swiped sideways. A quiet row
-// also has a bell button that brings it back.
+// also has a bell button that brings it back. A long press or a right click calls
+// `onLongPress`. `onPressStart` comes partway through a long press, so the preview can
+// start loading.
 export function SwipeRow({
   quiet,
   onToggle,
+  onLongPress,
+  onPressStart,
   children,
 }: {
   quiet: boolean;
   onToggle: () => void;
+  onLongPress?: () => void;
+  onPressStart?: () => void;
   children: ReactNode;
 }) {
   const [offset, setOffset] = useState(0);
@@ -55,15 +67,19 @@ export function SwipeRow({
   // -1 or 1 while the row slides out that way.
   const [leaving, setLeaving] = useState<-1 | 1 | null>(null);
   // `moved` is kept here too, since the last move may not have rendered by release.
+  // `long` is set once the long press fires.
   const press = useRef<{
     x: number;
     y: number;
     id: number;
     on: boolean;
     moved: number;
+    long: boolean;
+    el: Element;
   }>(undefined);
   const wheel = useRef({ offset: 0, timer: 0 });
   const leaveTimer = useRef(0);
+  const longPressTimer = useRef(0);
   const rowRef = useRef<HTMLDivElement>(null);
   // How far this drag must go, measured when it starts.
   const swipePx = useRef(SWIPE_MIN_PX);
@@ -79,6 +95,7 @@ export function SwipeRow({
     () => () => {
       clearTimeout(wheel.current.timer);
       clearTimeout(leaveTimer.current);
+      clearTimeout(longPressTimer.current);
     },
     [],
   );
@@ -108,6 +125,23 @@ export function SwipeRow({
     leaveTimer.current = window.setTimeout(onToggle, LEAVE_MS);
   };
 
+  const longPress = () => {
+    const p = press.current;
+    if (p) {
+      p.long = true;
+      // The sheet opens over the row. This keeps the release coming here, so its click
+      // is blocked and the press ends. Touches stay with the row anyway, a mouse doesn't.
+      try {
+        p.el.setPointerCapture(p.id);
+      } catch {
+        // The pointer is already gone, so there's no release to wait for.
+      }
+    }
+    // A short buzz, where the device has one (not iPhones).
+    navigator.vibrate?.(10);
+    onLongPress?.();
+  };
+
   const onPointerDown = (event: PointerEvent) => {
     if (event.button !== 0 || leaving) return;
     press.current = {
@@ -116,13 +150,30 @@ export function SwipeRow({
       id: event.pointerId,
       on: false,
       moved: 0,
+      long: false,
+      el: event.currentTarget,
     };
+    if (onLongPress) {
+      clearTimeout(longPressTimer.current);
+      // Held still a moment: likely a long press, so it starts loading.
+      longPressTimer.current = window.setTimeout(() => {
+        onPressStart?.();
+        longPressTimer.current = window.setTimeout(
+          longPress,
+          LONG_PRESS_MS - PRESS_START_MS,
+        );
+      }, PRESS_START_MS);
+    }
   };
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const p = press.current;
-    if (!p || p.id !== event.pointerId) return;
+    if (!p || p.id !== event.pointerId || p.long) return;
     const moved = event.clientX - p.x;
+    // A swipe or a scroll, not a long press.
+    if (Math.hypot(moved, event.clientY - p.y) >= START_PX) {
+      clearTimeout(longPressTimer.current);
+    }
     if (!p.on) {
       if (Math.abs(moved) < START_PX) return;
       // Scrolling the list, not swiping.
@@ -141,6 +192,9 @@ export function SwipeRow({
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
     const p = press.current;
     press.current = undefined;
+    clearTimeout(longPressTimer.current);
+    // The preview is open, so the link shouldn't open too.
+    if (p?.long) blockNextClick(event.currentTarget);
     if (!p?.on) return;
     blockNextClick(event.currentTarget);
     release(p.moved);
@@ -148,7 +202,17 @@ export function SwipeRow({
 
   const onPointerCancel = () => {
     press.current = undefined;
+    clearTimeout(longPressTimer.current);
     snapBack();
+  };
+
+  // A right click, or a long press where the browser sends one (Android). Not both.
+  const onContextMenu = (event: ReactMouseEvent) => {
+    if (!onLongPress) return;
+    event.preventDefault();
+    if (press.current?.long) return;
+    clearTimeout(longPressTimer.current);
+    longPress();
   };
 
   const onWheel = (event: WheelEvent) => {
@@ -202,6 +266,7 @@ export function SwipeRow({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
+        onContextMenu={onContextMenu}
         onWheel={onWheel}
         // Stops the browser dragging the link out when a mouse swipes.
         onDragStart={(event) => event.preventDefault()}

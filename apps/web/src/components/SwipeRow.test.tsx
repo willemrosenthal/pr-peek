@@ -1,7 +1,15 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import type { MouseEvent } from "react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { drag, FAR_ENOUGH, hold, stubPointerCapture } from "../test/swipe";
 import { SwipeRow } from "./SwipeRow";
 import styles from "./SwipeRow.module.css";
@@ -128,5 +136,100 @@ describe("SwipeRow", () => {
     const { onToggle } = setup(true);
     await userEvent.click(screen.getByRole("button", { name: "Bring back" }));
     expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("SwipeRow long press", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  function setupPress() {
+    const onLongPress = vi.fn();
+    const onPressStart = vi.fn();
+    const onLinkClick = vi.fn((event: MouseEvent<HTMLAnchorElement>) =>
+      event.preventDefault(),
+    );
+    render(
+      <SwipeRow
+        quiet={false}
+        onToggle={() => {}}
+        onLongPress={onLongPress}
+        onPressStart={onPressStart}
+      >
+        <a href="https://github.com/acme/web-app/pull/7" onClick={onLinkClick}>
+          Add login
+        </a>
+      </SwipeRow>,
+    );
+    const link = screen.getByRole("link", { name: "Add login" });
+    return { onLongPress, onPressStart, onLinkClick, link };
+  }
+
+  const press = (el: Element) =>
+    fireEvent.pointerDown(el, { button: 0, pointerId: 1, clientX: 200 });
+
+  it("opens the preview after a held press, and not the link", () => {
+    const { onLongPress, onPressStart, onLinkClick, link } = setupPress();
+    press(link);
+    vi.advanceTimersByTime(140);
+    expect(onPressStart).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(10);
+    expect(onPressStart).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(250);
+    expect(onLongPress).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(50);
+    expect(onLongPress).toHaveBeenCalledTimes(1);
+
+    fireEvent.pointerUp(link, { pointerId: 1 });
+    fireEvent.click(link);
+    expect(onLinkClick).not.toHaveBeenCalled();
+  });
+
+  it("is just a click when let go sooner", () => {
+    const { onLongPress, onLinkClick, link } = setupPress();
+    press(link);
+    vi.advanceTimersByTime(200);
+    fireEvent.pointerUp(link, { pointerId: 1 });
+    fireEvent.click(link);
+    vi.advanceTimersByTime(500);
+    expect(onLongPress).not.toHaveBeenCalled();
+    expect(onLinkClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't load anything for a tap", () => {
+    const { onPressStart, link } = setupPress();
+    press(link);
+    vi.advanceTimersByTime(100);
+    fireEvent.pointerUp(link, { pointerId: 1 });
+    vi.advanceTimersByTime(500);
+    expect(onPressStart).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a swipe", -40, 0],
+    ["a scroll", 0, 40],
+  ])("doesn't open after %s", (_name, dx, dy) => {
+    const { onLongPress, link } = setupPress();
+    hold(link, dx, dy);
+    vi.advanceTimersByTime(500);
+    expect(onLongPress).not.toHaveBeenCalled();
+  });
+
+  it("opens on a right click, and once per long press", () => {
+    const { onLongPress, link } = setupPress();
+    expect(fireEvent.contextMenu(link)).toBe(false);
+    expect(onLongPress).toHaveBeenCalledTimes(1);
+
+    // Android sends a context menu after its own long press.
+    press(link);
+    vi.advanceTimersByTime(450);
+    fireEvent.contextMenu(link);
+    expect(onLongPress).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the browser's menu on rows without a preview", () => {
+    setup();
+    const link = screen.getByRole("link", { name: "Add login" });
+    expect(fireEvent.contextMenu(link)).toBe(true);
   });
 });

@@ -10,7 +10,12 @@ export function itemRows(db: Db) {
     fields: Partial<
       Pick<
         Prisma.PullRequestUncheckedCreateInput,
-        "authorLogin" | "isDraft" | "state" | "githubUpdatedAt" | "quietAt"
+        | "authorLogin"
+        | "isDraft"
+        | "state"
+        | "githubUpdatedAt"
+        | "quietAt"
+        | "snapshot"
       >
     > = {},
   ) {
@@ -42,7 +47,7 @@ export function itemRows(db: Db) {
     fields: Partial<
       Pick<
         Prisma.ItemUncheckedCreateInput,
-        "occurredAt" | "waitingSince" | "status" | "seenAt"
+        "occurredAt" | "waitingSince" | "status" | "seenAt" | "latestEventId"
       >
     > = {},
   ) {

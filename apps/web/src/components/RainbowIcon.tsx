@@ -1,7 +1,8 @@
 import { useId, type ReactNode } from "react";
 import styles from "./RainbowIcon.module.css";
 
-// A line icon on a 24 by 24 grid, drawn in a rainbow that shifts color.
+// A line icon on a 24 by 24 grid, drawn in a rainbow that shifts color. The PR
+// preview's marked comment has the same rainbow edge (PrPreview.module.css).
 export function RainbowIcon({ children }: { children: ReactNode }) {
   // React's ids have characters that break inside url(#...).
   const gradient = `rainbow${useId().replace(/[^\w-]/g, "")}`;

@@ -1,0 +1,250 @@
+/* Like GitHub's Markdown styles, a bit smaller to fit the sheet. */
+.html {
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.html > :first-child {
+  margin-top: 0;
+}
+
+.html > :last-child {
+  margin-bottom: 0;
+}
+
+.html :is(p, ul, ol, blockquote, pre, table, details) {
+  margin: 0 0 12px;
+}
+
+.html :is(h1, h2, h3, h4, h5, h6) {
+  margin: 20px 0 10px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.html :is(h1, h2) {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.html h1 {
+  font-size: 1.5em;
+}
+
+.html h2 {
+  font-size: 1.3em;
+}
+
+.html h3 {
+  font-size: 1.15em;
+}
+
+.html h4 {
+  font-size: 1em;
+}
+
+.html :is(h5, h6) {
+  font-size: 0.9em;
+  color: var(--color-text-secondary);
+}
+
+.html :is(ul, ol) {
+  padding-left: 1.6em;
+}
+
+.html li + li {
+  margin-top: 4px;
+}
+
+/* Task lists: the box replaces the bullet. */
+.html li:has(> input[type="checkbox"]) {
+  list-style: none;
+}
+
+.html li > input[type="checkbox"] {
+  margin: 0 0.4em 0 -1.4em;
+  vertical-align: middle;
+}
+
+.html a {
+  color: var(--color-accent);
+}
+
+.html :is(code, kbd) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 85%;
+}
+
+.html code {
+  padding: 0.15em 0.35em;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+
+/* Wide code scrolls in its box, not the sheet. */
+.html pre {
+  padding: var(--space-3);
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.html pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.html kbd {
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.html blockquote {
+  padding: 0 1em;
+  border-left: 3px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.html hr {
+  height: 1px;
+  margin: 16px 0;
+  border: 0;
+  background: var(--color-divider);
+}
+
+.html img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+.html table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.html :is(th, td) {
+  padding: 6px 12px;
+  border: 1px solid var(--color-divider);
+}
+
+.html th {
+  font-weight: 600;
+}
+
+.html summary {
+  cursor: pointer;
+}
+
+/* A permalink to lines of code: a box with the file and lines, then the code. */
+.embed {
+  margin: 0 0 12px;
+  overflow: hidden;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+
+.embedHead {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+  background: var(--color-surface-muted);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.html .embedHead p {
+  margin: 0;
+}
+
+.html .embedHead p + p {
+  color: var(--color-text-secondary);
+}
+
+.embedHead a {
+  font-weight: 600;
+}
+
+/* Lines of code with their numbers. Wide lines scroll in the box. */
+.lines {
+  margin: 0 0 12px;
+  padding: var(--space-2) 0;
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.embed .lines {
+  margin: 0;
+  border-radius: 0;
+}
+
+.line {
+  display: flex;
+  min-width: max-content;
+  min-height: 1.5em;
+}
+
+.lineNumber {
+  flex: none;
+  min-width: 4ch;
+  padding: 0 var(--space-3) 0 var(--space-2);
+  color: var(--color-text-tertiary);
+  text-align: right;
+  user-select: none;
+}
+
+.html .lineCode {
+  padding: 0 var(--space-3) 0 0;
+  border-radius: 0;
+  background: none;
+  font-size: inherit;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+/* A suggested change's lines. */
+.added {
+  background: color-mix(in srgb, var(--color-kind-approved) 16%, transparent);
+}
+
+.removed {
+  background: color-mix(in srgb, var(--color-kind-failed) 16%, transparent);
+}
+
+/* GitHub's syntax colors, mixed toward the text color to read well in light and dark
+   mode. */
+.keyword {
+  color: color-mix(in srgb, var(--color-kind-failed) 70%, var(--color-text));
+}
+
+.string {
+  color: color-mix(in srgb, var(--color-kind-review) 70%, var(--color-text));
+}
+
+.comment {
+  color: var(--color-text-tertiary);
+}
+
+.entity {
+  color: color-mix(in srgb, var(--color-kind-talk) 70%, var(--color-text));
+}
+
+.constant {
+  color: color-mix(in srgb, var(--color-kind-approved) 60%, var(--color-text));
+}
+
+.variable {
+  color: var(--color-warning);
+}

@@ -15,6 +15,7 @@ import { authRouter } from "./routes/auth";
 import { desktopRouter } from "./routes/desktop";
 import { githubTokenRouter } from "./routes/github-token";
 import { itemsRouter } from "./routes/items";
+import { previewRouter } from "./routes/preview";
 import { pushRouter } from "./routes/push";
 import { reposRouter } from "./routes/repos";
 import { settingsRouter } from "./routes/settings";
@@ -70,6 +71,8 @@ const app = createApp({
     }),
     githubTokenRouter({ db, oauth, key: config.TOKEN_ENC_KEY }),
     reposRouter({ db, github }),
+    // Before itemsRouter, whose sign in check covers all of /prs.
+    previewRouter({ db, github }),
     itemsRouter({ db }),
     settingsRouter({ db, github }),
     syncRouter({ db, requestSync: (userId) => queueSync(boss, userId) }),

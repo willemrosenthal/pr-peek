@@ -266,6 +266,37 @@ describe("sections", () => {
   });
 });
 
+describe("preview", () => {
+  it("opens a row's preview on right click, and quiets the PR from it", async () => {
+    const asked = item();
+    const fetch = fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ review: [asked] })),
+        [`GET /api/prs/${asked.pr.id}/preview?item=${asked.id}`]: () =>
+          json({
+            bodyHtml: "<p>Adds login.</p>",
+            openedAge: "2d",
+            failingChecks: [],
+            comments: [],
+            focusId: null,
+          }),
+        [`PUT /api/prs/${asked.pr.id}/quiet`]: () => noContent(),
+      }),
+    );
+    renderApp("/");
+
+    await sectionButton(/Needs my review/);
+    fireEvent.contextMenu(rowOf(asked));
+    expect(
+      await screen.findByRole("dialog", { name: asked.pr.title }),
+    ).toBeTruthy();
+    expect(await screen.findByText("Adds login.")).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: "Quiet" }));
+    expect(callsTo(fetch, `/api/prs/${asked.pr.id}/quiet`)).toHaveLength(1);
+  });
+});
+
 describe("marking seen", () => {
   const newItem = () => item({ unseen: true });
 
