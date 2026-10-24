@@ -4,6 +4,7 @@ import {
   TEST_PUSHES,
   type PushSubscriptionDto,
   type Severity,
+  type TestPushBody,
   type UpdatePushSubscriptionBody,
 } from "@pr-peek/core";
 import { useMutation } from "@tanstack/react-query";
@@ -93,7 +94,7 @@ function DeviceRow({
     mutationFn: (sample: number) =>
       api(`/push/subscriptions/${device.id}/test`, {
         method: "POST",
-        body: { sample },
+        body: { sample } satisfies TestPushBody,
       }),
     onSuccess: (_, sample) => setNextTest((sample + 1) % TEST_PUSHES.length),
     onSettled: reloadDevices,

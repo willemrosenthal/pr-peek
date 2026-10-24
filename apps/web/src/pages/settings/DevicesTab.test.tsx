@@ -268,7 +268,7 @@ describe("the device list", () => {
       await screen.findByText("Next test: Review requested again."),
     ).toBeTruthy();
     await userEvent.click(button);
-    await screen.findByText("Next test: Approved.");
+    expect(await screen.findByText("Next test: Approved.")).toBeTruthy();
     expect(sentBodies(fetch, testKey)).toEqual([{ sample: 0 }, { sample: 1 }]);
   });
 
