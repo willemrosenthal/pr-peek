@@ -19,8 +19,13 @@
   --color-danger-bg: #fde7e7;
   --color-warning: #8a4b00;
   --color-warning-bg: #fff0db;
-  --color-success: #1e6b34;
-  --color-reply: #5b33b6;
+  /* The icon for each kind of item in the list. Brighter than the text colors, so only
+     for icons. */
+  --color-kind-review: #1f6fff;
+  --color-kind-approved: #15a050;
+  --color-kind-failed: #ff3355;
+  --color-kind-talk: #b23cf0;
+  --color-kind-comment: #f0428f;
   /* Bot comments. */
   --color-bot: #9a7fb8;
 
@@ -75,8 +80,11 @@
     --color-danger-bg: #3a1d1b;
     --color-warning: #f5b453;
     --color-warning-bg: #3a2a12;
-    --color-success: #6fd08a;
-    --color-reply: #c2a8ff;
+    --color-kind-review: #6e9bff;
+    --color-kind-approved: #3ee08a;
+    --color-kind-failed: #ff5d6e;
+    --color-kind-talk: #c47bff;
+    --color-kind-comment: #ff7ab8;
     --color-bot: #b78dc9;
     --shadow-panel: 0 12px 32px rgb(0 0 0 / 50%);
     --color-scrollbar: rgb(255 255 255 / 35%);

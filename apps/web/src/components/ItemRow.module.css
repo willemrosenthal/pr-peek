@@ -145,22 +145,32 @@
   opacity: 0.7;
 }
 
-.accent {
-  color: var(--color-accent);
+/* Kind icons. */
+.review {
+  color: var(--color-kind-review);
 }
 
-.reply {
-  color: var(--color-reply);
+.approved {
+  color: var(--color-kind-approved);
+}
+
+.failed {
+  color: var(--color-kind-failed);
+}
+
+.talk {
+  color: var(--color-kind-talk);
+}
+
+.comment {
+  color: var(--color-kind-comment);
 }
 
 .bot {
   color: var(--color-bot);
 }
 
-.success {
-  color: var(--color-success);
-}
-
+/* Ages, and the icon of a PR with nothing to do. */
 .muted {
   color: var(--color-text-tertiary);
 }

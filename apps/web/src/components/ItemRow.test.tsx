@@ -58,13 +58,13 @@ it("marks unseen items for screen readers too", () => {
 });
 
 it.each<[ItemKind, string]>([
-  ["review_requested", "accent"],
-  ["re_requested", "accent"],
-  ["reply", "reply"],
-  ["mention", "reply"],
-  ["reviewed", "success"],
-  ["commented", "muted"],
-  ["check_failed", "danger"],
+  ["review_requested", "review"],
+  ["re_requested", "review"],
+  ["reply", "talk"],
+  ["mention", "talk"],
+  ["reviewed", "approved"],
+  ["commented", "comment"],
+  ["check_failed", "failed"],
 ])("colors the %s icon %s", (kind, tone) => {
   render(<ItemRow item={item({ kind })} />);
   const svg = screen.getByRole("link").querySelector("svg");
@@ -80,7 +80,7 @@ it.each([
   render(<ItemRow item={item({ kind: "reply", actorIsBot })} />);
   const svg = screen.getByRole("link").querySelector("svg");
   expect(svg?.classList).toContain(icon);
-  expect(svg?.parentElement?.className).toContain("reply");
+  expect(svg?.parentElement?.className).toContain("talk");
 });
 
 it.each([
@@ -122,7 +122,7 @@ describe("showing the author", () => {
       "https://avatars.githubusercontent.com/jlee%5Bbot%5D?s=56",
     );
     expect(icon()?.parentElement?.className).toContain("badge");
-    expect(icon()?.parentElement?.className).toContain("danger");
+    expect(icon()?.parentElement?.className).toContain("failed");
   });
 
   it("shows idle PRs' authors too", () => {
