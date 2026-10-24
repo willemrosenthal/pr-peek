@@ -150,10 +150,12 @@ function Row({
       ) : (
         <RowIcon Icon={Icon} tone={tone} />
       )}
-      <span className={styles.title}>{title}</span>
-      <span className={cx(styles.age, ageTone)}>{age}</span>
+      <span className={styles.line}>
+        <span className={styles.title}>{title}</span>
+        <span className={cx(styles.age, ageTone)}>{age}</span>
+      </span>
       {!quiet && (
-        <>
+        <span className={styles.line}>
           <span className={styles.summary}>{children}</span>
           <span className={styles.repo}>
             <span style={pr.color ? { color: pr.color } : undefined}>
@@ -161,7 +163,7 @@ function Row({
             </span>{" "}
             #{pr.number}
           </span>
-        </>
+        </span>
       )}
     </a>
   );
