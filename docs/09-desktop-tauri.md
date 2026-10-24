@@ -49,8 +49,9 @@ For a copy that loads the live site, `pnpm desktop:build` makes `apps/desktop/sr
 
 ### 9.2 Menu bar icon and dropdown
 
-- [x] Create a tray icon with a template image (a black and transparent PNG that macOS tints for light and dark menu bars). Use the Wavey octopus from `apps/web/public/icon.svg` (the white strokes only, at 1.5 stroke width).
+- [x] Create a tray icon with a template image (a black and transparent PNG that macOS tints for light and dark menu bars). Use the Wavey octopus from `apps/web/icons/blue-mascot-icon.svg` (the white strokes only, at 1.5 stroke width).
   - Source: `src-tauri/icons/tray.svg`. Made into `tray.png` with `pnpm --filter @pr-peek/desktop tauri icon src-tauri/icons/tray.svg -o <folder>`, taking its `64x64.png`.
+  - The app icon comes from `apps/web/public/icon.svg`: run `pnpm --filter @pr-peek/desktop tauri icon ../web/public/icon.svg -o <folder>`, then copy `32x32.png`, `128x128.png`, `128x128@2x.png`, `icon.icns`, and `icon.png` into `src-tauri/icons/`. The rest is for other platforms.
 - [x] Left click toggles the window. It opens centered under the tray icon, 12px below the menu bar, from the icon's spot that each click reports. Asking the icon itself (`tray.rect()`) inside its click handler froze the app. Before the first click, the shortcut opens it at the top right.
 - [x] Hide the window when it loses focus, like a real menu.
 - [x] Right click shows a small native menu: Refresh, Open in browser, Settings, Launch at login (checkbox), Check for updates, Quit.
