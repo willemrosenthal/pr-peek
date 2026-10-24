@@ -38,21 +38,34 @@ it("opens links in a new tab, and drops unsafe ones", () => {
   expect(html('<a href="javascript:steal()">Click</a>')).toBe("<a>Click</a>");
 });
 
-it("keeps https images only", () => {
-  expect(html('<img src="https://example.com/a.png" alt="Shot">')).toBe(
-    '<img src="https://example.com/a.png" alt="Shot" loading="lazy">',
+// The image GitHubHtml makes from `source`, if any. Its attributes are checked one by
+// one, since React sets them in its own order (src last).
+const imageFrom = (source: string) =>
+  render(<GitHubHtml html={source} />).container.querySelector("img");
+
+const attributesOf = (img: Element | null) =>
+  Object.fromEntries(
+    Array.from(img?.attributes ?? [], (attr) => [attr.name, attr.value]),
   );
-  expect(html('<img src="http://example.com/a.png">')).toBe("");
+
+it("keeps https images only", () => {
+  expect(
+    attributesOf(imageFrom('<img src="https://example.com/a.png" alt="Shot">')),
+  ).toEqual({ src: "https://example.com/a.png", alt: "Shot", loading: "lazy" });
+  expect(imageFrom('<img src="http://example.com/a.png">')).toBeNull();
 });
 
 it("keeps an image's size, so emoji images stay small", () => {
-  expect(
-    html(
-      '<img class="emoji" src="https://example.com/shipit.png" alt=":shipit:" width="20" height="20">',
-    ),
-  ).toBe(
-    '<img src="https://example.com/shipit.png" alt=":shipit:" loading="lazy" width="20" height="20">',
+  const emoji = imageFrom(
+    '<img class="emoji" src="https://example.com/shipit.png" alt=":shipit:" width="20" height="20">',
   );
+  expect(attributesOf(emoji)).toEqual({
+    src: "https://example.com/shipit.png",
+    alt: ":shipit:",
+    loading: "lazy",
+    width: "20",
+    height: "20",
+  });
 });
 
 it("keeps the text of tags it doesn't know, like GitHub's emoji", () => {
