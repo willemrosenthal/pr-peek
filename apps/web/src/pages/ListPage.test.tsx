@@ -37,8 +37,14 @@ const sectionButton = (name: RegExp) => screen.findByRole("button", { name });
 const rows = () => screen.queryAllByRole("link", { name: /PR/ });
 // The Quiet section's button, with its count.
 const QUIET = /^Quiet\s*\d/;
-const rowOf = (row: { pr: { title: string } }) =>
-  screen.getByRole("link", { name: new RegExp(row.pr.title) });
+// The row's link, found by its URL. Titles like "PR 2" also match "PR 20".
+const rowOf = (row: { pr: { url: string } }) => {
+  const link = screen
+    .getAllByRole("link")
+    .find((el) => el.getAttribute("href") === row.pr.url);
+  if (!link) throw new Error(`No row for ${row.pr.url}`);
+  return link;
+};
 
 describe("sections", () => {
   it("shows each section with items, and its count", async () => {
