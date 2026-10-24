@@ -18,7 +18,7 @@
 }
 
 .leaving {
-  transition: transform 0.2s ease-in;
+  transition: transform 0.1s ease-in;
 }
 
 /* Shows behind the row as it slides. Muted until the row has gone far enough. */
@@ -65,6 +65,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .slide,
   .action,
   .action svg {
