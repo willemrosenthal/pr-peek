@@ -20,13 +20,13 @@ const KIND_ICONS: Record<
   ItemKind,
   { Icon: LucideIcon; tone: string | undefined }
 > = {
-  review_requested: { Icon: Eye, tone: styles.accent },
-  re_requested: { Icon: RefreshCw, tone: styles.accent },
-  reply: { Icon: MessageCircle, tone: styles.reply },
-  mention: { Icon: AtSign, tone: styles.reply },
-  reviewed: { Icon: CircleCheck, tone: styles.success },
-  commented: { Icon: MessageSquareText, tone: styles.muted },
-  check_failed: { Icon: CircleX, tone: styles.danger },
+  review_requested: { Icon: Eye, tone: styles.review },
+  re_requested: { Icon: RefreshCw, tone: styles.review },
+  reply: { Icon: MessageCircle, tone: styles.talk },
+  mention: { Icon: AtSign, tone: styles.talk },
+  reviewed: { Icon: CircleCheck, tone: styles.approved },
+  commented: { Icon: MessageSquareText, tone: styles.comment },
+  check_failed: { Icon: CircleX, tone: styles.failed },
 };
 
 const AGE_TONES: Record<StaleLevel, string | undefined> = {
