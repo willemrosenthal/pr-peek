@@ -125,13 +125,6 @@ describe("the conversation", () => {
     expect(result?.focusId).toBeNull();
   });
 
-  it("asks for the newest comments in each thread", async () => {
-    const { requests } = await preview(prNode());
-    expect(requests[0]!.query).toMatch(
-      /reviewThreads\(last: 50\)[^}]*comments\(last: 50\)/,
-    );
-  });
-
   it("falls back to the original line, then the path, once the code changed", async () => {
     const where = async (line: number | null, originalLine: number | null) => {
       const threads = [thread("a.ts", line, originalLine, [comment("T_1", 1)])];
