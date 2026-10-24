@@ -18,8 +18,9 @@ const SWIPE_MIN_PX = 140;
 const START_PX = 8;
 // A trackpad swipe ends when its scroll events stop for this long.
 const WHEEL_END_MS = 150;
-// How long the row takes to slide out. Matches `.leaving` in SwipeRow.module.css.
-const LEAVE_MS = 100;
+// How long after letting go the row moves. Longer than its slide out (`.leaving` in
+// SwipeRow.module.css), so it pauses off to the side first.
+const LEAVE_MS = 200;
 // How long after a drag its click can still arrive. Some browsers send it a bit later.
 const CLICK_AFTER_DRAG_MS = 300;
 

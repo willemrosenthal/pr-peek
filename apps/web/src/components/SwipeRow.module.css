@@ -17,7 +17,7 @@
   user-select: none;
 }
 
-/* Matches LEAVE_MS in SwipeRow.tsx. */
+/* Shorter than LEAVE_MS in SwipeRow.tsx, so the row pauses off to the side before it moves. */
 .leaving {
   transition: transform 0.1s ease-in;
 }
