@@ -89,12 +89,17 @@ export interface PushPayload {
   icon?: string;
 }
 
+// The body of a notification about one PR: its title, then where it is.
+export const prPushBody = (title: string, repo: string, number: number) =>
+  `${title}\n${repo} #${number}`;
+
 // GitHub's default picture for an account without one. Made up names get one too.
 const testAvatar = (login: string) =>
   `https://github.com/identicons/${login}.png`;
 
-const testPr = (title: string, repo: string, number: number) =>
-  `${title}\n${repo} #${number}`;
+// The made up PRs the tests are about.
+const LOGIN_FIX = prPushBody("Fix login redirect loop", "acme/web", 482);
+const RETRY = prPushBody("Add retry to webhook sender", "acme/api", 812);
 
 // One test of each kind of notification, worded like the real ones. "Send test" goes
 // through them in order. Each has its own tag, so they stack instead of replacing.
@@ -103,7 +108,7 @@ export const TEST_PUSHES: { name: string; payload: PushPayload }[] = [
     name: "Review requested",
     payload: {
       title: "Review requested",
-      body: testPr("Add retry to webhook sender", "acme/api", 812),
+      body: RETRY,
       icon: testAvatar("maya-chen"),
     },
   },
@@ -111,7 +116,7 @@ export const TEST_PUSHES: { name: string; payload: PushPayload }[] = [
     name: "Review requested again",
     payload: {
       title: "Review requested again",
-      body: testPr("Move auth to middleware", "acme/web", 477),
+      body: prPushBody("Move auth to middleware", "acme/web", 477),
       icon: testAvatar("sam-ortiz"),
     },
   },
@@ -119,7 +124,7 @@ export const TEST_PUSHES: { name: string; payload: PushPayload }[] = [
     name: "Approved",
     payload: {
       title: "priya-das approved",
-      body: testPr("Fix login redirect loop", "acme/web", 482),
+      body: LOGIN_FIX,
       icon: testAvatar("priya-das"),
     },
   },
@@ -127,7 +132,7 @@ export const TEST_PUSHES: { name: string; payload: PushPayload }[] = [
     name: "Changes requested",
     payload: {
       title: "leo-park requested changes",
-      body: testPr("Fix login redirect loop", "acme/web", 482),
+      body: LOGIN_FIX,
       icon: testAvatar("leo-park"),
     },
   },
@@ -135,7 +140,7 @@ export const TEST_PUSHES: { name: string; payload: PushPayload }[] = [
     name: "Comment",
     payload: {
       title: 'jordan-lee: "Could we cache this? It runs on every render."',
-      body: testPr("Fix login redirect loop", "acme/web", 482),
+      body: LOGIN_FIX,
       icon: testAvatar("jordan-lee"),
     },
   },
@@ -143,7 +148,7 @@ export const TEST_PUSHES: { name: string; payload: PushPayload }[] = [
     name: "Reply",
     payload: {
       title: 'maya-chen: "Good call, updated in 3f2a1c."',
-      body: testPr("Add retry to webhook sender", "acme/api", 812),
+      body: RETRY,
       icon: testAvatar("maya-chen"),
     },
   },
@@ -151,7 +156,7 @@ export const TEST_PUSHES: { name: string; payload: PushPayload }[] = [
     name: "Mention",
     payload: {
       title: 'alex-kim: "Can you check the migration before I merge?"',
-      body: testPr("Split billing tables", "acme/api", 820),
+      body: prPushBody("Split billing tables", "acme/api", 820),
       icon: testAvatar("alex-kim"),
     },
   },
@@ -159,14 +164,14 @@ export const TEST_PUSHES: { name: string; payload: PushPayload }[] = [
     name: "Checks failed",
     payload: {
       title: "test (ubuntu), lint",
-      body: testPr("Fix login redirect loop", "acme/web", 482),
+      body: LOGIN_FIX,
     },
   },
   {
     name: "Overdue reminder",
     payload: {
       title: "Waiting 2d: Review requested",
-      body: testPr("Add retry to webhook sender", "acme/api", 812),
+      body: RETRY,
       icon: testAvatar("maya-chen"),
     },
   },
