@@ -17,7 +17,7 @@
   user-select: none;
 }
 
-/* Shorter than LEAVE_MS in SwipeRow.tsx, so the row pauses off to the side before it moves. */
+/* The slide out. See LEAVE_MS in SwipeRow.tsx. */
 .leaving {
   transition: transform 0.1s ease-in;
 }
