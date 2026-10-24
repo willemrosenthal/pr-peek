@@ -265,7 +265,6 @@
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   mask-composite: exclude;
-  -webkit-mask-composite: xor;
   pointer-events: none;
   animation: rainbow 8s linear infinite;
 }
@@ -279,12 +278,6 @@
 /* Saves battery while the Mac app's dropdown is hidden, like the icons. */
 :global(.app-hidden) .focus::after {
   animation-play-state: paused;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .focus::after {
-    animation: none;
-  }
 }
 
 /* Last in the card, it follows the card's round corners, so the line isn't clipped. */
@@ -446,6 +439,7 @@
   }
 
   .earlier[data-open] .comment,
+  .focus::after,
   .skeleton {
     animation: none;
   }
