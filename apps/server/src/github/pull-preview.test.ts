@@ -12,6 +12,7 @@ const comment = (id: string, minute: number, body = `<p>${id}</p>`) => ({
   author: user("jordan"),
   bodyHTML: body,
   createdAt: time(minute),
+  isMinimized: false,
 });
 
 const review = (id: string, state: string, minute: number, body = "") => ({
@@ -107,6 +108,28 @@ describe("the conversation", () => {
     expect((await preview(node, "R_2")).result?.focusId).toBe("R_2");
     // A review request's event, or a mention in the description.
     expect((await preview(node, "RRE_1")).result?.focusId).toBeNull();
+  });
+
+  it("leaves out comments hidden on GitHub", async () => {
+    const hidden = { ...comment("C_9", 7), isMinimized: true };
+    const { result } = await preview(
+      prNode({
+        comments: { nodes: [comment("C_1", 1), hidden] },
+        reviewThreads: {
+          nodes: [thread("a.ts", 1, 1, [{ ...hidden, id: "T_9" }])],
+        },
+      }),
+      "C_9",
+    );
+    expect(result?.comments.map((c) => c.id)).toEqual(["C_1"]);
+    expect(result?.focusId).toBeNull();
+  });
+
+  it("asks for the newest comments in each thread", async () => {
+    const { requests } = await preview(prNode());
+    expect(requests[0]!.query).toMatch(
+      /reviewThreads\(last: 50\)[^}]*comments\(last: 50\)/,
+    );
   });
 
   it("falls back to the original line, then the path, once the code changed", async () => {

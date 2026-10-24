@@ -63,6 +63,7 @@ function github(request: GraphQLRequest) {
               author: { __typename: "User", login: "jordan" },
               bodyHTML: "<p>Can you check the migration?</p>",
               createdAt: hours(-3).toISOString(),
+              isMinimized: false,
             },
           ],
         },

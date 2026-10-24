@@ -6,9 +6,9 @@ import { ACTOR, rawActor, toActor } from "./pull-details";
 
 // Bodies come as GitHub's HTML, already rendered from Markdown and cleaned by GitHub.
 // The web app cleans them again before showing them.
-const COMMENT = `id ${ACTOR} bodyHTML createdAt`;
+const COMMENT = `id ${ACTOR} bodyHTML createdAt isMinimized`;
 
-// Capped like the sync's query, which keeps it cheap.
+// Capped like the sync's query, which keeps it cheap. Each list keeps its newest.
 const PREVIEW_QUERY = `query ($id: ID!) {
   node(id: $id) {
     ... on PullRequest {
@@ -16,7 +16,7 @@ const PREVIEW_QUERY = `query ($id: ID!) {
       comments(last: 50) { nodes { ${COMMENT} } }
       reviews(last: 30) { nodes { id state submittedAt bodyHTML ${ACTOR} } }
       reviewThreads(last: 50) {
-        nodes { path line originalLine comments(first: 50) { nodes { ${COMMENT} } } }
+        nodes { path line originalLine comments(last: 50) { nodes { ${COMMENT} } } }
       }
     }
   }
@@ -27,7 +27,11 @@ const rawComment = z.object({
   author: rawActor.nullable(),
   bodyHTML: z.string(),
   createdAt: z.string(),
+  // Hidden on GitHub, like spam or an outdated bot comment.
+  isMinimized: z.boolean(),
 });
+
+const shown = (comment: z.infer<typeof rawComment>) => !comment.isMinimized;
 
 const nodesOf = <T extends z.ZodType>(item: T) =>
   z.object({ nodes: z.array(item) });
@@ -94,6 +98,7 @@ function fileLine(thread: RawPreview["reviewThreads"]["nodes"][number]) {
 // The whole conversation, oldest first: comments, reviews, and comments on files.
 // Approvals and change requests count even without text. Other reviews only with it,
 // since an empty one just holds comments on files, which are listed on their own.
+// Comments hidden on GitHub are left out.
 function conversation(raw: RawPreview): PreviewComment[] {
   const reviews = raw.reviews.nodes.flatMap((review): PreviewComment[] => {
     // Pending reviews are drafts only their author can see.
@@ -114,12 +119,14 @@ function conversation(raw: RawPreview): PreviewComment[] {
     ];
   });
   return [
-    ...raw.comments.nodes.map((comment) => toComment(comment, null)),
+    ...raw.comments.nodes
+      .filter(shown)
+      .map((comment) => toComment(comment, null)),
     ...reviews,
     ...raw.reviewThreads.nodes.flatMap((thread) =>
-      thread.comments.nodes.map((comment) =>
-        toComment(comment, fileLine(thread)),
-      ),
+      thread.comments.nodes
+        .filter(shown)
+        .map((comment) => toComment(comment, fileLine(thread))),
     ),
   ].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }

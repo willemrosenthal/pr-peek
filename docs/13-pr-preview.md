@@ -14,7 +14,7 @@ The sync stores only the first 200 characters of each comment and description, o
 
 ## Key decision: show the whole conversation, in order
 
-The preview lists the PR's comments, reviews, and comments on files together, oldest first, like GitHub's conversation tab. Comments on files say which file and line.
+The preview lists the PR's comments, reviews, and comments on files together, oldest first, like GitHub's conversation tab. Comments on files say which file and line. Comments hidden on GitHub (spam, outdated) are left out.
 
 Each item points at the comment or review that made it (`latestEventId`). When that's in the conversation, "For you" shows it, marked, with the comment before it and everything after. Older ones are behind "See N earlier comments". Otherwise (review requests, failed checks, mentions in the description), "For you" shows why it's on the list, and the conversation comes after the description.
 
