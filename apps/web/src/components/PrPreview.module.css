@@ -1,20 +1,19 @@
 /* The sheet's slide, after Base UI's drawer with snap points. */
+
+/* The same dim at half and full height. It only fades in and out with the sheet. With
+   snap points, --drawer-swipe-progress is how far below full height the sheet is, so
+   fading by it left the list undimmed at half height, then dark once the sheet grew. */
 .backdrop {
   position: fixed;
   inset: 0;
   min-height: 100dvh;
   background: rgb(0 0 0 / 40%);
-  opacity: calc(1 - var(--drawer-swipe-progress));
   transition: opacity 0.4s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .backdrop[data-starting-style],
 .backdrop[data-ending-style] {
   opacity: 0;
-}
-
-.backdrop[data-swiping] {
-  transition-duration: 0ms;
 }
 
 .viewport {
