@@ -72,3 +72,4 @@ Each is one new file in `packages/core` rules:
 ## Native extras (would need Swift)
 
 - Mac or iPhone widgets, Apple Watch. Not planned. Listed only so the trade-off stays visible.
+- The iPhone app and its rich notifications have their own plan: [12. iPhone app](12-ios-app.md). Widgets would build on it.
