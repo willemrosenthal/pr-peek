@@ -238,13 +238,9 @@
   color: var(--color-text-secondary);
 }
 
-/* The comment the item is about. */
+/* The comment the item is about, in the accent blue the list uses for what's new. */
 .focus {
-  background: color-mix(
-    in srgb,
-    var(--color-kind-talk) 7%,
-    var(--color-surface)
-  );
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
 }
 
 .avatar {
