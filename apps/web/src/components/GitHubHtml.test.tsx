@@ -14,6 +14,13 @@ it("keeps GitHub's formatting", () => {
   expect(html(source)).toBe(source);
 });
 
+it("numbers lists from 1, or from their start", () => {
+  expect(html("<ol><li>One</li></ol>")).toBe("<ol><li>One</li></ol>");
+  expect(html('<ol start="3"><li>Three</li></ol>')).toBe(
+    '<ol start="3"><li>Three</li></ol>',
+  );
+});
+
 it("drops scripts, handlers, styles, and classes", () => {
   expect(
     html(
