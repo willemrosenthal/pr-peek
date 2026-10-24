@@ -113,7 +113,6 @@ it("answers with the description, checks, and comments, marking the item's", asy
       {
         id: "C_1",
         author: "jordan",
-        authorIsBot: false,
         bodyHtml: "<p>Can you check the migration?</p>",
         createdAt: hours(-3).toISOString(),
         age: "3h",

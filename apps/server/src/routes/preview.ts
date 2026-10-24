@@ -73,7 +73,6 @@ export function previewRouter(deps: PreviewDeps): Router {
       comments: preview.comments.map((comment) => ({
         ...comment,
         author: comment.author.login,
-        authorIsBot: comment.author.isBot,
         age: formatAge(comment.createdAt, at),
       })),
       focusId: preview.focusId,

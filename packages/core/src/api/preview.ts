@@ -11,7 +11,6 @@ export type PreviewQuery = z.infer<typeof previewQuery>;
 export interface PreviewCommentDto {
   id: string;
   author: string;
-  authorIsBot: boolean;
   // GitHub's HTML for its text. Empty for an approval with no text.
   bodyHtml: string;
   createdAt: string;

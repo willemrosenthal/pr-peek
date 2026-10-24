@@ -82,7 +82,6 @@ const SYNTAX: Record<string, string | undefined> = {
   "pl-ent": styles.entity,
   "pl-c1": styles.constant,
   "pl-v": styles.variable,
-  "pl-smi": styles.variable,
 };
 
 // The class for a span GitHub colored, if any.
@@ -113,9 +112,19 @@ function propsFor(el: Element, tag: string): Record<string, unknown> | null {
     }
     case "img": {
       const src = safeUrl(el.getAttribute("src"), ["https:"]);
-      return src
-        ? { src, alt: el.getAttribute("alt") ?? "", loading: "lazy" }
-        : null;
+      if (!src) return null;
+      // Keeps emoji like :shipit: at text size. CSS still fits big images.
+      const size = (name: string) => {
+        const value = Number.parseInt(el.getAttribute(name) ?? "", 10);
+        return Number.isInteger(value) ? { [name]: value } : {};
+      };
+      return {
+        src,
+        alt: el.getAttribute("alt") ?? "",
+        loading: "lazy",
+        ...size("width"),
+        ...size("height"),
+      };
     }
     case "input":
       // Task list boxes. Ticking them happens on GitHub.
@@ -142,8 +151,9 @@ function propsFor(el: Element, tag: string): Record<string, unknown> | null {
     }
     case "div":
       // The box around a permalink to code, and its header with the file and lines.
-      if (el.classList.contains("rounded-1"))
+      if (el.classList.contains("rounded-1")) {
         return { className: styles.embed };
+      }
       if (el.classList.contains("color-bg-subtle")) {
         return { className: styles.embedHead };
       }

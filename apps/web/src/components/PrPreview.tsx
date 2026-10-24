@@ -25,7 +25,7 @@ const SNAP_POINTS = [0.6, 1];
 const MAX_STAGGER = 8;
 
 // A bottom sheet with more about a PR: its title, repo, why it's on the list, the
-// comments around that, and the description. Design A3 in docs/13-pr-preview.md.
+// description, and the conversation. Design A3 in docs/13-pr-preview.md.
 export function PrPreview({
   target,
   quiet,
@@ -186,7 +186,7 @@ function Sheet({
           </Group>
         )}
         {/* With the item's comment, the conversation is in "For you" instead. */}
-        {data && data.comments.length > 0 && !(item && data.focusId) && (
+        {data && data.comments.length > 0 && !data.focusId && (
           <Group label="Comments">
             <div className={styles.card}>
               <Comments comments={data.comments} focusId={null} kind={null} />
@@ -240,7 +240,8 @@ function ForYou({
 }
 
 // The conversation, oldest first. Shows the focus comment (or the last), the one before
-// it, and everything after. The rest are behind "See N earlier comments".
+// it, and everything after. The rest are behind "See N earlier comments". Comments
+// before the focus are greyed.
 function Comments({
   comments,
   focusId,
@@ -284,14 +285,14 @@ function Comments({
                   style={
                     { "--i": Math.min(index, MAX_STAGGER) } as CSSProperties
                   }
-                  muted
+                  muted={found !== -1}
                 />
               ))}
             </div>
           </div>
         </>
       )}
-      {shown.map((comment) => {
+      {shown.map((comment, index) => {
         const isFocus = comment.id === focusId;
         return (
           <Comment
@@ -302,7 +303,7 @@ function Comments({
               (isFocus && kind ? KIND_LABELS[kind] : undefined)
             }
             focus={isFocus}
-            muted={!isFocus && comments.indexOf(comment) < focus}
+            muted={found !== -1 && hidden.length + index < focus}
           />
         );
       })}

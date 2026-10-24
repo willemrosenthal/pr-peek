@@ -9,6 +9,7 @@ import { userEvent } from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { apiError, fakeApi, item, json } from "../test/fake-api";
 import { PrPreview } from "./PrPreview";
+import styles from "./PrPreview.module.css";
 
 const comment = (
   id: string,
@@ -16,7 +17,6 @@ const comment = (
 ): PreviewCommentDto => ({
   id,
   author: "jordan",
-  authorIsBot: false,
   bodyHtml: `<p>Comment ${id}</p>`,
   createdAt: "2026-10-21T12:00:00Z",
   age: "1h",
@@ -89,6 +89,10 @@ it("shows the reply and the comment before it, with the rest behind a button", a
   // Hidden ones are there for the animation, but out of reach.
   expect(screen.getByText("Comment C_1").closest("[inert]")).toBeTruthy();
   expect(screen.getByText("Comment C_3").closest("[inert]")).toBeNull();
+  // The one before the reply is greyed, the reply isn't.
+  const muted = `.${styles.mutedComment}`;
+  expect(screen.getByText("Comment C_3").closest(muted)).toBeTruthy();
+  expect(screen.getByText("Comment C_4").closest(muted)).toBeNull();
 
   await userEvent.click(more);
   expect(more.getAttribute("aria-expanded")).toBe("true");
@@ -120,6 +124,8 @@ it("shows the conversation after the description for a review request", async ()
   expect(await screen.findByRole("heading", { name: "Comments" })).toBeTruthy();
   expect(screen.getByText("dev-sam asked you to review")).toBeTruthy();
   expect(screen.getByText("Comment C_2")).toBeTruthy();
+  // None is the item's, so none is greyed.
+  expect(document.querySelector(`.${styles.mutedComment}`)).toBeNull();
 });
 
 it("has Quiet and Open at the top", async () => {

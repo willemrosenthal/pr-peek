@@ -45,6 +45,16 @@ it("keeps https images only", () => {
   expect(html('<img src="http://example.com/a.png">')).toBe("");
 });
 
+it("keeps an image's size, so emoji images stay small", () => {
+  expect(
+    html(
+      '<img class="emoji" src="https://example.com/shipit.png" alt=":shipit:" width="20" height="20">',
+    ),
+  ).toBe(
+    '<img src="https://example.com/shipit.png" alt=":shipit:" loading="lazy" width="20" height="20">',
+  );
+});
+
 it("keeps the text of tags it doesn't know, like GitHub's emoji", () => {
   expect(html('<p><g-emoji alias="tada">🎉</g-emoji> Done</p>')).toBe(
     "<p>🎉 Done</p>",
