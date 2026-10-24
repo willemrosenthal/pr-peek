@@ -238,14 +238,58 @@
   color: var(--color-text-secondary);
 }
 
-/* The comment the item is about: a thin outline in its action's color (`--tone`). Set
-   in from the card's edge, with less padding, so its text lines up with the others. */
-.comment.focus {
-  margin: 6px;
-  padding: 6px 10px;
-  border-top: none;
-  border-radius: var(--radius-md);
-  box-shadow: inset 0 0 0 1.5px var(--tone, var(--color-accent));
+/* The comment the item is about: the card's left, right, and bottom edges around it,
+   in the rainbow the icons use (keep its colors the same as RainbowIcon.tsx). A
+   gradient layer, cut down to the edges by a mask. */
+.focus {
+  position: relative;
+}
+
+.focus::after {
+  --edge: 2px;
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 0 var(--edge) var(--edge);
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    #ff3b30,
+    #ff9f0a,
+    #34c759,
+    #0a84ff,
+    #bf5af2
+  );
+  /* Keeps only the padding: the edges, with no top. */
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+  animation: rainbow 8s linear infinite;
+}
+
+@keyframes rainbow {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+
+/* Saves battery while the Mac app's dropdown is hidden, like the icons. */
+:global(.app-hidden) .focus::after {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus::after {
+    animation: none;
+  }
+}
+
+/* Last in the card, it follows the card's round corners, so the line isn't clipped. */
+.focus:last-child {
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .avatar {
