@@ -34,7 +34,7 @@ self.addEventListener("push", (event) => {
       self.registration.showNotification(payload.title, {
         body: payload.body,
         tag: payload.tag,
-        icon: "/pwa-192x192.png",
+        icon: payload.icon ?? "/pwa-192x192.png",
         data,
       }),
       badge !== undefined && setBadge(badge),

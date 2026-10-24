@@ -2,6 +2,7 @@ import {
   formatAge,
   isAtLeast,
   isQuiet,
+  prPushBody,
   type PushPayload,
   type Severity,
 } from "@pr-peek/core";
@@ -182,7 +183,7 @@ async function decide(
         reminder && item.waitingSince
           ? `Waiting ${formatAge(item.waitingSince, now)}: ${item.summary}`
           : item.summary,
-      body: `${pr.title}\n${pr.repoName} #${pr.number}`,
+      body: prPushBody(pr.title, pr.repoName, pr.number),
       url: pr.url,
       tag: itemId,
       itemId,

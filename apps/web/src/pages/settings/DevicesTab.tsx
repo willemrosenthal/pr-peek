@@ -1,8 +1,10 @@
 import {
   formatAge,
   MAX_DEVICE_LABEL,
+  TEST_PUSHES,
   type PushSubscriptionDto,
   type Severity,
+  type TestPushBody,
   type UpdatePushSubscriptionBody,
 } from "@pr-peek/core";
 import { useMutation } from "@tanstack/react-query";
@@ -84,11 +86,17 @@ function DeviceRow({
       }),
     onSettled: reloadDevices,
   });
+  // Each test is the next kind of notification, so trying them all shows each one.
+  const [nextTest, setNextTest] = useState(0);
   // Both reload after a failure too. A test can find the device gone, and a removal can
   // fail after the server dropped the device.
   const test = useMutation({
-    mutationFn: () =>
-      api(`/push/subscriptions/${device.id}/test`, { method: "POST" }),
+    mutationFn: (sample: number) =>
+      api(`/push/subscriptions/${device.id}/test`, {
+        method: "POST",
+        body: { sample } satisfies TestPushBody,
+      }),
+    onSuccess: (_, sample) => setNextTest((sample + 1) % TEST_PUSHES.length),
     onSettled: reloadDevices,
   });
   const remove = useMutation({
@@ -120,6 +128,9 @@ function DeviceRow({
           {isThis && "This device. "}
           <LastSent at={device.lastSuccessAt} />
         </span>
+        <span className={styles.hint}>
+          Next test: {TEST_PUSHES[nextTest]!.name}.
+        </span>
       </span>
       <Select
         aria-label={`Notifications on ${name}`}
@@ -137,7 +148,7 @@ function DeviceRow({
       </Select>
       <Button
         aria-label={`Send a test to ${name}`}
-        onClick={() => test.mutate()}
+        onClick={() => test.mutate(nextTest)}
         disabled={test.isPending}
       >
         Send test

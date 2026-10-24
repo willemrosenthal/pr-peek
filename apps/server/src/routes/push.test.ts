@@ -1,5 +1,6 @@
 import {
   MAX_PUSH_DEVICES,
+  TEST_PUSHES,
   type PushSubscriptionResponse,
   type PushSubscriptionsResponse,
 } from "@pr-peek/core";
@@ -48,8 +49,11 @@ const subscribe = (agent: Agent, body: object = {}) =>
 const deviceOf = (res: Response) =>
   bodyOf<PushSubscriptionResponse>(res).subscription;
 
-const sendTest = (agent: Agent, id: string) =>
-  agent.post(`/api/push/subscriptions/${id}/test`).set("Origin", APP_URL);
+const sendTest = (agent: Agent, id: string, body: object = {}) =>
+  agent
+    .post(`/api/push/subscriptions/${id}/test`)
+    .set("Origin", APP_URL)
+    .send(body);
 
 const pushError = (status: number) =>
   new webpush.WebPushError("refused", status, {}, "", endpoint());
@@ -291,10 +295,37 @@ describe("POST /api/push/subscriptions/:id/test", () => {
     expect(deviceOf(res).lastSuccessAt).not.toBeNull();
     expect(send).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ endpoint: endpoint(), ...keys }),
-      expect.objectContaining({ tag: "test", url: "/" }),
+      TEST_PUSHES[0]!.payload,
       { ttlSeconds: 60, urgency: "high" },
     );
   });
+
+  it("sends the test it's asked for", async () => {
+    const { agent, send } = await setup();
+    const { id } = deviceOf(await subscribe(agent));
+
+    expect((await sendTest(agent, id, { sample: 2 })).status).toBe(200);
+    expect(send).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        title: "priya-das approved",
+        tag: "test-2",
+        icon: "https://github.com/identicons/priya-das.png",
+      }),
+      expect.anything(),
+    );
+  });
+
+  it.each([-1, TEST_PUSHES.length, 1.5, "2"])(
+    "refuses a test that doesn't exist: %s",
+    async (sample) => {
+      const { agent, send } = await setup();
+      const { id } = deviceOf(await subscribe(agent));
+
+      expect((await sendTest(agent, id, { sample })).status).toBe(400);
+      expect(send).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([404, 410])(
     "removes the device when the push service answers %i",
