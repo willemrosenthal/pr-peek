@@ -170,7 +170,7 @@
   color: var(--color-bot);
 }
 
-/* Ages, and quiet or idle icons. */
+/* Ages, and the icon of a PR with nothing to do. */
 .muted {
   color: var(--color-text-tertiary);
 }
