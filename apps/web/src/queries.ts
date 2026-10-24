@@ -1,6 +1,7 @@
 import type {
   ItemsResponse,
   MeResponse,
+  PrPreviewResponse,
   PushKeyResponse,
   PushSubscriptionsResponse,
   SearchReposResponse,
@@ -11,6 +12,7 @@ import type {
 } from "@pr-peek/core";
 import {
   keepPreviousData,
+  queryOptions,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -24,6 +26,7 @@ import { moveQuiet } from "./quiet";
 export const queryKeys = {
   me: ["me"],
   items: ["items"],
+  preview: ["preview"],
   summary: ["summary"],
   syncStatus: ["sync-status"],
   repos: ["repos"],
@@ -84,6 +87,31 @@ export function useSetQuiet() {
       ]);
     },
   });
+}
+
+// More about one PR, for the preview sheet. `itemId` is the row's item, if it has one.
+function previewOptions(prId: string, itemId: string | null) {
+  const query = itemId ? `?item=${encodeURIComponent(itemId)}` : "";
+  return queryOptions({
+    queryKey: [...queryKeys.preview, prId, itemId],
+    queryFn: () => api<PrPreviewResponse>(`/prs/${prId}/preview${query}`),
+    // Opening it again soon after doesn't ask GitHub again.
+    staleTime: REFETCH_MS,
+  });
+}
+
+export function usePrPreview(prId: string, itemId: string | null) {
+  return useQuery(previewOptions(prId, itemId));
+}
+
+// Starts loading a preview, so it's ready sooner when it opens.
+export function usePrefetchPreview() {
+  const queryClient = useQueryClient();
+  return useCallback(
+    (prId: string, itemId: string | null) =>
+      void queryClient.prefetchQuery(previewOptions(prId, itemId)),
+    [queryClient],
+  );
 }
 
 // Counts for the app badge. The live stream also sets it.

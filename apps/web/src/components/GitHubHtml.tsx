@@ -1,0 +1,162 @@
+import { createElement, Fragment, useMemo, type ReactNode } from "react";
+import { cx } from "../cx";
+import styles from "./GitHubHtml.module.css";
+
+// Tags kept from GitHub's HTML. Others are unwrapped: their text stays, the tag goes.
+const TAGS = new Set([
+  "a",
+  "b",
+  "blockquote",
+  "br",
+  "code",
+  "del",
+  "details",
+  "div",
+  "em",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "hr",
+  "i",
+  "img",
+  "input",
+  "ins",
+  "kbd",
+  "li",
+  "ol",
+  "p",
+  "pre",
+  "s",
+  "span",
+  "strong",
+  "sub",
+  "summary",
+  "sup",
+  "table",
+  "tbody",
+  "td",
+  "th",
+  "thead",
+  "tr",
+  "ul",
+]);
+
+// Dropped with everything in them.
+const DROPPED = new Set([
+  "audio",
+  "button",
+  "embed",
+  "form",
+  "iframe",
+  "math",
+  "noscript",
+  "object",
+  "script",
+  "select",
+  "style",
+  "svg",
+  "template",
+  "textarea",
+  "video",
+]);
+
+const EMPTY = new Set(["br", "hr", "img", "input"]);
+
+// Tables can't hold text between their rows and cells.
+const TABLE_PARTS = new Set(["table", "thead", "tbody", "tr"]);
+
+const ALIGNS = new Set(["left", "center", "right"]);
+
+// An http(s) link, or mailto: when allowed. Relative links are GitHub's.
+function safeUrl(value: string | null, protocols: string[]): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value, "https://github.com");
+    return protocols.includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+// The few attributes kept for each tag. Null drops the element.
+function propsFor(el: Element, tag: string): Record<string, unknown> | null {
+  switch (tag) {
+    case "a": {
+      const href = safeUrl(el.getAttribute("href"), [
+        "https:",
+        "http:",
+        "mailto:",
+      ]);
+      return href ? { href, target: "_blank", rel: "noopener noreferrer" } : {};
+    }
+    case "img": {
+      const src = safeUrl(el.getAttribute("src"), ["https:"]);
+      return src
+        ? { src, alt: el.getAttribute("alt") ?? "", loading: "lazy" }
+        : null;
+    }
+    case "input":
+      // Task list boxes. Ticking them happens on GitHub.
+      return el.getAttribute("type") === "checkbox"
+        ? {
+            type: "checkbox",
+            disabled: true,
+            defaultChecked: el.hasAttribute("checked"),
+          }
+        : null;
+    case "ol": {
+      const start = Number(el.getAttribute("start"));
+      return Number.isInteger(start) ? { start } : {};
+    }
+    case "th":
+    case "td": {
+      const align = el.getAttribute("align");
+      return align && ALIGNS.has(align) ? { style: { textAlign: align } } : {};
+    }
+    default:
+      return {};
+  }
+}
+
+function toReact(node: Node, key: number, parentTag = ""): ReactNode {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent ?? "";
+    return TABLE_PARTS.has(parentTag) && !text.trim() ? null : text;
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE) return null;
+
+  const el = node as Element;
+  const tag = el.tagName.toLowerCase();
+  if (DROPPED.has(tag)) return null;
+  const children = () =>
+    Array.from(el.childNodes, (child, i) => toReact(child, i, tag));
+  if (!TAGS.has(tag)) return createElement(Fragment, { key }, ...children());
+
+  const props = propsFor(el, tag);
+  if (!props) return null;
+  return createElement(
+    tag,
+    { ...props, key },
+    ...(EMPTY.has(tag) ? [] : children()),
+  );
+}
+
+// GitHub's HTML for a description or comment, styled like GitHub shows it. It's read
+// with DOMParser, which runs nothing and loads nothing, and only safe tags and
+// attributes are kept, so no HTML is ever injected.
+export function GitHubHtml({
+  html,
+  className,
+}: {
+  html: string;
+  className?: string;
+}) {
+  const content = useMemo(() => {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return Array.from(doc.body.childNodes, (node, i) => toReact(node, i));
+  }, [html]);
+  return <div className={cx(styles.html, className)}>{content}</div>;
+}

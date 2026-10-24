@@ -1,13 +1,15 @@
 import { Collapsible } from "@base-ui/react/collapsible";
 import type { IdlePrDto, ItemDto } from "@pr-peek/core";
 import { ChevronRight } from "lucide-react";
-import { useSetQuiet } from "../queries";
+import { useState } from "react";
+import { usePrefetchPreview, useSetQuiet } from "../queries";
 import { IdlePrRow, ItemRow } from "./ItemRow";
 import styles from "./ItemSection.module.css";
+import { PrPreview, type PreviewTarget } from "./PrPreview";
 import { SwipeRow } from "./SwipeRow";
 
 // A section of the list. `idle` PRs come after the items. Rows in the `quiet` section
-// are one line, and swiping one brings it back.
+// are one line, and swiping one brings it back. A long press on a row opens its preview.
 export function ItemSection({
   title,
   items,
@@ -26,8 +28,14 @@ export function ItemSection({
   onOpenChange: (open: boolean) => void;
 }) {
   const setQuiet = useSetQuiet();
+  const prefetch = usePrefetchPreview();
+  const [preview, setPreview] = useState<PreviewTarget | null>(null);
   const toggle = (prId: string) => () =>
     setQuiet.mutate({ prId, quiet: !quiet });
+  const previewOn = (target: PreviewTarget) => ({
+    onLongPress: () => setPreview(target),
+    onPressStart: () => prefetch(target.pr.id, target.item?.id ?? null),
+  });
   return (
     <Collapsible.Root open={open} onOpenChange={onOpenChange}>
       <h2 className={styles.heading}>
@@ -39,16 +47,36 @@ export function ItemSection({
       </h2>
       <Collapsible.Panel>
         {items.map((item) => (
-          <SwipeRow key={item.id} quiet={quiet} onToggle={toggle(item.pr.id)}>
+          <SwipeRow
+            key={item.id}
+            quiet={quiet}
+            onToggle={toggle(item.pr.id)}
+            {...previewOn({ pr: item.pr, item })}
+          >
             <ItemRow item={item} quiet={quiet} showAuthor={showAuthors} />
           </SwipeRow>
         ))}
         {idle.map((pr) => (
-          <SwipeRow key={pr.id} quiet={quiet} onToggle={toggle(pr.id)}>
+          <SwipeRow
+            key={pr.id}
+            quiet={quiet}
+            onToggle={toggle(pr.id)}
+            {...previewOn({ pr: pr.pr, item: null })}
+          >
             <IdlePrRow pr={pr} quiet={quiet} showAuthor={showAuthors} />
           </SwipeRow>
         ))}
       </Collapsible.Panel>
+      <PrPreview
+        target={preview}
+        quiet={quiet}
+        // The row moves, like after a swipe, so the sheet closes.
+        onToggleQuiet={() => {
+          if (preview) toggle(preview.pr.id)();
+          setPreview(null);
+        }}
+        onClose={() => setPreview(null)}
+      />
     </Collapsible.Root>
   );
 }

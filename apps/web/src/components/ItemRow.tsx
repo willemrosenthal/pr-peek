@@ -183,7 +183,7 @@ function RowIcon({ Icon, tone }: IconProps) {
   );
 }
 
-const avatarUrl = (login: string) =>
+export const avatarUrl = (login: string) =>
   `https://avatars.githubusercontent.com/${encodeURIComponent(login)}?s=56`;
 
 // The author's picture, with the row's icon in a badge on its corner. Just the icon if

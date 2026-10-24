@@ -14,7 +14,7 @@ import { partialDataOrThrow } from "./errors";
 const DETAILS_BATCH_SIZE = 10;
 const PREVIEW_LENGTH = 200;
 
-const ACTOR = `author { __typename login }`;
+export const ACTOR = `author { __typename login }`;
 const REVIEWER = `requestedReviewer {
   __typename
   ... on User { login }
@@ -77,7 +77,10 @@ const DETAILS_QUERY = `query ($ids: [ID!]!) {
   }
 }`;
 
-const rawActor = z.object({ __typename: z.string(), login: z.string() });
+export const rawActor = z.object({
+  __typename: z.string(),
+  login: z.string(),
+});
 
 const rawReviewer = z
   .object({
@@ -210,7 +213,7 @@ function checksFailed(rollup: z.infer<typeof checkCounts> | null): boolean {
   );
 }
 
-const toActor = (actor: z.infer<typeof rawActor> | null): PrActor =>
+export const toActor = (actor: z.infer<typeof rawActor> | null): PrActor =>
   actor
     ? { login: actor.login, isBot: actor.__typename === "Bot" }
     : { login: "ghost", isBot: false };
