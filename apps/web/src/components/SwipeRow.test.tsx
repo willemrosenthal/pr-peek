@@ -67,7 +67,7 @@ describe("SwipeRow", () => {
     const { link } = setup();
     hold(link, -100);
     expect(strip()!.className).not.toContain(styles.armed);
-    fireEvent.pointerMove(link, { pointerId: 1, clientX: 200 - FAR_ENOUGH });
+    hold(link, -FAR_ENOUGH);
     expect(strip()!.className).toContain(styles.armed);
   });
 

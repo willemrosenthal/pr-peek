@@ -17,6 +17,7 @@
   user-select: none;
 }
 
+/* Matches LEAVE_MS in SwipeRow.tsx. */
 .leaving {
   transition: transform 0.1s ease-in;
 }
@@ -65,7 +66,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .slide,
   .action,
   .action svg {
