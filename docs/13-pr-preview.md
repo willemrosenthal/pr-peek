@@ -49,6 +49,7 @@ One PR for all of it.
 - [x] Top bar: Quiet (or Bring back) on the left, Open on the right.
 - [x] Cards: the PR (repo, title, author, failing checks), "For you" (the conversation, or why it's on the list), the description, then the conversation when "For you" doesn't have it.
 - [x] Descriptions and comments formatted like on GitHub.
+- [x] Permalinks to code and suggested changes as numbered lines under their file, with GitHub's syntax colors.
 - [x] "See N earlier comments" shows the rest of the conversation with a fast, short animation. Reduced motion turns it off.
 - [x] Loading and error states. Retry on error.
 - [ ] Works in dark mode and in the Mac app's small window.

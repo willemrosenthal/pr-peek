@@ -75,6 +75,7 @@ export function SwipeRow({
     on: boolean;
     moved: number;
     long: boolean;
+    el: Element;
   }>(undefined);
   const wheel = useRef({ offset: 0, timer: 0 });
   const leaveTimer = useRef(0);
@@ -126,7 +127,16 @@ export function SwipeRow({
 
   const longPress = () => {
     const p = press.current;
-    if (p) p.long = true;
+    if (p) {
+      p.long = true;
+      // The sheet opens over the row. This keeps the release coming here, so its click
+      // is blocked and the press ends. Touches stay with the row anyway, a mouse doesn't.
+      try {
+        p.el.setPointerCapture(p.id);
+      } catch {
+        // The pointer is already gone, so there's no release to wait for.
+      }
+    }
     // A short buzz, where the device has one (not iPhones).
     navigator.vibrate?.(10);
     onLongPress?.();
@@ -141,6 +151,7 @@ export function SwipeRow({
       on: false,
       moved: 0,
       long: false,
+      el: event.currentTarget,
     };
     if (onLongPress) {
       clearTimeout(longPressTimer.current);

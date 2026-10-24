@@ -70,6 +70,25 @@ const TABLE_PARTS = new Set(["table", "thead", "tbody", "tr"]);
 
 const ALIGNS = new Set(["left", "center", "right"]);
 
+// GitHub's syntax colors, as our classes. Other classes are dropped.
+const SYNTAX: Record<string, string | undefined> = {
+  "pl-k": styles.keyword,
+  "pl-s": styles.string,
+  "pl-pds": styles.string,
+  "pl-sr": styles.string,
+  "pl-c": styles.comment,
+  "pl-en": styles.entity,
+  "pl-e": styles.entity,
+  "pl-ent": styles.entity,
+  "pl-c1": styles.constant,
+  "pl-v": styles.variable,
+  "pl-smi": styles.variable,
+};
+
+// The class for a span GitHub colored, if any.
+const syntaxClass = (el: Element) =>
+  Array.from(el.classList, (name) => SYNTAX[name]).find(Boolean);
+
 // An http(s) link, or mailto: when allowed. Relative links are GitHub's.
 function safeUrl(value: string | null, protocols: string[]): string | null {
   if (!value) return null;
@@ -116,9 +135,55 @@ function propsFor(el: Element, tag: string): Record<string, unknown> | null {
       const align = el.getAttribute("align");
       return align && ALIGNS.has(align) ? { style: { textAlign: align } } : {};
     }
+    case "span": {
+      const className = syntaxClass(el);
+      return className ? { className } : {};
+    }
+    case "div":
+      // The box around a permalink to code, and its header with the file and lines.
+      if (el.classList.contains("rounded-1"))
+        return { className: styles.embed };
+      if (el.classList.contains("color-bg-subtle")) {
+        return { className: styles.embedHead };
+      }
+      return {};
     default:
       return {};
   }
+}
+
+// GitHub shows lines of code from a permalink or a suggested change as a table, one
+// row per line, with the line number in an attribute. This makes it a code block with
+// the numbers showing, and added or removed lines colored.
+function codeLines(table: Element, key: number): ReactNode {
+  const lines = Array.from(table.querySelectorAll("tr")).flatMap((row) => {
+    const code = row.querySelector("td.blob-code");
+    if (!code) return [];
+    // A suggested change has old and new numbers. The last one is the line's.
+    const numbers = row.querySelectorAll("td[data-line-number]");
+    const number =
+      numbers[numbers.length - 1]?.getAttribute("data-line-number") ?? "";
+    const change = code.classList.contains("blob-code-addition")
+      ? styles.added
+      : code.classList.contains("blob-code-deletion")
+        ? styles.removed
+        : undefined;
+    return [{ code, number, change }];
+  });
+  return (
+    <div key={key} className={styles.lines}>
+      {lines.map(({ code, number, change }, i) => (
+        <div key={i} className={cx(styles.line, change)}>
+          <span className={styles.lineNumber} aria-hidden="true">
+            {number}
+          </span>
+          <code className={styles.lineCode}>
+            {Array.from(code.childNodes, (child, j) => toReact(child, j))}
+          </code>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function toReact(node: Node, key: number, parentTag = ""): ReactNode {
@@ -131,6 +196,9 @@ function toReact(node: Node, key: number, parentTag = ""): ReactNode {
   const el = node as Element;
   const tag = el.tagName.toLowerCase();
   if (DROPPED.has(tag)) return null;
+  if (tag === "table" && el.querySelector("td.blob-code")) {
+    return codeLines(el, key);
+  }
   const children = () =>
     Array.from(el.childNodes, (child, i) => toReact(child, i, tag));
   if (!TAGS.has(tag)) return createElement(Fragment, { key }, ...children());
