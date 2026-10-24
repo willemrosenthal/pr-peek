@@ -1,9 +1,10 @@
 import {
   addPushSubscriptionBody,
   MAX_PUSH_DEVICES,
+  TEST_PUSHES,
+  testPushBody,
   updatePushSubscriptionBody,
   type PushKeyResponse,
-  type PushPayload,
   type PushSubscriptionDto,
   type PushSubscriptionResponse,
   type PushSubscriptionsResponse,
@@ -20,13 +21,6 @@ export interface PushRouteDeps {
   // Null when push is off, because the VAPID keys aren't set.
   push: { publicKey: string; send: SendPush } | null;
 }
-
-const TEST_PUSH: PushPayload = {
-  title: "Git Buddy",
-  body: "Notifications work on this device.",
-  url: "/",
-  tag: "test",
-};
 
 function toDto(row: PushSubscription): PushSubscriptionDto {
   return {
@@ -153,6 +147,7 @@ export function pushRouter(deps: PushRouteDeps): Router {
 
   router.post("/push/subscriptions/:id/test", async (req, res) => {
     if (!deps.push) throw pushOff();
+    const { sample = 0 } = parseInput(testPushBody, req.body ?? {});
     const where = { id: req.params.id, userId: currentUser(res).id };
     const device = await db.pushSubscription.findFirst({ where });
     if (!device) throw notFound();
@@ -160,7 +155,7 @@ export function pushRouter(deps: PushRouteDeps): Router {
     const result = await pushToDevice(
       { db, send: deps.push.send, logger: req.log },
       device,
-      TEST_PUSH,
+      TEST_PUSHES[sample]!.payload,
       { ttlSeconds: 60, urgency: "high" },
     );
     if (result === "removed") {

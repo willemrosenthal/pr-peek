@@ -247,23 +247,29 @@ describe("the device list", () => {
     ).toBeTruthy();
   });
 
-  it("sends a test", async () => {
+  it("sends a test of the next kind each time", async () => {
     const phone = device({ label: "iPhone" });
+    const testKey = `POST /api/push/subscriptions/${phone.id}/test`;
     const fetch = devicesApi([phone], {
-      [`POST /api/push/subscriptions/${phone.id}/test`]: () => {
+      [testKey]: () => {
         phone.lastSuccessAt = new Date().toISOString();
         return json({ subscription: phone });
       },
     });
     renderApp("/settings/devices");
+    const button = await screen.findByRole("button", {
+      name: "Send a test to iPhone",
+    });
+    expect(screen.getByText("Next test: Review requested.")).toBeTruthy();
 
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Send a test to iPhone" }),
-    );
+    await userEvent.click(button);
     expect(await screen.findByText("Last sent just now.")).toBeTruthy();
     expect(
-      callsTo(fetch, `/api/push/subscriptions/${phone.id}/test`),
-    ).toHaveLength(1);
+      await screen.findByText("Next test: Review requested again."),
+    ).toBeTruthy();
+    await userEvent.click(button);
+    await screen.findByText("Next test: Approved.");
+    expect(sentBodies(fetch, testKey)).toEqual([{ sample: 0 }, { sample: 1 }]);
   });
 
   it("drops a device the test found gone", async () => {
