@@ -7,7 +7,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   apiError,
   callsTo,
@@ -24,16 +24,27 @@ import {
   syncStatus,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
+import { drag, stubPointerCapture } from "../test/swipe";
 import { callsOf, stubTauri } from "../test/tauri";
 import { setVisibility } from "../test/visibility";
+
+beforeAll(stubPointerCapture);
 
 const minutesAgo = (n: number) =>
   new Date(Date.now() - n * 60_000).toISOString();
 
 const sectionButton = (name: RegExp) => screen.findByRole("button", { name });
 const rows = () => screen.queryAllByRole("link", { name: /PR/ });
-// The Quiet section's button, not a row's "Quiet until..." button.
+// The Quiet section's button, with its count.
 const QUIET = /^Quiet\s*\d/;
+// The row's link, found by its URL. Titles like "PR 2" also match "PR 20".
+const rowOf = (row: { pr: { url: string } }) => {
+  const link = screen
+    .getAllByRole("link")
+    .find((el) => el.getAttribute("href") === row.pr.url);
+  if (!link) throw new Error(`No row for ${row.pr.url}`);
+  return link;
+};
 
 describe("sections", () => {
   it("shows each section with items, and its count", async () => {
@@ -180,15 +191,13 @@ describe("sections", () => {
     return { fetch, finish: () => act(() => finish()) };
   }
 
-  it("quiets a PR right away, then saves it", async () => {
+  it("quiets a swiped PR right away, then saves it", async () => {
     const asked = item();
     const { fetch, finish } = quietApi(asked, true);
     renderApp("/");
 
     await sectionButton(/Needs my review/);
-    await userEvent.click(
-      screen.getByRole("button", { name: "Quiet until something new happens" }),
-    );
+    drag(rowOf(asked), -120);
     // Moved before the save answers.
     expect(await sectionButton(QUIET)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Needs my review/ })).toBe(
@@ -236,13 +245,9 @@ describe("sections", () => {
     const loads = () => callsTo(fetch, "/api/items").length;
     const before = loads();
 
-    const quietButtons = () =>
-      screen.getAllByRole("button", {
-        name: "Quiet until something new happens",
-      });
-    await userEvent.click(quietButtons()[0]!);
-    await userEvent.click(quietButtons()[0]!);
-    expect(saves).toHaveLength(2);
+    drag(rowOf(first), -120);
+    drag(rowOf(second), -120);
+    await waitFor(() => expect(saves).toHaveLength(2));
 
     await act(() => Promise.resolve(saves[0]!()));
     expect(loads()).toBe(before);

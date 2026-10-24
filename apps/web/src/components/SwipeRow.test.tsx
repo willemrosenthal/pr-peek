@@ -2,12 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import type { MouseEvent } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { drag, stubPointerCapture } from "../test/swipe";
 import { SwipeRow } from "./SwipeRow";
 
-// jsdom has no pointer capture.
-beforeAll(() => {
-  Element.prototype.setPointerCapture = () => {};
-});
+beforeAll(stubPointerCapture);
 
 function setup(quiet = false) {
   const onToggle = vi.fn();
@@ -23,31 +21,6 @@ function setup(quiet = false) {
   );
   const link = screen.getByRole("link", { name: "Add login" });
   return { onToggle, onLinkClick, link };
-}
-
-// Presses on `el`, moves `dx` across and `dy` down, then lets go.
-function drag(el: Element, dx: number, dy = 0) {
-  fireEvent.pointerDown(el, {
-    button: 0,
-    pointerId: 1,
-    clientX: 200,
-    clientY: 20,
-  });
-  fireEvent.pointerMove(el, {
-    pointerId: 1,
-    clientX: 200 + dx / 2,
-    clientY: 20 + dy / 2,
-  });
-  fireEvent.pointerMove(el, {
-    pointerId: 1,
-    clientX: 200 + dx,
-    clientY: 20 + dy,
-  });
-  fireEvent.pointerUp(el, {
-    pointerId: 1,
-    clientX: 200 + dx,
-    clientY: 20 + dy,
-  });
 }
 
 describe("SwipeRow", () => {
@@ -69,6 +42,16 @@ describe("SwipeRow", () => {
     // Only that click is blocked.
     fireEvent.click(link);
     expect(onLinkClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a click elsewhere through right after a swipe", () => {
+    const { link } = setup();
+    const other = vi.fn();
+    document.body.addEventListener("click", other);
+    drag(link, -120);
+    fireEvent.click(document.body);
+    document.body.removeEventListener("click", other);
+    expect(other).toHaveBeenCalledTimes(1);
   });
 
   it("springs back from a short swipe", async () => {
@@ -99,16 +82,14 @@ describe("SwipeRow", () => {
     expect(onToggle).not.toHaveBeenCalled();
   });
 
-  it("has a button for mouse and keyboard users", async () => {
-    const { onToggle } = setup();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Quiet until something new happens" }),
-    );
-    expect(onToggle).toHaveBeenCalledTimes(1);
+  it("has no button on a row that isn't quiet", () => {
+    setup();
+    expect(screen.queryByRole("button")).toBe(null);
   });
 
-  it("offers to bring a quiet PR back", () => {
-    setup(true);
-    expect(screen.getByRole("button", { name: "Bring back" })).toBeTruthy();
+  it("has a button that brings a quiet PR back", async () => {
+    const { onToggle } = setup(true);
+    await userEvent.click(screen.getByRole("button", { name: "Bring back" }));
+    expect(onToggle).toHaveBeenCalledTimes(1);
   });
 });
