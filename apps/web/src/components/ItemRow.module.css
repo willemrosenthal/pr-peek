@@ -77,7 +77,7 @@
 
 /* The author's picture in place of the icon, centered across both lines. */
 .withAuthor {
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr);
 }
 
 /* The icon is there in place of a picture that can't load. */
