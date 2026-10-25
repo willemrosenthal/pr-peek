@@ -209,6 +209,16 @@ describe("SwipeRow long press", () => {
     expect(select()).toBe(true);
   });
 
+  it("stops blocking at the next press if the lift never comes", () => {
+    const { link } = setupPress();
+    press(link);
+    vi.advanceTimersByTime(450);
+    // The phone cancelled the whole touch, so there's no lift.
+    fireEvent.pointerCancel(link, { pointerId: 1 });
+    fireEvent.pointerDown(document.body, { button: 0, pointerId: 2 });
+    expect(select()).toBe(true);
+  });
+
   it("is just a click when let go sooner", () => {
     const { onLongPress, onLinkClick, link } = setupPress();
     press(link);

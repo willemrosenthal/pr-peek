@@ -30,22 +30,29 @@ const LONG_PRESS_MS = 450;
 // so they don't ask GitHub for anything.
 const PRESS_START_MS = 150;
 
+// What ends a selection block: the finger or button lifting, or, if a phone cancelled
+// the touch so no lift comes, the next press.
+const SELECTION_BLOCK_ENDS = ["pointerup", "touchend", "pointerdown"] as const;
+
 // Stops text selection anywhere until the finger or button lifts, then calls `onEnd`.
 // The finger that opened the preview is still down when the sheet slides in under it,
-// and a phone's long press would select the sheet's text. It waits for the lift on the
-// window, not the row: a phone can cancel the row's press while the finger stays down.
-// Returns a function that stops it sooner.
+// and a phone's long press would select the sheet's text. It waits on the window, not
+// the row: a phone can cancel the row's press while the finger stays down. Returns a
+// function that stops it sooner.
 function blockSelection(onEnd: () => void): () => void {
   const block = (event: Event) => event.preventDefault();
   const stop = () => {
     document.removeEventListener("selectstart", block);
-    window.removeEventListener("pointerup", stop);
-    window.removeEventListener("touchend", stop);
+    for (const type of SELECTION_BLOCK_ENDS) {
+      window.removeEventListener(type, stop, true);
+    }
     onEnd();
   };
   document.addEventListener("selectstart", block);
-  window.addEventListener("pointerup", stop);
-  window.addEventListener("touchend", stop);
+  // Capture, so nothing that stops these events can hide them.
+  for (const type of SELECTION_BLOCK_ENDS) {
+    window.addEventListener(type, stop, true);
+  }
   return stop;
 }
 
