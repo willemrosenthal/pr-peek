@@ -30,13 +30,30 @@ const LONG_PRESS_MS = 450;
 // so they don't ask GitHub for anything.
 const PRESS_START_MS = 150;
 
-// Stops text selection anywhere until the returned function is called. The finger that
-// opened the preview is still down when the sheet slides in under it, and a phone's
-// long press would select the sheet's text.
-function blockSelection(): () => void {
+// What ends a selection block: the finger or button lifting, or, if a phone cancelled
+// the touch so no lift comes, the next press.
+const SELECTION_BLOCK_ENDS = ["pointerup", "touchend", "pointerdown"] as const;
+
+// Stops text selection anywhere until the finger or button lifts, then calls `onEnd`.
+// The finger that opened the preview is still down when the sheet slides in under it,
+// and a phone's long press would select the sheet's text. It waits on the window, not
+// the row: a phone can cancel the row's press while the finger stays down. Returns a
+// function that stops it sooner.
+function blockSelection(onEnd: () => void): () => void {
   const block = (event: Event) => event.preventDefault();
+  const stop = () => {
+    document.removeEventListener("selectstart", block);
+    for (const type of SELECTION_BLOCK_ENDS) {
+      window.removeEventListener(type, stop, true);
+    }
+    onEnd();
+  };
   document.addEventListener("selectstart", block);
-  return () => document.removeEventListener("selectstart", block);
+  // Capture, so nothing that stops these events can hide them.
+  for (const type of SELECTION_BLOCK_ENDS) {
+    window.addEventListener(type, stop, true);
+  }
+  return stop;
 }
 
 // Stops the click a drag on `row` ends with, so the row's link doesn't open. Clicks
@@ -89,7 +106,7 @@ export function SwipeRow({
   const wheel = useRef({ offset: 0, timer: 0 });
   const leaveTimer = useRef(0);
   const longPressTimer = useRef(0);
-  // Ends the selection block a long press starts, once the press ends.
+  // Ends the selection block a long press starts. Set while it's on.
   const allowSelection = useRef<() => void>(undefined);
   const rowRef = useRef<HTMLDivElement>(null);
   // How far this drag must go, measured when it starts.
@@ -112,12 +129,10 @@ export function SwipeRow({
     [],
   );
 
-  // A press is over: no long press is coming, and selecting works again.
+  // A press is over, so no long press is coming.
   const endPress = () => {
     press.current = undefined;
     clearTimeout(longPressTimer.current);
-    allowSelection.current?.();
-    allowSelection.current = undefined;
   };
 
   const move = (to: number) => {
@@ -149,7 +164,9 @@ export function SwipeRow({
     const p = press.current;
     if (p) {
       p.long = true;
-      allowSelection.current ??= blockSelection();
+      allowSelection.current ??= blockSelection(() => {
+        allowSelection.current = undefined;
+      });
       // The sheet opens over the row. This keeps the release coming here, so its click
       // is blocked and the press ends. Touches stay with the row anyway, a mouse doesn't.
       try {
@@ -199,7 +216,7 @@ export function SwipeRow({
       if (Math.abs(moved) < START_PX) return;
       // Scrolling the list, not swiping.
       if (Math.abs(event.clientY - p.y) > Math.abs(moved)) {
-        press.current = undefined;
+        endPress();
         return;
       }
       p.on = true;
