@@ -185,16 +185,27 @@ describe("SwipeRow long press", () => {
     expect(onLinkClick).not.toHaveBeenCalled();
   });
 
+  // True when nothing stopped the selection.
+  const select = () =>
+    fireEvent(document, new Event("selectstart", { cancelable: true }));
+
   it("blocks text selection from the long press until it's let go", () => {
     const { link } = setupPress();
-    // True when nothing stopped the selection.
-    const select = () =>
-      fireEvent(document, new Event("selectstart", { cancelable: true }));
     press(link);
     expect(select()).toBe(true);
     vi.advanceTimersByTime(450);
     expect(select()).toBe(false);
     fireEvent.pointerUp(link, { pointerId: 1 });
+    expect(select()).toBe(true);
+  });
+
+  it("keeps blocking selection after the phone cancels the press, until the finger lifts", () => {
+    const { link } = setupPress();
+    press(link);
+    vi.advanceTimersByTime(450);
+    fireEvent.pointerCancel(link, { pointerId: 1 });
+    expect(select()).toBe(false);
+    fireEvent.touchEnd(window);
     expect(select()).toBe(true);
   });
 
