@@ -45,6 +45,7 @@
   box-shadow: var(--shadow-panel);
   color: var(--color-text);
   outline: 0;
+  -webkit-tap-highlight-color: transparent;
   touch-action: none;
   transform: translateY(
     calc(var(--drawer-snap-point-offset) + var(--drawer-swipe-movement-y))
@@ -79,11 +80,14 @@
   user-select: none;
 }
 
+/* Dragging here moves the sheet. Without touch-action: none, a phone may scroll the
+   page instead. */
 .dragArea {
   flex: none;
   padding: var(--space-2) var(--space-2) 0;
   cursor: grab;
   user-select: none;
+  touch-action: none;
 }
 
 .handle {
@@ -191,9 +195,19 @@
   overflow-wrap: anywhere;
 }
 
+/* Who opened it, with their picture. */
 .meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
   font-size: var(--text-sm);
+}
+
+.meta .avatar {
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
 }
 
 .checks {

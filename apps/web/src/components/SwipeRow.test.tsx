@@ -185,6 +185,19 @@ describe("SwipeRow long press", () => {
     expect(onLinkClick).not.toHaveBeenCalled();
   });
 
+  it("blocks text selection from the long press until it's let go", () => {
+    const { link } = setupPress();
+    // True when nothing stopped the selection.
+    const select = () =>
+      fireEvent(document, new Event("selectstart", { cancelable: true }));
+    press(link);
+    expect(select()).toBe(true);
+    vi.advanceTimersByTime(450);
+    expect(select()).toBe(false);
+    fireEvent.pointerUp(link, { pointerId: 1 });
+    expect(select()).toBe(true);
+  });
+
   it("is just a click when let go sooner", () => {
     const { onLongPress, onLinkClick, link } = setupPress();
     press(link);

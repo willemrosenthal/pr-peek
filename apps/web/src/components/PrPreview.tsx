@@ -6,7 +6,7 @@ import type {
   PreviewCommentDto,
 } from "@pr-peek/core";
 import { Bell, BellOff, CircleX, ExternalLink } from "lucide-react";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cx } from "../cx";
 import { usePrPreview } from "../queries";
 import { GitHubHtml } from "./GitHubHtml";
@@ -19,7 +19,7 @@ export interface PreviewTarget {
   item: ItemDto | null;
 }
 
-// Half height, then full. Scrolling the content also makes it full.
+// Half height, then full. Base UI moves between them when the sheet is dragged.
 const SNAP_POINTS = [0.6, 1];
 // Earlier comments after this many come in together.
 const MAX_STAGGER = 8;
@@ -39,6 +39,9 @@ export function PrPreview({
 }) {
   // Keeps showing the last PR while the sheet slides away.
   const [shown, setShown] = useState(target);
+  // Focus goes to the sheet itself, not its first button, so no focus ring shows on
+  // a phone. Screen readers still start at the sheet.
+  const popupRef = useRef<HTMLDivElement>(null);
   const [snapPoint, setSnapPoint] = useState<Drawer.Root.SnapPoint | null>(
     SNAP_POINTS[0]!,
   );
@@ -60,7 +63,11 @@ export function PrPreview({
       <Drawer.Portal>
         <Drawer.Backdrop className={styles.backdrop} />
         <Drawer.Viewport className={styles.viewport}>
-          <Drawer.Popup className={styles.popup}>
+          <Drawer.Popup
+            ref={popupRef}
+            className={styles.popup}
+            initialFocus={popupRef}
+          >
             {shown && (
               <Sheet
                 // A new PR starts at the top, with earlier comments closed.
@@ -68,7 +75,6 @@ export function PrPreview({
                 target={shown}
                 quiet={quiet}
                 onToggleQuiet={onToggleQuiet}
-                onScroll={() => setSnapPoint(1)}
               />
             )}
           </Drawer.Popup>
@@ -82,12 +88,10 @@ function Sheet({
   target: { pr, item },
   quiet,
   onToggleQuiet,
-  onScroll,
 }: {
   target: PreviewTarget;
   quiet: boolean;
   onToggleQuiet: () => void;
-  onScroll: () => void;
 }) {
   const preview = usePrPreview(pr.id, item?.id ?? null);
   const { data } = preview;
@@ -118,12 +122,7 @@ function Sheet({
         </div>
       </div>
 
-      <Drawer.Content
-        className={styles.scroll}
-        onScroll={(event) => {
-          if (event.currentTarget.scrollTop > 0) onScroll();
-        }}
-      >
+      <Drawer.Content className={styles.scroll}>
         <section className={styles.card}>
           <div className={styles.cardBody}>
             <p className={styles.repo}>
@@ -135,8 +134,11 @@ function Sheet({
             </p>
             <Drawer.Title className={styles.title}>{pr.title}</Drawer.Title>
             <p className={styles.meta}>
-              {pr.author}
-              {data && ` · opened ${data.openedAge} ago`}
+              <Avatar login={pr.author} />
+              <span>
+                {pr.author}
+                {data && ` · opened ${data.openedAge} ago`}
+              </span>
             </p>
           </div>
           {failing.length > 0 && (

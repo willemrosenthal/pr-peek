@@ -45,9 +45,10 @@ One PR for all of it.
 
 ### 13.3 The sheet (design A3)
 
-- [x] A bottom sheet (Base UI Drawer) with two heights: half and full. Drag the handle, or scroll the content, to make it taller. Swipe down or tap outside to close.
+- [x] A bottom sheet (Base UI Drawer) with two heights: half and full. Drag it up to make it taller. Scrolling only scrolls the content, so it never fights the drag. Swipe down or tap outside to close.
 - [x] Top bar: Quiet (or Bring back) on the left, Open on the right.
-- [x] Cards: the PR (repo, title, author, failing checks), "For you" (the conversation, or why it's on the list), the description, then the conversation when "For you" doesn't have it.
+- [x] Focus goes to the sheet, not its first button. No text gets selected by the press that opened it.
+- [x] Cards: the PR (repo, title, the author with their picture, failing checks), "For you" (the conversation, or why it's on the list), the description, then the conversation when "For you" doesn't have it.
 - [x] Descriptions and comments formatted like on GitHub.
 - [x] Permalinks to code and suggested changes as numbered lines under their file, with GitHub's syntax colors.
 - [x] "See N earlier comments" shows the rest of the conversation with a fast, short animation. Reduced motion turns it off.
@@ -61,4 +62,4 @@ One PR for all of it.
 - [ ] A reply shows the conversation in order, and "See N earlier comments" expands smoothly.
 - [ ] A description with headings, lists, and code looks like it does on GitHub.
 - [ ] Quiet from the preview moves the row, like a swipe.
-- [ ] A PR with a long description scrolls, and the sheet grows to full height.
+- [ ] A PR with a long description scrolls, and dragging the sheet up makes it full height.

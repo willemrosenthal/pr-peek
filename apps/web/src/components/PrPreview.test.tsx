@@ -73,6 +73,12 @@ it("shows the PR right away, then its description as formatted text", async () =
   expect(screen.getByText("sam · opened 2d ago")).toBeTruthy();
 });
 
+it("puts focus on the sheet, not its first button", async () => {
+  setup(() => json(preview()));
+  const sheet = screen.getByRole("dialog");
+  await waitFor(() => expect(document.activeElement).toBe(sheet));
+});
+
 it("lists failing checks", async () => {
   setup(() => json(preview({ failingChecks: ["lint", "e2e"] })));
   expect(await screen.findByText("2 checks failing:")).toBeTruthy();

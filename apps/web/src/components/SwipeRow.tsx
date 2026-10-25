@@ -30,6 +30,15 @@ const LONG_PRESS_MS = 450;
 // so they don't ask GitHub for anything.
 const PRESS_START_MS = 150;
 
+// Stops text selection anywhere until the returned function is called. The finger that
+// opened the preview is still down when the sheet slides in under it, and a phone's
+// long press would select the sheet's text.
+function blockSelection(): () => void {
+  const block = (event: Event) => event.preventDefault();
+  document.addEventListener("selectstart", block);
+  return () => document.removeEventListener("selectstart", block);
+}
+
 // Stops the click a drag on `row` ends with, so the row's link doesn't open. Clicks
 // elsewhere go through. Listens on the window so it runs before the Mac app's link
 // handler on the document.
@@ -80,6 +89,8 @@ export function SwipeRow({
   const wheel = useRef({ offset: 0, timer: 0 });
   const leaveTimer = useRef(0);
   const longPressTimer = useRef(0);
+  // Ends the selection block a long press starts, once the press ends.
+  const allowSelection = useRef<() => void>(undefined);
   const rowRef = useRef<HTMLDivElement>(null);
   // How far this drag must go, measured when it starts.
   const swipePx = useRef(SWIPE_MIN_PX);
@@ -96,9 +107,18 @@ export function SwipeRow({
       clearTimeout(wheel.current.timer);
       clearTimeout(leaveTimer.current);
       clearTimeout(longPressTimer.current);
+      allowSelection.current?.();
     },
     [],
   );
+
+  // A press is over: no long press is coming, and selecting works again.
+  const endPress = () => {
+    press.current = undefined;
+    clearTimeout(longPressTimer.current);
+    allowSelection.current?.();
+    allowSelection.current = undefined;
+  };
 
   const move = (to: number) => {
     setDragging(true);
@@ -129,6 +149,7 @@ export function SwipeRow({
     const p = press.current;
     if (p) {
       p.long = true;
+      allowSelection.current ??= blockSelection();
       // The sheet opens over the row. This keeps the release coming here, so its click
       // is blocked and the press ends. Touches stay with the row anyway, a mouse doesn't.
       try {
@@ -191,8 +212,7 @@ export function SwipeRow({
 
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
     const p = press.current;
-    press.current = undefined;
-    clearTimeout(longPressTimer.current);
+    endPress();
     // The preview is open, so the link shouldn't open too.
     if (p?.long) blockNextClick(event.currentTarget);
     if (!p?.on) return;
@@ -201,8 +221,7 @@ export function SwipeRow({
   };
 
   const onPointerCancel = () => {
-    press.current = undefined;
-    clearTimeout(longPressTimer.current);
+    endPress();
     snapBack();
   };
 
