@@ -191,12 +191,17 @@ describe("SwipeRow long press", () => {
 
   it("blocks text selection from the long press until it's let go", () => {
     const { link } = setupPress();
+    // Makes everything unselectable in CSS while it's set (global.css).
+    const marked = () => "longPress" in document.documentElement.dataset;
     press(link);
     expect(select()).toBe(true);
+    expect(marked()).toBe(false);
     vi.advanceTimersByTime(450);
     expect(select()).toBe(false);
+    expect(marked()).toBe(true);
     fireEvent.pointerUp(link, { pointerId: 1 });
     expect(select()).toBe(true);
+    expect(marked()).toBe(false);
   });
 
   it("keeps blocking selection after the phone cancels the press, until the finger lifts", () => {

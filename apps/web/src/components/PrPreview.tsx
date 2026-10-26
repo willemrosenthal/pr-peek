@@ -13,42 +13,35 @@ import { GitHubHtml } from "./GitHubHtml";
 import { avatarUrl } from "./ItemRow";
 import styles from "./PrPreview.module.css";
 
-// What a preview is opened on: a row's PR, and its item if it has one.
+// What a preview is opened on: a row's PR, its item if it has one, and whether it's in
+// the Quiet section.
 export interface PreviewTarget {
   pr: ItemDto["pr"];
   item: ItemDto | null;
+  quiet: boolean;
 }
 
-// Half height, then full. Base UI moves between them when the sheet is dragged.
-const SNAP_POINTS = [0.6, 1];
 // Earlier comments after this many come in together.
 const MAX_STAGGER = 8;
 
 // A bottom sheet with more about a PR: its title, repo, why it's on the list, the
-// description, and the conversation. Design A3 in docs/13-pr-preview.md.
+// description, and the conversation. Design A3 in docs/13-pr-preview.md. One height;
+// swipe down to close.
 export function PrPreview({
   target,
-  quiet,
   onToggleQuiet,
   onClose,
 }: {
   target: PreviewTarget | null;
-  quiet: boolean;
   onToggleQuiet: () => void;
   onClose: () => void;
 }) {
   // Keeps showing the last PR while the sheet slides away.
   const [shown, setShown] = useState(target);
-  // Focus goes to the sheet itself, not its first button, so no focus ring shows on
-  // a phone. Screen readers still start at the sheet.
+  // Focus goes to the sheet itself, not its first button. Screen readers still start
+  // at the sheet. Its focus ring is off in the CSS.
   const popupRef = useRef<HTMLDivElement>(null);
-  const [snapPoint, setSnapPoint] = useState<Drawer.Root.SnapPoint | null>(
-    SNAP_POINTS[0]!,
-  );
-  if (target && target !== shown) {
-    setShown(target);
-    setSnapPoint(SNAP_POINTS[0]!);
-  }
+  if (target && target !== shown) setShown(target);
 
   return (
     <Drawer.Root
@@ -56,9 +49,6 @@ export function PrPreview({
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      snapPoints={SNAP_POINTS}
-      snapPoint={snapPoint}
-      onSnapPointChange={setSnapPoint}
     >
       <Drawer.Portal>
         <Drawer.Backdrop className={styles.backdrop} />
@@ -73,7 +63,6 @@ export function PrPreview({
                 // A new PR starts at the top, with earlier comments closed.
                 key={shown.item?.id ?? shown.pr.id}
                 target={shown}
-                quiet={quiet}
                 onToggleQuiet={onToggleQuiet}
               />
             )}
@@ -85,12 +74,10 @@ export function PrPreview({
 }
 
 function Sheet({
-  target: { pr, item },
-  quiet,
+  target: { pr, item, quiet },
   onToggleQuiet,
 }: {
   target: PreviewTarget;
-  quiet: boolean;
   onToggleQuiet: () => void;
 }) {
   const preview = usePrPreview(pr.id, item?.id ?? null);

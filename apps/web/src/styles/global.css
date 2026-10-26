@@ -58,6 +58,14 @@ textarea {
   outline-offset: 2px;
 }
 
+/* Nothing can be selected while a long press on a row is held. The preview sheet slides
+   in under the finger, and a phone would select its text. See SwipeRow.tsx. */
+:root[data-long-press] * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 /* Mac app: no focus ring until a key is pressed. See desktop.ts. */
 .quiet-focus :focus-visible {
   outline: none;

@@ -1,19 +1,36 @@
-/* The sheet's slide, after Base UI's drawer with snap points. */
+/* The sheet's slide, after Base UI's plain bottom sheet. While it's dragged, Base UI
+   sets the sheet's transform and turns its transition off itself, so there's no
+   [data-swiping] rule for the sheet here. One there would also cut the closing slide
+   short, since a swipe that closes the sheet is still "swiping" as it starts. */
 
-/* The same dim at half and full height. It only fades in and out with the sheet. With
-   snap points, --drawer-swipe-progress is how far below full height the sheet is, so
-   fading by it left the list undimmed at half height, then dark once the sheet grew. */
+/* The closing slide's length. A fast flick makes it shorter, but never so short that
+   the sheet seems to vanish. */
+.backdrop,
+.popup {
+  --close-duration: calc(150ms + var(--drawer-swipe-strength, 1) * 250ms);
+}
+
+/* Fades as the sheet is swiped down. */
 .backdrop {
   position: fixed;
   inset: 0;
   min-height: 100dvh;
   background: rgb(0 0 0 / 40%);
+  opacity: calc(1 - var(--drawer-swipe-progress, 0));
   transition: opacity 0.4s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .backdrop[data-starting-style],
 .backdrop[data-ending-style] {
   opacity: 0;
+}
+
+.backdrop[data-swiping] {
+  transition-duration: 0ms;
+}
+
+.backdrop[data-ending-style] {
+  transition-duration: var(--close-duration);
 }
 
 .viewport {
@@ -26,20 +43,15 @@
   touch-action: none;
 }
 
+/* One height: most of the screen, with the list showing above it. */
 .popup {
-  /* Room above the sheet at full height. */
-  --top-margin: 24px;
   position: relative;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   width: 100%;
   max-width: 640px;
-  max-height: calc(100dvh - var(--top-margin));
-  padding-bottom: max(
-    0px,
-    calc(var(--drawer-snap-point-offset) + var(--drawer-swipe-movement-y))
-  );
+  height: 88dvh;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: var(--color-page);
   box-shadow: var(--shadow-panel);
@@ -47,14 +59,19 @@
   outline: 0;
   -webkit-tap-highlight-color: transparent;
   touch-action: none;
-  transform: translateY(
-    calc(var(--drawer-snap-point-offset) + var(--drawer-swipe-movement-y))
-  );
+  transform: translateY(var(--drawer-swipe-movement-y, 0px));
   transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
   will-change: transform;
 }
 
-/* Covers the gap under the sheet when it's dragged up past full height. */
+/* Focus goes to the sheet when it opens. Phones show a ring for that (desktop browsers
+   don't after a click), and the sheet isn't a control, so it has none. This beats the
+   ring every element gets in global.css. */
+.popup:focus-visible {
+  outline: none;
+}
+
+/* Covers the gap under the sheet when it's dragged up a little. */
 .popup::after {
   content: "";
   position: absolute;
@@ -67,16 +84,14 @@
 
 .popup[data-starting-style],
 .popup[data-ending-style] {
-  padding-bottom: 0;
   transform: translateY(calc(100% + 2px));
 }
 
 .popup[data-ending-style] {
-  transition-duration: calc(var(--drawer-swipe-strength) * 300ms);
+  transition-duration: var(--close-duration);
 }
 
 .popup[data-swiping] {
-  transition-duration: 0ms;
   user-select: none;
 }
 
