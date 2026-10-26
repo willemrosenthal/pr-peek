@@ -147,7 +147,8 @@ function Sheet({
   target: PreviewTarget;
 } & SheetActions) {
   const preview = usePrPreview(pr.id, item?.id ?? null);
-  const { data } = preview;
+  // Read here, not just in refreshImages, so a new copy redraws the sheet with its time.
+  const { data, dataUpdatedAt } = preview;
   const failing = data?.failingChecks ?? [];
   const QuietIcon = quiet ? Bell : BellOff;
   // Images in private repos come with links that work for about 5 minutes. When one
@@ -159,7 +160,7 @@ function Sheet({
     if (
       target.tagName === "IMG" &&
       target.closest("[data-github-html]") &&
-      Date.now() - preview.dataUpdatedAt > REFETCH_MS
+      Date.now() - dataUpdatedAt > REFETCH_MS
     ) {
       void preview.refetch({ cancelRefetch: false });
     }
