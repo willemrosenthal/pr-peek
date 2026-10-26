@@ -158,22 +158,6 @@ it("offers Bring back for a quiet PR", () => {
   expect(screen.getByRole("button", { name: "Bring back" })).toBeTruthy();
 });
 
-it("undoes a scroll the user didn't start, so the PR's card stays in view", () => {
-  setup(() => json(preview()));
-  const scroller = document.querySelector<HTMLElement>(`.${styles.scroll}`)!;
-  // jsdom doesn't scroll, so scrollTop is stood in for.
-  Object.defineProperty(scroller, "scrollTop", { value: 0, writable: true });
-  const scrollTo = (top: number) => {
-    scroller.scrollTop = top;
-    fireEvent.scroll(scroller);
-    return scroller.scrollTop;
-  };
-
-  expect(scrollTo(200)).toBe(0);
-  fireEvent.pointerDown(scroller);
-  expect(scrollTo(200)).toBe(200);
-});
-
 describe("dragging the sheet down", () => {
   // Base UI sets this on the sheet while it's dragged.
   const drag = (px: number) => {

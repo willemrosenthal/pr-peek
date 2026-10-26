@@ -114,8 +114,6 @@ function Sheet({
   const { data } = preview;
   const failing = data?.failingChecks ?? [];
   const QuietIcon = quiet ? Bell : BellOff;
-  // Set once the user touches, scrolls, or types in the content. See onScroll below.
-  const userScrolls = useRef(false);
   return (
     <>
       <div className={styles.dragArea}>
@@ -141,18 +139,7 @@ function Sheet({
         </div>
       </div>
 
-      <Drawer.Content
-        className={styles.scroll}
-        // The sheet opens at the top, with the PR's card first. Something on phones can
-        // scroll it down as it opens (not the user: their finger went down on the row).
-        // So until the user touches, scrolls, or types in it, any scroll is undone.
-        onPointerDown={() => (userScrolls.current = true)}
-        onWheel={() => (userScrolls.current = true)}
-        onKeyDown={() => (userScrolls.current = true)}
-        onScroll={(event) => {
-          if (!userScrolls.current) event.currentTarget.scrollTop = 0;
-        }}
-      >
+      <Drawer.Content className={styles.scroll}>
         <section className={styles.card}>
           <div className={styles.cardBody}>
             <p className={styles.repo}>

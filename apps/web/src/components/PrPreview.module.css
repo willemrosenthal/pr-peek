@@ -171,6 +171,14 @@
   touch-action: auto;
 }
 
+/* The cards keep their height and the area scrolls. Without this, a card with
+   overflow: hidden (for its round corners) can shrink to nothing once the content is
+   taller than the sheet, since such a flex item's smallest height is 0. That hid the
+   PR's card once the description and comments loaded. */
+.scroll > * {
+  flex-shrink: 0;
+}
+
 .card {
   margin: 0;
   overflow: hidden;
