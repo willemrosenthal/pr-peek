@@ -1,11 +1,9 @@
-import type { PrReview, PrSnapshot, ReviewerStatus } from "@pr-peek/core";
-
-export interface Reviewer {
-  // A person's login, or a team as "org/team-slug".
-  name: string;
-  isTeam: boolean;
-  status: ReviewerStatus;
-}
+import type {
+  PrReview,
+  PrSnapshot,
+  ReviewerDto,
+  ReviewerStatus,
+} from "@pr-peek/core";
 
 const isVerdict = (state: PrReview["state"]) =>
   state === "APPROVED" ||
@@ -25,15 +23,25 @@ function statusOf(reviews: PrReview[]): ReviewerStatus {
 // Everyone asked to review the PR, and everyone who has: those still waiting first (in
 // the order they were asked), then the rest by their latest review. Someone asked again
 // after reviewing is waiting. The author's own reviews are replies, so they're left out,
-// and so are bots' reviews.
-export function reviewersOf(snapshot: PrSnapshot): Reviewer[] {
+// and so are bots' reviews. `viewerLogin` is the signed in user's, to mark them.
+export function reviewersOf(
+  snapshot: PrSnapshot,
+  viewerLogin: string,
+): ReviewerDto[] {
+  // GitHub logins don't depend on case.
   const key = (login: string) => login.toLowerCase();
   const author = key(snapshot.author.login);
+  const person = (login: string, status: ReviewerStatus): ReviewerDto => ({
+    name: login,
+    isTeam: false,
+    isYou: key(login) === key(viewerLogin),
+    status,
+  });
 
-  const waiting: Reviewer[] = snapshot.reviewRequests.map((request) =>
+  const waiting: ReviewerDto[] = snapshot.reviewRequests.map((request) =>
     request.type === "team"
-      ? { name: request.slug, isTeam: true, status: "requested" }
-      : { name: request.login, isTeam: false, status: "requested" },
+      ? { name: request.slug, isTeam: true, isYou: false, status: "requested" }
+      : person(request.login, "requested"),
   );
   const asked = new Set(
     waiting.filter((r) => !r.isTeam).map((r) => key(r.name)),
@@ -53,10 +61,8 @@ export function reviewersOf(snapshot: PrSnapshot): Reviewer[] {
     byPerson.set(login, [...theirs, review]);
   }
 
-  const reviewed = [...byPerson.values()].map((theirs): Reviewer => ({
-    name: theirs[0]!.author.login,
-    isTeam: false,
-    status: statusOf(theirs),
-  }));
+  const reviewed = [...byPerson.values()].map((theirs) =>
+    person(theirs[0]!.author.login, statusOf(theirs)),
+  );
   return [...waiting, ...reviewed];
 }

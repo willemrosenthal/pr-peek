@@ -42,7 +42,8 @@ export interface PrPreviewResponse {
   // Real time since the PR was opened, like "2d".
   openedAge: string;
   failingChecks: string[];
-  // Everyone asked to review, and everyone who has, with where they stand.
+  // Everyone asked to review, and everyone who has, with where they stand. Not the
+  // author, and not bots like Copilot's AI reviewer.
   reviewers: ReviewerDto[];
   // The conversation, oldest first.
   comments: PreviewCommentDto[];

@@ -71,14 +71,7 @@ export function previewRouter(deps: PreviewDeps): Router {
       bodyHtml: preview.bodyHtml,
       openedAge: formatAge(preview.createdAt, at),
       failingChecks: stored?.checks.failing.map((check) => check.name) ?? [],
-      reviewers: stored
-        ? reviewersOf(stored).map((reviewer) => ({
-            ...reviewer,
-            isYou:
-              !reviewer.isTeam &&
-              reviewer.name.toLowerCase() === user.login.toLowerCase(),
-          }))
-        : [],
+      reviewers: stored ? reviewersOf(stored, user.login) : [],
       comments: preview.comments.map((comment) => ({
         ...comment,
         author: comment.author.login,

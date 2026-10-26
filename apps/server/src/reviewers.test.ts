@@ -2,6 +2,9 @@ import type { PrReview, PrSnapshot } from "@pr-peek/core";
 import { describe, expect, it } from "vitest";
 import { reviewersOf } from "./reviewers";
 
+// The signed in user.
+const VIEWER = "octocat";
+
 const at = (minute: number) =>
   `2026-10-21T12:${String(minute).padStart(2, "0")}:00Z`;
 
@@ -39,7 +42,7 @@ const snapshot = (fields: Partial<PrSnapshot>): PrSnapshot => ({
 });
 
 const statuses = (pr: PrSnapshot) =>
-  reviewersOf(pr).map((r) => `${r.name}:${r.status}`);
+  reviewersOf(pr, VIEWER).map((r) => `${r.name}:${r.status}`);
 
 describe("reviewersOf", () => {
   it("lists those still asked first, then everyone who reviewed by latest review", () => {
@@ -59,7 +62,7 @@ describe("reviewersOf", () => {
       "dev:changes_requested",
       "jules:approved",
     ]);
-    expect(reviewersOf(pr)[1]?.isTeam).toBe(true);
+    expect(reviewersOf(pr, VIEWER)[1]?.isTeam).toBe(true);
   });
 
   it("keeps a verdict over later comments, and clears it when dismissed", () => {
@@ -87,6 +90,24 @@ describe("reviewersOf", () => {
     expect(statuses(pr)).toEqual(["Jules:requested"]);
   });
 
+  it("marks the signed in user, asked or reviewed, whatever the case", () => {
+    const youIn = (pr: PrSnapshot) =>
+      reviewersOf(pr, VIEWER).map((r) => r.isYou);
+    expect(
+      youIn(
+        snapshot({
+          reviewRequests: [
+            { type: "user", login: "OctoCat" },
+            { type: "team", slug: "acme/octocat" },
+          ],
+        }),
+      ),
+    ).toEqual([true, false]);
+    expect(
+      youIn(snapshot({ reviews: [review("octocat", "APPROVED", 1)] })),
+    ).toEqual([true]);
+  });
+
   it("leaves out bots, like Copilot's AI reviewer", () => {
     const pr = snapshot({
       reviews: [
@@ -99,6 +120,6 @@ describe("reviewersOf", () => {
 
   it("leaves out the author's own reviews", () => {
     const pr = snapshot({ reviews: [review("Sam", "COMMENTED", 1)] });
-    expect(reviewersOf(pr)).toEqual([]);
+    expect(reviewersOf(pr, VIEWER)).toEqual([]);
   });
 });
