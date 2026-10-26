@@ -299,3 +299,39 @@ it("offers to try again when the details don't load", async () => {
     expect(screen.getByText("See the screenshots.")).toBeTruthy(),
   );
 });
+
+it("fetches again when an image fails on an older copy, but not on a fresh one", async () => {
+  // Each copy has new links, like GitHub's.
+  let copy = 0;
+  const answer = vi.fn(() => {
+    copy += 1;
+    const bodyHtml = `<p><img src="https://x.test/a.png?copy=${copy}" alt="Shot"><img src="https://x.test/b.png?copy=${copy}" alt="Shot"></p>`;
+    return json(preview({ bodyHtml }));
+  });
+  setup(answer);
+  await screen.findAllByRole("img", { name: "Shot" });
+  const images = () => screen.getAllByRole("img", { name: "Shot" });
+  // Both images fail at once.
+  const failImages = () => images().forEach((image) => fireEvent.error(image));
+
+  failImages();
+  expect(answer).toHaveBeenCalledTimes(1);
+
+  // A minute later, its links may have run out.
+  const later = Date.now() + 61_000;
+  const now = vi.spyOn(Date, "now").mockReturnValue(later);
+  onTestFinished(() => now.mockRestore());
+  // An avatar that fails isn't GitHub's image.
+  fireEvent.error(document.querySelector(`img.${styles.avatar}`)!);
+  expect(answer).toHaveBeenCalledTimes(1);
+  // One fetch for both, and the images get its new links.
+  failImages();
+  await waitFor(() =>
+    expect(images()[0]!.getAttribute("src")).toContain("copy=2"),
+  );
+  expect(answer).toHaveBeenCalledTimes(2);
+
+  // The new copy is fresh, so it isn't fetched again.
+  failImages();
+  expect(answer).toHaveBeenCalledTimes(2);
+});
