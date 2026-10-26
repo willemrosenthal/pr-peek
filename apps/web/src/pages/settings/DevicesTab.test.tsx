@@ -265,7 +265,7 @@ describe("the device list", () => {
     await userEvent.click(button);
     expect(await screen.findByText("Last sent just now.")).toBeTruthy();
     expect(
-      await screen.findByText("Next test: Review requested again."),
+      await screen.findByText("Next test: Re-review requested."),
     ).toBeTruthy();
     await userEvent.click(button);
     expect(await screen.findByText("Next test: Approved.")).toBeTruthy();

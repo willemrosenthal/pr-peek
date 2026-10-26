@@ -105,7 +105,7 @@ export const reRequested: Rule = {
       requestItem(
         "re_requested",
         "rrr",
-        "Review requested again",
+        "Re-review requested",
         snapshot,
         request,
       ),

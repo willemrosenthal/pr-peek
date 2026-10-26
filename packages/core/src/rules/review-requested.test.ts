@@ -136,7 +136,7 @@ describe("review re-requested", () => {
       expect.objectContaining({
         kind: "re_requested",
         dedupeKey: "rrr:PR_1:RR_1",
-        summary: "Review requested again",
+        summary: "Re-review requested",
         waitingSince: at(30),
       }),
     ]);
