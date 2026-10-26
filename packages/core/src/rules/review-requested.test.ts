@@ -218,10 +218,23 @@ describe("waiting on the author", () => {
       comments: [comment("C_1", "jlee", 15), comment("C_2", "sam", 20)],
     };
     expect(detect(pr)[0]).toMatchObject({
-      latestEventId: "RR_1:C_2",
+      latestEventId: `RR_1:${at(10)}`,
       occurredAt: at(20),
       waitingSince: at(20),
       waitingOnAuthor: false,
+    });
+  });
+
+  it("makes no new event when the author keeps going", () => {
+    const pr = {
+      ...commentedAt(10),
+      comments: [comment("C_2", "sam", 20)],
+      headSha: "def456",
+      headCommittedAt: at(30),
+    };
+    expect(detect(pr)[0]).toMatchObject({
+      latestEventId: `RR_1:${at(10)}`,
+      waitingSince: at(20),
     });
   });
 
@@ -232,7 +245,8 @@ describe("waiting on the author", () => {
       headCommittedAt: at(20),
     };
     expect(detect(pr)[0]).toMatchObject({
-      latestEventId: "RR_1:def456",
+      latestEventId: `RR_1:${at(10)}`,
+      waitingSince: at(20),
       waitingOnAuthor: false,
     });
   });
@@ -249,13 +263,13 @@ describe("waiting on the author", () => {
     });
   });
 
-  it("waits again when you answer, keeping the same event", () => {
+  it("waits again when you answer", () => {
     const pr = {
       ...commentedAt(10),
       comments: [comment("C_2", "sam", 20), comment("C_3", VIEWER, 30)],
     };
     expect(detect(pr)[0]).toMatchObject({
-      latestEventId: "RR_1:C_2",
+      latestEventId: "RR_1",
       occurredAt: at(30),
       waitingOnAuthor: true,
     });
