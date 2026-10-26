@@ -157,7 +157,13 @@
   font-weight: 600;
 }
 
-/* Scrolls on its own, so the top bar stays put. */
+/* Scrolls on its own, so the top bar and the PR card stay put. */
+/* The PR's card, fixed under the top bar. Dragging it moves the sheet, like the bar. */
+.head {
+  flex: none;
+  padding: var(--space-1) var(--space-4) var(--space-3);
+}
+
 .scroll {
   flex: 1 1 auto;
   min-height: 0;

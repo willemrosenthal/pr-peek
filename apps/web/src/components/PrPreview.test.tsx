@@ -67,6 +67,9 @@ function setup(
 it("shows the PR right away, then its description as formatted text", async () => {
   const { row } = setup(() => json(preview()));
   expect(screen.getByRole("dialog", { name: row.pr.title })).toBeTruthy();
+  // The title stays put: it's not in the part that scrolls.
+  const title = screen.getByRole("heading", { name: row.pr.title });
+  expect(title.closest(`.${styles.scroll}`)).toBeNull();
   expect(screen.getByText(/acme \/ web-app/)).toBeTruthy();
   // Why it's on the list, until the comments load.
   expect(screen.getByText('jordan: "Thanks!"')).toBeTruthy();

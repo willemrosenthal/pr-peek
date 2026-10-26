@@ -112,7 +112,9 @@ function Sheet({
         </div>
       </div>
 
-      <Drawer.Content className={styles.scroll}>
+      {/* The PR's card stays put under the top bar. Only what's below it scrolls, so the
+          title can't scroll out of sight. */}
+      <div className={styles.head}>
         <section className={styles.card}>
           <div className={styles.cardBody}>
             <p className={styles.repo}>
@@ -145,7 +147,9 @@ function Sheet({
             </p>
           )}
         </section>
+      </div>
 
+      <Drawer.Content className={styles.scroll}>
         {item && <ForYou item={item} preview={data} />}
 
         {preview.isPending && (
