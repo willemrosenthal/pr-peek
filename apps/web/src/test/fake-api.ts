@@ -67,7 +67,7 @@ const prRef = (): ItemDto["pr"] => ({
   url: `https://github.com/acme/web-app/pull/${itemCount}`,
   author: "sam",
   color: null,
-  markedUnread: false,
+  important: false,
 });
 
 export const item = (fields: Partial<ItemDto> = {}): ItemDto => {
@@ -89,6 +89,14 @@ export const item = (fields: Partial<ItemDto> = {}): ItemDto => {
     ...fields,
   };
 };
+
+// The row with its PR marked important.
+export const important = <Row extends { pr: ItemDto["pr"] }>(
+  row: Row,
+): Row => ({
+  ...row,
+  pr: { ...row.pr, important: true },
+});
 
 export const idlePr = (fields: Partial<IdlePrDto> = {}): IdlePrDto => {
   itemCount += 1;

@@ -1,9 +1,8 @@
 import type { ItemKind, StaleLevel } from "@pr-peek/core";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { idlePr, item } from "../test/fake-api";
+import { describe, expect, it } from "vitest";
+import { idlePr, important, item } from "../test/fake-api";
 import { IdlePrRow, ItemRow } from "./ItemRow";
-import styles from "./ItemRow.module.css";
 
 it("links to the PR and shows what happened", () => {
   render(
@@ -19,7 +18,7 @@ it("links to the PR and shows what happened", () => {
           url: "https://github.com/acme/web-app/pull/482",
           author: "sam",
           color: null,
-          markedUnread: false,
+          important: false,
         },
       })}
     />,
@@ -59,37 +58,20 @@ it("marks unseen items for screen readers too", () => {
   expect(screen.getByRole("link").textContent).toMatch(/^New: /);
 });
 
-describe("a PR marked unread", () => {
-  const marked = () => {
-    const row = item();
-    return { ...row, pr: { ...row.pr, markedUnread: true } };
-  };
-
-  it("shows the dot, and says Unread to screen readers", () => {
-    render(<ItemRow item={marked()} />);
-    const link = screen.getByRole("link");
-    expect(link.className).toContain(styles.unseen);
-    expect(link.textContent).toMatch(/^Unread: /);
+describe("a PR marked important", () => {
+  it("has a flag, after the dot for something new", () => {
+    render(<ItemRow item={important(item({ unseen: true }))} />);
+    expect(screen.getByRole("link").textContent).toMatch(/^New: Important: /);
   });
 
-  it("shows the dot on an idle PR too", () => {
-    const idle = idlePr();
-    render(
-      <IdlePrRow pr={{ ...idle, pr: { ...idle.pr, markedUnread: true } }} />,
-    );
-    expect(screen.getByRole("link").className).toContain(styles.unseen);
+  it("has a flag on an idle PR too", () => {
+    render(<IdlePrRow pr={important(idlePr())} />);
+    expect(screen.getByRole("link").textContent).toMatch(/^Important: /);
   });
 
-  it("has no dot when quiet", () => {
-    render(<ItemRow item={marked()} quiet />);
-    expect(screen.getByRole("link").className).not.toContain(styles.unseen);
-  });
-
-  it("tells the list when its link opens", () => {
-    const onOpen = vi.fn();
-    render(<ItemRow item={marked()} onOpen={onOpen} />);
-    fireEvent.click(screen.getByRole("link"));
-    expect(onOpen).toHaveBeenCalledTimes(1);
+  it("has no flag when quiet", () => {
+    render(<ItemRow item={important(item())} quiet />);
+    expect(screen.getByRole("link").textContent).not.toContain("Important");
   });
 });
 

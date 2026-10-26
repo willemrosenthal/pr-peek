@@ -46,7 +46,7 @@ One PR for all of it.
 ### 13.3 The sheet (design A3)
 
 - [x] A bottom sheet (Base UI Drawer) at one height, 95% of the screen. Swipe down or tap outside to close. Letting go past 15% of its height (at least 80px) closes it, not just past half. The closing slide always plays to the end. The list's page holds the sheet, so it stays when a section goes away.
-- [x] Top bar: Quiet (or Bring back) on the left, Open on the right. Mark unread (or Mark read) came later, next to Quiet, and closes the sheet like Quiet.
+- [x] Top bar: Quiet (or Bring back) on the left, Open on the right. Mark important (or Remove flag) came later, next to Quiet, and closes the sheet like Quiet.
 - [x] Focus goes to the sheet, not its first button. No text gets selected by the press that opened it.
 - [x] Cards: the PR (repo, title, the author with their picture, every reviewer with where they stand (waiting, approved, requested changes, commented), failing checks), first, then "For you" (the conversation, or why it's on the list), the description, then the conversation when "For you" doesn't have it.
 - [x] Descriptions and comments formatted like on GitHub.

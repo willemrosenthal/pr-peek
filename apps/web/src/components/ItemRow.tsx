@@ -5,6 +5,7 @@ import {
   CircleCheck,
   CircleX,
   Eye,
+  Flag,
   MessageCircle,
   MessageSquareText,
   RefreshCw,
@@ -14,7 +15,6 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { cx } from "../cx";
-import { showsDot } from "../unread";
 import styles from "./ItemRow.module.css";
 
 const KIND_ICONS: Record<
@@ -36,40 +36,35 @@ const AGE_TONES: Record<StaleLevel, string | undefined> = {
   late: styles.danger,
 };
 
-// What a screen reader hears before the title of a row with the dot.
-const dotLabel = (item: ItemDto | null) =>
-  item?.unseen ? "New: " : "Unread: ";
-
 // One item, as two lines: what PR and how long, then what happened and where. A quiet
-// one is a single grey line. `onOpen` is called when its link opens.
+// one is a single grey line.
 export function ItemRow({
   item,
   quiet = false,
   showAuthor = false,
-  onOpen,
 }: {
   item: ItemDto;
   quiet?: boolean;
   showAuthor?: boolean;
-  onOpen?: () => void;
 }) {
   const { Icon: KindIcon, tone } = KIND_ICONS[item.kind];
   const botComment = item.actorIsBot && item.kind === "commented";
-  const dot = showsDot(item.pr, item) && !quiet;
   return (
     <Row
       pr={item.pr}
       quiet={quiet}
       showAuthor={showAuthor}
-      className={dot ? styles.unseen : undefined}
-      onOpen={onOpen}
+      className={item.unseen && !quiet ? styles.unseen : undefined}
       // Keeps the kind's color, so a bot's approval still reads as an approval.
       // Bot comments get their own color.
       Icon={item.actorIsBot ? BotMessageSquare : KindIcon}
       tone={botComment ? styles.bot : tone}
       title={
         <>
-          {dot && <span className="visually-hidden">{dotLabel(item)}</span>}
+          {item.unseen && !quiet && (
+            <span className="visually-hidden">New: </span>
+          )}
+          {!quiet && <ImportantFlag pr={item.pr} />}
           {item.pr.title}
         </>
       }
@@ -90,26 +85,22 @@ export function IdlePrRow({
   pr,
   quiet = false,
   showAuthor = false,
-  onOpen,
 }: {
   pr: IdlePrDto;
   quiet?: boolean;
   showAuthor?: boolean;
-  onOpen?: () => void;
 }) {
-  const dot = showsDot(pr.pr, null) && !quiet;
   return (
     <Row
       pr={pr.pr}
       quiet={quiet}
       showAuthor={showAuthor}
-      className={cx(pr.isDraft && !quiet && styles.draft, dot && styles.unseen)}
-      onOpen={onOpen}
+      className={pr.isDraft && !quiet ? styles.draft : undefined}
       Icon={pr.isDraft ? SquircleDashed : Squircle}
       tone={styles.muted}
       title={
         <>
-          {dot && <span className="visually-hidden">{dotLabel(null)}</span>}
+          {!quiet && <ImportantFlag pr={pr.pr} />}
           {pr.pr.title}
         </>
       }
@@ -130,7 +121,6 @@ function Row({
   quiet,
   showAuthor,
   className,
-  onOpen,
   Icon,
   tone,
   title,
@@ -142,7 +132,6 @@ function Row({
   quiet: boolean;
   showAuthor: boolean;
   className: string | undefined;
-  onOpen: (() => void) | undefined;
   Icon: LucideIcon;
   tone: string | undefined;
   title: ReactNode;
@@ -162,7 +151,6 @@ function Row({
       href={pr.url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={onOpen}
     >
       {withAuthor ? (
         <Author login={pr.author} Icon={Icon} tone={tone} />
@@ -185,6 +173,17 @@ function Row({
         </span>
       )}
     </a>
+  );
+}
+
+// A flag before the title of a PR the user marked important, after the dot.
+function ImportantFlag({ pr }: { pr: ItemDto["pr"] }) {
+  if (!pr.important) return null;
+  return (
+    <>
+      <Flag className={styles.flag} aria-hidden="true" />
+      <span className="visually-hidden">Important: </span>
+    </>
   );
 }
 

@@ -15,6 +15,7 @@ import {
   groups,
   type Handlers,
   idlePr,
+  important,
   item,
   json,
   listApi,
@@ -239,10 +240,10 @@ describe("sections", () => {
     finish();
   });
 
-  // The second row's swipe: left quiets, right marks unread.
+  // The second row's swipe: left quiets, right marks it important.
   it.each([
     ["two quiets", -FAR_ENOUGH, "quiet"],
-    ["a quiet and an unread", FAR_ENOUGH, "unread"],
+    ["a quiet and an important", FAR_ENOUGH, "important"],
   ])("reloads once after %s, so neither jumps back", async (_, dx, save) => {
     const first = item();
     const second = item();
@@ -308,18 +309,14 @@ describe("preview", () => {
   });
 });
 
-describe("marking unread", () => {
-  const markedRow = () => {
-    const row = item();
-    return { ...row, pr: { ...row.pr, markedUnread: true } };
-  };
-  const hasDot = (row: { pr: { url: string } }) =>
-    rowOf(row).textContent?.startsWith("Unread: ");
+describe("marking important", () => {
+  const hasFlag = (row: { pr: { url: string } }) =>
+    rowOf(row).textContent?.includes("Important: ");
 
   // A list with `rows` under review, that keeps each PR's mark as it's saved.
-  function unreadApi(rows: ItemDto[], overrides: Handlers = {}) {
+  function importantApi(rows: ItemDto[], overrides: Handlers = {}) {
     const marked = new Set(
-      rows.filter((row) => row.pr.markedUnread).map((row) => row.pr.id),
+      rows.filter((row) => row.pr.important).map((row) => row.pr.id),
     );
     const handlers: Handlers = {
       "GET /api/items": () =>
@@ -327,17 +324,17 @@ describe("marking unread", () => {
           groups({
             review: rows.map((row) => ({
               ...row,
-              pr: { ...row.pr, markedUnread: marked.has(row.pr.id) },
+              pr: { ...row.pr, important: marked.has(row.pr.id) },
             })),
           }),
         ),
     };
     for (const { pr } of rows) {
-      handlers[`PUT /api/prs/${pr.id}/unread`] = () => {
+      handlers[`PUT /api/prs/${pr.id}/important`] = () => {
         marked.add(pr.id);
         return noContent();
       };
-      handlers[`DELETE /api/prs/${pr.id}/unread`] = () => {
+      handlers[`DELETE /api/prs/${pr.id}/important`] = () => {
         marked.delete(pr.id);
         return noContent();
       };
@@ -345,51 +342,64 @@ describe("marking unread", () => {
     return fakeApi(listApi({ ...handlers, ...overrides }));
   }
 
-  it("marks a PR unread when swiped right, and keeps its row", async () => {
+  it("marks a PR important when swiped right, and keeps its row", async () => {
     const asked = item();
-    const fetch = unreadApi([asked]);
+    const fetch = importantApi([asked]);
     renderApp("/");
 
     await sectionButton(/Needs my review/);
-    expect(hasDot(asked)).toBe(false);
+    expect(hasFlag(asked)).toBe(false);
     drag(rowOf(asked), FAR_ENOUGH);
-    await waitFor(() => expect(hasDot(asked)).toBe(true));
-    expect(callsTo(fetch, `/api/prs/${asked.pr.id}/unread`)).toHaveLength(1);
+    await waitFor(() => expect(hasFlag(asked)).toBe(true));
+    expect(callsTo(fetch, `/api/prs/${asked.pr.id}/important`)).toHaveLength(1);
     expect(screen.queryByRole("button", { name: QUIET })).toBe(null);
   });
 
-  it("marks it read when swiped right again, or opened", async () => {
-    const swiped = markedRow();
-    const opened = markedRow();
-    const fetch = unreadApi([swiped, opened]);
+  it("unmarks it when swiped right again, not when opened", async () => {
+    const marked = important(item());
+    const fetch = importantApi([marked]);
     renderApp("/");
-
     await sectionButton(/Needs my review/);
-    drag(rowOf(swiped), FAR_ENOUGH);
-    await waitFor(() => expect(hasDot(swiped)).toBe(false));
+
     // Stops jsdom trying to open the link.
     document.addEventListener("click", (event) => event.preventDefault(), {
       once: true,
     });
-    fireEvent.click(rowOf(opened));
-    await waitFor(() => expect(hasDot(opened)).toBe(false));
-    expect(callsTo(fetch, `/api/prs/${swiped.pr.id}/unread`)).toHaveLength(1);
-    expect(callsTo(fetch, `/api/prs/${opened.pr.id}/unread`)).toHaveLength(1);
+    fireEvent.click(rowOf(marked));
+    expect(hasFlag(marked)).toBe(true);
+
+    drag(rowOf(marked), FAR_ENOUGH);
+    await waitFor(() => expect(hasFlag(marked)).toBe(false));
+    expect(callsTo(fetch, `/api/prs/${marked.pr.id}/important`)).toHaveLength(
+      1,
+    );
   });
 
-  it("marks a PR unread from its preview, which closes", async () => {
+  it("marks a PR important from its preview, which closes", async () => {
     const asked = item();
-    const fetch = unreadApi([asked], previewApi(asked));
+    const fetch = importantApi([asked], previewApi(asked));
     renderApp("/");
 
     await sectionButton(/Needs my review/);
     fireEvent.contextMenu(rowOf(asked));
     await userEvent.click(
-      await screen.findByRole("button", { name: "Mark unread" }),
+      await screen.findByRole("button", { name: "Mark important" }),
     );
-    expect(callsTo(fetch, `/api/prs/${asked.pr.id}/unread`)).toHaveLength(1);
+    expect(callsTo(fetch, `/api/prs/${asked.pr.id}/important`)).toHaveLength(1);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null));
-    expect(hasDot(asked)).toBe(true);
+    expect(hasFlag(asked)).toBe(true);
+  });
+
+  it("still marks an important PR's new items seen on leaving", async () => {
+    const marked = important(item({ unseen: true }));
+    const fetch = importantApi([marked]);
+    renderApp("/");
+    await sectionButton(/Needs my review/);
+
+    act(() => setVisibility("hidden"));
+    expect(sentBodies(fetch, "POST /api/items/seen")).toEqual([
+      { ids: [marked.id] },
+    ]);
   });
 });
 

@@ -1,4 +1,4 @@
-import { Bell, BellOff, Circle, CircleDot } from "lucide-react";
+import { Bell, BellOff, Flag, FlagOff } from "lucide-react";
 import {
   useEffect,
   useRef,
@@ -80,24 +80,24 @@ function blockNextClick(row: Element) {
 }
 
 // A list row that quiets its PR, or brings it back, when swiped left. Swiped right, it
-// calls `onToggleUnread` to mark it unread, or read when it has the dot (`unread`).
-// Rows without `onToggleUnread`, like quiet ones, quiet or come back either way. A
+// calls `onToggleImportant` to mark it important, or unmark it when it is (`important`).
+// Rows without `onToggleImportant`, like quiet ones, quiet or come back either way. A
 // quiet row also has a bell button that brings it back. A long press or a right click
 // calls `onLongPress`. `onPressStart` comes partway through a long press, so the
 // preview can start loading.
 export function SwipeRow({
   quiet,
   onToggle,
-  unread = false,
-  onToggleUnread,
+  important = false,
+  onToggleImportant,
   onLongPress,
   onPressStart,
   children,
 }: {
   quiet: boolean;
   onToggle: () => void;
-  unread?: boolean;
-  onToggleUnread?: (() => void) | undefined;
+  important?: boolean;
+  onToggleImportant?: (() => void) | undefined;
   onLongPress?: () => void;
   onPressStart?: () => void;
   children: ReactNode;
@@ -162,8 +162,9 @@ export function SwipeRow({
     setArmed(false);
   };
 
-  // A swipe this way marks it unread or read, not quiet.
-  const marksUnread = (at: number) => at > 0 && onToggleUnread !== undefined;
+  // A swipe this way marks it important or unmarks it, not quiet.
+  const marksImportant = (at: number) =>
+    at > 0 && onToggleImportant !== undefined;
 
   const release = (at: number) => {
     if (Math.abs(at) < swipePx.current) {
@@ -171,9 +172,9 @@ export function SwipeRow({
       return;
     }
     // The row stays in the list, so it springs back.
-    if (marksUnread(at)) {
+    if (marksImportant(at)) {
       snapBack();
-      onToggleUnread?.();
+      onToggleImportant?.();
       return;
     }
     setDragging(false);
@@ -292,9 +293,13 @@ export function SwipeRow({
   const shown = leaving ?? offset;
   const Icon = quiet ? Bell : BellOff;
   const action = quiet ? "Bring back" : "Quiet";
-  const toUnread = marksUnread(shown);
-  const ShownIcon = toUnread ? (unread ? Circle : CircleDot) : Icon;
-  const armedStyle = toUnread || quiet ? styles.back : styles.armed;
+  const toImportant = marksImportant(shown);
+  const ShownIcon = toImportant ? (important ? FlagOff : Flag) : Icon;
+  const armedStyle = toImportant
+    ? styles.importantArmed
+    : quiet
+      ? styles.back
+      : styles.armed;
   return (
     <div
       ref={rowRef}
@@ -305,13 +310,13 @@ export function SwipeRow({
           className={cx(
             styles.action,
             shown < 0 && styles.end,
-            toUnread && styles.unread,
+            toImportant && styles.important,
             armed && armedStyle,
           )}
           aria-hidden="true"
         >
           <ShownIcon />
-          {toUnread ? (unread ? "Read" : "Unread") : action}
+          {toImportant ? (important ? "Remove flag" : "Important") : action}
         </div>
       )}
       <div

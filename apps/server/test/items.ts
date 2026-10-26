@@ -15,7 +15,7 @@ export function itemRows(db: Db) {
         | "state"
         | "githubUpdatedAt"
         | "quietAt"
-        | "unreadAt"
+        | "importantAt"
         | "snapshot"
       >
     > = {},

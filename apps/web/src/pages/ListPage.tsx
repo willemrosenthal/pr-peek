@@ -18,11 +18,11 @@ import { useStoredState } from "../hooks/useStoredState";
 import { useSync } from "../hooks/useSync";
 import {
   useItems,
-  useMarkUnread,
   useMe,
   useRepos,
   useSetQuiet,
   useSettings,
+  useToggleImportant,
 } from "../queries";
 import styles from "./ListPage.module.css";
 
@@ -51,7 +51,7 @@ export function ListPage() {
   const sync = useSync();
   const tray = useIsTray();
   const setQuiet = useSetQuiet();
-  const unread = useMarkUnread();
+  const toggleImportant = useToggleImportant();
   // The PR whose preview is open. Kept here, not in its section, so the sheet stays
   // through its closing slide even when the section goes away.
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
@@ -84,12 +84,9 @@ export function ListPage() {
           setPreview(null);
         }}
         // Closes too, since it's a reminder for later.
-        onToggleUnread={() => {
-          if (preview) unread.toggle(preview.pr, preview.item);
+        onToggleImportant={() => {
+          if (preview) toggleImportant(preview.pr);
           setPreview(null);
-        }}
-        onOpen={() => {
-          if (preview) unread.readIfMarked(preview.pr);
         }}
         onClose={() => setPreview(null)}
       />
