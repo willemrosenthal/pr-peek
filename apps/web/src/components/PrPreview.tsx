@@ -21,6 +21,9 @@ export interface PreviewTarget {
   quiet: boolean;
 }
 
+// Opens the preview on a row. The list passes it down to its rows.
+export type OnPreview = (target: PreviewTarget) => void;
+
 // Earlier comments after this many come in together.
 const MAX_STAGGER = 8;
 

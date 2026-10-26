@@ -4,7 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { usePrefetchPreview, useSetQuiet } from "../queries";
 import { IdlePrRow, ItemRow } from "./ItemRow";
 import styles from "./ItemSection.module.css";
-import type { PreviewTarget } from "./PrPreview";
+import type { OnPreview } from "./PrPreview";
 import { SwipeRow } from "./SwipeRow";
 
 // A section of the list. `idle` PRs come after the items. Rows in the `quiet` section
@@ -27,7 +27,7 @@ export function ItemSection({
   showAuthors?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onPreview: (target: PreviewTarget) => void;
+  onPreview: OnPreview;
 }) {
   const setQuiet = useSetQuiet();
   const prefetch = usePrefetchPreview();

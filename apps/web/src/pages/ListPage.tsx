@@ -6,7 +6,11 @@ import { Banners } from "../components/Banners";
 import { Button } from "../components/Button";
 import { ItemSection } from "../components/ItemSection";
 import { ListHeader } from "../components/ListHeader";
-import { PrPreview, type PreviewTarget } from "../components/PrPreview";
+import {
+  PrPreview,
+  type OnPreview,
+  type PreviewTarget,
+} from "../components/PrPreview";
 import { cx } from "../cx";
 import { useIsTray } from "../hooks/useIsTray";
 import { useMarkSeen } from "../hooks/useMarkSeen";
@@ -83,11 +87,7 @@ export function ListPage() {
   );
 }
 
-function ListBody({
-  onPreview,
-}: {
-  onPreview: (target: PreviewTarget) => void;
-}) {
+function ListBody({ onPreview }: { onPreview: OnPreview }) {
   const items = useItems();
 
   if (items.isPending) return <p className={styles.message}>Loading</p>;
@@ -116,7 +116,7 @@ function Sections({
   onPreview,
 }: {
   groups: ItemsResponse;
-  onPreview: (target: PreviewTarget) => void;
+  onPreview: OnPreview;
 }) {
   const [collapsed, setCollapsed] = useStoredState<SectionKey[]>(
     "pr-peek:collapsed",
