@@ -76,17 +76,10 @@ export function PrPreview({
     dragged.current = Number.parseFloat(value ?? "") || 0;
   };
   const endDrag = () => {
-    const popup = popupRef.current;
-    const height = popup?.offsetHeight ?? 0;
+    const height = popupRef.current?.offsetHeight ?? 0;
     const far = dragged.current >= Math.max(CLOSE_MIN_PX, height * CLOSE_SHARE);
     dragged.current = 0;
-    if (!far) return;
-    // Short of half its height, Base UI springs the sheet back up. Start the closing
-    // slide now, the way Base UI's own swipe close does, so it slides down from here
-    // instead of rising first. React keeps the attribute, since it didn't set it.
-    popup?.style.removeProperty("transition");
-    popup?.setAttribute("data-ending-style", "");
-    onClose();
+    if (far) onClose();
   };
 
   return (
@@ -101,14 +94,18 @@ export function PrPreview({
         <Drawer.Viewport className={styles.viewport}>
           <Drawer.Popup
             ref={popupRef}
-            className={styles.popup}
+            // Still on screen with no target: it's sliding away. Base UI's own mark for
+            // that, data-ending-style, doesn't do here. A phone ends Base UI's drag after
+            // ours, and short of half the sheet's height, Base UI takes the mark off and
+            // springs the sheet back up.
+            className={cx(styles.popup, !target && styles.closing)}
             initialFocus={popupRef}
-            // Phones send touch events while dragging, other pointers pointer events.
-            // Both fire on a phone, and endDrag only acts once.
+            // Pointer moves track the drag, on a phone too: Base UI keeps its touch moves
+            // to itself. A phone also sends touch start and end, after the pointer ones,
+            // in case the browser cancels the pointer. endDrag only acts once.
             onPointerDown={startDrag}
             onTouchStart={startDrag}
             onPointerMove={trackDrag}
-            onTouchMove={trackDrag}
             onPointerUp={endDrag}
             onTouchEnd={endDrag}
           >

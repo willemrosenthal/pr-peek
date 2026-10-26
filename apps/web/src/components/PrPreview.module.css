@@ -86,13 +86,14 @@
   pointer-events: none;
 }
 
+/* .closing, not [data-ending-style], for the slide away. See PrPreview.tsx. */
 .popup[data-starting-style],
-.popup[data-ending-style] {
+.closing {
   transform: translateY(calc(100% + 2px));
 }
 
 /* A fast flick closes it sooner, but never so fast that it seems to vanish. */
-.popup[data-ending-style] {
+.closing {
   transition-duration: calc(150ms + var(--drawer-swipe-strength, 1) * 250ms);
 }
 
