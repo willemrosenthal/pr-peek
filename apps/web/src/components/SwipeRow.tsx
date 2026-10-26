@@ -305,6 +305,7 @@ export function SwipeRow({
           className={cx(
             styles.action,
             shown < 0 && styles.end,
+            toUnread && styles.unread,
             armed && armedStyle,
           )}
           aria-hidden="true"

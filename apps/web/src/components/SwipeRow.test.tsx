@@ -174,10 +174,12 @@ describe("SwipeRow right swipe", () => {
     expect(onToggleUnread).not.toHaveBeenCalled();
   });
 
-  it("says Unread, in the dot's color once far enough", () => {
+  it("says Unread in the dot's color, brighter once far enough", () => {
     const { link } = setupUnread();
     hold(link, 100);
-    expect(screen.getByText("Unread").className).not.toContain(styles.back);
+    const strip = screen.getByText("Unread");
+    expect(strip.className).toContain(styles.unread);
+    expect(strip.className).not.toContain(styles.back);
     hold(link, FAR_ENOUGH);
     expect(screen.getByText("Unread").className).toContain(styles.back);
   });

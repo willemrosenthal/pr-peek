@@ -47,6 +47,19 @@ const rowOf = (row: { pr: { url: string } }) => {
   return link;
 };
 
+// A fake preview for `row`, to add to the list's handlers.
+const previewApi = (row: ItemDto): Handlers => ({
+  [`GET /api/prs/${row.pr.id}/preview?item=${row.id}`]: () =>
+    json({
+      bodyHtml: "<p>Adds login.</p>",
+      openedAge: "2d",
+      failingChecks: [],
+      reviewers: [],
+      comments: [],
+      focusId: null,
+    }),
+});
+
 describe("sections", () => {
   it("shows each section with items, and its count", async () => {
     fakeApi(
@@ -277,15 +290,7 @@ describe("preview", () => {
     const fetch = fakeApi(
       listApi({
         "GET /api/items": () => json(groups({ review: [asked] })),
-        [`GET /api/prs/${asked.pr.id}/preview?item=${asked.id}`]: () =>
-          json({
-            bodyHtml: "<p>Adds login.</p>",
-            openedAge: "2d",
-            failingChecks: [],
-            reviewers: [],
-            comments: [],
-            focusId: null,
-          }),
+        ...previewApi(asked),
         [`PUT /api/prs/${asked.pr.id}/quiet`]: () => noContent(),
       }),
     );
@@ -374,17 +379,7 @@ describe("marking unread", () => {
 
   it("marks a PR unread from its preview, which closes", async () => {
     const asked = item();
-    const fetch = unreadApi([asked], {
-      [`GET /api/prs/${asked.pr.id}/preview?item=${asked.id}`]: () =>
-        json({
-          bodyHtml: "<p>Adds login.</p>",
-          openedAge: "2d",
-          failingChecks: [],
-          reviewers: [],
-          comments: [],
-          focusId: null,
-        }),
-    });
+    const fetch = unreadApi([asked], previewApi(asked));
     renderApp("/");
 
     await sectionButton(/Needs my review/);
