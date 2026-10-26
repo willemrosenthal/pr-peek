@@ -73,8 +73,12 @@ export async function sendSummary(
   });
   if (count === 0) return "already_sent";
 
+  // Reviews waiting on the author aren't yours to do yet.
   const items = await openItems(db, userId, now);
-  const text = summaryText(items, now);
+  const text = summaryText(
+    items.filter((item) => !item.waitingOnAuthor),
+    now,
+  );
   if (!text) return "nothing_open";
 
   const user = await db.user.findUniqueOrThrow({

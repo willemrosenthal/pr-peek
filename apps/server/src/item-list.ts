@@ -101,6 +101,7 @@ export async function openItems(
           occurredAt: item.occurredAt.toISOString(),
           waitingSince: item.waitingSince?.toISOString() ?? null,
           age: formatAge(item.waitingSince ?? item.occurredAt, now),
+          waitingOnAuthor: item.waitingOnAuthor,
           staleLevel: item.waitingSince
             ? staleLevel(waitingFor(item.waitingSince, now, settings), settings)
             : null,
@@ -127,13 +128,14 @@ const KIND_RANK: Record<ItemKind, number> = {
 };
 
 const byRowRank = (a: ItemDto, b: ItemDto) =>
+  Number(a.waitingOnAuthor) - Number(b.waitingOnAuthor) ||
   SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] ||
   KIND_RANK[a.kind] - KIND_RANK[b.kind];
 
 // One row per PR, from items sorted most urgent first. Each row shows the PR's highest
 // severity item, then the first by `KIND_RANK`. Not the urgency score, which adds points
 // for unseen items, so the row would switch kinds once seen. Rows keep the place of the
-// PR's most urgent item.
+// PR's most urgent item. Items waiting on the author come last.
 export function onePerPr(items: ItemDto[]): ItemDto[] {
   const byPr = new Map<string, ItemDto[]>();
   for (const item of items) {
@@ -187,9 +189,10 @@ export function groupItems(items: ItemDto[]): ItemGroups {
   return groups;
 }
 
-// Counts PRs, like the list. The flags look at every item.
+// Counts PRs, like the list, but not those waiting on the author. The flags look at
+// every item.
 export function summarize(items: ItemDto[]): SummaryResponse {
-  const groups = groupItems(items);
+  const groups = groupItems(items.filter((item) => !item.waitingOnAuthor));
   return {
     total: groups.review.length + groups.replies.length + groups.mine.length,
     review: groups.review.length,

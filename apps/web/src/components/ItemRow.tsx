@@ -54,7 +54,14 @@ export function ItemRow({
       pr={item.pr}
       quiet={quiet}
       showAuthor={showAuthor}
-      className={item.unseen && !quiet ? styles.unseen : undefined}
+      className={
+        quiet
+          ? undefined
+          : cx(
+              item.unseen && styles.unseen,
+              item.waitingOnAuthor && styles.waiting,
+            )
+      }
       // Keeps the kind's color, so a bot's approval still reads as an approval.
       // Bot comments get their own color.
       Icon={item.actorIsBot ? BotMessageSquare : KindIcon}
@@ -72,6 +79,9 @@ export function ItemRow({
       // Only review requests have a stale level.
       ageTone={item.staleLevel ? AGE_TONES[item.staleLevel] : styles.muted}
     >
+      {item.waitingOnAuthor && (
+        <span className={styles.tag}>Waiting on author</span>
+      )}
       <span className={styles.summaryText}>{item.summary}</span>
       {item.otherIds.length > 0 && (
         <span className={styles.more}>+{item.otherIds.length} more</span>

@@ -25,6 +25,7 @@ describe("check failed on my PR", () => {
         summary: "e2e-tests, lint",
         occurredAt: at(0),
         waitingSince: null,
+        waitingOnAuthor: false,
       },
     ]);
   });
@@ -74,6 +75,7 @@ describe("check failed on my PR", () => {
             summary: "Checks failed before the branch update",
             occurredAt: at(0),
             waitingSince: null,
+            waitingOnAuthor: false,
           },
         ]);
       },

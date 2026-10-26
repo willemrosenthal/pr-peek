@@ -34,8 +34,10 @@ export interface ItemDto {
   waitingSince: string | null;
   // Real time since the wait started (or the event), like "3h".
   age: string;
-  // Only review requests have one.
+  // Only review requests have one. Null while waiting on the author.
   staleLevel: StaleLevel | null;
+  // A review request you commented on, until the author replies or pushes.
+  waitingOnAuthor: boolean;
   severity: Severity;
   // True if any of the PR's open items is unseen.
   unseen: boolean;

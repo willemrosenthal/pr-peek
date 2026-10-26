@@ -30,6 +30,7 @@ describe("my PR was reviewed", () => {
         summary: "jlee approved",
         occurredAt: at(10),
         waitingSince: null,
+        waitingOnAuthor: false,
       },
     ]);
   });

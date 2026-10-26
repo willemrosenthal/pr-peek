@@ -37,6 +37,7 @@ export const checkFailed: Rule = {
         // Checks don't come with a finish time, so use the push's.
         occurredAt: push.committedAt,
         waitingSince: null,
+        waitingOnAuthor: false,
       },
     ];
   },

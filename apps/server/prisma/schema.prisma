@@ -190,23 +190,25 @@ model PullRequest {
 }
 
 model Item {
-  id            String     @id @default(cuid())
-  userId        String
-  pullRequestId String
-  kind          String
-  dedupeKey     String
-  latestEventId String
-  eventCount    Int        @default(1)
-  actorLogin    String?
-  actorIsBot    Boolean    @default(false)
-  summary       String
-  occurredAt    DateTime
-  waitingSince  DateTime?
-  status        ItemStatus @default(open)
-  resolvedAt    DateTime?
-  seenAt        DateTime?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id              String     @id @default(cuid())
+  userId          String
+  pullRequestId   String
+  kind            String
+  dedupeKey       String
+  latestEventId   String
+  eventCount      Int        @default(1)
+  actorLogin      String?
+  actorIsBot      Boolean    @default(false)
+  summary         String
+  occurredAt      DateTime
+  waitingSince    DateTime?
+  // A review request the user commented on, until the author replies or pushes.
+  waitingOnAuthor Boolean    @default(false)
+  status          ItemStatus @default(open)
+  resolvedAt      DateTime?
+  seenAt          DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   pullRequest      PullRequest       @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)

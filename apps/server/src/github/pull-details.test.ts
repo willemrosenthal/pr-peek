@@ -60,7 +60,7 @@ describe("fetchPrDetails", () => {
                 author: { login: "octocat", isBot: false },
                 bodyPreview: "Why this?",
                 mentions: [],
-                createdAt: "2026-10-21T09:10:00Z",
+                createdAt: "2026-10-21T07:50:00Z",
                 replyToId: null,
               },
               {

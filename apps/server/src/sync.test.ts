@@ -430,7 +430,7 @@ describe("items", () => {
     pr.reviewRequests.nodes = [];
     pr.reviews.nodes.push({
       id: "R_3",
-      state: "COMMENTED",
+      state: "APPROVED",
       submittedAt: "2026-10-21T10:30:00Z",
       bodyText: "",
       author: { __typename: "User", login: "octocat" },
@@ -443,6 +443,36 @@ describe("items", () => {
       { kind: "reply", status: "resolved", resolvedAt: later },
       { kind: "review_requested", status: "resolved", resolvedAt: later },
     ]);
+  });
+
+  it("keeps a review request you only commented on, waiting on the author", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    const before = await itemOf("review_requested");
+
+    // GitHub drops the request after a "Comment" review.
+    const pr = githubPr();
+    pr.reviewRequests.nodes = [];
+    pr.reviews.nodes.push({
+      id: "R_3",
+      state: "COMMENTED",
+      submittedAt: "2026-10-21T10:30:00Z",
+      bodyText: "",
+      author: { __typename: "User", login: "octocat" },
+    });
+    const { result } = await sync(
+      user.id,
+      asked(pr, "2026-10-21T10:30:00Z"),
+      hours(1),
+    );
+
+    expect(result.newEventItemIds).toEqual([]);
+    expect(await itemOf("review_requested")).toMatchObject({
+      id: before.id,
+      status: "open",
+      waitingOnAuthor: true,
+      waitingSince: null,
+    });
   });
 
   it("keeps items when a search misses a PR that's still open", async () => {

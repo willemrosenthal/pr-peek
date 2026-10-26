@@ -50,26 +50,24 @@ export const reviewSummary = (review: PrReview): PrComment => ({
 });
 
 // Conversation comments and review thread comments together.
-const allComments = (snapshot: PrSnapshot) => [
+export const allComments = (snapshot: PrSnapshot) => [
   ...snapshot.comments,
   ...snapshot.threads.flatMap((thread) => thread.comments),
 ];
 
+// When the viewer commented on or reviewed the PR, in no order.
+export const viewerActivity = (snapshot: PrSnapshot, ctx: RuleContext) => [
+  ...allComments(snapshot)
+    .filter((comment) => isViewer(comment.author, ctx))
+    .map((comment) => comment.createdAt),
+  ...snapshot.reviews
+    .filter((review) => isViewer(review.author, ctx))
+    .map((review) => review.submittedAt),
+];
+
 // When the viewer last commented on or reviewed the PR, or null if never.
-export function viewerLastActivity(
-  snapshot: PrSnapshot,
-  ctx: RuleContext,
-): string | null {
-  const times = [
-    ...allComments(snapshot)
-      .filter((comment) => isViewer(comment.author, ctx))
-      .map((comment) => comment.createdAt),
-    ...snapshot.reviews
-      .filter((review) => isViewer(review.author, ctx))
-      .map((review) => review.submittedAt),
-  ];
-  return latestBy(times, (time) => time) ?? null;
-}
+export const viewerLastActivity = (snapshot: PrSnapshot, ctx: RuleContext) =>
+  latestBy(viewerActivity(snapshot, ctx), (time) => time) ?? null;
 
 // The author's latest real push. Merges from the base branch, like "Update branch",
 // don't count. Falls back to the head commit when the snapshot doesn't say.
@@ -103,6 +101,7 @@ export function commentsItem(
       summary: `${latest.author.login}: "${latest.bodyPreview}"${andMore(comments.length)}`,
       occurredAt: latest.createdAt,
       waitingSince: null,
+      waitingOnAuthor: false,
     },
   ];
 }

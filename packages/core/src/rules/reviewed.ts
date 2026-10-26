@@ -57,6 +57,7 @@ export const reviewed: Rule = {
         summary: `${latest.author.login} ${verb}${andMore(open.length)}`,
         occurredAt: latest.submittedAt,
         waitingSince: null,
+        waitingOnAuthor: false,
       },
     ];
   },

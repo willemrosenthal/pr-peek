@@ -82,6 +82,7 @@ export const item = (fields: Partial<ItemDto> = {}): ItemDto => {
     waitingSince: "2026-10-21T10:00:00.000Z",
     age: "2h",
     staleLevel: "fresh",
+    waitingOnAuthor: false,
     severity: "normal",
     unseen: false,
     otherIds: [],
