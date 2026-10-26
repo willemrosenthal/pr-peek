@@ -24,7 +24,8 @@ function statusOf(reviews: PrReview[]): ReviewerStatus {
 
 // Everyone asked to review the PR, and everyone who has: those still waiting first (in
 // the order they were asked), then the rest by their latest review. Someone asked again
-// after reviewing is waiting. The author's own reviews are replies, so they're left out.
+// after reviewing is waiting. The author's own reviews are replies, so they're left out,
+// and so are bots' reviews.
 export function reviewersOf(snapshot: PrSnapshot): Reviewer[] {
   const key = (login: string) => login.toLowerCase();
   const author = key(snapshot.author.login);
@@ -45,7 +46,8 @@ export function reviewersOf(snapshot: PrSnapshot): Reviewer[] {
   );
   for (const review of reviews) {
     const login = key(review.author.login);
-    if (login === author || asked.has(login)) continue;
+    // Bots, like Copilot's AI reviewer, aren't people to wait on.
+    if (review.author.isBot || login === author || asked.has(login)) continue;
     const theirs = byPerson.get(login) ?? [];
     byPerson.delete(login);
     byPerson.set(login, [...theirs, review]);

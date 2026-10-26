@@ -10,9 +10,10 @@ const review = (
   login: string,
   state: PrReview["state"],
   minute: number,
+  isBot = false,
 ): PrReview => ({
   id: `R_${(reviewCount += 1)}`,
-  author: { login, isBot: false },
+  author: { login, isBot },
   state,
   submittedAt: at(minute),
 });
@@ -84,6 +85,16 @@ describe("reviewersOf", () => {
       reviews: [review("jules", "CHANGES_REQUESTED", 1)],
     });
     expect(statuses(pr)).toEqual(["Jules:requested"]);
+  });
+
+  it("leaves out bots, like Copilot's AI reviewer", () => {
+    const pr = snapshot({
+      reviews: [
+        review("copilot-pull-request-reviewer", "COMMENTED", 1, true),
+        review("jules", "APPROVED", 2),
+      ],
+    });
+    expect(statuses(pr)).toEqual(["jules:approved"]);
   });
 
   it("leaves out the author's own reviews", () => {
