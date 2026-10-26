@@ -68,6 +68,9 @@ describe("review requested", () => {
   it("makes no item once you're no longer asked", () => {
     const pr = { ...askedAt(5), reviewRequests: [] };
     expect(detect(pr)).toEqual([]);
+    // Only your own review keeps a dropped request.
+    const reviewed = { ...pr, reviews: [review("R_1", "jlee", 10)] };
+    expect(detect(reviewed)).toEqual([]);
   });
 
   it("skips drafts unless you opt in", () => {
