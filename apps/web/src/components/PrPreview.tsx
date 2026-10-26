@@ -27,6 +27,11 @@ export type OnPreview = (target: PreviewTarget) => void;
 // Earlier comments after this many come in together.
 const MAX_STAGGER = 8;
 
+// Letting go of the sheet this far down closes it: a share of its height, but at least
+// CLOSE_MIN_PX. Base UI alone needs half its height, which is a long pull on a tall sheet.
+const CLOSE_SHARE = 0.15;
+const CLOSE_MIN_PX = 80;
+
 // A bottom sheet with more about a PR: its title, repo, why it's on the list, the
 // description, and the conversation. Design A3 in docs/13-pr-preview.md. One height;
 // swipe down to close.
@@ -46,6 +51,22 @@ export function PrPreview({
   const popupRef = useRef<HTMLDivElement>(null);
   if (target && target !== shown) setShown(target);
 
+  // How far the sheet is dragged down, from the variable Base UI sets on it while it's
+  // dragged. Kept from the last move, since Base UI resets it when the drag ends.
+  const dragged = useRef(0);
+  const trackDrag = () => {
+    const value = popupRef.current?.style.getPropertyValue(
+      "--drawer-swipe-movement-y",
+    );
+    dragged.current = Number.parseFloat(value ?? "") || 0;
+  };
+  const endDrag = () => {
+    const height = popupRef.current?.offsetHeight ?? 0;
+    const far = dragged.current >= Math.max(CLOSE_MIN_PX, height * CLOSE_SHARE);
+    dragged.current = 0;
+    if (far) onClose();
+  };
+
   return (
     <Drawer.Root
       open={target !== null}
@@ -60,6 +81,12 @@ export function PrPreview({
             ref={popupRef}
             className={styles.popup}
             initialFocus={popupRef}
+            // Phones send touch events while dragging, other pointers pointer events.
+            // Both fire on a phone, and endDrag only acts once.
+            onPointerMove={trackDrag}
+            onTouchMove={trackDrag}
+            onPointerUp={endDrag}
+            onTouchEnd={endDrag}
           >
             {shown && (
               <Sheet
@@ -87,6 +114,8 @@ function Sheet({
   const { data } = preview;
   const failing = data?.failingChecks ?? [];
   const QuietIcon = quiet ? Bell : BellOff;
+  // Set once the user touches, scrolls, or types in the content. See onScroll below.
+  const userScrolls = useRef(false);
   return (
     <>
       <div className={styles.dragArea}>
@@ -112,9 +141,18 @@ function Sheet({
         </div>
       </div>
 
-      {/* The PR's card stays put under the top bar. Only what's below it scrolls, so the
-          title can't scroll out of sight. */}
-      <div className={styles.head}>
+      <Drawer.Content
+        className={styles.scroll}
+        // The sheet opens at the top, with the PR's card first. Something on phones can
+        // scroll it down as it opens (not the user: their finger went down on the row).
+        // So until the user touches, scrolls, or types in it, any scroll is undone.
+        onPointerDown={() => (userScrolls.current = true)}
+        onWheel={() => (userScrolls.current = true)}
+        onKeyDown={() => (userScrolls.current = true)}
+        onScroll={(event) => {
+          if (!userScrolls.current) event.currentTarget.scrollTop = 0;
+        }}
+      >
         <section className={styles.card}>
           <div className={styles.cardBody}>
             <p className={styles.repo}>
@@ -147,9 +185,7 @@ function Sheet({
             </p>
           )}
         </section>
-      </div>
 
-      <Drawer.Content className={styles.scroll}>
         {item && <ForYou item={item} preview={data} />}
 
         {preview.isPending && (

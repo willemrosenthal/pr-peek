@@ -4,9 +4,9 @@ import type {
   PrPreviewResponse,
 } from "@pr-peek/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { apiError, fakeApi, item, json } from "../test/fake-api";
 import { PrPreview } from "./PrPreview";
 import styles from "./PrPreview.module.css";
@@ -49,6 +49,7 @@ function setup(
   });
   fakeApi({ [`GET /api/prs/${row.pr.id}/preview?item=${row.id}`]: answer });
   const onToggleQuiet = vi.fn();
+  const onClose = vi.fn();
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -57,19 +58,16 @@ function setup(
       <PrPreview
         target={{ pr: row.pr, item: row, quiet }}
         onToggleQuiet={onToggleQuiet}
-        onClose={() => {}}
+        onClose={onClose}
       />
     </QueryClientProvider>,
   );
-  return { row, onToggleQuiet };
+  return { row, onToggleQuiet, onClose };
 }
 
 it("shows the PR right away, then its description as formatted text", async () => {
   const { row } = setup(() => json(preview()));
   expect(screen.getByRole("dialog", { name: row.pr.title })).toBeTruthy();
-  // The title stays put: it's not in the part that scrolls.
-  const title = screen.getByRole("heading", { name: row.pr.title });
-  expect(title.closest(`.${styles.scroll}`)).toBeNull();
   expect(screen.getByText(/acme \/ web-app/)).toBeTruthy();
   // Why it's on the list, until the comments load.
   expect(screen.getByText('jordan: "Thanks!"')).toBeTruthy();
@@ -158,6 +156,44 @@ it("has Quiet and Open at the top", async () => {
 it("offers Bring back for a quiet PR", () => {
   setup(() => json(preview()), {}, true);
   expect(screen.getByRole("button", { name: "Bring back" })).toBeTruthy();
+});
+
+it("undoes a scroll the user didn't start, so the PR's card stays in view", () => {
+  setup(() => json(preview()));
+  const scroller = document.querySelector<HTMLElement>(`.${styles.scroll}`)!;
+  // jsdom doesn't scroll, so scrollTop is stood in for.
+  Object.defineProperty(scroller, "scrollTop", { value: 0, writable: true });
+  const scrollTo = (top: number) => {
+    scroller.scrollTop = top;
+    fireEvent.scroll(scroller);
+    return scroller.scrollTop;
+  };
+
+  expect(scrollTo(200)).toBe(0);
+  fireEvent.pointerDown(scroller);
+  expect(scrollTo(200)).toBe(200);
+});
+
+describe("dragging the sheet down", () => {
+  // Base UI sets this on the sheet while it's dragged.
+  const drag = (px: number) => {
+    const sheet = screen.getByRole("dialog");
+    sheet.style.setProperty("--drawer-swipe-movement-y", `${px}px`);
+    fireEvent.pointerMove(sheet);
+    fireEvent.pointerUp(sheet);
+  };
+
+  it("closes it once it's let go past a short distance", () => {
+    const { onClose } = setup(() => json(preview()));
+    drag(90);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves it open after a small drag", () => {
+    const { onClose } = setup(() => json(preview()));
+    drag(40);
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
 
 it("offers to try again when the details don't load", async () => {
