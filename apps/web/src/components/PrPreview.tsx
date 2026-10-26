@@ -4,8 +4,21 @@ import type {
   ItemKind,
   PrPreviewResponse,
   PreviewCommentDto,
+  ReviewerDto,
+  ReviewerStatus,
 } from "@pr-peek/core";
-import { Bell, BellOff, CircleX, ExternalLink } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  Clock,
+  ExternalLink,
+  MessageCircle,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cx } from "../cx";
 import { usePrPreview } from "../queries";
@@ -27,6 +40,11 @@ export type OnPreview = (target: PreviewTarget) => void;
 // Earlier comments after this many come in together.
 const MAX_STAGGER = 8;
 
+// Letting go of the sheet this far down closes it: a share of its height, but at least
+// CLOSE_MIN_PX. Base UI alone needs half its height, which is a long pull on a tall sheet.
+const CLOSE_SHARE = 0.15;
+const CLOSE_MIN_PX = 80;
+
 // A bottom sheet with more about a PR: its title, repo, why it's on the list, the
 // description, and the conversation. Design A3 in docs/13-pr-preview.md. One height;
 // swipe down to close.
@@ -46,6 +64,24 @@ export function PrPreview({
   const popupRef = useRef<HTMLDivElement>(null);
   if (target && target !== shown) setShown(target);
 
+  // How far the sheet is dragged down, from the variable Base UI sets on it while it's
+  // dragged. Kept from the last move, since Base UI resets it when the drag ends. Each
+  // press starts from 0, so a drag the browser cancelled can't close it on a later tap.
+  const dragged = useRef(0);
+  const startDrag = () => (dragged.current = 0);
+  const trackDrag = () => {
+    const value = popupRef.current?.style.getPropertyValue(
+      "--drawer-swipe-movement-y",
+    );
+    dragged.current = Number.parseFloat(value ?? "") || 0;
+  };
+  const endDrag = () => {
+    const height = popupRef.current?.offsetHeight ?? 0;
+    const far = dragged.current >= Math.max(CLOSE_MIN_PX, height * CLOSE_SHARE);
+    dragged.current = 0;
+    if (far) onClose();
+  };
+
   return (
     <Drawer.Root
       open={target !== null}
@@ -60,6 +96,14 @@ export function PrPreview({
             ref={popupRef}
             className={styles.popup}
             initialFocus={popupRef}
+            // Phones send touch events while dragging, other pointers pointer events.
+            // Both fire on a phone, and endDrag only acts once.
+            onPointerDown={startDrag}
+            onTouchStart={startDrag}
+            onPointerMove={trackDrag}
+            onTouchMove={trackDrag}
+            onPointerUp={endDrag}
+            onTouchEnd={endDrag}
           >
             {shown && (
               <Sheet
@@ -130,6 +174,9 @@ function Sheet({
                 {data && ` · opened ${data.openedAge} ago`}
               </span>
             </p>
+            {data && data.reviewers.length > 0 && (
+              <Reviewers reviewers={data.reviewers} />
+            )}
           </div>
           {failing.length > 0 && (
             <p className={styles.checks}>
@@ -363,6 +410,52 @@ function Comment({
         </p>
         {comment.bodyHtml && <GitHubHtml html={comment.bodyHtml} />}
       </div>
+    </div>
+  );
+}
+
+// Where each reviewer stands, as an icon with a label for screen readers and hover.
+const REVIEWER_STATUS: Record<
+  ReviewerStatus,
+  { Icon: LucideIcon; label: string; tone: string | undefined }
+> = {
+  requested: { Icon: Clock, label: "waiting", tone: styles.neutral },
+  approved: { Icon: CircleCheck, label: "approved", tone: styles.approved },
+  changes_requested: {
+    Icon: CircleAlert,
+    label: "requested changes",
+    tone: styles.changes,
+  },
+  commented: { Icon: MessageCircle, label: "commented", tone: styles.neutral },
+};
+
+// Everyone asked to review and everyone who has, each with their picture and an icon
+// for where they stand. Teams get a team icon.
+function Reviewers({ reviewers }: { reviewers: ReviewerDto[] }) {
+  return (
+    <div className={styles.reviewers}>
+      <span className={styles.reviewersLabel}>Reviewers</span>
+      <ul className={styles.reviewerList}>
+        {reviewers.map((reviewer) => {
+          const { Icon, label, tone } = REVIEWER_STATUS[reviewer.status];
+          return (
+            <li key={reviewer.name} className={styles.reviewer}>
+              {reviewer.isTeam ? (
+                <span className={styles.avatar} aria-hidden="true">
+                  <Users />
+                </span>
+              ) : (
+                <Avatar login={reviewer.name} />
+              )}
+              {reviewer.isYou ? "You" : reviewer.name}
+              <span className={cx(styles.reviewerStatus, tone)} title={label}>
+                <Icon aria-hidden="true" />
+                <span className="visually-hidden">, {label}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

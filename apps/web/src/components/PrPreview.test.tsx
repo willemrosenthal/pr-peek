@@ -4,9 +4,9 @@ import type {
   PrPreviewResponse,
 } from "@pr-peek/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { apiError, fakeApi, item, json } from "../test/fake-api";
 import { PrPreview } from "./PrPreview";
 import styles from "./PrPreview.module.css";
@@ -31,6 +31,7 @@ const preview = (
   bodyHtml: "<h2>Why</h2><p>See the screenshots.</p>",
   openedAge: "2d",
   failingChecks: [],
+  reviewers: [],
   comments: [],
   focusId: null,
   ...fields,
@@ -49,6 +50,7 @@ function setup(
   });
   fakeApi({ [`GET /api/prs/${row.pr.id}/preview?item=${row.id}`]: answer });
   const onToggleQuiet = vi.fn();
+  const onClose = vi.fn();
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -57,11 +59,11 @@ function setup(
       <PrPreview
         target={{ pr: row.pr, item: row, quiet }}
         onToggleQuiet={onToggleQuiet}
-        onClose={() => {}}
+        onClose={onClose}
       />
     </QueryClientProvider>,
   );
-  return { row, onToggleQuiet };
+  return { row, onToggleQuiet, onClose };
 }
 
 it("shows the PR right away, then its description as formatted text", async () => {
@@ -80,6 +82,44 @@ it("puts focus on the sheet, not its first button", async () => {
   setup(() => json(preview()));
   const sheet = screen.getByRole("dialog");
   await waitFor(() => expect(document.activeElement).toBe(sheet));
+});
+
+it("lists every reviewer with where they stand, and You for the user", async () => {
+  setup(() =>
+    json(
+      preview({
+        reviewers: [
+          { name: "octocat", isTeam: false, isYou: true, status: "requested" },
+          { name: "acme/web", isTeam: true, isYou: false, status: "requested" },
+          { name: "jules", isTeam: false, isYou: false, status: "approved" },
+          {
+            name: "dev",
+            isTeam: false,
+            isYou: false,
+            status: "changes_requested",
+          },
+          { name: "lee", isTeam: false, isYou: false, status: "commented" },
+        ],
+      }),
+    ),
+  );
+  expect(await screen.findByText("Reviewers")).toBeTruthy();
+  // Each reads as its name, then its status for screen readers.
+  expect(
+    screen.getAllByRole("listitem").map((item) => item.textContent),
+  ).toEqual([
+    "You, waiting",
+    "acme/web, waiting",
+    "jules, approved",
+    "dev, requested changes",
+    "lee, commented",
+  ]);
+});
+
+it("leaves out the reviewers line when there are none", async () => {
+  setup(() => json(preview()));
+  await screen.findByText("See the screenshots.");
+  expect(screen.queryByText("Reviewers")).toBeNull();
 });
 
 it("lists failing checks", async () => {
@@ -155,6 +195,61 @@ it("has Quiet and Open at the top", async () => {
 it("offers Bring back for a quiet PR", () => {
   setup(() => json(preview()), {}, true);
   expect(screen.getByRole("button", { name: "Bring back" })).toBeTruthy();
+});
+
+describe("dragging the sheet down", () => {
+  // A press, a move, and a release, as pointer events or as a phone's touch events.
+  const EVENTS = {
+    pointer: {
+      down: fireEvent.pointerDown,
+      move: fireEvent.pointerMove,
+      up: fireEvent.pointerUp,
+    },
+    touch: {
+      down: fireEvent.touchStart,
+      move: fireEvent.touchMove,
+      up: fireEvent.touchEnd,
+    },
+  };
+  type Kind = keyof typeof EVENTS;
+
+  // Base UI sets this on the sheet while it's dragged.
+  const moveTo = (px: number, kind: Kind = "pointer") => {
+    const sheet = screen.getByRole("dialog");
+    sheet.style.setProperty("--drawer-swipe-movement-y", `${px}px`);
+    EVENTS[kind].move(sheet);
+  };
+  const drag = (px: number, kind: Kind = "pointer") => {
+    EVENTS[kind].down(screen.getByRole("dialog"));
+    moveTo(px, kind);
+    EVENTS[kind].up(screen.getByRole("dialog"));
+  };
+
+  it.each<Kind>(["pointer", "touch"])(
+    "closes it once it's let go past a short distance (%s)",
+    (kind) => {
+      const { onClose } = setup(() => json(preview()));
+      drag(90, kind);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("leaves it open after a small drag", () => {
+    const { onClose } = setup(() => json(preview()));
+    drag(40);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("doesn't close on a tap after a drag that never let go", () => {
+    const { onClose } = setup(() => json(preview()));
+    // The browser cancelled this drag, so no release came.
+    fireEvent.pointerDown(screen.getByRole("dialog"));
+    moveTo(150);
+    // A later tap, with no move.
+    fireEvent.pointerDown(screen.getByRole("dialog"));
+    fireEvent.pointerUp(screen.getByRole("dialog"));
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
 
 it("offers to try again when the details don't load", async () => {

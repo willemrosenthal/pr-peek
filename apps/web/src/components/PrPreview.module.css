@@ -171,6 +171,14 @@
   touch-action: auto;
 }
 
+/* The cards keep their height and the area scrolls. Without this, a card with
+   overflow: hidden (for its round corners) can shrink to nothing once the content is
+   taller than the sheet, since such a flex item's smallest height is 0. That hid the
+   PR's card once the description and comments loaded. */
+.scroll > * {
+  flex-shrink: 0;
+}
+
 .card {
   margin: 0;
   overflow: hidden;
@@ -224,10 +232,61 @@
   font-size: var(--text-sm);
 }
 
-.meta .avatar {
+/* Small pictures next to names in the PR's card. */
+.meta .avatar,
+.reviewer .avatar {
   width: 20px;
   height: 20px;
   font-size: 10px;
+}
+
+.reviewer .avatar svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* "Review requested from", then each reviewer. Wraps when there are many. */
+.reviewers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.reviewersLabel {
+  color: var(--color-text-tertiary);
+}
+
+.reviewerList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviewer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Where the reviewer stands. Colored by .approved, .changes, or .neutral. */
+.reviewerStatus {
+  display: flex;
+  margin-left: -2px;
+}
+
+.reviewerStatus svg {
+  width: 14px;
+  height: 14px;
+}
+
+.neutral {
+  color: var(--color-text-tertiary);
 }
 
 .checks {
