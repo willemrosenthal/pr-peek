@@ -226,7 +226,11 @@ describe("sections", () => {
     finish();
   });
 
-  it("reloads once after several quick quiets, so none jump back", async () => {
+  // The second row's swipe: left quiets, right marks unread.
+  it.each([
+    ["two quiets", -FAR_ENOUGH, "quiet"],
+    ["a quiet and an unread", FAR_ENOUGH, "unread"],
+  ])("reloads once after %s, so neither jumps back", async (_, dx, save) => {
     const first = item();
     const second = item();
     const saves: (() => void)[] = [];
@@ -238,7 +242,7 @@ describe("sections", () => {
       listApi({
         "GET /api/items": () => json(groups({ review: [first, second] })),
         [`PUT /api/prs/${first.pr.id}/quiet`]: held,
-        [`PUT /api/prs/${second.pr.id}/quiet`]: held,
+        [`PUT /api/prs/${second.pr.id}/${save}`]: held,
       }),
     );
     renderApp("/");
@@ -247,7 +251,7 @@ describe("sections", () => {
     const before = loads();
 
     drag(rowOf(first), -FAR_ENOUGH);
-    drag(rowOf(second), -FAR_ENOUGH);
+    drag(rowOf(second), dx);
     await waitFor(() => expect(saves).toHaveLength(2));
 
     await act(() => Promise.resolve(saves[0]!()));
@@ -353,17 +357,17 @@ describe("marking unread", () => {
     const swiped = markedRow();
     const opened = markedRow();
     const fetch = unreadApi([swiped, opened]);
-    // Stops jsdom trying to open the link.
-    const stay = (event: Event) => event.preventDefault();
-    document.addEventListener("click", stay);
     renderApp("/");
 
     await sectionButton(/Needs my review/);
     drag(rowOf(swiped), FAR_ENOUGH);
     await waitFor(() => expect(hasDot(swiped)).toBe(false));
+    // Stops jsdom trying to open the link.
+    document.addEventListener("click", (event) => event.preventDefault(), {
+      once: true,
+    });
     fireEvent.click(rowOf(opened));
     await waitFor(() => expect(hasDot(opened)).toBe(false));
-    document.removeEventListener("click", stay);
     expect(callsTo(fetch, `/api/prs/${swiped.pr.id}/unread`)).toHaveLength(1);
     expect(callsTo(fetch, `/api/prs/${opened.pr.id}/unread`)).toHaveLength(1);
   });

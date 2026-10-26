@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { cx } from "../cx";
+import { showsDot } from "../unread";
 import styles from "./ItemRow.module.css";
 
 const KIND_ICONS: Record<
@@ -34,10 +35,6 @@ const AGE_TONES: Record<StaleLevel, string | undefined> = {
   warn: styles.warning,
   late: styles.danger,
 };
-
-// Whether a row shows the dot: something new on it, or the user marked it unread.
-export const showsDot = (pr: ItemDto["pr"], item: ItemDto | null) =>
-  pr.markedUnread || (item?.unseen ?? false);
 
 // What a screen reader hears before the title of a row with the dot.
 const dotLabel = (item: ItemDto | null) =>

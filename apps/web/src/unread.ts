@@ -1,5 +1,9 @@
 import type { IdlePrDto, ItemDto, ItemsResponse } from "@pr-peek/core";
 
+// Whether a row shows the dot: something new on it, or the user marked it unread.
+export const showsDot = (pr: ItemDto["pr"], item: ItemDto | null) =>
+  pr.markedUnread || (item?.unseen ?? false);
+
 // The list with one PR marked unread, or read, shown until the server's list arrives.
 // Marking it read also clears the dot for something new on it, like the server does.
 export function markUnread(

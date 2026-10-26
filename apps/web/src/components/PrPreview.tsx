@@ -24,8 +24,9 @@ import {
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cx } from "../cx";
 import { usePrPreview } from "../queries";
+import { showsDot } from "../unread";
 import { GitHubHtml } from "./GitHubHtml";
-import { avatarUrl, showsDot } from "./ItemRow";
+import { avatarUrl } from "./ItemRow";
 import styles from "./PrPreview.module.css";
 
 // What a preview is opened on: a row's PR, its item if it has one, and whether it's in

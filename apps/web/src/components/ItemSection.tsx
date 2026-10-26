@@ -1,13 +1,9 @@
 import { Collapsible } from "@base-ui/react/collapsible";
 import type { IdlePrDto, ItemDto } from "@pr-peek/core";
 import { ChevronRight } from "lucide-react";
-import {
-  usePrefetchPreview,
-  useReadIfMarked,
-  useSetQuiet,
-  useSetUnread,
-} from "../queries";
-import { IdlePrRow, ItemRow, showsDot } from "./ItemRow";
+import { useMarkUnread, usePrefetchPreview, useSetQuiet } from "../queries";
+import { showsDot } from "../unread";
+import { IdlePrRow, ItemRow } from "./ItemRow";
 import styles from "./ItemSection.module.css";
 import type { OnPreview } from "./PrPreview";
 import { SwipeRow } from "./SwipeRow";
@@ -36,25 +32,19 @@ export function ItemSection({
   onPreview: OnPreview;
 }) {
   const setQuiet = useSetQuiet();
-  const setUnread = useSetUnread();
-  const readIfMarked = useReadIfMarked();
+  const unread = useMarkUnread();
   const prefetch = usePrefetchPreview();
   const toggle = (prId: string) => () =>
     setQuiet.mutate({ prId, quiet: !quiet });
   // Swipe and long press. Quiet rows show no dot, so they don't mark unread.
-  const rowProps = (pr: ItemDto["pr"], item: ItemDto | null) => {
-    const unread = showsDot(pr, item);
-    return {
-      quiet,
-      onToggle: toggle(pr.id),
-      unread,
-      onToggleUnread: quiet
-        ? undefined
-        : () => setUnread.mutate({ prId: pr.id, unread: !unread }),
-      onLongPress: () => onPreview({ pr, item, quiet }),
-      onPressStart: () => prefetch(pr.id, item?.id ?? null),
-    };
-  };
+  const rowProps = (pr: ItemDto["pr"], item: ItemDto | null) => ({
+    quiet,
+    onToggle: toggle(pr.id),
+    unread: showsDot(pr, item),
+    onToggleUnread: quiet ? undefined : () => unread.toggle(pr, item),
+    onLongPress: () => onPreview({ pr, item, quiet }),
+    onPressStart: () => prefetch(pr.id, item?.id ?? null),
+  });
   return (
     <Collapsible.Root open={open} onOpenChange={onOpenChange}>
       <h2 className={styles.heading}>
@@ -71,7 +61,7 @@ export function ItemSection({
               item={item}
               quiet={quiet}
               showAuthor={showAuthors}
-              onOpen={() => readIfMarked(item.pr)}
+              onOpen={() => unread.readIfMarked(item.pr)}
             />
           </SwipeRow>
         ))}
@@ -81,7 +71,7 @@ export function ItemSection({
               pr={pr}
               quiet={quiet}
               showAuthor={showAuthors}
-              onOpen={() => readIfMarked(pr.pr)}
+              onOpen={() => unread.readIfMarked(pr.pr)}
             />
           </SwipeRow>
         ))}

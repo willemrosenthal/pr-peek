@@ -18,12 +18,13 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { api, ApiError, isUnauthorized } from "./api";
 import { thisDeviceEndpoint } from "./push";
 import { moveQuiet } from "./quiet";
-import { markUnread } from "./unread";
+import { markUnread, showsDot } from "./unread";
 
 export const queryKeys = {
   me: ["me"],
@@ -61,72 +62,75 @@ export function useItems() {
   });
 }
 
-const SET_QUIET = ["set-quiet"];
+// Every save that changes the list right away, before the server answers: quiet and
+// unread. They share this key's start, so they wait for each other below.
+const LIST_CHANGE = ["list-change"];
 
-// Quiets a PR until something new happens on it, or brings it back. The row moves
-// right away, then the list and counts reload.
-export function useSetQuiet() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationKey: SET_QUIET,
-    mutationFn: ({ prId, quiet }: { prId: string; quiet: boolean }) =>
-      api(`/prs/${prId}/quiet`, { method: quiet ? "PUT" : "DELETE" }),
-    onMutate: async ({ prId, quiet }) => {
-      // Stops a list that's loading from undoing the move.
+// Shows `change` on the list right away, then reloads the list and counts once the
+// last of these saves settles, so a reload doesn't undo a later change. A save still
+// counts until it settles.
+function changesList<Save>(
+  queryClient: QueryClient,
+  change: (list: ItemsResponse, save: Save) => ItemsResponse,
+) {
+  return {
+    onMutate: async (save: Save) => {
+      // Stops a list that's loading from undoing the change.
       await queryClient.cancelQueries({ queryKey: queryKeys.items });
       queryClient.setQueryData<ItemsResponse>(
         queryKeys.items,
-        (old) => old && moveQuiet(old, prId, quiet),
+        (old) => old && change(old, save),
       );
     },
     onSettled: () => {
-      // Waits for the last of several quick saves, so a reload doesn't undo a later move.
-      // This save still counts until it settles.
-      if (queryClient.isMutating({ mutationKey: SET_QUIET }) > 1) return;
+      if (queryClient.isMutating({ mutationKey: LIST_CHANGE }) > 1) return;
       return Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.items }),
         queryClient.invalidateQueries({ queryKey: queryKeys.summary }),
       ]);
     },
+  };
+}
+
+// Quiets a PR until something new happens on it, or brings it back. The row moves
+// right away.
+export function useSetQuiet() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: [...LIST_CHANGE, "quiet"],
+    mutationFn: ({ prId, quiet }: { prId: string; quiet: boolean }) =>
+      api(`/prs/${prId}/quiet`, { method: quiet ? "PUT" : "DELETE" }),
+    ...changesList(queryClient, (list, { prId, quiet }) =>
+      moveQuiet(list, prId, quiet),
+    ),
   });
 }
 
-const SET_UNREAD = ["set-unread"];
-
-// Marks a PR unread, as a reminder to come back to it, or read. The dot changes right
-// away, then the list reloads.
-export function useSetUnread() {
+// Marks PRs unread, as a reminder to come back to them, or read. The dot changes right
+// away. `toggle` flips a row's dot. `readIfMarked` is for opening a PR: it clears only
+// a mark the user made, not the dot for something new.
+export function useMarkUnread() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationKey: SET_UNREAD,
+  const { mutate } = useMutation({
+    mutationKey: [...LIST_CHANGE, "unread"],
     mutationFn: ({ prId, unread }: { prId: string; unread: boolean }) =>
       api(`/prs/${prId}/unread`, {
         method: unread ? "PUT" : "DELETE",
-        // Opening the PR marks it read, and can hide the page before this is sent.
+        // Opening the PR can hide the page before this is sent.
         keepalive: true,
       }),
-    onMutate: async ({ prId, unread }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.items });
-      queryClient.setQueryData<ItemsResponse>(
-        queryKeys.items,
-        (old) => old && markUnread(old, prId, unread),
-      );
-    },
-    onSettled: () => {
-      // Like useSetQuiet: only the last of several quick saves reloads.
-      if (queryClient.isMutating({ mutationKey: SET_UNREAD }) > 1) return;
-      return queryClient.invalidateQueries({ queryKey: queryKeys.items });
-    },
+    ...changesList(queryClient, (list, { prId, unread }) =>
+      markUnread(list, prId, unread),
+    ),
   });
-}
-
-// Marks a PR read if the user marked it unread. Called when they open it.
-export function useReadIfMarked() {
-  const { mutate } = useSetUnread();
-  return useCallback(
-    (pr: ItemDto["pr"]) => {
-      if (pr.markedUnread) mutate({ prId: pr.id, unread: false });
-    },
+  return useMemo(
+    () => ({
+      toggle: (pr: ItemDto["pr"], item: ItemDto | null) =>
+        mutate({ prId: pr.id, unread: !showsDot(pr, item) }),
+      readIfMarked: (pr: ItemDto["pr"]) => {
+        if (pr.markedUnread) mutate({ prId: pr.id, unread: false });
+      },
+    }),
     [mutate],
   );
 }
