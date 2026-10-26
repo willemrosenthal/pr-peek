@@ -237,10 +237,5 @@ export function GitHubHtml({
     const doc = new DOMParser().parseFromString(html, "text/html");
     return Array.from(doc.body.childNodes, (node, i) => toReact(node, i));
   }, [html]);
-  // The mark lets the preview tell GitHub's images from avatars.
-  return (
-    <div className={cx(styles.html, className)} data-github-html="">
-      {content}
-    </div>
-  );
+  return <div className={cx(styles.html, className)}>{content}</div>;
 }
