@@ -7,6 +7,7 @@ import {
   Eye,
   Flag,
   MessageCircle,
+  MessageCircleQuestionMark,
   MessageSquareText,
   RefreshCw,
   Squircle,
@@ -30,6 +31,9 @@ const KIND_ICONS: Record<
   check_failed: { Icon: CircleX, tone: styles.failed },
 };
 
+// A review that's the author's turn. Talk's color, like replies: you're in a conversation.
+const WAITING_ICON = { Icon: MessageCircleQuestionMark, tone: styles.talk };
+
 const AGE_TONES: Record<StaleLevel, string | undefined> = {
   fresh: styles.muted,
   warn: styles.warning,
@@ -47,7 +51,9 @@ export function ItemRow({
   quiet?: boolean;
   showAuthor?: boolean;
 }) {
-  const { Icon: KindIcon, tone } = KIND_ICONS[item.kind];
+  const { Icon: KindIcon, tone } = item.waitingOnAuthor
+    ? WAITING_ICON
+    : KIND_ICONS[item.kind];
   const botComment = item.actorIsBot && item.kind === "commented";
   return (
     <Row

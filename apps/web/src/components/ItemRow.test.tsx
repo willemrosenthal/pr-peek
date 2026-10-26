@@ -56,7 +56,11 @@ it("leaves out the count when the PR has one item", () => {
 it("tags and dims a review waiting on the author", () => {
   render(<ItemRow item={item({ waitingOnAuthor: true })} />);
   expect(screen.getByText("Waiting on author")).toBeTruthy();
-  expect(screen.getByRole("link").className).toContain("waiting");
+  const link = screen.getByRole("link");
+  expect(link.className).toContain("waiting");
+  const svg = link.querySelector("svg");
+  expect(svg?.classList).toContain("lucide-message-circle-question-mark");
+  expect(svg?.parentElement?.className).toContain("talk");
 });
 
 it("has no tag when it's your turn", () => {
