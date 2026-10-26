@@ -160,11 +160,15 @@ it("offers Bring back for a quiet PR", () => {
 
 describe("dragging the sheet down", () => {
   // Base UI sets this on the sheet while it's dragged.
-  const drag = (px: number) => {
+  const moveTo = (px: number) => {
     const sheet = screen.getByRole("dialog");
     sheet.style.setProperty("--drawer-swipe-movement-y", `${px}px`);
     fireEvent.pointerMove(sheet);
-    fireEvent.pointerUp(sheet);
+  };
+  const drag = (px: number) => {
+    fireEvent.pointerDown(screen.getByRole("dialog"));
+    moveTo(px);
+    fireEvent.pointerUp(screen.getByRole("dialog"));
   };
 
   it("closes it once it's let go past a short distance", () => {
@@ -176,6 +180,17 @@ describe("dragging the sheet down", () => {
   it("leaves it open after a small drag", () => {
     const { onClose } = setup(() => json(preview()));
     drag(40);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("doesn't close on a tap after a drag that never let go", () => {
+    const { onClose } = setup(() => json(preview()));
+    // The browser cancelled this drag, so no release came.
+    fireEvent.pointerDown(screen.getByRole("dialog"));
+    moveTo(150);
+    // A later tap, with no move.
+    fireEvent.pointerDown(screen.getByRole("dialog"));
+    fireEvent.pointerUp(screen.getByRole("dialog"));
     expect(onClose).not.toHaveBeenCalled();
   });
 });

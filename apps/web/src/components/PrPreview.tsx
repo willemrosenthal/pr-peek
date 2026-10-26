@@ -52,8 +52,10 @@ export function PrPreview({
   if (target && target !== shown) setShown(target);
 
   // How far the sheet is dragged down, from the variable Base UI sets on it while it's
-  // dragged. Kept from the last move, since Base UI resets it when the drag ends.
+  // dragged. Kept from the last move, since Base UI resets it when the drag ends. Each
+  // press starts from 0, so a drag the browser cancelled can't close it on a later tap.
   const dragged = useRef(0);
+  const startDrag = () => (dragged.current = 0);
   const trackDrag = () => {
     const value = popupRef.current?.style.getPropertyValue(
       "--drawer-swipe-movement-y",
@@ -83,6 +85,8 @@ export function PrPreview({
             initialFocus={popupRef}
             // Phones send touch events while dragging, other pointers pointer events.
             // Both fire on a phone, and endDrag only acts once.
+            onPointerDown={startDrag}
+            onTouchStart={startDrag}
             onPointerMove={trackDrag}
             onTouchMove={trackDrag}
             onPointerUp={endDrag}
