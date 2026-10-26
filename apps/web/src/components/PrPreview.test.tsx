@@ -159,23 +159,41 @@ it("offers Bring back for a quiet PR", () => {
 });
 
 describe("dragging the sheet down", () => {
+  // A press, a move, and a release, as pointer events or as a phone's touch events.
+  const EVENTS = {
+    pointer: {
+      down: fireEvent.pointerDown,
+      move: fireEvent.pointerMove,
+      up: fireEvent.pointerUp,
+    },
+    touch: {
+      down: fireEvent.touchStart,
+      move: fireEvent.touchMove,
+      up: fireEvent.touchEnd,
+    },
+  };
+  type Kind = keyof typeof EVENTS;
+
   // Base UI sets this on the sheet while it's dragged.
-  const moveTo = (px: number) => {
+  const moveTo = (px: number, kind: Kind = "pointer") => {
     const sheet = screen.getByRole("dialog");
     sheet.style.setProperty("--drawer-swipe-movement-y", `${px}px`);
-    fireEvent.pointerMove(sheet);
+    EVENTS[kind].move(sheet);
   };
-  const drag = (px: number) => {
-    fireEvent.pointerDown(screen.getByRole("dialog"));
-    moveTo(px);
-    fireEvent.pointerUp(screen.getByRole("dialog"));
+  const drag = (px: number, kind: Kind = "pointer") => {
+    EVENTS[kind].down(screen.getByRole("dialog"));
+    moveTo(px, kind);
+    EVENTS[kind].up(screen.getByRole("dialog"));
   };
 
-  it("closes it once it's let go past a short distance", () => {
-    const { onClose } = setup(() => json(preview()));
-    drag(90);
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
+  it.each<Kind>(["pointer", "touch"])(
+    "closes it once it's let go past a short distance (%s)",
+    (kind) => {
+      const { onClose } = setup(() => json(preview()));
+      drag(90, kind);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("leaves it open after a small drag", () => {
     const { onClose } = setup(() => json(preview()));
