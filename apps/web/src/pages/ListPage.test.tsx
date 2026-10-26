@@ -28,7 +28,7 @@ import {
 import { renderApp } from "../test/render";
 import { drag, FAR_ENOUGH, stubPointerCapture } from "../test/swipe";
 import { callsOf, stubTauri } from "../test/tauri";
-import { setVisibility } from "../test/visibility";
+import { hideWindow, setVisibility } from "../test/visibility";
 
 beforeAll(stubPointerCapture);
 
@@ -307,6 +307,25 @@ describe("preview", () => {
     await userEvent.click(screen.getByRole("button", { name: "Quiet" }));
     expect(callsTo(fetch, `/api/prs/${asked.pr.id}/quiet`)).toHaveLength(1);
   });
+
+  // When it hides is tested with Settings, which goes back to the list the same way.
+  it("closes when the app hides", async () => {
+    stubTauri();
+    const asked = item();
+    fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ review: [asked] })),
+        ...previewApi(asked),
+      }),
+    );
+    renderApp("/?shell=tray");
+
+    await sectionButton(/Needs my review/);
+    fireEvent.contextMenu(rowOf(asked));
+    await screen.findByRole("dialog", { name: asked.pr.title });
+    act(hideWindow);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null));
+  });
 });
 
 describe("marking important", () => {
@@ -473,10 +492,7 @@ describe("marking seen", () => {
     renderApp("/?shell=tray");
     await sectionButton(/Needs my review/);
 
-    // The page can still count as visible when the window hides.
-    act(() => {
-      window.dispatchEvent(new Event("pr-peek:hidden"));
-    });
+    act(hideWindow);
     expect(seenRequests(fetch)).toEqual([[review[0]!.id]]);
   });
 
