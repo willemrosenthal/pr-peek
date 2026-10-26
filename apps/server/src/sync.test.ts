@@ -449,9 +449,29 @@ describe("items", () => {
     const user = await makeUser();
     await sync(user.id, asked());
     const before = await itemOf("review_requested");
+    await db.item.updateMany({ data: { seenAt: NOW } });
 
-    // GitHub drops the request after a "Comment" review.
-    const pr = githubPr();
+    // GitHub drops the request after a "Comment" review. Between syncs, the author
+    // answers and you answer back, so it's still the author's turn.
+    const pr = githubPr({
+      comments: {
+        nodes: [
+          ...githubPr().comments.nodes,
+          {
+            id: "IC_2",
+            author: { __typename: "User", login: "sam" },
+            bodyText: "Fixed it",
+            createdAt: "2026-10-21T10:40:00Z",
+          },
+          {
+            id: "IC_3",
+            author: { __typename: "User", login: "octocat" },
+            bodyText: "Thanks, one more thing",
+            createdAt: "2026-10-21T10:50:00Z",
+          },
+        ],
+      },
+    });
     pr.reviewRequests.nodes = [];
     pr.reviews.nodes.push({
       id: "R_3",
@@ -462,14 +482,16 @@ describe("items", () => {
     });
     const { result } = await sync(
       user.id,
-      asked(pr, "2026-10-21T10:30:00Z"),
+      asked(pr, "2026-10-21T10:50:00Z"),
       hours(1),
     );
 
     expect(result.newEventItemIds).toEqual([]);
     expect(await itemOf("review_requested")).toMatchObject({
       id: before.id,
+      latestEventId: "RRE_1:IC_2",
       status: "open",
+      seenAt: NOW,
       waitingOnAuthor: true,
       waitingSince: null,
     });

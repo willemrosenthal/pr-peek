@@ -227,7 +227,9 @@ export async function saveItems(
       const existing = stored.get(item.dedupeKey);
       if (existing && isUnchanged(existing, fields)) continue;
 
-      const isNewEvent = existing?.latestEventId !== item.latestEventId;
+      // Nothing is new while it's the author's turn: the user acted last.
+      const isNewEvent =
+        !item.waitingOnAuthor && existing?.latestEventId !== item.latestEventId;
       // Reopens an item that was resolved before.
       const update = { ...fields, status: "open" as const, resolvedAt: null };
       const saved = await tx.item.upsert({
@@ -243,8 +245,7 @@ export async function saveItems(
         select: { id: true },
       });
       written += 1;
-      // Nothing to push while it's the author's turn.
-      if (isNewEvent && !item.waitingOnAuthor) newEventIds.push(saved.id);
+      if (isNewEvent) newEventIds.push(saved.id);
     }
   }
 

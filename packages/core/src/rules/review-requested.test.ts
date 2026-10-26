@@ -125,12 +125,13 @@ describe("review requested", () => {
     });
   });
 
-  it("clears when you approve or ask for changes", () => {
-    for (const state of ["APPROVED", "CHANGES_REQUESTED"] as const) {
+  it.each(["APPROVED", "CHANGES_REQUESTED"] as const)(
+    "clears when you review with %s",
+    (state) => {
       const pr = { ...askedAt(5), reviews: [review("R_1", VIEWER, 10, state)] };
       expect(detect(pr)).toEqual([]);
-    }
-  });
+    },
+  );
 
   it("clears when the request is taken back after you comment", () => {
     const pr = snapshot({
