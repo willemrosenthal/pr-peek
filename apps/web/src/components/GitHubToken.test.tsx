@@ -99,6 +99,22 @@ it("has no cancel when there's no working token", async () => {
   expect(screen.queryByRole("button", { name: "Cancel" })).toBe(null);
 });
 
+it("lists the fine-grained token's permissions", async () => {
+  settingsApi({});
+  renderApp("/settings");
+
+  await userEvent.click(await screen.findByText("Fine-grained token"));
+  for (const permission of [
+    "Checks",
+    "Commit statuses",
+    "Contents",
+    "Pull requests",
+    "Members",
+  ]) {
+    expect(screen.getByText(permission)).toBeTruthy();
+  }
+});
+
 it("removes the token", async () => {
   let githubToken: GitHubTokenDto | null = TOKEN;
   settingsApi({
