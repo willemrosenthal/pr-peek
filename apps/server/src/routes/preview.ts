@@ -10,6 +10,7 @@ import type { Octokit } from "octokit";
 import type { Db } from "../db";
 import { fetchPrPreview } from "../github/pull-preview";
 import { HttpError, parseInput } from "../http-error";
+import { reviewersOf } from "../reviewers";
 import { currentUser, requireUser } from "./auth";
 
 // Each preview is a GitHub request on the user's rate limit.
@@ -63,13 +64,14 @@ export function previewRouter(deps: PreviewDeps): Router {
     if (!preview) throw notFound();
 
     const at = now();
-    const snapshot = prSnapshot.safeParse(pr.snapshot);
+    // What the last sync saved. Missing for a PR saved before snapshots were.
+    const parsed = prSnapshot.safeParse(pr.snapshot);
+    const stored = parsed.success ? parsed.data : null;
     const body: PrPreviewResponse = {
       bodyHtml: preview.bodyHtml,
       openedAge: formatAge(preview.createdAt, at),
-      failingChecks: snapshot.success
-        ? snapshot.data.checks.failing.map((check) => check.name)
-        : [],
+      failingChecks: stored?.checks.failing.map((check) => check.name) ?? [],
+      reviewers: stored ? reviewersOf(stored, user.login) : [],
       comments: preview.comments.map((comment) => ({
         ...comment,
         author: comment.author.login,

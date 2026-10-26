@@ -31,6 +31,7 @@ const preview = (
   bodyHtml: "<h2>Why</h2><p>See the screenshots.</p>",
   openedAge: "2d",
   failingChecks: [],
+  reviewers: [],
   comments: [],
   focusId: null,
   ...fields,
@@ -81,6 +82,44 @@ it("puts focus on the sheet, not its first button", async () => {
   setup(() => json(preview()));
   const sheet = screen.getByRole("dialog");
   await waitFor(() => expect(document.activeElement).toBe(sheet));
+});
+
+it("lists every reviewer with where they stand, and You for the user", async () => {
+  setup(() =>
+    json(
+      preview({
+        reviewers: [
+          { name: "octocat", isTeam: false, isYou: true, status: "requested" },
+          { name: "acme/web", isTeam: true, isYou: false, status: "requested" },
+          { name: "jules", isTeam: false, isYou: false, status: "approved" },
+          {
+            name: "dev",
+            isTeam: false,
+            isYou: false,
+            status: "changes_requested",
+          },
+          { name: "lee", isTeam: false, isYou: false, status: "commented" },
+        ],
+      }),
+    ),
+  );
+  expect(await screen.findByText("Reviewers")).toBeTruthy();
+  // Each reads as its name, then its status for screen readers.
+  expect(
+    screen.getAllByRole("listitem").map((item) => item.textContent),
+  ).toEqual([
+    "You, waiting",
+    "acme/web, waiting",
+    "jules, approved",
+    "dev, requested changes",
+    "lee, commented",
+  ]);
+});
+
+it("leaves out the reviewers line when there are none", async () => {
+  setup(() => json(preview()));
+  await screen.findByText("See the screenshots.");
+  expect(screen.queryByText("Reviewers")).toBeNull();
 });
 
 it("lists failing checks", async () => {

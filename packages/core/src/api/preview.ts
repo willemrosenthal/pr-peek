@@ -22,6 +22,19 @@ export interface PreviewCommentDto {
   reviewState: PrReview["state"] | null;
 }
 
+// Where a reviewer stands: asked and waiting (or asked again), or how they reviewed.
+export type ReviewerStatus =
+  "requested" | "approved" | "changes_requested" | "commented";
+
+export interface ReviewerDto {
+  // A person's login, or a team as "org/team-slug".
+  name: string;
+  isTeam: boolean;
+  // The signed in user.
+  isYou: boolean;
+  status: ReviewerStatus;
+}
+
 // More about one PR than the list shows, fetched from GitHub when the preview opens.
 export interface PrPreviewResponse {
   // GitHub's HTML for the description. Empty when there is none.
@@ -29,6 +42,9 @@ export interface PrPreviewResponse {
   // Real time since the PR was opened, like "2d".
   openedAge: string;
   failingChecks: string[];
+  // Everyone asked to review, and everyone who has, with where they stand. Not the
+  // author, and not bots like Copilot's AI reviewer.
+  reviewers: ReviewerDto[];
   // The conversation, oldest first.
   comments: PreviewCommentDto[];
   // The item's comment or review. Null when it isn't one of them, like for a review
