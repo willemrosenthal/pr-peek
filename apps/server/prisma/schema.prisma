@@ -177,6 +177,9 @@ model PullRequest {
   lastSeenAt      DateTime  @default(now())
   // When the user swiped it to quiet. Cleared when something new happens on it.
   quietAt         DateTime?
+  // When the user marked it unread, as a reminder. Cleared when they open it or mark it
+  // read. Leaving the list doesn't clear it, unlike an item's seenAt.
+  unreadAt        DateTime?
   snapshot        Json
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

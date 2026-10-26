@@ -1,4 +1,5 @@
 import type {
+  ItemDto,
   ItemsResponse,
   MeResponse,
   PrPreviewResponse,
@@ -17,11 +18,13 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { api, ApiError, isUnauthorized } from "./api";
 import { thisDeviceEndpoint } from "./push";
 import { moveQuiet } from "./quiet";
+import { markUnread, showsDot } from "./unread";
 
 export const queryKeys = {
   me: ["me"],
@@ -59,34 +62,77 @@ export function useItems() {
   });
 }
 
-const SET_QUIET = ["set-quiet"];
+// Every save that changes the list right away, before the server answers: quiet and
+// unread. They share this key's start, so they wait for each other below.
+const LIST_CHANGE = ["list-change"];
 
-// Quiets a PR until something new happens on it, or brings it back. The row moves
-// right away, then the list and counts reload.
-export function useSetQuiet() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationKey: SET_QUIET,
-    mutationFn: ({ prId, quiet }: { prId: string; quiet: boolean }) =>
-      api(`/prs/${prId}/quiet`, { method: quiet ? "PUT" : "DELETE" }),
-    onMutate: async ({ prId, quiet }) => {
-      // Stops a list that's loading from undoing the move.
+// Shows `change` on the list right away, then reloads the list and counts once the
+// last of these saves settles, so a reload doesn't undo a later change. A save still
+// counts until it settles.
+function changesList<Save>(
+  queryClient: QueryClient,
+  change: (list: ItemsResponse, save: Save) => ItemsResponse,
+) {
+  return {
+    onMutate: async (save: Save) => {
+      // Stops a list that's loading from undoing the change.
       await queryClient.cancelQueries({ queryKey: queryKeys.items });
       queryClient.setQueryData<ItemsResponse>(
         queryKeys.items,
-        (old) => old && moveQuiet(old, prId, quiet),
+        (old) => old && change(old, save),
       );
     },
     onSettled: () => {
-      // Waits for the last of several quick saves, so a reload doesn't undo a later move.
-      // This save still counts until it settles.
-      if (queryClient.isMutating({ mutationKey: SET_QUIET }) > 1) return;
+      if (queryClient.isMutating({ mutationKey: LIST_CHANGE }) > 1) return;
       return Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.items }),
         queryClient.invalidateQueries({ queryKey: queryKeys.summary }),
       ]);
     },
+  };
+}
+
+// Quiets a PR until something new happens on it, or brings it back. The row moves
+// right away.
+export function useSetQuiet() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: [...LIST_CHANGE, "quiet"],
+    mutationFn: ({ prId, quiet }: { prId: string; quiet: boolean }) =>
+      api(`/prs/${prId}/quiet`, { method: quiet ? "PUT" : "DELETE" }),
+    ...changesList(queryClient, (list, { prId, quiet }) =>
+      moveQuiet(list, prId, quiet),
+    ),
   });
+}
+
+// Marks PRs unread, as a reminder to come back to them, or read. The dot changes right
+// away. `toggle` flips a row's dot. `readIfMarked` is for opening a PR: it clears only
+// a mark the user made, not the dot for something new.
+export function useMarkUnread() {
+  const queryClient = useQueryClient();
+  const { mutate } = useMutation({
+    mutationKey: [...LIST_CHANGE, "unread"],
+    mutationFn: ({ prId, unread }: { prId: string; unread: boolean }) =>
+      api(`/prs/${prId}/unread`, {
+        method: unread ? "PUT" : "DELETE",
+        // Opening the PR can hide the page before this is sent.
+        keepalive: true,
+      }),
+    ...changesList(queryClient, (list, { prId, unread }) =>
+      markUnread(list, prId, unread),
+    ),
+  });
+  return useMemo(
+    () => ({
+      toggle: (pr: ItemDto["pr"], item: ItemDto | null) =>
+        mutate({ prId: pr.id, unread: !showsDot(pr, item) }),
+      readIfMarked: (pr: ItemDto["pr"]) => {
+        if (pr.markedUnread) mutate({ prId: pr.id, unread: false });
+      },
+    }),
+    [mutate],
+  );
 }
 
 // More about one PR, for the preview sheet. `itemId` is the row's item, if it has one.

@@ -54,7 +54,15 @@
   justify-content: flex-end;
 }
 
-/* Far enough: letting go quiets it, or brings it back. */
+/* Swiping right to mark it unread or read: the dot's blue from the start, so it looks
+   nothing like quiet. The label is dim until it's far enough (`.back`). */
+.unread {
+  background: var(--color-accent);
+  color: color-mix(in srgb, var(--color-on-accent) 70%, transparent);
+}
+
+/* Far enough that letting go acts: `.armed` quiets it. `.back` brings it back, or
+   marks it unread or read. */
 .armed {
   background: var(--color-text-secondary);
   color: var(--color-surface);

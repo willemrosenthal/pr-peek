@@ -6,7 +6,7 @@ import type {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { apiError, fakeApi, item, json } from "../test/fake-api";
 import { PrPreview, type PreviewTarget } from "./PrPreview";
 import styles from "./PrPreview.module.css";
@@ -50,6 +50,8 @@ function setup(
   });
   fakeApi({ [`GET /api/prs/${row.pr.id}/preview?item=${row.id}`]: answer });
   const onToggleQuiet = vi.fn();
+  const onToggleUnread = vi.fn();
+  const onOpen = vi.fn();
   const onClose = vi.fn();
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -59,6 +61,8 @@ function setup(
       <PrPreview
         target={target}
         onToggleQuiet={onToggleQuiet}
+        onToggleUnread={onToggleUnread}
+        onOpen={onOpen}
         onClose={onClose}
       />
     </QueryClientProvider>
@@ -67,7 +71,7 @@ function setup(
   const { rerender } = render(sheet(target));
   // Gives the sheet a new target, like the list does. Null closes it.
   const show = (next: PreviewTarget | null) => rerender(sheet(next));
-  return { row, target, onToggleQuiet, onClose, show };
+  return { row, target, onToggleQuiet, onToggleUnread, onOpen, onClose, show };
 }
 
 it("shows the PR right away, then its description as formatted text", async () => {
@@ -188,17 +192,29 @@ it("shows the conversation after the description for a review request", async ()
   expect(document.querySelector(`.${styles.mutedComment}`)).toBeNull();
 });
 
-it("has Quiet and Open at the top", async () => {
-  const { row, onToggleQuiet } = setup(() => json(preview()));
+it("has Quiet, Mark unread, and Open at the top", async () => {
+  const { row, onToggleQuiet, onToggleUnread, onOpen } = setup(() =>
+    json(preview()),
+  );
   await userEvent.click(screen.getByRole("button", { name: "Quiet" }));
   expect(onToggleQuiet).toHaveBeenCalledTimes(1);
+  await userEvent.click(screen.getByRole("button", { name: "Mark unread" }));
+  expect(onToggleUnread).toHaveBeenCalledTimes(1);
   const open = screen.getByRole("link", { name: "Open" });
   expect(open.getAttribute("href")).toBe(row.pr.url);
+  fireEvent.click(open);
+  expect(onOpen).toHaveBeenCalledTimes(1);
 });
 
-it("offers Bring back for a quiet PR", () => {
+it("offers Mark read for a row with the dot", () => {
+  setup(() => json(preview()), { unseen: true });
+  expect(screen.getByRole("button", { name: "Mark read" })).toBeTruthy();
+});
+
+it("offers Bring back for a quiet PR, and no Mark unread", () => {
   setup(() => json(preview()), {}, true);
   expect(screen.getByRole("button", { name: "Bring back" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Mark unread" })).toBeNull();
 });
 
 describe("dragging the sheet down", () => {
@@ -249,14 +265,25 @@ describe("dragging the sheet down", () => {
 it("marks the sheet as sliding away until it's opened again", () => {
   const { target, show } = setup(() => json(preview()));
   // Hidden too, in case Base UI hides the sheet from screen readers as it goes.
-  const closing = () =>
-    screen.getByRole("dialog", { hidden: true }).matches(`.${styles.closing}`);
+  const sheet = () => screen.getByRole("dialog", { hidden: true });
+  const closing = () => sheet().matches(`.${styles.closing}`);
   expect(closing()).toBe(false);
+
+  // jsdom has no animations, so Base UI would take the sheet away as soon as it
+  // closes. A slide that hasn't ended keeps it on screen.
+  const slide = {
+    finished: new Promise(() => {}),
+    effect: { getTiming: () => ({ duration: 300, iterations: 1 }) },
+  };
+  Element.prototype.getAnimations = () => [slide as unknown as Animation];
+  onTestFinished(() => {
+    delete (Element.prototype as { getAnimations?: unknown }).getAnimations;
+  });
 
   show(null);
   // On a phone, Base UI ends its drag after the sheet closes. Short of half its
   // height, it takes its own closing mark off. Ours stays.
-  screen.getByRole("dialog").removeAttribute("data-ending-style");
+  sheet().removeAttribute("data-ending-style");
   expect(closing()).toBe(true);
 
   // Opened again before it's gone, it comes back up.

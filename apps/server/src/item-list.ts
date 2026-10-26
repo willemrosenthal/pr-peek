@@ -27,6 +27,7 @@ const PR_FIELDS = {
   number: true,
   url: true,
   authorLogin: true,
+  unreadAt: true,
 } as const;
 
 type PrRow = Pick<PullRequest, keyof typeof PR_FIELDS>;
@@ -52,6 +53,7 @@ const toPrDto = (pr: PrRow, colors: Map<number, string>): ItemDto["pr"] => ({
   url: pr.url,
   author: pr.authorLogin,
   color: colors.get(pr.githubRepoId) ?? null,
+  markedUnread: pr.unreadAt !== null,
 });
 
 // Matches PRs the user quieted, or the rest.
