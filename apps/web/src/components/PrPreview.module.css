@@ -3,13 +3,6 @@
    [data-swiping] rule for the sheet here. One there would also cut the closing slide
    short, since a swipe that closes the sheet is still "swiping" as it starts. */
 
-/* The closing slide's length. A fast flick makes it shorter, but never so short that
-   the sheet seems to vanish. */
-.backdrop,
-.popup {
-  --close-duration: calc(150ms + var(--drawer-swipe-strength, 1) * 250ms);
-}
-
 /* Fades as the sheet is swiped down. */
 .backdrop {
   position: fixed;
@@ -29,8 +22,10 @@
   transition-duration: 0ms;
 }
 
+/* Base UI only gives the sheet the flick's speed, so the fade out has a set length,
+   about as long as an average close. */
 .backdrop[data-ending-style] {
-  transition-duration: var(--close-duration);
+  transition-duration: 0.25s;
 }
 
 .viewport {
@@ -87,8 +82,9 @@
   transform: translateY(calc(100% + 2px));
 }
 
+/* A fast flick closes it sooner, but never so fast that it seems to vanish. */
 .popup[data-ending-style] {
-  transition-duration: var(--close-duration);
+  transition-duration: calc(150ms + var(--drawer-swipe-strength, 1) * 250ms);
 }
 
 .popup[data-swiping] {
