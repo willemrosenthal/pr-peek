@@ -3,12 +3,17 @@
    [data-swiping] rule for the sheet here. One there would also cut the closing slide
    short, since a swipe that closes the sheet is still "swiping" as it starts. */
 
-/* Fades as the sheet is swiped down. Over everything, like the sticky list header on a
-   phone, and under the sheet, whose viewport comes after it at the same level. */
-.backdrop {
+/* Both over everything else, like the sticky list header on a phone. At the same level,
+   the viewport (with the sheet) comes after the backdrop, so it's on top. */
+.backdrop,
+.viewport {
   position: fixed;
   inset: 0;
   z-index: 100;
+}
+
+/* Fades as the sheet is swiped down. */
+.backdrop {
   min-height: 100dvh;
   background: rgb(0 0 0 / 40%);
   opacity: calc(1 - var(--drawer-swipe-progress, 0));
@@ -31,9 +36,6 @@
 }
 
 .viewport {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
   display: flex;
   align-items: flex-end;
   justify-content: center;
