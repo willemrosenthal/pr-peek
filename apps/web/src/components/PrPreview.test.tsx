@@ -219,6 +219,9 @@ describe("dragging the sheet down", () => {
     sheet.style.setProperty("--drawer-swipe-movement-y", `${px}px`);
     EVENTS[kind].move(sheet);
   };
+  // The closing slide has started: the sheet is marked as closing.
+  const closing = () =>
+    screen.getByRole("dialog").hasAttribute("data-ending-style");
   const drag = (px: number, kind: Kind = "pointer") => {
     EVENTS[kind].down(screen.getByRole("dialog"));
     moveTo(px, kind);
@@ -231,6 +234,8 @@ describe("dragging the sheet down", () => {
       const { onClose } = setup(() => json(preview()));
       drag(90, kind);
       expect(onClose).toHaveBeenCalledTimes(1);
+      // The closing slide starts right away, before Base UI can spring it back up.
+      expect(closing()).toBe(true);
     },
   );
 
@@ -238,6 +243,7 @@ describe("dragging the sheet down", () => {
     const { onClose } = setup(() => json(preview()));
     drag(40);
     expect(onClose).not.toHaveBeenCalled();
+    expect(closing()).toBe(false);
   });
 
   it("doesn't close on a tap after a drag that never let go", () => {
