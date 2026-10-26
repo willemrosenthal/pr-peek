@@ -301,14 +301,18 @@ it("offers to try again when the details don't load", async () => {
 });
 
 it("fetches again when an image fails on an older copy, but not on a fresh one", async () => {
-  const bodyHtml = '<p><img src="https://x.test/a.png" alt="Shot"></p>';
+  const bodyHtml =
+    '<p><img src="https://x.test/a.png" alt="Shot"><img src="https://x.test/b.png" alt="Shot"></p>';
   const answer = vi.fn(() => json(preview({ bodyHtml })));
   setup(answer);
-  await screen.findByRole("img", { name: "Shot" });
-  const failImage = () =>
-    fireEvent.error(screen.getByRole("img", { name: "Shot" }));
+  await screen.findAllByRole("img", { name: "Shot" });
+  // Both images fail at once.
+  const failImages = () =>
+    screen
+      .getAllByRole("img", { name: "Shot" })
+      .forEach((image) => fireEvent.error(image));
 
-  failImage();
+  failImages();
   expect(answer).toHaveBeenCalledTimes(1);
 
   // A minute later, its links may have run out.
@@ -318,10 +322,11 @@ it("fetches again when an image fails on an older copy, but not on a fresh one",
   // An avatar that fails isn't GitHub's image.
   fireEvent.error(document.querySelector(`img.${styles.avatar}`)!);
   expect(answer).toHaveBeenCalledTimes(1);
-  failImage();
+  // One fetch for both.
+  failImages();
   await waitFor(() => expect(answer).toHaveBeenCalledTimes(2));
 
   // The new copy is fresh, so it isn't fetched again.
-  failImage();
+  failImages();
   expect(answer).toHaveBeenCalledTimes(2);
 });

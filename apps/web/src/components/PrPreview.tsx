@@ -152,16 +152,16 @@ function Sheet({
   const QuietIcon = quiet ? Bell : BellOff;
   // Images in private repos come with links that work for about 5 minutes. When one
   // fails on an older copy, fetch the preview again for new links. A fresh copy isn't
-  // fetched again, so an image that's really gone can't cause a loop.
+  // fetched again, so an image that's really gone can't cause a loop. Images failing
+  // together share one fetch.
   const refreshImages = (event: SyntheticEvent) => {
     const target = event.target as Element;
     if (
       target.tagName === "IMG" &&
       target.closest("[data-github-html]") &&
-      !preview.isFetching &&
       Date.now() - preview.dataUpdatedAt > REFETCH_MS
     ) {
-      void preview.refetch();
+      void preview.refetch({ cancelRefetch: false });
     }
   };
   return (
@@ -206,7 +206,7 @@ function Sheet({
         </div>
       </div>
 
-      {/* An image's error reaches here through React, though the browser's doesn't bubble. */}
+      {/* Image errors reach here through React, though the browser's don't bubble. */}
       <Drawer.Content className={styles.scroll} onError={refreshImages}>
         <section className={styles.card}>
           <div className={styles.cardBody}>
