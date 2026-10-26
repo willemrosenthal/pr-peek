@@ -190,13 +190,13 @@ it("shows the conversation after the description for a review request", async ()
   expect(document.querySelector(`.${styles.mutedComment}`)).toBeNull();
 });
 
-it("has Quiet, Mark important, and Open at the top", async () => {
+it("has Quiet, Important, and Open at the top", async () => {
   const { row, onToggleQuiet, onToggleImportant } = setup(() =>
     json(preview()),
   );
   await userEvent.click(screen.getByRole("button", { name: "Quiet" }));
   expect(onToggleQuiet).toHaveBeenCalledTimes(1);
-  await userEvent.click(screen.getByRole("button", { name: "Mark important" }));
+  await userEvent.click(screen.getByRole("button", { name: "Important" }));
   expect(onToggleImportant).toHaveBeenCalledTimes(1);
   const open = screen.getByRole("link", { name: "Open" });
   expect(open.getAttribute("href")).toBe(row.pr.url);
@@ -207,10 +207,10 @@ it("offers Remove flag for a PR that's marked", () => {
   expect(screen.getByRole("button", { name: "Remove flag" })).toBeTruthy();
 });
 
-it("offers Bring back for a quiet PR, and no Mark important", () => {
+it("offers Bring back for a quiet PR, and no Important", () => {
   setup(() => json(preview()), {}, true);
   expect(screen.getByRole("button", { name: "Bring back" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Mark important" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Important" })).toBeNull();
 });
 
 describe("dragging the sheet down", () => {

@@ -402,7 +402,7 @@ describe("marking important", () => {
     await sectionButton(/Needs my review/);
     fireEvent.contextMenu(rowOf(asked));
     await userEvent.click(
-      await screen.findByRole("button", { name: "Mark important" }),
+      await screen.findByRole("button", { name: "Important" }),
     );
     expect(callsTo(fetch, `/api/prs/${asked.pr.id}/important`)).toHaveLength(1);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null));
