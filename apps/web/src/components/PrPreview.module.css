@@ -50,7 +50,7 @@
   box-sizing: border-box;
   width: 100%;
   max-width: 640px;
-  height: 90dvh;
+  height: 95dvh;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: var(--color-page);
   box-shadow: var(--shadow-panel);

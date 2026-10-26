@@ -45,7 +45,7 @@ One PR for all of it.
 
 ### 13.3 The sheet (design A3)
 
-- [x] A bottom sheet (Base UI Drawer) at one height, 90% of the screen. Swipe down or tap outside to close. The closing slide always plays to the end. The list's page holds the sheet, so it stays when a section goes away.
+- [x] A bottom sheet (Base UI Drawer) at one height, 95% of the screen. Swipe down or tap outside to close. The closing slide always plays to the end. The list's page holds the sheet, so it stays when a section goes away.
 - [x] Top bar: Quiet (or Bring back) on the left, Open on the right.
 - [x] Focus goes to the sheet, not its first button. No text gets selected by the press that opened it.
 - [x] Cards: the PR (repo, title, the author with their picture, failing checks), "For you" (the conversation, or why it's on the list), the description, then the conversation when "For you" doesn't have it.
