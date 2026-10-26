@@ -63,13 +63,24 @@ export function previewRouter(deps: PreviewDeps): Router {
     if (!preview) throw notFound();
 
     const at = now();
-    const snapshot = prSnapshot.safeParse(pr.snapshot);
+    // What the last sync saved. Missing for a PR saved before snapshots were.
+    const parsed = prSnapshot.safeParse(pr.snapshot);
+    const stored = parsed.success ? parsed.data : null;
     const body: PrPreviewResponse = {
       bodyHtml: preview.bodyHtml,
       openedAge: formatAge(preview.createdAt, at),
-      failingChecks: snapshot.success
-        ? snapshot.data.checks.failing.map((check) => check.name)
-        : [],
+      failingChecks: stored?.checks.failing.map((check) => check.name) ?? [],
+      requestedReviewers:
+        stored?.reviewRequests.map((reviewer) =>
+          reviewer.type === "team"
+            ? { name: reviewer.slug, isTeam: true, isYou: false }
+            : {
+                name: reviewer.login,
+                isTeam: false,
+                isYou:
+                  reviewer.login.toLowerCase() === user.login.toLowerCase(),
+              },
+        ) ?? [],
       comments: preview.comments.map((comment) => ({
         ...comment,
         author: comment.author.login,

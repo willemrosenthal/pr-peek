@@ -31,6 +31,7 @@ const preview = (
   bodyHtml: "<h2>Why</h2><p>See the screenshots.</p>",
   openedAge: "2d",
   failingChecks: [],
+  requestedReviewers: [],
   comments: [],
   focusId: null,
   ...fields,
@@ -81,6 +82,30 @@ it("puts focus on the sheet, not its first button", async () => {
   setup(() => json(preview()));
   const sheet = screen.getByRole("dialog");
   await waitFor(() => expect(document.activeElement).toBe(sheet));
+});
+
+it("lists who's asked to review, with You for the user", async () => {
+  setup(() =>
+    json(
+      preview({
+        requestedReviewers: [
+          { name: "octocat", isTeam: false, isYou: true },
+          { name: "dev-sam", isTeam: false, isYou: false },
+          { name: "acme/web", isTeam: true, isYou: false },
+        ],
+      }),
+    ),
+  );
+  expect(await screen.findByText("Review requested from")).toBeTruthy();
+  expect(
+    screen.getAllByRole("listitem").map((item) => item.textContent),
+  ).toEqual(["You", "dev-sam", "acme/web"]);
+});
+
+it("leaves out the reviewers line when nobody's asked", async () => {
+  setup(() => json(preview()));
+  await screen.findByText("See the screenshots.");
+  expect(screen.queryByText("Review requested from")).toBeNull();
 });
 
 it("lists failing checks", async () => {

@@ -32,7 +32,12 @@ const snapshot = {
   headSha: "abc123",
   headCommittedAt: NOW.toISOString(),
   updatedAt: NOW.toISOString(),
-  reviewRequests: [],
+  // The signed in user (octocat, in other capitals), someone else, and a team.
+  reviewRequests: [
+    { type: "user", login: "OctoCat" },
+    { type: "user", login: "dev-sam" },
+    { type: "team", slug: "acme/web" },
+  ],
   reviewRequestEvents: [],
   reviews: [],
   threads: [],
@@ -97,7 +102,7 @@ it("needs sign in", async () => {
   expect((await agent.get("/api/prs/x/preview")).status).toBe(401);
 });
 
-it("answers with the description, checks, and comments, marking the item's", async () => {
+it("answers with the description, checks, reviewers, and comments, marking the item's", async () => {
   const { agent, user } = await setup();
   const pr = await makePr(user.id, 7, { snapshot });
   const item = await makeItem(user.id, pr.id, "commented", {
@@ -110,6 +115,11 @@ it("answers with the description, checks, and comments, marking the item's", asy
     bodyHtml: "<p>Adds login.</p>",
     openedAge: "2d",
     failingChecks: ["lint", "e2e"],
+    requestedReviewers: [
+      { name: "OctoCat", isTeam: false, isYou: true },
+      { name: "dev-sam", isTeam: false, isYou: false },
+      { name: "acme/web", isTeam: true, isYou: false },
+    ],
     comments: [
       {
         id: "C_1",
@@ -125,13 +135,14 @@ it("answers with the description, checks, and comments, marking the item's", asy
   });
 });
 
-it("still has the comments without an item, and no checks without a snapshot", async () => {
+it("still has the comments without an item, and no checks or reviewers without a snapshot", async () => {
   const { agent, user } = await setup();
   const pr = await makePr(user.id, 7);
 
   const res = await agent.get(`/api/prs/${pr.id}/preview`);
   const body = bodyOf<PrPreviewResponse>(res);
   expect(body.failingChecks).toEqual([]);
+  expect(body.requestedReviewers).toEqual([]);
   expect(body.comments).toHaveLength(1);
   expect(body.focusId).toBeNull();
 });

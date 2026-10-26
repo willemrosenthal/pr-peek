@@ -4,8 +4,9 @@ import type {
   ItemKind,
   PrPreviewResponse,
   PreviewCommentDto,
+  RequestedReviewerDto,
 } from "@pr-peek/core";
-import { Bell, BellOff, CircleX, ExternalLink } from "lucide-react";
+import { Bell, BellOff, CircleX, ExternalLink, Users } from "lucide-react";
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cx } from "../cx";
 import { usePrPreview } from "../queries";
@@ -161,6 +162,9 @@ function Sheet({
                 {data && ` · opened ${data.openedAge} ago`}
               </span>
             </p>
+            {data && data.requestedReviewers.length > 0 && (
+              <Reviewers reviewers={data.requestedReviewers} />
+            )}
           </div>
           {failing.length > 0 && (
             <p className={styles.checks}>
@@ -394,6 +398,29 @@ function Comment({
         </p>
         {comment.bodyHtml && <GitHubHtml html={comment.bodyHtml} />}
       </div>
+    </div>
+  );
+}
+
+// Who's asked to review and hasn't yet, each with their picture. Teams get an icon.
+function Reviewers({ reviewers }: { reviewers: RequestedReviewerDto[] }) {
+  return (
+    <div className={styles.reviewers}>
+      <span className={styles.reviewersLabel}>Review requested from</span>
+      <ul className={styles.reviewerList}>
+        {reviewers.map((reviewer) => (
+          <li key={reviewer.name} className={styles.reviewer}>
+            {reviewer.isTeam ? (
+              <span className={styles.avatar} aria-hidden="true">
+                <Users />
+              </span>
+            ) : (
+              <Avatar login={reviewer.name} />
+            )}
+            {reviewer.isYou ? "You" : reviewer.name}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

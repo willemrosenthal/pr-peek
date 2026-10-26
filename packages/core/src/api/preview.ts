@@ -22,6 +22,13 @@ export interface PreviewCommentDto {
   reviewState: PrReview["state"] | null;
 }
 
+export interface RequestedReviewerDto {
+  name: string;
+  isTeam: boolean;
+  // The signed in user.
+  isYou: boolean;
+}
+
 // More about one PR than the list shows, fetched from GitHub when the preview opens.
 export interface PrPreviewResponse {
   // GitHub's HTML for the description. Empty when there is none.
@@ -29,6 +36,9 @@ export interface PrPreviewResponse {
   // Real time since the PR was opened, like "2d".
   openedAge: string;
   failingChecks: string[];
+  // Who's asked to review and hasn't yet: people by login, teams as "org/team-slug".
+  // GitHub drops a person once they review.
+  requestedReviewers: RequestedReviewerDto[];
   // The conversation, oldest first.
   comments: PreviewCommentDto[];
   // The item's comment or review. Null when it isn't one of them, like for a review
