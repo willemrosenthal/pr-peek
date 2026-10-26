@@ -76,10 +76,17 @@ export function PrPreview({
     dragged.current = Number.parseFloat(value ?? "") || 0;
   };
   const endDrag = () => {
-    const height = popupRef.current?.offsetHeight ?? 0;
+    const popup = popupRef.current;
+    const height = popup?.offsetHeight ?? 0;
     const far = dragged.current >= Math.max(CLOSE_MIN_PX, height * CLOSE_SHARE);
     dragged.current = 0;
-    if (far) onClose();
+    if (!far) return;
+    // Short of half its height, Base UI springs the sheet back up. Start the closing
+    // slide now, the way Base UI's own swipe close does, so it slides down from here
+    // instead of rising first. React keeps the attribute, since it didn't set it.
+    popup?.style.removeProperty("transition");
+    popup?.setAttribute("data-ending-style", "");
+    onClose();
   };
 
   return (

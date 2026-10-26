@@ -231,6 +231,10 @@ describe("dragging the sheet down", () => {
       const { onClose } = setup(() => json(preview()));
       drag(90, kind);
       expect(onClose).toHaveBeenCalledTimes(1);
+      // The closing slide starts right away, before Base UI can spring it back up.
+      expect(screen.getByRole("dialog").hasAttribute("data-ending-style")).toBe(
+        true,
+      );
     },
   );
 
@@ -238,6 +242,9 @@ describe("dragging the sheet down", () => {
     const { onClose } = setup(() => json(preview()));
     drag(40);
     expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog").hasAttribute("data-ending-style")).toBe(
+      false,
+    );
   });
 
   it("doesn't close on a tap after a drag that never let go", () => {
