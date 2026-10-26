@@ -1,5 +1,5 @@
 import type { ItemGroup, ItemsResponse, ShowAuthors } from "@pr-peek/core";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Alert } from "../components/Alert";
 import { Banners } from "../components/Banners";
@@ -16,6 +16,7 @@ import { useIsTray } from "../hooks/useIsTray";
 import { useMarkSeen } from "../hooks/useMarkSeen";
 import { useStoredState } from "../hooks/useStoredState";
 import { useSync } from "../hooks/useSync";
+import { useWhenHidden } from "../hooks/useWhenHidden";
 import {
   useItems,
   useMe,
@@ -55,6 +56,8 @@ export function ListPage() {
   // The PR whose preview is open. Kept here, not in its section, so the sheet stays
   // through its closing slide even when the section goes away.
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
+  // Closes when the app hides, so it opens on the plain list, like other pages.
+  useWhenHidden(useCallback(() => setPreview(null), []));
 
   return (
     <main className={cx(styles.page, tray && styles.tray)}>
