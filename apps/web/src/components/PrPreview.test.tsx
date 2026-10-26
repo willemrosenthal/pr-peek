@@ -6,7 +6,7 @@ import type {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { apiError, fakeApi, item, json } from "../test/fake-api";
 import { PrPreview, type PreviewTarget } from "./PrPreview";
 import styles from "./PrPreview.module.css";
@@ -265,14 +265,25 @@ describe("dragging the sheet down", () => {
 it("marks the sheet as sliding away until it's opened again", () => {
   const { target, show } = setup(() => json(preview()));
   // Hidden too, in case Base UI hides the sheet from screen readers as it goes.
-  const closing = () =>
-    screen.getByRole("dialog", { hidden: true }).matches(`.${styles.closing}`);
+  const sheet = () => screen.getByRole("dialog", { hidden: true });
+  const closing = () => sheet().matches(`.${styles.closing}`);
   expect(closing()).toBe(false);
+
+  // jsdom has no animations, so Base UI would take the sheet away as soon as it
+  // closes. A slide that hasn't ended keeps it on screen.
+  const slide = {
+    finished: new Promise(() => {}),
+    effect: { getTiming: () => ({ duration: 300, iterations: 1 }) },
+  };
+  Element.prototype.getAnimations = () => [slide as unknown as Animation];
+  onTestFinished(() => {
+    delete (Element.prototype as { getAnimations?: unknown }).getAnimations;
+  });
 
   show(null);
   // On a phone, Base UI ends its drag after the sheet closes. Short of half its
   // height, it takes its own closing mark off. Ours stays.
-  screen.getByRole("dialog").removeAttribute("data-ending-style");
+  sheet().removeAttribute("data-ending-style");
   expect(closing()).toBe(true);
 
   // Opened again before it's gone, it comes back up.
