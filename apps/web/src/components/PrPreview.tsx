@@ -11,7 +11,9 @@ import {
   Bell,
   BellOff,
   CircleAlert,
+  Circle,
   CircleCheck,
+  CircleDot,
   CircleX,
   Clock,
   ExternalLink,
@@ -23,7 +25,7 @@ import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cx } from "../cx";
 import { usePrPreview } from "../queries";
 import { GitHubHtml } from "./GitHubHtml";
-import { avatarUrl } from "./ItemRow";
+import { avatarUrl, showsDot } from "./ItemRow";
 import styles from "./PrPreview.module.css";
 
 // What a preview is opened on: a row's PR, its item if it has one, and whether it's in
@@ -45,18 +47,26 @@ const MAX_STAGGER = 8;
 const CLOSE_SHARE = 0.15;
 const CLOSE_MIN_PX = 80;
 
+// The top bar's buttons: Quiet (or Bring back), Mark unread (or Mark read), and Open.
+interface SheetActions {
+  onToggleQuiet: () => void;
+  onToggleUnread: () => void;
+  onOpen: () => void;
+}
+
 // A bottom sheet with more about a PR: its title, repo, why it's on the list, the
 // description, and the conversation. Design A3 in docs/13-pr-preview.md. One height;
 // swipe down to close.
 export function PrPreview({
   target,
   onToggleQuiet,
+  onToggleUnread,
+  onOpen,
   onClose,
 }: {
   target: PreviewTarget | null;
-  onToggleQuiet: () => void;
   onClose: () => void;
-}) {
+} & SheetActions) {
   // Keeps showing the last PR while the sheet slides away.
   const [shown, setShown] = useState(target);
   // Focus goes to the sheet itself, not its first button. Screen readers still start
@@ -115,6 +125,8 @@ export function PrPreview({
                 key={shown.item?.id ?? shown.pr.id}
                 target={shown}
                 onToggleQuiet={onToggleQuiet}
+                onToggleUnread={onToggleUnread}
+                onOpen={onOpen}
               />
             )}
           </Drawer.Popup>
@@ -127,32 +139,52 @@ export function PrPreview({
 function Sheet({
   target: { pr, item, quiet },
   onToggleQuiet,
+  onToggleUnread,
+  onOpen,
 }: {
   target: PreviewTarget;
-  onToggleQuiet: () => void;
-}) {
+} & SheetActions) {
   const preview = usePrPreview(pr.id, item?.id ?? null);
   const { data } = preview;
   const failing = data?.failingChecks ?? [];
   const QuietIcon = quiet ? Bell : BellOff;
+  const unread = showsDot(pr, item);
   return (
     <>
       <div className={styles.dragArea}>
         <div className={styles.handle} aria-hidden="true" />
         <div className={styles.bar}>
-          <button
-            type="button"
-            className={styles.barButton}
-            onClick={onToggleQuiet}
-          >
-            <QuietIcon aria-hidden="true" />
-            {quiet ? "Bring back" : "Quiet"}
-          </button>
+          <div className={styles.barGroup}>
+            <button
+              type="button"
+              className={styles.barButton}
+              onClick={onToggleQuiet}
+            >
+              <QuietIcon aria-hidden="true" />
+              {quiet ? "Bring back" : "Quiet"}
+            </button>
+            {/* Quiet rows show no dot. */}
+            {!quiet && (
+              <button
+                type="button"
+                className={styles.barButton}
+                onClick={onToggleUnread}
+              >
+                {unread ? (
+                  <Circle aria-hidden="true" />
+                ) : (
+                  <CircleDot aria-hidden="true" />
+                )}
+                {unread ? "Mark read" : "Mark unread"}
+              </button>
+            )}
+          </div>
           <a
             className={cx(styles.barButton, styles.open)}
             href={pr.url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={onOpen}
           >
             Open
             <ExternalLink aria-hidden="true" />

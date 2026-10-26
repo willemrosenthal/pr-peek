@@ -55,32 +55,64 @@ export function itemsRouter(deps: ItemDeps): Router {
 
   // Quiets a PR until something new happens on it.
   router.put("/prs/:id/quiet", async (req, res) => {
-    await setQuietAt(deps.db, currentUser(res).id, req.params.id, now());
+    await updatePr(deps.db, currentUser(res).id, req.params.id, {
+      quietAt: now(),
+    });
     res.sendStatus(204);
   });
 
   router.delete("/prs/:id/quiet", async (req, res) => {
-    await setQuietAt(deps.db, currentUser(res).id, req.params.id, null);
+    await updatePr(deps.db, currentUser(res).id, req.params.id, {
+      quietAt: null,
+    });
+    res.sendStatus(204);
+  });
+
+  // Marks a PR unread, as a reminder to come back to it.
+  router.put("/prs/:id/unread", async (req, res) => {
+    await updatePr(deps.db, currentUser(res).id, req.params.id, {
+      unreadAt: now(),
+    });
+    res.sendStatus(204);
+  });
+
+  // Marks a PR read: clears the mark and marks its items seen. Also called when the user
+  // opens a PR they marked unread.
+  router.delete("/prs/:id/unread", async (req, res) => {
+    await updatePr(
+      deps.db,
+      currentUser(res).id,
+      req.params.id,
+      { unreadAt: null },
+      now(),
+    );
     res.sendStatus(204);
   });
 
   return router;
 }
 
-// Sets when the user's PR went quiet, or null to bring it back. Tells the user's other
-// devices.
-async function setQuietAt(
+// Changes the user's PR, and marks its items seen at `seenAt` when given. Tells the
+// user's other devices.
+async function updatePr(
   db: Db,
   userId: string,
   prId: string,
-  quietAt: Date | null,
+  data: { quietAt?: Date | null; unreadAt?: Date | null },
+  seenAt?: Date,
 ): Promise<void> {
   await db.$transaction(async (tx) => {
     const { count } = await tx.pullRequest.updateMany({
       where: { id: prId, userId },
-      data: { quietAt },
+      data,
     });
     if (count === 0) throw new HttpError(404, "not_found", "PR not found");
+    if (seenAt) {
+      await tx.item.updateMany({
+        where: { pullRequestId: prId, userId, seenAt: null },
+        data: { seenAt },
+      });
+    }
     await publishItemsChanged(tx, userId);
   });
 }

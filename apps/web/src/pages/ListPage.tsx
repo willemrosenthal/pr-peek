@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { Alert } from "../components/Alert";
 import { Banners } from "../components/Banners";
 import { Button } from "../components/Button";
+import { showsDot } from "../components/ItemRow";
 import { ItemSection } from "../components/ItemSection";
 import { ListHeader } from "../components/ListHeader";
 import {
@@ -19,8 +20,10 @@ import { useSync } from "../hooks/useSync";
 import {
   useItems,
   useMe,
+  useReadIfMarked,
   useRepos,
   useSetQuiet,
+  useSetUnread,
   useSettings,
 } from "../queries";
 import styles from "./ListPage.module.css";
@@ -50,6 +53,8 @@ export function ListPage() {
   const sync = useSync();
   const tray = useIsTray();
   const setQuiet = useSetQuiet();
+  const setUnread = useSetUnread();
+  const readIfMarked = useReadIfMarked();
   // The PR whose preview is open. Kept here, not in its section, so the sheet stays
   // through its closing slide even when the section goes away.
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
@@ -80,6 +85,17 @@ export function ListPage() {
             setQuiet.mutate({ prId: preview.pr.id, quiet: !preview.quiet });
           }
           setPreview(null);
+        }}
+        // Closes too, since it's a reminder for later.
+        onToggleUnread={() => {
+          if (preview) {
+            const { pr, item } = preview;
+            setUnread.mutate({ prId: pr.id, unread: !showsDot(pr, item) });
+          }
+          setPreview(null);
+        }}
+        onOpen={() => {
+          if (preview) readIfMarked(preview.pr);
         }}
         onClose={() => setPreview(null)}
       />

@@ -125,6 +125,11 @@
   justify-content: space-between;
 }
 
+.barGroup {
+  display: flex;
+  align-items: center;
+}
+
 .barButton {
   display: flex;
   align-items: center;

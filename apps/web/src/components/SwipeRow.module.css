@@ -54,7 +54,7 @@
   justify-content: flex-end;
 }
 
-/* Far enough: letting go quiets it, or brings it back. */
+/* Far enough: letting go quiets it, or brings it back or marks it unread (`.back`). */
 .armed {
   background: var(--color-text-secondary);
   color: var(--color-surface);

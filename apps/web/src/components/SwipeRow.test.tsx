@@ -139,6 +139,61 @@ describe("SwipeRow", () => {
   });
 });
 
+describe("SwipeRow right swipe", () => {
+  function setupUnread(unread = false) {
+    const onToggle = vi.fn();
+    const onToggleUnread = vi.fn();
+    render(
+      <SwipeRow
+        quiet={false}
+        onToggle={onToggle}
+        unread={unread}
+        onToggleUnread={onToggleUnread}
+      >
+        <a href="https://github.com/acme/web-app/pull/7">Add login</a>
+      </SwipeRow>,
+    );
+    const link = screen.getByRole("link", { name: "Add login" });
+    return { onToggle, onToggleUnread, link };
+  }
+
+  it("marks the PR unread, and the row stays to swipe again", async () => {
+    const { onToggle, onToggleUnread, link } = setupUnread();
+    drag(link, FAR_ENOUGH);
+    expect(onToggleUnread).toHaveBeenCalledTimes(1);
+    drag(link, FAR_ENOUGH);
+    expect(onToggleUnread).toHaveBeenCalledTimes(2);
+    await settle();
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("still quiets when swiped left", async () => {
+    const { onToggle, onToggleUnread, link } = setupUnread();
+    drag(link, -FAR_ENOUGH);
+    await waitFor(() => expect(onToggle).toHaveBeenCalledTimes(1));
+    expect(onToggleUnread).not.toHaveBeenCalled();
+  });
+
+  it("says Unread, in the dot's color once far enough", () => {
+    const { link } = setupUnread();
+    hold(link, 100);
+    expect(screen.getByText("Unread").className).not.toContain(styles.back);
+    hold(link, FAR_ENOUGH);
+    expect(screen.getByText("Unread").className).toContain(styles.back);
+  });
+
+  it("says Read when the row has the dot", () => {
+    hold(setupUnread(true).link, 100);
+    expect(screen.getByText("Read")).toBeTruthy();
+  });
+
+  it("marks unread on a trackpad swipe right", async () => {
+    const { onToggleUnread, link } = setupUnread();
+    fireEvent.wheel(link, { deltaX: -FAR_ENOUGH, deltaY: 0 });
+    await waitFor(() => expect(onToggleUnread).toHaveBeenCalledTimes(1));
+  });
+});
+
 describe("SwipeRow long press", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());

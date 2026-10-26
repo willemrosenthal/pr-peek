@@ -1,15 +1,21 @@
 import { Collapsible } from "@base-ui/react/collapsible";
 import type { IdlePrDto, ItemDto } from "@pr-peek/core";
 import { ChevronRight } from "lucide-react";
-import { usePrefetchPreview, useSetQuiet } from "../queries";
-import { IdlePrRow, ItemRow } from "./ItemRow";
+import {
+  usePrefetchPreview,
+  useReadIfMarked,
+  useSetQuiet,
+  useSetUnread,
+} from "../queries";
+import { IdlePrRow, ItemRow, showsDot } from "./ItemRow";
 import styles from "./ItemSection.module.css";
 import type { OnPreview } from "./PrPreview";
 import { SwipeRow } from "./SwipeRow";
 
 // A section of the list. `idle` PRs come after the items. Rows in the `quiet` section
-// are one line, and swiping one brings it back. A long press on a row calls
-// `onPreview`. The list shows the sheet, so it stays open if this section goes away.
+// are one line, and swiping one brings it back. Opening a row the user marked unread
+// marks it read. A long press on a row calls `onPreview`. The list shows the sheet, so
+// it stays open if this section goes away.
 export function ItemSection({
   title,
   items,
@@ -30,13 +36,25 @@ export function ItemSection({
   onPreview: OnPreview;
 }) {
   const setQuiet = useSetQuiet();
+  const setUnread = useSetUnread();
+  const readIfMarked = useReadIfMarked();
   const prefetch = usePrefetchPreview();
   const toggle = (prId: string) => () =>
     setQuiet.mutate({ prId, quiet: !quiet });
-  const previewOn = (pr: ItemDto["pr"], item: ItemDto | null) => ({
-    onLongPress: () => onPreview({ pr, item, quiet }),
-    onPressStart: () => prefetch(pr.id, item?.id ?? null),
-  });
+  // Swipe and long press. Quiet rows show no dot, so they don't mark unread.
+  const rowProps = (pr: ItemDto["pr"], item: ItemDto | null) => {
+    const unread = showsDot(pr, item);
+    return {
+      quiet,
+      onToggle: toggle(pr.id),
+      unread,
+      onToggleUnread: quiet
+        ? undefined
+        : () => setUnread.mutate({ prId: pr.id, unread: !unread }),
+      onLongPress: () => onPreview({ pr, item, quiet }),
+      onPressStart: () => prefetch(pr.id, item?.id ?? null),
+    };
+  };
   return (
     <Collapsible.Root open={open} onOpenChange={onOpenChange}>
       <h2 className={styles.heading}>
@@ -48,23 +66,23 @@ export function ItemSection({
       </h2>
       <Collapsible.Panel>
         {items.map((item) => (
-          <SwipeRow
-            key={item.id}
-            quiet={quiet}
-            onToggle={toggle(item.pr.id)}
-            {...previewOn(item.pr, item)}
-          >
-            <ItemRow item={item} quiet={quiet} showAuthor={showAuthors} />
+          <SwipeRow key={item.id} {...rowProps(item.pr, item)}>
+            <ItemRow
+              item={item}
+              quiet={quiet}
+              showAuthor={showAuthors}
+              onOpen={() => readIfMarked(item.pr)}
+            />
           </SwipeRow>
         ))}
         {idle.map((pr) => (
-          <SwipeRow
-            key={pr.id}
-            quiet={quiet}
-            onToggle={toggle(pr.id)}
-            {...previewOn(pr.pr, null)}
-          >
-            <IdlePrRow pr={pr} quiet={quiet} showAuthor={showAuthors} />
+          <SwipeRow key={pr.id} {...rowProps(pr.pr, null)}>
+            <IdlePrRow
+              pr={pr}
+              quiet={quiet}
+              showAuthor={showAuthors}
+              onOpen={() => readIfMarked(pr.pr)}
+            />
           </SwipeRow>
         ))}
       </Collapsible.Panel>

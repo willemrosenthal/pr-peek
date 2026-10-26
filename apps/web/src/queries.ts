@@ -1,4 +1,5 @@
 import type {
+  ItemDto,
   ItemsResponse,
   MeResponse,
   PrPreviewResponse,
@@ -22,6 +23,7 @@ import { useCallback } from "react";
 import { api, ApiError, isUnauthorized } from "./api";
 import { thisDeviceEndpoint } from "./push";
 import { moveQuiet } from "./quiet";
+import { markUnread } from "./unread";
 
 export const queryKeys = {
   me: ["me"],
@@ -87,6 +89,46 @@ export function useSetQuiet() {
       ]);
     },
   });
+}
+
+const SET_UNREAD = ["set-unread"];
+
+// Marks a PR unread, as a reminder to come back to it, or read. The dot changes right
+// away, then the list reloads.
+export function useSetUnread() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: SET_UNREAD,
+    mutationFn: ({ prId, unread }: { prId: string; unread: boolean }) =>
+      api(`/prs/${prId}/unread`, {
+        method: unread ? "PUT" : "DELETE",
+        // Opening the PR marks it read, and can hide the page before this is sent.
+        keepalive: true,
+      }),
+    onMutate: async ({ prId, unread }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.items });
+      queryClient.setQueryData<ItemsResponse>(
+        queryKeys.items,
+        (old) => old && markUnread(old, prId, unread),
+      );
+    },
+    onSettled: () => {
+      // Like useSetQuiet: only the last of several quick saves reloads.
+      if (queryClient.isMutating({ mutationKey: SET_UNREAD }) > 1) return;
+      return queryClient.invalidateQueries({ queryKey: queryKeys.items });
+    },
+  });
+}
+
+// Marks a PR read if the user marked it unread. Called when they open it.
+export function useReadIfMarked() {
+  const { mutate } = useSetUnread();
+  return useCallback(
+    (pr: ItemDto["pr"]) => {
+      if (pr.markedUnread) mutate({ prId: pr.id, unread: false });
+    },
+    [mutate],
+  );
 }
 
 // More about one PR, for the preview sheet. `itemId` is the row's item, if it has one.

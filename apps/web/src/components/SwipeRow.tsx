@@ -1,4 +1,4 @@
-import { Bell, BellOff } from "lucide-react";
+import { Bell, BellOff, Circle, CircleDot } from "lucide-react";
 import {
   useEffect,
   useRef,
@@ -79,19 +79,25 @@ function blockNextClick(row: Element) {
   setTimeout(stop, CLICK_AFTER_DRAG_MS);
 }
 
-// A list row that quiets its PR, or brings it back, when swiped sideways. A quiet row
-// also has a bell button that brings it back. A long press or a right click calls
-// `onLongPress`. `onPressStart` comes partway through a long press, so the preview can
-// start loading.
+// A list row that quiets its PR, or brings it back, when swiped left. Swiped right, it
+// calls `onToggleUnread` to mark it unread, or read when it has the dot (`unread`).
+// Rows without `onToggleUnread`, like quiet ones, quiet or come back either way. A
+// quiet row also has a bell button that brings it back. A long press or a right click
+// calls `onLongPress`. `onPressStart` comes partway through a long press, so the
+// preview can start loading.
 export function SwipeRow({
   quiet,
   onToggle,
+  unread = false,
+  onToggleUnread,
   onLongPress,
   onPressStart,
   children,
 }: {
   quiet: boolean;
   onToggle: () => void;
+  unread?: boolean;
+  onToggleUnread?: (() => void) | undefined;
   onLongPress?: () => void;
   onPressStart?: () => void;
   children: ReactNode;
@@ -156,9 +162,18 @@ export function SwipeRow({
     setArmed(false);
   };
 
+  // A swipe this way marks it unread or read, not quiet.
+  const marksUnread = (at: number) => at > 0 && onToggleUnread !== undefined;
+
   const release = (at: number) => {
     if (Math.abs(at) < swipePx.current) {
       snapBack();
+      return;
+    }
+    // The row stays in the list, so it springs back.
+    if (marksUnread(at)) {
+      snapBack();
+      onToggleUnread?.();
       return;
     }
     setDragging(false);
@@ -277,6 +292,9 @@ export function SwipeRow({
   const shown = leaving ?? offset;
   const Icon = quiet ? Bell : BellOff;
   const action = quiet ? "Bring back" : "Quiet";
+  const toUnread = marksUnread(shown);
+  const ShownIcon = toUnread ? (unread ? Circle : CircleDot) : Icon;
+  const armedStyle = toUnread || quiet ? styles.back : styles.armed;
   return (
     <div
       ref={rowRef}
@@ -287,12 +305,12 @@ export function SwipeRow({
           className={cx(
             styles.action,
             shown < 0 && styles.end,
-            armed && (quiet ? styles.back : styles.armed),
+            armed && armedStyle,
           )}
           aria-hidden="true"
         >
-          <Icon />
-          {action}
+          <ShownIcon />
+          {toUnread ? (unread ? "Read" : "Unread") : action}
         </div>
       )}
       <div
