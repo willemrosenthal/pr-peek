@@ -53,6 +53,21 @@ it("leaves out the count when the PR has one item", () => {
   expect(screen.queryByText(/more$/)).toBe(null);
 });
 
+it("tags and dims a review waiting on the author", () => {
+  render(<ItemRow item={item({ waitingOnAuthor: true })} />);
+  expect(screen.getByText("Waiting on author")).toBeTruthy();
+  const link = screen.getByRole("link");
+  expect(link.className).toContain("waiting");
+  const svg = link.querySelector("svg");
+  expect(svg?.classList).toContain("lucide-message-circle-question-mark");
+  expect(svg?.parentElement?.className).toContain("talk");
+});
+
+it("has no tag when it's your turn", () => {
+  render(<ItemRow item={item()} />);
+  expect(screen.queryByText("Waiting on author")).toBe(null);
+});
+
 it("marks unseen items for screen readers too", () => {
   render(<ItemRow item={item({ unseen: true })} />);
   expect(screen.getByRole("link").textContent).toMatch(/^New: /);

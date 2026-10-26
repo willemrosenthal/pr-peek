@@ -36,6 +36,7 @@ describe("mentioned me", () => {
         summary: 'sam: "@me can you look?"',
         occurredAt: at(10),
         waitingSince: null,
+        waitingOnAuthor: false,
       },
     ]);
   });

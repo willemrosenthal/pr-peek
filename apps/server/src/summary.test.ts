@@ -82,6 +82,16 @@ describe("sendDueSummaries", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  it("leaves out reviews waiting on the author", async () => {
+    const { item, send, run } = await setup();
+    await db.item.update({
+      where: { id: item.id },
+      data: { waitingOnAuthor: true, waitingSince: null },
+    });
+    expect(await run()).toBe(0);
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("skips the day when nothing is open", async () => {
     const { item, send, run } = await setup();
     await db.item.update({

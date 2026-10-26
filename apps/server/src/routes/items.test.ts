@@ -111,6 +111,7 @@ describe("GET /api/items", () => {
       waitingSince: hours(-5).toISOString(),
       age: "5h",
       staleLevel: "warn",
+      waitingOnAuthor: false,
       severity: "normal",
       unseen: false,
       otherIds: [],
@@ -293,6 +294,31 @@ describe("one row per PR", () => {
     const body = await getItems(agent);
     expect(body.review.map((row) => row.pr.number)).toEqual([8, 7]);
     expect(body.review[0]?.id).toBe(busyAsk.id);
+  });
+});
+
+describe("waiting on the author", () => {
+  it("puts the review last and leaves it out of the counts", async () => {
+    const { agent, user } = await setup();
+    const waiting = await makeItem(
+      user.id,
+      (await makePr(user.id, 7)).id,
+      "re_requested",
+      { waitingOnAuthor: true, seenAt: null },
+    );
+    const asked = await makeItem(
+      user.id,
+      (await makePr(user.id, 8)).id,
+      "review_requested",
+      { waitingSince: hours(-1), seenAt: hours(-1) },
+    );
+
+    const items = bodyOf<ItemsResponse>(await agent.get("/api/items"));
+    expect(items.review.map((item) => item.id)).toEqual([asked.id, waiting.id]);
+    expect(items.review[1]?.waitingOnAuthor).toBe(true);
+
+    const summary = bodyOf<SummaryResponse>(await agent.get("/api/summary"));
+    expect(summary).toMatchObject({ total: 1, review: 1 });
   });
 });
 

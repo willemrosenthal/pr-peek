@@ -174,6 +174,7 @@ type ItemFields = Pick<
   | "summary"
   | "occurredAt"
   | "waitingSince"
+  | "waitingOnAuthor"
 >;
 
 const sameTime = (a: Date | null, b: Date | null) =>
@@ -189,7 +190,8 @@ const isUnchanged = (stored: Item, fields: ItemFields) =>
   stored.actorIsBot === fields.actorIsBot &&
   stored.summary === fields.summary &&
   sameTime(stored.occurredAt, fields.occurredAt) &&
-  sameTime(stored.waitingSince, fields.waitingSince);
+  sameTime(stored.waitingSince, fields.waitingSince) &&
+  stored.waitingOnAuthor === fields.waitingOnAuthor;
 
 // Saves the items each PR has now and resolves the ones it no longer has. Writes only
 // what changed, since every sync runs this for every tracked PR.
@@ -220,11 +222,14 @@ export async function saveItems(
         summary: item.summary,
         occurredAt: new Date(item.occurredAt),
         waitingSince: item.waitingSince ? new Date(item.waitingSince) : null,
+        waitingOnAuthor: item.waitingOnAuthor,
       };
       const existing = stored.get(item.dedupeKey);
       if (existing && isUnchanged(existing, fields)) continue;
 
-      const isNewEvent = existing?.latestEventId !== item.latestEventId;
+      // Nothing is new while it's the author's turn: the user acted last.
+      const isNewEvent =
+        !item.waitingOnAuthor && existing?.latestEventId !== item.latestEventId;
       // Reopens an item that was resolved before.
       const update = { ...fields, status: "open" as const, resolvedAt: null };
       const saved = await tx.item.upsert({

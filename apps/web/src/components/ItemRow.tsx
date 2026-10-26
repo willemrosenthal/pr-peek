@@ -7,6 +7,7 @@ import {
   Eye,
   Flag,
   MessageCircle,
+  MessageCircleQuestionMark,
   MessageSquareText,
   RefreshCw,
   Squircle,
@@ -30,6 +31,9 @@ const KIND_ICONS: Record<
   check_failed: { Icon: CircleX, tone: styles.failed },
 };
 
+// A review that's the author's turn. Talk's color, like replies: it's a conversation.
+const WAITING_ICON = { Icon: MessageCircleQuestionMark, tone: styles.talk };
+
 const AGE_TONES: Record<StaleLevel, string | undefined> = {
   fresh: styles.muted,
   warn: styles.warning,
@@ -47,14 +51,23 @@ export function ItemRow({
   quiet?: boolean;
   showAuthor?: boolean;
 }) {
-  const { Icon: KindIcon, tone } = KIND_ICONS[item.kind];
+  const { Icon: KindIcon, tone } = item.waitingOnAuthor
+    ? WAITING_ICON
+    : KIND_ICONS[item.kind];
   const botComment = item.actorIsBot && item.kind === "commented";
   return (
     <Row
       pr={item.pr}
       quiet={quiet}
       showAuthor={showAuthor}
-      className={item.unseen && !quiet ? styles.unseen : undefined}
+      className={
+        quiet
+          ? undefined
+          : cx(
+              item.unseen && styles.unseen,
+              item.waitingOnAuthor && styles.waiting,
+            )
+      }
       // Keeps the kind's color, so a bot's approval still reads as an approval.
       // Bot comments get their own color.
       Icon={item.actorIsBot ? BotMessageSquare : KindIcon}
@@ -72,6 +85,9 @@ export function ItemRow({
       // Only review requests have a stale level.
       ageTone={item.staleLevel ? AGE_TONES[item.staleLevel] : styles.muted}
     >
+      {item.waitingOnAuthor && (
+        <span className={styles.tag}>Waiting on author</span>
+      )}
       <span className={styles.summaryText}>{item.summary}</span>
       {item.otherIds.length > 0 && (
         <span className={styles.more}>+{item.otherIds.length} more</span>

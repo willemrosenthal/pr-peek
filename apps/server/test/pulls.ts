@@ -93,11 +93,13 @@ export function githubPr(overrides: Record<string, unknown> = {}) {
           isResolved: false,
           comments: {
             nodes: [
+              // Before the viewer was asked to review, so the request isn't waiting on
+              // the author.
               {
                 id: "C_1",
                 author: user("octocat"),
                 bodyText: "Why\n\n  this?",
-                createdAt: "2026-10-21T09:10:00Z",
+                createdAt: "2026-10-21T07:50:00Z",
                 replyTo: null,
               },
               {

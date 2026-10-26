@@ -169,6 +169,7 @@ describe("urgency", () => {
     waitingSince: "2026-10-21T11:00:00Z",
     occurredAt: "2026-10-21T11:00:00Z",
     unseen: false,
+    waitingOnAuthor: false,
     ...overrides,
   });
   const score = (overrides: Partial<UrgencyInput> = {}) =>
@@ -200,6 +201,12 @@ describe("urgency", () => {
   it("adds points for re-requests and unseen items", () => {
     expect(score({ kind: "re_requested" })).toBe(240);
     expect(score({ unseen: true })).toBe(225);
+  });
+
+  it("puts items waiting on the author below the rest", () => {
+    expect(
+      score({ severity: "high", unseen: true, waitingOnAuthor: true }),
+    ).toBeLessThan(score({ severity: "low" }));
   });
 
   it("sorts most urgent first, then newest", () => {

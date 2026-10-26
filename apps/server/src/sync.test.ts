@@ -430,7 +430,7 @@ describe("items", () => {
     pr.reviewRequests.nodes = [];
     pr.reviews.nodes.push({
       id: "R_3",
-      state: "COMMENTED",
+      state: "APPROVED",
       submittedAt: "2026-10-21T10:30:00Z",
       bodyText: "",
       author: { __typename: "User", login: "octocat" },
@@ -443,6 +443,63 @@ describe("items", () => {
       { kind: "reply", status: "resolved", resolvedAt: later },
       { kind: "review_requested", status: "resolved", resolvedAt: later },
     ]);
+  });
+
+  it("keeps a review request you only commented on, waiting on the author", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    const before = await itemOf("review_requested");
+
+    // GitHub drops the request after a "Comment" review. The author answers.
+    const answer = {
+      id: "IC_2",
+      author: { __typename: "User", login: "sam" },
+      bodyText: "Fixed it",
+      createdAt: "2026-10-21T10:40:00Z",
+    };
+    const commented = (...comments: (typeof answer)[]) => {
+      const pr = githubPr({
+        comments: { nodes: [...githubPr().comments.nodes, ...comments] },
+      });
+      pr.reviewRequests.nodes = [];
+      pr.reviews.nodes.push({
+        id: "R_3",
+        state: "COMMENTED",
+        submittedAt: "2026-10-21T10:30:00Z",
+        bodyText: "",
+        author: { __typename: "User", login: "octocat" },
+      });
+      return asked(pr, comments.at(-1)?.createdAt ?? "2026-10-21T10:30:00Z");
+    };
+
+    const waiting = await sync(user.id, commented(), hours(1));
+    expect(waiting.result.newEventItemIds).toEqual([]);
+    expect(await itemOf("review_requested")).toMatchObject({
+      id: before.id,
+      status: "open",
+      waitingOnAuthor: true,
+      waitingSince: null,
+    });
+
+    // Your turn: a new event.
+    const answered = await sync(user.id, commented(answer), hours(2));
+    expect(answered.result.newEventItemIds).toEqual([before.id]);
+    await db.item.updateMany({ data: { seenAt: NOW } });
+
+    // You answer back. Not new to you, so it stays seen.
+    const reply = {
+      ...answer,
+      id: "IC_3",
+      author: { __typename: "User", login: "octocat" },
+      createdAt: "2026-10-21T10:50:00Z",
+    };
+    const again = await sync(user.id, commented(answer, reply), hours(3));
+    expect(again.result.newEventItemIds).toEqual([]);
+    expect(await itemOf("review_requested")).toMatchObject({
+      latestEventId: "RRE_1",
+      seenAt: NOW,
+      waitingOnAuthor: true,
+    });
   });
 
   it("keeps items when a search misses a PR that's still open", async () => {

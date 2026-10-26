@@ -34,6 +34,7 @@ describe("new comment on my PR", () => {
         summary: 'jlee: "Comment C_2" (+1 more)',
         occurredAt: at(20),
         waitingSince: null,
+        waitingOnAuthor: false,
       },
     ]);
   });

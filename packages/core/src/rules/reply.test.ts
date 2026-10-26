@@ -38,6 +38,7 @@ describe("reply to my comment", () => {
         summary: 'sam: "Good call, moved it"',
         occurredAt: at(10),
         waitingSince: null,
+        waitingOnAuthor: false,
       },
     ]);
   });

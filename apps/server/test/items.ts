@@ -48,7 +48,12 @@ export function itemRows(db: Db) {
     fields: Partial<
       Pick<
         Prisma.ItemUncheckedCreateInput,
-        "occurredAt" | "waitingSince" | "status" | "seenAt" | "latestEventId"
+        | "occurredAt"
+        | "waitingSince"
+        | "waitingOnAuthor"
+        | "status"
+        | "seenAt"
+        | "latestEventId"
       >
     > = {},
   ) {

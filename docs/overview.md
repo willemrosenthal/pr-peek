@@ -15,6 +15,7 @@ This file describes **what** we are building and **how the pieces fit**. The ste
 | You've been asked to review a PR            | Row in "Needs my review"                             |
 | How long the request has been waiting       | A pill like `3h` or `2d`, orange then red as it ages |
 | Someone re-requested your review            | Row marked "Re-requested", sorted to the top         |
+| You commented but haven't approved yet      | Row tagged "Waiting on author", dimmed, sorted last  |
 | Someone replied to your comment on their PR | Row in "Replies to me"                               |
 
 ### Your PRs
@@ -114,12 +115,13 @@ pr-peek/
 | Review requested      | GraphQL search `is:pr is:open review-requested:@me` limited to watched repos                                                       |
 | Staleness             | Time since the latest `ReviewRequestedEvent` for you in the PR timeline (not the PR's "updated" time, which changes on every push) |
 | Re-requested          | A `ReviewRequestedEvent` for you that is newer than your last submitted review                                                     |
+| Waiting on author     | You commented or left a "Comment" review since the request, and the author hasn't replied or pushed since                          |
 | Reply to your comment | In a review thread you commented in, a newer comment by someone else. Or a PR conversation comment after yours that mentions you   |
 | Your PR was reviewed  | New reviews by others on PRs from `author:@me`                                                                                     |
 | Comment on your PR    | New conversation or review comments by others on PRs from `author:@me`                                                             |
 | Check failed          | `statusCheckRollup` on the latest commit is `FAILURE` or `ERROR`. List the failing checks by name                                  |
 
-Items close on their own when the condition goes away (you submitted the review, the check passed, the PR merged).
+Items close on their own when the condition goes away (you approved or asked for changes, the check passed, the PR merged). A "Comment" review doesn't close a review request. GitHub drops the request anyway, so we keep it open until it's removed by hand or you give a verdict.
 
 ## 6. Branches and deploys
 

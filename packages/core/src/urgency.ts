@@ -34,6 +34,8 @@ export const URGENCY_WEIGHTS = {
   stale: { fresh: 0, warn: 50, late: 100 },
   reRequested: 40,
   unseen: 25,
+  // Enough to sort below every other item.
+  waitingOnAuthor: -300,
 } as const;
 
 // Time between `start` and `end` that falls Monday to Friday, 9 to 6, in `timeZone`.
@@ -111,6 +113,7 @@ export interface UrgencyInput {
   waitingSince: string | null;
   occurredAt: string;
   unseen: boolean;
+  waitingOnAuthor: boolean;
 }
 
 export function urgencyScore(
@@ -125,7 +128,8 @@ export function urgencyScore(
     URGENCY_WEIGHTS.severity[item.severity] +
     URGENCY_WEIGHTS.stale[stale] +
     (item.kind === "re_requested" ? URGENCY_WEIGHTS.reRequested : 0) +
-    (item.unseen ? URGENCY_WEIGHTS.unseen : 0)
+    (item.unseen ? URGENCY_WEIGHTS.unseen : 0) +
+    (item.waitingOnAuthor ? URGENCY_WEIGHTS.waitingOnAuthor : 0)
   );
 }
 

@@ -4,6 +4,7 @@ import { reRequested, reviewRequested } from "./review-requested";
 import {
   actor,
   at,
+  comment,
   ctx,
   requested,
   review,
@@ -39,6 +40,7 @@ describe("review requested", () => {
         summary: "Review requested",
         occurredAt: at(5),
         waitingSince: at(5),
+        waitingOnAuthor: false,
       },
     ]);
   });
@@ -66,6 +68,9 @@ describe("review requested", () => {
   it("makes no item once you're no longer asked", () => {
     const pr = { ...askedAt(5), reviewRequests: [] };
     expect(detect(pr)).toEqual([]);
+    // Only your own review keeps a dropped request.
+    const reviewed = { ...pr, reviews: [review("R_1", "jlee", 10)] };
+    expect(detect(reviewed)).toEqual([]);
   });
 
   it("skips drafts unless you opt in", () => {
@@ -115,9 +120,31 @@ describe("review requested", () => {
     });
 
     it("clears when you review, even if the team request stays", () => {
-      const pr = { ...teamPr, reviews: [review("R_1", VIEWER, 10)] };
+      const pr = {
+        ...teamPr,
+        reviews: [review("R_1", VIEWER, 10, "APPROVED")],
+      };
       expect(detect(pr, onTeam)).toEqual([]);
     });
+  });
+
+  it.each(["APPROVED", "CHANGES_REQUESTED"] as const)(
+    "clears when you review with %s",
+    (state) => {
+      const pr = { ...askedAt(5), reviews: [review("R_1", VIEWER, 10, state)] };
+      expect(detect(pr)).toEqual([]);
+    },
+  );
+
+  it("clears when the request is taken back after you comment", () => {
+    const pr = snapshot({
+      reviewRequestEvents: [
+        requested("RR_1", 5),
+        { ...requested("RR_2", 15), action: "removed" },
+      ],
+      reviews: [review("R_1", VIEWER, 10)],
+    });
+    expect(detect(pr)).toEqual([]);
   });
 
   it("ignores your own PR", () => {
@@ -145,7 +172,10 @@ describe("review re-requested", () => {
   it("clears when you review again", () => {
     const pr = {
       ...askedAt(30),
-      reviews: [review("R_1", VIEWER, 10), review("R_2", VIEWER, 40)],
+      reviews: [
+        review("R_1", VIEWER, 10, "APPROVED"),
+        review("R_2", VIEWER, 40, "APPROVED"),
+      ],
     };
     expect(detect(pr)).toEqual([]);
   });
@@ -153,5 +183,114 @@ describe("review re-requested", () => {
   it("ignores reviews by other people", () => {
     const pr = { ...askedAt(30), reviews: [review("R_1", "jlee", 10)] };
     expect(detect(pr)[0]?.kind).toBe("review_requested");
+  });
+});
+
+describe("waiting on the author", () => {
+  // GitHub drops the request when you leave a "Comment" review.
+  const commentedAt = (minutes: number) =>
+    snapshot({
+      reviewRequestEvents: [requested("RR_1", 5)],
+      reviews: [review("R_1", VIEWER, minutes)],
+    });
+
+  it("keeps the request after a Comment review, waiting on the author", () => {
+    expect(detect(commentedAt(10))).toEqual([
+      expect.objectContaining({
+        kind: "review_requested",
+        dedupeKey: "rr:PR_1:RR_1",
+        latestEventId: "RR_1",
+        occurredAt: at(10),
+        waitingSince: null,
+        waitingOnAuthor: true,
+      }),
+    ]);
+  });
+
+  it("waits after a plain comment too", () => {
+    const pr = { ...askedAt(5), comments: [comment("C_1", VIEWER, 10)] };
+    expect(detect(pr)[0]).toMatchObject({
+      latestEventId: "RR_1",
+      waitingOnAuthor: true,
+    });
+  });
+
+  it("is your turn again when the author replies", () => {
+    const pr = {
+      ...commentedAt(10),
+      comments: [comment("C_1", "jlee", 15), comment("C_2", "sam", 20)],
+    };
+    expect(detect(pr)[0]).toMatchObject({
+      latestEventId: `RR_1:${at(10)}`,
+      occurredAt: at(20),
+      waitingSince: at(20),
+      waitingOnAuthor: false,
+    });
+  });
+
+  it("makes no new event when the author keeps going", () => {
+    const pr = {
+      ...commentedAt(10),
+      comments: [comment("C_2", "sam", 20)],
+      headSha: "def456",
+      headCommittedAt: at(30),
+    };
+    expect(detect(pr)[0]).toMatchObject({
+      latestEventId: `RR_1:${at(10)}`,
+      waitingSince: at(20),
+    });
+  });
+
+  it("is your turn again when the author pushes", () => {
+    const pr = {
+      ...commentedAt(10),
+      headSha: "def456",
+      headCommittedAt: at(20),
+    };
+    expect(detect(pr)[0]).toMatchObject({
+      latestEventId: `RR_1:${at(10)}`,
+      waitingSince: at(20),
+      waitingOnAuthor: false,
+    });
+  });
+
+  it("ignores pushes from before your comment", () => {
+    const pr = {
+      ...commentedAt(10),
+      headSha: "def456",
+      headCommittedAt: at(7),
+    };
+    expect(detect(pr)[0]).toMatchObject({
+      latestEventId: "RR_1",
+      waitingOnAuthor: true,
+    });
+  });
+
+  it("waits again when you answer", () => {
+    const pr = {
+      ...commentedAt(10),
+      comments: [comment("C_2", "sam", 20), comment("C_3", VIEWER, 30)],
+    };
+    expect(detect(pr)[0]).toMatchObject({
+      latestEventId: "RR_1",
+      occurredAt: at(30),
+      waitingOnAuthor: true,
+    });
+  });
+
+  it("stays a re-request when you comment after one", () => {
+    const pr = snapshot({
+      reviewRequestEvents: [requested("RR_1", 30)],
+      reviews: [
+        review("R_1", VIEWER, 10, "CHANGES_REQUESTED"),
+        review("R_2", VIEWER, 40),
+      ],
+    });
+    expect(detect(pr)).toEqual([
+      expect.objectContaining({
+        kind: "re_requested",
+        waitingOnAuthor: true,
+      }),
+    ]);
   });
 });

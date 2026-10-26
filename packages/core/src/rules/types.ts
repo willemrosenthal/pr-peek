@@ -41,8 +41,12 @@ export interface DetectedItem {
   actorIsBot: boolean;
   summary: string;
   occurredAt: string;
-  // When the wait started, for review requests. Null for other kinds.
+  // When the wait started, for review requests. Null for other kinds, and while
+  // waiting on the author.
   waitingSince: string | null;
+  // A review request the viewer commented on, until the author replies or pushes.
+  // Sorts last, with no stale color, reminders, or push.
+  waitingOnAuthor: boolean;
 }
 
 export interface Rule {
