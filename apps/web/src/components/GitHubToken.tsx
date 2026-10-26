@@ -63,6 +63,8 @@ function TokenInUse({
     <section className={styles.section}>
       <h2 className={styles.heading}>Personal access token</h2>
       <p className={styles.hint}>Syncs use your token. {expires}</p>
+      {/* Kept here so the permissions can be checked against a token in use. */}
+      <TokenSteps />
       {remove.isError && <Alert>{remove.error.message}</Alert>}
       <div className={styles.actions}>
         <Button onClick={onReplace}>Replace</Button>

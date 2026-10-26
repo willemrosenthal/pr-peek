@@ -114,6 +114,14 @@ it("lists the fine-grained token's permissions", async () => {
   }
 });
 
+it("shows the steps while a token is in use", async () => {
+  settingsApi({ "GET /api/me": () => json(me({ githubToken: TOKEN })) });
+  renderApp("/settings");
+
+  await userEvent.click(await screen.findByText("Fine-grained token"));
+  expect(screen.getByText("Contents")).toBeTruthy();
+});
+
 it("removes the token", async () => {
   let githubToken: GitHubTokenDto | null = TOKEN;
   settingsApi({
