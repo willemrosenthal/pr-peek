@@ -8,7 +8,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { apiError, fakeApi, item, json } from "../test/fake-api";
-import { PrPreview } from "./PrPreview";
+import { PrPreview, type PreviewTarget } from "./PrPreview";
 import styles from "./PrPreview.module.css";
 
 const comment = (
@@ -54,16 +54,19 @@ function setup(
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  render(
+  const sheet = (target: PreviewTarget | null) => (
     <QueryClientProvider client={queryClient}>
       <PrPreview
-        target={{ pr: row.pr, item: row, quiet }}
+        target={target}
         onToggleQuiet={onToggleQuiet}
         onClose={onClose}
       />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
-  return { row, onToggleQuiet, onClose };
+  const { rerender } = render(sheet({ pr: row.pr, item: row, quiet }));
+  // What the list does with onClose.
+  const close = () => rerender(sheet(null));
+  return { row, onToggleQuiet, onClose, close };
 }
 
 it("shows the PR right away, then its description as formatted text", async () => {
@@ -219,9 +222,6 @@ describe("dragging the sheet down", () => {
     sheet.style.setProperty("--drawer-swipe-movement-y", `${px}px`);
     EVENTS[kind].move(sheet);
   };
-  // The closing slide has started: the sheet is marked as closing.
-  const closing = () =>
-    screen.getByRole("dialog").hasAttribute("data-ending-style");
   const drag = (px: number, kind: Kind = "pointer") => {
     EVENTS[kind].down(screen.getByRole("dialog"));
     moveTo(px, kind);
@@ -234,8 +234,6 @@ describe("dragging the sheet down", () => {
       const { onClose } = setup(() => json(preview()));
       drag(90, kind);
       expect(onClose).toHaveBeenCalledTimes(1);
-      // The closing slide starts right away, before Base UI can spring it back up.
-      expect(closing()).toBe(true);
     },
   );
 
@@ -243,7 +241,6 @@ describe("dragging the sheet down", () => {
     const { onClose } = setup(() => json(preview()));
     drag(40);
     expect(onClose).not.toHaveBeenCalled();
-    expect(closing()).toBe(false);
   });
 
   it("doesn't close on a tap after a drag that never let go", () => {
@@ -255,6 +252,16 @@ describe("dragging the sheet down", () => {
     fireEvent.pointerDown(screen.getByRole("dialog"));
     fireEvent.pointerUp(screen.getByRole("dialog"));
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("keeps it sliding down once it's closed, after Base UI ends its drag", () => {
+    const { close } = setup(() => json(preview()));
+    const sheet = screen.getByRole("dialog");
+    close();
+    // On a phone, Base UI ends its drag after the sheet closes. Short of half its
+    // height, it takes its closing mark off the sheet.
+    sheet.removeAttribute("data-ending-style");
+    expect(sheet.matches(`.${styles.closing}`)).toBe(true);
   });
 });
 
