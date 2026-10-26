@@ -1,5 +1,5 @@
 import type { GitHubTokenDto } from "@pr-peek/core";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
 import {
@@ -97,6 +97,37 @@ it("has no cancel when there's no working token", async () => {
   renderApp("/settings");
   await screen.findByLabelText("Personal access token");
   expect(screen.queryByRole("button", { name: "Cancel" })).toBe(null);
+});
+
+// Opens the fine-grained token's steps and returns them.
+async function openFineGrained() {
+  const summary = await screen.findByText("Fine-grained token");
+  await userEvent.click(summary);
+  const details = summary.closest("details")!;
+  expect(details.open).toBe(true);
+  return within(details);
+}
+
+it("lists the fine-grained token's permissions", async () => {
+  settingsApi({});
+  renderApp("/settings");
+
+  const steps = await openFineGrained();
+  for (const permission of [
+    "Commit statuses",
+    "Contents",
+    "Pull requests",
+    "Members",
+  ]) {
+    expect(steps.getByText(permission)).toBeTruthy();
+  }
+});
+
+it("shows the steps while a token is in use", async () => {
+  settingsApi({ "GET /api/me": () => json(me({ githubToken: TOKEN })) });
+  renderApp("/settings");
+
+  await openFineGrained();
 });
 
 it("removes the token", async () => {

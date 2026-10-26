@@ -14,6 +14,29 @@
   color: var(--color-text-secondary);
 }
 
+.kinds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.kind[open] {
+  padding-bottom: var(--space-2);
+}
+
+/* Inside the details, since Safari ignores flex on details itself. */
+.kindBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .steps {
   display: flex;
   flex-direction: column;
@@ -32,4 +55,16 @@
 .actions {
   display: flex;
   gap: var(--space-2);
+}
+
+/* Permission and scope names, so they stand out from the gray steps. */
+.steps code {
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 85%;
+  white-space: nowrap;
 }
