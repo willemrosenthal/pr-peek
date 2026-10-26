@@ -3,10 +3,12 @@
    [data-swiping] rule for the sheet here. One there would also cut the closing slide
    short, since a swipe that closes the sheet is still "swiping" as it starts. */
 
-/* Fades as the sheet is swiped down. */
+/* Fades as the sheet is swiped down. Over everything, like the sticky list header on a
+   phone, and under the sheet, whose viewport comes after it at the same level. */
 .backdrop {
   position: fixed;
   inset: 0;
+  z-index: 100;
   min-height: 100dvh;
   background: rgb(0 0 0 / 40%);
   opacity: calc(1 - var(--drawer-swipe-progress, 0));
@@ -46,7 +48,7 @@
   box-sizing: border-box;
   width: 100%;
   max-width: 640px;
-  height: 88dvh;
+  height: 90dvh;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: var(--color-page);
   box-shadow: var(--shadow-panel);
