@@ -21,9 +21,15 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type SyntheticEvent,
+} from "react";
 import { cx } from "../cx";
-import { usePrPreview } from "../queries";
+import { REFETCH_MS, usePrPreview } from "../queries";
 import { GitHubHtml } from "./GitHubHtml";
 import { avatarUrl } from "./ItemRow";
 import styles from "./PrPreview.module.css";
@@ -144,6 +150,20 @@ function Sheet({
   const { data } = preview;
   const failing = data?.failingChecks ?? [];
   const QuietIcon = quiet ? Bell : BellOff;
+  // Images in private repos come with links that work for about 5 minutes. When one
+  // fails on an older copy, fetch the preview again for new links. A fresh copy isn't
+  // fetched again, so an image that's really gone can't cause a loop.
+  const refreshImages = (event: SyntheticEvent) => {
+    const target = event.target as Element;
+    if (
+      target.tagName === "IMG" &&
+      target.closest("[data-github-html]") &&
+      !preview.isFetching &&
+      Date.now() - preview.dataUpdatedAt > REFETCH_MS
+    ) {
+      void preview.refetch();
+    }
+  };
   return (
     <>
       <div className={styles.dragArea}>
@@ -186,7 +206,8 @@ function Sheet({
         </div>
       </div>
 
-      <Drawer.Content className={styles.scroll}>
+      {/* An image's error reaches here through React, though the browser's doesn't bubble. */}
+      <Drawer.Content className={styles.scroll} onError={refreshImages}>
         <section className={styles.card}>
           <div className={styles.cardBody}>
             <p className={styles.repo}>

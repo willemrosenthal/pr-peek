@@ -299,3 +299,29 @@ it("offers to try again when the details don't load", async () => {
     expect(screen.getByText("See the screenshots.")).toBeTruthy(),
   );
 });
+
+it("fetches again when an image fails on an older copy, but not on a fresh one", async () => {
+  const bodyHtml = '<p><img src="https://x.test/a.png" alt="Shot"></p>';
+  const answer = vi.fn(() => json(preview({ bodyHtml })));
+  setup(answer);
+  await screen.findByRole("img", { name: "Shot" });
+  const failImage = () =>
+    fireEvent.error(screen.getByRole("img", { name: "Shot" }));
+
+  failImage();
+  expect(answer).toHaveBeenCalledTimes(1);
+
+  // A minute later, its links may have run out.
+  const later = Date.now() + 61_000;
+  const now = vi.spyOn(Date, "now").mockReturnValue(later);
+  onTestFinished(() => now.mockRestore());
+  // An avatar that fails isn't GitHub's image.
+  fireEvent.error(document.querySelector(`img.${styles.avatar}`)!);
+  expect(answer).toHaveBeenCalledTimes(1);
+  failImage();
+  await waitFor(() => expect(answer).toHaveBeenCalledTimes(2));
+
+  // The new copy is fresh, so it isn't fetched again.
+  failImage();
+  expect(answer).toHaveBeenCalledTimes(2);
+});
