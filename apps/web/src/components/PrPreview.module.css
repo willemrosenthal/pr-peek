@@ -274,6 +274,21 @@
   gap: 6px;
 }
 
+/* Where the reviewer stands. Colored by .approved, .changes, or .neutral. */
+.reviewerStatus {
+  display: flex;
+  margin-left: -2px;
+}
+
+.reviewerStatus svg {
+  width: 14px;
+  height: 14px;
+}
+
+.neutral {
+  color: var(--color-text-tertiary);
+}
+
 .checks {
   display: flex;
   align-items: center;

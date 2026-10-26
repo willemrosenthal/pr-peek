@@ -10,6 +10,7 @@ import type { Octokit } from "octokit";
 import type { Db } from "../db";
 import { fetchPrPreview } from "../github/pull-preview";
 import { HttpError, parseInput } from "../http-error";
+import { reviewersOf } from "../reviewers";
 import { currentUser, requireUser } from "./auth";
 
 // Each preview is a GitHub request on the user's rate limit.
@@ -70,17 +71,14 @@ export function previewRouter(deps: PreviewDeps): Router {
       bodyHtml: preview.bodyHtml,
       openedAge: formatAge(preview.createdAt, at),
       failingChecks: stored?.checks.failing.map((check) => check.name) ?? [],
-      requestedReviewers:
-        stored?.reviewRequests.map((reviewer) =>
-          reviewer.type === "team"
-            ? { name: reviewer.slug, isTeam: true, isYou: false }
-            : {
-                name: reviewer.login,
-                isTeam: false,
-                isYou:
-                  reviewer.login.toLowerCase() === user.login.toLowerCase(),
-              },
-        ) ?? [],
+      reviewers: stored
+        ? reviewersOf(stored).map((reviewer) => ({
+            ...reviewer,
+            isYou:
+              !reviewer.isTeam &&
+              reviewer.name.toLowerCase() === user.login.toLowerCase(),
+          }))
+        : [],
       comments: preview.comments.map((comment) => ({
         ...comment,
         author: comment.author.login,

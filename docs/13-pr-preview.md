@@ -48,7 +48,7 @@ One PR for all of it.
 - [x] A bottom sheet (Base UI Drawer) at one height, 95% of the screen. Swipe down or tap outside to close. Letting go past 15% of its height (at least 80px) closes it, not just past half. The closing slide always plays to the end. The list's page holds the sheet, so it stays when a section goes away.
 - [x] Top bar: Quiet (or Bring back) on the left, Open on the right.
 - [x] Focus goes to the sheet, not its first button. No text gets selected by the press that opened it.
-- [x] Cards: the PR (repo, title, the author with their picture, who's asked to review and hasn't yet, failing checks), first, then "For you" (the conversation, or why it's on the list), the description, then the conversation when "For you" doesn't have it.
+- [x] Cards: the PR (repo, title, the author with their picture, every reviewer with where they stand (waiting, approved, requested changes, commented), failing checks), first, then "For you" (the conversation, or why it's on the list), the description, then the conversation when "For you" doesn't have it.
 - [x] Descriptions and comments formatted like on GitHub.
 - [x] Permalinks to code and suggested changes as numbered lines under their file, with GitHub's syntax colors.
 - [x] "See N earlier comments" shows the rest of the conversation with a fast, short animation. Reduced motion turns it off.

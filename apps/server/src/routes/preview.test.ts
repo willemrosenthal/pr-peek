@@ -115,10 +115,10 @@ it("answers with the description, checks, reviewers, and comments, marking the i
     bodyHtml: "<p>Adds login.</p>",
     openedAge: "2d",
     failingChecks: ["lint", "e2e"],
-    requestedReviewers: [
-      { name: "OctoCat", isTeam: false, isYou: true },
-      { name: "dev-sam", isTeam: false, isYou: false },
-      { name: "acme/web", isTeam: true, isYou: false },
+    reviewers: [
+      { name: "OctoCat", isTeam: false, isYou: true, status: "requested" },
+      { name: "dev-sam", isTeam: false, isYou: false, status: "requested" },
+      { name: "acme/web", isTeam: true, isYou: false, status: "requested" },
     ],
     comments: [
       {
@@ -142,7 +142,7 @@ it("still has the comments without an item, and no checks or reviewers without a
   const res = await agent.get(`/api/prs/${pr.id}/preview`);
   const body = bodyOf<PrPreviewResponse>(res);
   expect(body.failingChecks).toEqual([]);
-  expect(body.requestedReviewers).toEqual([]);
+  expect(body.reviewers).toEqual([]);
   expect(body.comments).toHaveLength(1);
   expect(body.focusId).toBeNull();
 });

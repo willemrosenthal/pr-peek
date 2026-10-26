@@ -277,7 +277,7 @@ describe("preview", () => {
             bodyHtml: "<p>Adds login.</p>",
             openedAge: "2d",
             failingChecks: [],
-            requestedReviewers: [],
+            reviewers: [],
             comments: [],
             focusId: null,
           }),
