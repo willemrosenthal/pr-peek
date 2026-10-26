@@ -82,64 +82,69 @@ function TokenSteps() {
     <div className={styles.kinds}>
       <details className={styles.kind}>
         <summary className={styles.summary}>Classic token</summary>
-        <p className={styles.hint}>
-          Easiest. Works for all your repos and orgs.
-        </p>
-        <ol className={styles.steps}>
-          <li>
-            On GitHub, go to Settings, Developer settings, Personal access
-            tokens, <strong>Tokens (classic)</strong>, then Generate new token
-            (classic).
-          </li>
-          <li>
-            Tick <code>repo</code> (its sub-boxes tick with it) and{" "}
-            <code>read:org</code>. Leave the rest. For public repos only, tick
-            just <code>public_repo</code> instead of <code>repo</code>. Pick an
-            expiry you're happy with. You'll paste a new token when it runs out.
-          </li>
-          <li>
-            If your company uses single sign-on, click{" "}
-            <strong>Configure SSO</strong>, then <strong>Authorize</strong> next
-            to your org. Without this, work repos won't show up.
-          </li>
-          <li>Copy the token and paste it here.</li>
-        </ol>
+        <div className={styles.kindBody}>
+          <p className={styles.hint}>
+            Easiest. Works for all your repos and orgs.
+          </p>
+          <ol className={styles.steps}>
+            <li>
+              On GitHub, go to Settings, Developer settings, Personal access
+              tokens, <strong>Tokens (classic)</strong>, then Generate new token
+              (classic).
+            </li>
+            <li>
+              Tick <code>repo</code> (its sub-boxes tick with it) and{" "}
+              <code>read:org</code>. Leave the rest. For public repos only, tick
+              just <code>public_repo</code> instead of <code>repo</code>. Pick
+              an expiry you're happy with. You'll paste a new token when it runs
+              out.
+            </li>
+            <li>
+              If your company uses single sign-on, click{" "}
+              <strong>Configure SSO</strong>, then <strong>Authorize</strong>{" "}
+              next to your org. Without this, work repos won't show up.
+            </li>
+            <li>Copy the token and paste it here.</li>
+          </ol>
+        </div>
       </details>
       <details className={styles.kind}>
         <summary className={styles.summary}>Fine-grained token</summary>
-        <p className={styles.hint}>
-          For orgs that only allow fine-grained tokens. Each one works for a
-          single org or account, so PRs elsewhere won't show up.
-        </p>
-        <ol className={styles.steps}>
-          <li>
-            On GitHub, go to Settings, Developer settings, Personal access
-            tokens, <strong>Fine-grained tokens</strong>, then Generate new
-            token.
-          </li>
-          <li>
-            Set <strong>Resource owner</strong> to your org. Set{" "}
-            <strong>Repository access</strong> to All repositories, or pick the
-            repos you watch here. Pick an expiry you're happy with.
-          </li>
-          <li>
-            Under <strong>Repository permissions</strong>, set these to
-            Read-only: <code>Commit statuses</code>, <code>Contents</code>, and{" "}
-            <code>Pull requests</code>. <code>Metadata</code> turns on by
-            itself.
-          </li>
-          <li>
-            Under <strong>Organization permissions</strong>, set{" "}
-            <code>Members</code> to Read-only. This finds your teams, for review
-            requests sent to them.
-          </li>
-          <li>
-            If your org has to approve tokens, wait for an org owner to approve
-            it. Syncs fail until then. Changing the permissions later may need
-            approval again.
-          </li>
-          <li>Copy the token and paste it here.</li>
-        </ol>
+        <div className={styles.kindBody}>
+          <p className={styles.hint}>
+            For orgs that only allow fine-grained tokens. Each one works for a
+            single org or account, so PRs elsewhere won't show up.
+          </p>
+          <ol className={styles.steps}>
+            <li>
+              On GitHub, go to Settings, Developer settings, Personal access
+              tokens, <strong>Fine-grained tokens</strong>, then Generate new
+              token.
+            </li>
+            <li>
+              Set <strong>Resource owner</strong> to your org. Set{" "}
+              <strong>Repository access</strong> to All repositories, or pick
+              the repos you watch here. Pick an expiry you're happy with.
+            </li>
+            <li>
+              Under <strong>Repository permissions</strong>, set these to
+              Read-only: <code>Commit statuses</code>, <code>Contents</code>,
+              and <code>Pull requests</code>. <code>Metadata</code> turns on by
+              itself.
+            </li>
+            <li>
+              Under <strong>Organization permissions</strong>, set{" "}
+              <code>Members</code> to Read-only. This finds your teams, for
+              review requests sent to them.
+            </li>
+            <li>
+              If your org has to approve tokens, wait for an org owner to
+              approve it. Syncs fail until then. Changing the permissions later
+              may need approval again.
+            </li>
+            <li>Copy the token and paste it here.</li>
+          </ol>
+        </div>
       </details>
     </div>
   );

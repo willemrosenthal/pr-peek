@@ -20,14 +20,16 @@
   gap: var(--space-2);
 }
 
-.kind {
+.kind[open] {
+  padding-bottom: var(--space-2);
+}
+
+/* Inside the details, since Safari ignores flex on details itself. */
+.kindBody {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-
-.kind[open] {
-  padding-bottom: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .summary {
@@ -62,7 +64,7 @@
   border-radius: var(--radius-sm);
   background: var(--color-surface-muted);
   color: var(--color-text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 85%;
   white-space: nowrap;
 }
