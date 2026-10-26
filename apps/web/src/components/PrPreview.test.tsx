@@ -202,10 +202,10 @@ it("has Quiet, Mark important, and Open at the top", async () => {
   expect(open.getAttribute("href")).toBe(row.pr.url);
 });
 
-it("offers Not important for a PR that's marked", () => {
+it("offers Remove flag for a PR that's marked", () => {
   const row = item();
   setup(() => json(preview()), { pr: { ...row.pr, important: true } });
-  expect(screen.getByRole("button", { name: "Not important" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Remove flag" })).toBeTruthy();
 });
 
 it("offers Bring back for a quiet PR, and no Mark important", () => {

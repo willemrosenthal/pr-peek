@@ -316,7 +316,7 @@ export function SwipeRow({
           aria-hidden="true"
         >
           <ShownIcon />
-          {toImportant ? (important ? "Not important" : "Important") : action}
+          {toImportant ? (important ? "Remove flag" : "Important") : action}
         </div>
       )}
       <div

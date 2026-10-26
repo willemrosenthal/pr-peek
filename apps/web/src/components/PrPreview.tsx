@@ -47,7 +47,7 @@ const MAX_STAGGER = 8;
 const CLOSE_SHARE = 0.15;
 const CLOSE_MIN_PX = 80;
 
-// The top bar's buttons: Quiet (or Bring back), and Mark important (or Not important).
+// The top bar's buttons: Quiet (or Bring back), and Mark important (or Remove flag).
 interface SheetActions {
   onToggleQuiet: () => void;
   onToggleImportant: () => void;
@@ -170,7 +170,7 @@ function Sheet({
                 ) : (
                   <Flag aria-hidden="true" />
                 )}
-                {pr.important ? "Not important" : "Mark important"}
+                {pr.important ? "Remove flag" : "Mark important"}
               </button>
             )}
           </div>

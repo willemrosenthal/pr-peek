@@ -186,9 +186,9 @@ describe("SwipeRow right swipe", () => {
     );
   });
 
-  it("says Not important when it's marked", () => {
+  it("says Remove flag when it's marked", () => {
     hold(setupImportant(true).link, 100);
-    expect(screen.getByText("Not important")).toBeTruthy();
+    expect(screen.getByText("Remove flag")).toBeTruthy();
   });
 
   it("marks important on a trackpad swipe right", async () => {
