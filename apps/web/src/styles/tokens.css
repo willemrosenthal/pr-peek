@@ -14,9 +14,9 @@
   --color-accent: #0b57d0;
   --color-accent-hover: #08408f;
   --color-on-accent: #ffffff;
-  /* The flag on a PR the user marked important, and its swipe strip. Amber, dark
-     enough to see on white. */
-  --color-important: #c78500;
+  /* The flag on a PR the user marked important, and its swipe strip. Amber, the same in
+     dark mode. */
+  --color-important: #edbd1f;
   --color-on-important: #1d1d1f;
   --color-focus: #0b57d0;
   --color-danger: #b42318;
@@ -79,7 +79,6 @@
     --color-accent: #8ab4ff;
     --color-accent-hover: #b0ccff;
     --color-on-accent: #0b1a33;
-    --color-important: #ffc53d;
     --color-focus: #8ab4ff;
     --color-danger: #ff8a80;
     --color-danger-bg: #3a1d1b;
