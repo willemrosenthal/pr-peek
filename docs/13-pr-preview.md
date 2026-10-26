@@ -49,7 +49,7 @@ One PR for all of it.
 - [x] Top bar: Quiet (or Bring back) on the left, Open on the right. Important (or Remove flag) came later, next to Quiet, and closes the sheet like Quiet.
 - [x] Focus goes to the sheet, not its first button. No text gets selected by the press that opened it.
 - [x] Cards: the PR (repo, title, the author with their picture, every reviewer with where they stand (waiting, approved, requested changes, commented), failing checks), first, then "For you" (the conversation, or why it's on the list), the description, then the conversation when "For you" doesn't have it.
-- [x] Descriptions and comments formatted like on GitHub.
+- [x] Descriptions and comments formatted like on GitHub. Their images need GitHub's image servers in the `img-src` security header, or the browser blocks them (#94).
 - [x] Permalinks to code and suggested changes as numbered lines under their file, with GitHub's syntax colors.
 - [x] "See N earlier comments" shows the rest of the conversation with a fast, short animation. Reduced motion turns it off.
 - [x] Loading and error states. Retry on error.

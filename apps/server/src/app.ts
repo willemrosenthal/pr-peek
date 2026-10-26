@@ -18,7 +18,13 @@ const HEALTH = "/health";
 const CACHE_FOREVER = "public, max-age=31536000, immutable";
 // Everything else (index.html, sw.js, the manifest, icons) is checked with us each time.
 const NO_CACHE = "no-cache";
-const GITHUB_AVATARS = "https://avatars.githubusercontent.com";
+// Where GitHub's pictures come from: avatars, pasted images (private ones too), and
+// other sites' images, which GitHub serves itself. Plus its emoji.
+const GITHUB_IMAGES = [
+  "https://*.githubusercontent.com",
+  "https://github.com",
+  "https://github.githubassets.com",
+];
 
 export interface AppDeps {
   logger: Logger;
@@ -49,8 +55,7 @@ export function createApp(deps: AppDeps): Express {
   app.use(
     helmet({
       contentSecurityPolicy: {
-        // PR authors' pictures come from GitHub.
-        directives: { "img-src": ["'self'", "data:", GITHUB_AVATARS] },
+        directives: { "img-src": ["'self'", "data:", ...GITHUB_IMAGES] },
       },
     }),
   );
