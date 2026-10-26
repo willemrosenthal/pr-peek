@@ -113,9 +113,9 @@ export const TEST_PUSHES: { name: string; payload: PushPayload }[] = [
     },
   },
   {
-    name: "Review requested again",
+    name: "Re-review requested",
     payload: {
-      title: "Review requested again",
+      title: "Re-review requested",
       body: prPushBody("Move auth to middleware", "acme/web", 477),
       icon: testAvatar("sam-ortiz"),
     },
