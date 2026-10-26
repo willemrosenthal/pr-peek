@@ -55,7 +55,6 @@ export function createApp(deps: AppDeps): Express {
   app.use(
     helmet({
       contentSecurityPolicy: {
-        // People's pictures, and images in PR descriptions and comments.
         directives: { "img-src": ["'self'", "data:", ...GITHUB_IMAGES] },
       },
     }),
