@@ -7,6 +7,11 @@ export function setVisibility(state: DocumentVisibilityState) {
   document.dispatchEvent(new Event("visibilitychange"));
 }
 
+// Hides the Mac app's window. The page can still count as visible then.
+export function hideWindow() {
+  window.dispatchEvent(new Event("pr-peek:hidden"));
+}
+
 export function resetVisibility() {
   Reflect.deleteProperty(document, "visibilityState");
 }

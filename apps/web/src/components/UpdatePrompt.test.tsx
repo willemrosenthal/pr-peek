@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { useRegisterSW } from "virtual:pwa-register/react";
+import { hideWindow } from "../test/visibility";
 import { UpdatePrompt } from "./UpdatePrompt";
 
 vi.mock("virtual:pwa-register/react", () => ({ useRegisterSW: vi.fn() }));
@@ -40,12 +41,12 @@ it("reloads into the new version", async () => {
 it("updates when the menu bar window hides, only once one is waiting", () => {
   registerSW(false);
   const { rerender } = render(<UpdatePrompt />);
-  window.dispatchEvent(new Event("pr-peek:hidden"));
+  hideWindow();
   expect(updateServiceWorker).not.toHaveBeenCalled();
 
   registerSW(true);
   rerender(<UpdatePrompt />);
-  window.dispatchEvent(new Event("pr-peek:hidden"));
+  hideWindow();
   expect(updateServiceWorker).toHaveBeenCalledWith(true);
 });
 

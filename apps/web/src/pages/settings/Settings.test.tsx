@@ -14,7 +14,7 @@ import {
 import { stubDisplayMode } from "../../test/install";
 import { renderApp } from "../../test/render";
 import { stubTauri } from "../../test/tauri";
-import { setVisibility } from "../../test/visibility";
+import { hideWindow, setVisibility } from "../../test/visibility";
 
 it.each(["/settings", "/settings/nope"])(
   "opens General from %s",
@@ -41,11 +41,7 @@ it("switches tabs", async () => {
 });
 
 describe("when the app hides", () => {
-  const hide = () => {
-    act(() => {
-      window.dispatchEvent(new Event("pr-peek:hidden"));
-    });
-  };
+  const hide = () => act(hideWindow);
 
   it("goes back to the list in the Mac app", async () => {
     stubTauri();

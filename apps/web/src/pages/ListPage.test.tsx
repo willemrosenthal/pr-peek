@@ -25,11 +25,10 @@ import {
   settingsResponse,
   syncStatus,
 } from "../test/fake-api";
-import { stubDisplayMode } from "../test/install";
 import { renderApp } from "../test/render";
 import { drag, FAR_ENOUGH, stubPointerCapture } from "../test/swipe";
 import { callsOf, stubTauri } from "../test/tauri";
-import { setVisibility } from "../test/visibility";
+import { hideWindow, setVisibility } from "../test/visibility";
 
 beforeAll(stubPointerCapture);
 
@@ -309,43 +308,23 @@ describe("preview", () => {
     expect(callsTo(fetch, `/api/prs/${asked.pr.id}/quiet`)).toHaveLength(1);
   });
 
-  describe("when the app hides", () => {
-    // Opens a row's preview and waits for it.
-    async function openPreview(url = "/") {
-      const asked = item();
-      fakeApi(
-        listApi({
-          "GET /api/items": () => json(groups({ review: [asked] })),
-          ...previewApi(asked),
-        }),
-      );
-      renderApp(url);
-      await sectionButton(/Needs my review/);
-      fireEvent.contextMenu(rowOf(asked));
-      await screen.findByRole("dialog", { name: asked.pr.title });
-    }
+  // When it hides is tested with Settings, which goes back to the list the same way.
+  it("closes when the app hides", async () => {
+    stubTauri();
+    const asked = item();
+    fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ review: [asked] })),
+        ...previewApi(asked),
+      }),
+    );
+    renderApp("/?shell=tray");
 
-    it("closes in the Mac app", async () => {
-      stubTauri();
-      await openPreview("/?shell=tray");
-      act(() => {
-        window.dispatchEvent(new Event("pr-peek:hidden"));
-      });
-      await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null));
-    });
-
-    it("closes when the installed app is hidden", async () => {
-      stubDisplayMode({ standalone: true });
-      await openPreview();
-      act(() => setVisibility("hidden"));
-      await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null));
-    });
-
-    it("stays open in a browser tab", async () => {
-      await openPreview();
-      act(() => setVisibility("hidden"));
-      expect(screen.getByRole("dialog")).toBeTruthy();
-    });
+    await sectionButton(/Needs my review/);
+    fireEvent.contextMenu(rowOf(asked));
+    await screen.findByRole("dialog", { name: asked.pr.title });
+    act(hideWindow);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null));
   });
 });
 
@@ -513,10 +492,7 @@ describe("marking seen", () => {
     renderApp("/?shell=tray");
     await sectionButton(/Needs my review/);
 
-    // The page can still count as visible when the window hides.
-    act(() => {
-      window.dispatchEvent(new Event("pr-peek:hidden"));
-    });
+    act(hideWindow);
     expect(seenRequests(fetch)).toEqual([[review[0]!.id]]);
   });
 
