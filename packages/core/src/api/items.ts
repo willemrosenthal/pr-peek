@@ -53,8 +53,8 @@ export interface ItemDto {
     author: string;
     // The watched repo's color. Null when off.
     color: string | null;
-    // The user marked it unread, as a reminder. Shows the dot like `unseen`.
-    markedUnread: boolean;
+    // The user marked it important, as a reminder. The list shows a flag.
+    important: boolean;
   };
 }
 

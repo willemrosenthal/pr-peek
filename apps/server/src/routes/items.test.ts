@@ -50,10 +50,10 @@ const quiet = (agent: Agent, id: string) =>
   agent.put(`/api/prs/${id}/quiet`).set("Origin", APP_URL);
 const unquiet = (agent: Agent, id: string) =>
   agent.delete(`/api/prs/${id}/quiet`).set("Origin", APP_URL);
-const markUnread = (agent: Agent, id: string) =>
-  agent.put(`/api/prs/${id}/unread`).set("Origin", APP_URL);
-const markRead = (agent: Agent, id: string) =>
-  agent.delete(`/api/prs/${id}/unread`).set("Origin", APP_URL);
+const markImportant = (agent: Agent, id: string) =>
+  agent.put(`/api/prs/${id}/important`).set("Origin", APP_URL);
+const unmarkImportant = (agent: Agent, id: string) =>
+  agent.delete(`/api/prs/${id}/important`).set("Origin", APP_URL);
 
 it("needs sign in for every items endpoint", async () => {
   const { agent } = makeTestApp(db, { routers: [itemsRouter({ db })] });
@@ -62,8 +62,8 @@ it("needs sign in for every items endpoint", async () => {
   expect((await markSeen(agent, ["x"])).status).toBe(401);
   expect((await quiet(agent, "x")).status).toBe(401);
   expect((await unquiet(agent, "x")).status).toBe(401);
-  expect((await markUnread(agent, "x")).status).toBe(401);
-  expect((await markRead(agent, "x")).status).toBe(401);
+  expect((await markImportant(agent, "x")).status).toBe(401);
+  expect((await unmarkImportant(agent, "x")).status).toBe(401);
 });
 
 describe("GET /api/items", () => {
@@ -123,7 +123,7 @@ describe("GET /api/items", () => {
         url: "https://github.com/acme/web-app/pull/7",
         author: "sam",
         color: null,
-        markedUnread: false,
+        important: false,
       },
     });
     expect(body.replies[0]).toMatchObject({
@@ -204,7 +204,7 @@ describe("GET /api/items", () => {
         url: "https://github.com/acme/web-app/pull/7",
         author: "Octocat",
         color: null,
-        markedUnread: false,
+        important: false,
       },
     });
     expect(body.idlePrs[0]?.isDraft).toBe(true);
@@ -355,65 +355,50 @@ describe("quiet PRs", () => {
   });
 });
 
-describe("marking PRs unread", () => {
-  it("marks a PR unread on its row, and keeps it through marking items seen", async () => {
+describe("important PRs", () => {
+  it("marks a PR important on its row, separate from seen", async () => {
     const { agent, user } = await setup();
     const pr = await makePr(user.id);
-    const reply = await makeItem(user.id, pr.id, "reply", {
-      seenAt: hours(-1),
-    });
+    await makeItem(user.id, pr.id, "reply");
     const idle = await makePr(user.id, 8, { authorLogin: "octocat" });
 
-    expect((await markUnread(agent, pr.id)).status).toBe(204);
-    expect((await markUnread(agent, idle.id)).status).toBe(204);
-    expect((await markSeen(agent, [reply.id])).status).toBe(204);
+    expect((await markImportant(agent, pr.id)).status).toBe(204);
+    expect((await markImportant(agent, idle.id)).status).toBe(204);
 
     const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
     expect(body.replies[0]).toMatchObject({
-      unseen: false,
-      pr: { id: pr.id, markedUnread: true },
+      unseen: true,
+      pr: { id: pr.id, important: true },
     });
-    expect(body.idlePrs[0]?.pr.markedUnread).toBe(true);
+    expect(body.idlePrs[0]?.pr.important).toBe(true);
   });
 
-  it("marks a PR read, which also marks its items seen", async () => {
+  it("unmarks a PR, leaving its items unseen", async () => {
     const { agent, user } = await setup();
-    const pr = await makePr(user.id, 7, { unreadAt: hours(-1) });
+    const pr = await makePr(user.id, 7, { importantAt: hours(-1) });
     const reply = await makeItem(user.id, pr.id, "reply");
-    const other = await makePr(user.id, 8, { unreadAt: hours(-1) });
-    const otherReply = await makeItem(user.id, other.id, "reply");
 
-    expect((await markRead(agent, pr.id)).status).toBe(204);
+    expect((await unmarkImportant(agent, pr.id)).status).toBe(204);
 
-    const read = await db.pullRequest.findUniqueOrThrow({
+    const after = await db.pullRequest.findUniqueOrThrow({
       where: { id: pr.id },
     });
-    expect(read.unreadAt).toBeNull();
-    const seenAt = async (id: string) =>
-      (await db.item.findUniqueOrThrow({ where: { id } })).seenAt;
-    expect(await seenAt(reply.id)).toEqual(NOW);
-    // Other PRs keep theirs.
-    expect(await seenAt(otherReply.id)).toBeNull();
-    const kept = await db.pullRequest.findUniqueOrThrow({
-      where: { id: other.id },
-    });
-    expect(kept.unreadAt).not.toBeNull();
+    expect(after.importantAt).toBeNull();
+    const item = await db.item.findUniqueOrThrow({ where: { id: reply.id } });
+    expect(item.seenAt).toBeNull();
   });
 
   it("can't mark another user's PR", async () => {
     const { agent } = await setup();
     const other = await otherUser();
     const theirs = await makePr(other.id);
-    await makeItem(other.id, theirs.id, "reply");
 
-    expect((await markUnread(agent, theirs.id)).status).toBe(404);
-    expect((await markRead(agent, theirs.id)).status).toBe(404);
+    expect((await markImportant(agent, theirs.id)).status).toBe(404);
+    expect((await unmarkImportant(agent, "missing")).status).toBe(404);
     const after = await db.pullRequest.findUniqueOrThrow({
       where: { id: theirs.id },
     });
-    expect(after.unreadAt).toBeNull();
-    const item = await db.item.findFirstOrThrow();
-    expect(item.seenAt).toBeNull();
+    expect(after.importantAt).toBeNull();
   });
 });
 

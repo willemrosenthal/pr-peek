@@ -67,7 +67,7 @@ const prRef = (): ItemDto["pr"] => ({
   url: `https://github.com/acme/web-app/pull/${itemCount}`,
   author: "sam",
   color: null,
-  markedUnread: false,
+  important: false,
 });
 
 export const item = (fields: Partial<ItemDto> = {}): ItemDto => {

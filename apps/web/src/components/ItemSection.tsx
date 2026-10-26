@@ -1,17 +1,19 @@
 import { Collapsible } from "@base-ui/react/collapsible";
 import type { IdlePrDto, ItemDto } from "@pr-peek/core";
 import { ChevronRight } from "lucide-react";
-import { useMarkUnread, usePrefetchPreview, useSetQuiet } from "../queries";
-import { showsDot } from "../unread";
+import {
+  usePrefetchPreview,
+  useSetQuiet,
+  useToggleImportant,
+} from "../queries";
 import { IdlePrRow, ItemRow } from "./ItemRow";
 import styles from "./ItemSection.module.css";
 import type { OnPreview } from "./PrPreview";
 import { SwipeRow } from "./SwipeRow";
 
 // A section of the list. `idle` PRs come after the items. Rows in the `quiet` section
-// are one line, and swiping one brings it back. Opening a row the user marked unread
-// marks it read. A long press on a row calls `onPreview`. The list shows the sheet, so
-// it stays open if this section goes away.
+// are one line, and swiping one brings it back. A long press on a row calls
+// `onPreview`. The list shows the sheet, so it stays open if this section goes away.
 export function ItemSection({
   title,
   items,
@@ -32,16 +34,16 @@ export function ItemSection({
   onPreview: OnPreview;
 }) {
   const setQuiet = useSetQuiet();
-  const unread = useMarkUnread();
+  const toggleImportant = useToggleImportant();
   const prefetch = usePrefetchPreview();
   const toggle = (prId: string) => () =>
     setQuiet.mutate({ prId, quiet: !quiet });
-  // Swipe and long press. Quiet rows show no dot, so they don't mark unread.
+  // Swipe and long press. Quiet rows show no flag, so they can't be marked important.
   const rowProps = (pr: ItemDto["pr"], item: ItemDto | null) => ({
     quiet,
     onToggle: toggle(pr.id),
-    unread: showsDot(pr, item),
-    onToggleUnread: quiet ? undefined : () => unread.toggle(pr, item),
+    important: pr.important,
+    onToggleImportant: quiet ? undefined : () => toggleImportant(pr),
     onLongPress: () => onPreview({ pr, item, quiet }),
     onPressStart: () => prefetch(pr.id, item?.id ?? null),
   });
@@ -57,22 +59,12 @@ export function ItemSection({
       <Collapsible.Panel>
         {items.map((item) => (
           <SwipeRow key={item.id} {...rowProps(item.pr, item)}>
-            <ItemRow
-              item={item}
-              quiet={quiet}
-              showAuthor={showAuthors}
-              onOpen={() => unread.readIfMarked(item.pr)}
-            />
+            <ItemRow item={item} quiet={quiet} showAuthor={showAuthors} />
           </SwipeRow>
         ))}
         {idle.map((pr) => (
           <SwipeRow key={pr.id} {...rowProps(pr.pr, null)}>
-            <IdlePrRow
-              pr={pr}
-              quiet={quiet}
-              showAuthor={showAuthors}
-              onOpen={() => unread.readIfMarked(pr.pr)}
-            />
+            <IdlePrRow pr={pr} quiet={quiet} showAuthor={showAuthors} />
           </SwipeRow>
         ))}
       </Collapsible.Panel>

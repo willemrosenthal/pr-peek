@@ -50,8 +50,7 @@ function setup(
   });
   fakeApi({ [`GET /api/prs/${row.pr.id}/preview?item=${row.id}`]: answer });
   const onToggleQuiet = vi.fn();
-  const onToggleUnread = vi.fn();
-  const onOpen = vi.fn();
+  const onToggleImportant = vi.fn();
   const onClose = vi.fn();
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -61,8 +60,7 @@ function setup(
       <PrPreview
         target={target}
         onToggleQuiet={onToggleQuiet}
-        onToggleUnread={onToggleUnread}
-        onOpen={onOpen}
+        onToggleImportant={onToggleImportant}
         onClose={onClose}
       />
     </QueryClientProvider>
@@ -71,7 +69,7 @@ function setup(
   const { rerender } = render(sheet(target));
   // Gives the sheet a new target, like the list does. Null closes it.
   const show = (next: PreviewTarget | null) => rerender(sheet(next));
-  return { row, target, onToggleQuiet, onToggleUnread, onOpen, onClose, show };
+  return { row, target, onToggleQuiet, onToggleImportant, onClose, show };
 }
 
 it("shows the PR right away, then its description as formatted text", async () => {
@@ -192,29 +190,28 @@ it("shows the conversation after the description for a review request", async ()
   expect(document.querySelector(`.${styles.mutedComment}`)).toBeNull();
 });
 
-it("has Quiet, Mark unread, and Open at the top", async () => {
-  const { row, onToggleQuiet, onToggleUnread, onOpen } = setup(() =>
+it("has Quiet, Mark important, and Open at the top", async () => {
+  const { row, onToggleQuiet, onToggleImportant } = setup(() =>
     json(preview()),
   );
   await userEvent.click(screen.getByRole("button", { name: "Quiet" }));
   expect(onToggleQuiet).toHaveBeenCalledTimes(1);
-  await userEvent.click(screen.getByRole("button", { name: "Mark unread" }));
-  expect(onToggleUnread).toHaveBeenCalledTimes(1);
+  await userEvent.click(screen.getByRole("button", { name: "Mark important" }));
+  expect(onToggleImportant).toHaveBeenCalledTimes(1);
   const open = screen.getByRole("link", { name: "Open" });
   expect(open.getAttribute("href")).toBe(row.pr.url);
-  fireEvent.click(open);
-  expect(onOpen).toHaveBeenCalledTimes(1);
 });
 
-it("offers Mark read for a row with the dot", () => {
-  setup(() => json(preview()), { unseen: true });
-  expect(screen.getByRole("button", { name: "Mark read" })).toBeTruthy();
+it("offers Not important for a PR that's marked", () => {
+  const row = item();
+  setup(() => json(preview()), { pr: { ...row.pr, important: true } });
+  expect(screen.getByRole("button", { name: "Not important" })).toBeTruthy();
 });
 
-it("offers Bring back for a quiet PR, and no Mark unread", () => {
+it("offers Bring back for a quiet PR, and no Mark important", () => {
   setup(() => json(preview()), {}, true);
   expect(screen.getByRole("button", { name: "Bring back" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Mark unread" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Mark important" })).toBeNull();
 });
 
 describe("dragging the sheet down", () => {

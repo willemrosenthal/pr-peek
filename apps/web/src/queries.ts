@@ -20,11 +20,11 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { api, ApiError, isUnauthorized } from "./api";
+import { markImportant } from "./important";
 import { thisDeviceEndpoint } from "./push";
 import { moveQuiet } from "./quiet";
-import { markUnread, showsDot } from "./unread";
 
 export const queryKeys = {
   me: ["me"],
@@ -63,7 +63,7 @@ export function useItems() {
 }
 
 // Every save that changes the list right away, before the server answers: quiet and
-// unread. They share this key's start, so they wait for each other below.
+// important. They share this key's start, so they wait for each other below.
 const LIST_CHANGE = ["list-change"];
 
 // Shows `change` on the list right away, then reloads the list and counts once the
@@ -106,31 +106,20 @@ export function useSetQuiet() {
   });
 }
 
-// Marks PRs unread, as a reminder to come back to them, or read. The dot changes right
-// away. `toggle` flips a row's dot. `readIfMarked` is for opening a PR: it clears only
-// a mark the user made, not the dot for something new.
-export function useMarkUnread() {
+// Marks a PR important, as a reminder to come back to it, or unmarks it. The flag
+// changes right away. Returns a function that flips a PR's mark.
+export function useToggleImportant() {
   const queryClient = useQueryClient();
   const { mutate } = useMutation({
-    mutationKey: [...LIST_CHANGE, "unread"],
-    mutationFn: ({ prId, unread }: { prId: string; unread: boolean }) =>
-      api(`/prs/${prId}/unread`, {
-        method: unread ? "PUT" : "DELETE",
-        // Opening the PR can hide the page before this is sent.
-        keepalive: true,
-      }),
-    ...changesList(queryClient, (list, { prId, unread }) =>
-      markUnread(list, prId, unread),
+    mutationKey: [...LIST_CHANGE, "important"],
+    mutationFn: ({ prId, important }: { prId: string; important: boolean }) =>
+      api(`/prs/${prId}/important`, { method: important ? "PUT" : "DELETE" }),
+    ...changesList(queryClient, (list, { prId, important }) =>
+      markImportant(list, prId, important),
     ),
   });
-  return useMemo(
-    () => ({
-      toggle: (pr: ItemDto["pr"], item: ItemDto | null) =>
-        mutate({ prId: pr.id, unread: !showsDot(pr, item) }),
-      readIfMarked: (pr: ItemDto["pr"]) => {
-        if (pr.markedUnread) mutate({ prId: pr.id, unread: false });
-      },
-    }),
+  return useCallback(
+    (pr: ItemDto["pr"]) => mutate({ prId: pr.id, important: !pr.important }),
     [mutate],
   );
 }

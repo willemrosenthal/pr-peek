@@ -54,15 +54,14 @@
   justify-content: flex-end;
 }
 
-/* Swiping right to mark it unread or read: the dot's blue from the start, so it looks
-   nothing like quiet. The label is dim until it's far enough (`.back`). */
-.unread {
-  background: var(--color-accent);
-  color: color-mix(in srgb, var(--color-on-accent) 70%, transparent);
+/* Swiping right to mark it important or unmark it: the flag's amber from the start,
+   so it looks nothing like quiet. The label is dim until it's far enough. */
+.important {
+  background: var(--color-important);
+  color: color-mix(in srgb, var(--color-on-important) 60%, transparent);
 }
 
-/* Far enough that letting go acts: `.armed` quiets it. `.back` brings it back, or
-   marks it unread or read. */
+/* Far enough that letting go acts: it quiets, comes back, or is marked important. */
 .armed {
   background: var(--color-text-secondary);
   color: var(--color-surface);
@@ -73,8 +72,13 @@
   color: var(--color-on-accent);
 }
 
+.importantArmed {
+  color: var(--color-on-important);
+}
+
 .armed svg,
-.back svg {
+.back svg,
+.importantArmed svg {
   transform: scale(1.25);
 }
 

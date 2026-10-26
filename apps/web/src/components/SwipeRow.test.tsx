@@ -140,59 +140,61 @@ describe("SwipeRow", () => {
 });
 
 describe("SwipeRow right swipe", () => {
-  function setupUnread(unread = false) {
+  function setupImportant(important = false) {
     const onToggle = vi.fn();
-    const onToggleUnread = vi.fn();
+    const onToggleImportant = vi.fn();
     render(
       <SwipeRow
         quiet={false}
         onToggle={onToggle}
-        unread={unread}
-        onToggleUnread={onToggleUnread}
+        important={important}
+        onToggleImportant={onToggleImportant}
       >
         <a href="https://github.com/acme/web-app/pull/7">Add login</a>
       </SwipeRow>,
     );
     const link = screen.getByRole("link", { name: "Add login" });
-    return { onToggle, onToggleUnread, link };
+    return { onToggle, onToggleImportant, link };
   }
 
-  it("marks the PR unread, and the row stays to swipe again", async () => {
-    const { onToggle, onToggleUnread, link } = setupUnread();
+  it("marks the PR important, and the row stays to swipe again", async () => {
+    const { onToggle, onToggleImportant, link } = setupImportant();
     drag(link, FAR_ENOUGH);
-    expect(onToggleUnread).toHaveBeenCalledTimes(1);
+    expect(onToggleImportant).toHaveBeenCalledTimes(1);
     drag(link, FAR_ENOUGH);
-    expect(onToggleUnread).toHaveBeenCalledTimes(2);
+    expect(onToggleImportant).toHaveBeenCalledTimes(2);
     await settle();
     expect(onToggle).not.toHaveBeenCalled();
   });
 
   it("still quiets when swiped left", async () => {
-    const { onToggle, onToggleUnread, link } = setupUnread();
+    const { onToggle, onToggleImportant, link } = setupImportant();
     drag(link, -FAR_ENOUGH);
     await waitFor(() => expect(onToggle).toHaveBeenCalledTimes(1));
-    expect(onToggleUnread).not.toHaveBeenCalled();
+    expect(onToggleImportant).not.toHaveBeenCalled();
   });
 
-  it("says Unread in the dot's color, brighter once far enough", () => {
-    const { link } = setupUnread();
+  it("says Important in amber, brighter once far enough", () => {
+    const { link } = setupImportant();
     hold(link, 100);
-    const strip = screen.getByText("Unread");
-    expect(strip.className).toContain(styles.unread);
-    expect(strip.className).not.toContain(styles.back);
+    const strip = screen.getByText("Important");
+    expect(strip.className).toContain(styles.important);
+    expect(strip.className).not.toContain(styles.importantArmed);
     hold(link, FAR_ENOUGH);
-    expect(screen.getByText("Unread").className).toContain(styles.back);
+    expect(screen.getByText("Important").className).toContain(
+      styles.importantArmed,
+    );
   });
 
-  it("says Read when the row has the dot", () => {
-    hold(setupUnread(true).link, 100);
-    expect(screen.getByText("Read")).toBeTruthy();
+  it("says Not important when it's marked", () => {
+    hold(setupImportant(true).link, 100);
+    expect(screen.getByText("Not important")).toBeTruthy();
   });
 
-  it("marks unread on a trackpad swipe right", async () => {
-    const { onToggleUnread, link } = setupUnread();
+  it("marks important on a trackpad swipe right", async () => {
+    const { onToggleImportant, link } = setupImportant();
     fireEvent.wheel(link, { deltaX: -FAR_ENOUGH, deltaY: 0 });
-    await waitFor(() => expect(onToggleUnread).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onToggleImportant).toHaveBeenCalledTimes(1));
   });
 });
 

@@ -68,38 +68,30 @@ export function itemsRouter(deps: ItemDeps): Router {
     res.sendStatus(204);
   });
 
-  // Marks a PR unread, as a reminder to come back to it.
-  router.put("/prs/:id/unread", async (req, res) => {
+  // Marks a PR important, as a reminder to come back to it.
+  router.put("/prs/:id/important", async (req, res) => {
     await updatePr(deps.db, currentUser(res).id, req.params.id, {
-      unreadAt: now(),
+      importantAt: now(),
     });
     res.sendStatus(204);
   });
 
-  // Marks a PR read: clears the mark and marks its items seen. Also called when the user
-  // opens a PR they marked unread.
-  router.delete("/prs/:id/unread", async (req, res) => {
-    await updatePr(
-      deps.db,
-      currentUser(res).id,
-      req.params.id,
-      { unreadAt: null },
-      now(),
-    );
+  router.delete("/prs/:id/important", async (req, res) => {
+    await updatePr(deps.db, currentUser(res).id, req.params.id, {
+      importantAt: null,
+    });
     res.sendStatus(204);
   });
 
   return router;
 }
 
-// Changes the user's PR, and marks its items seen at `seenAt` when given. Tells the
-// user's other devices.
+// Changes the user's PR. Tells the user's other devices.
 async function updatePr(
   db: Db,
   userId: string,
   prId: string,
-  data: { quietAt?: Date | null; unreadAt?: Date | null },
-  seenAt?: Date,
+  data: { quietAt?: Date | null; importantAt?: Date | null },
 ): Promise<void> {
   await db.$transaction(async (tx) => {
     const { count } = await tx.pullRequest.updateMany({
@@ -107,12 +99,6 @@ async function updatePr(
       data,
     });
     if (count === 0) throw new HttpError(404, "not_found", "PR not found");
-    if (seenAt) {
-      await tx.item.updateMany({
-        where: { pullRequestId: prId, userId, seenAt: null },
-        data: { seenAt },
-      });
-    }
     await publishItemsChanged(tx, userId);
   });
 }

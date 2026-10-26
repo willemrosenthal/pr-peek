@@ -11,12 +11,12 @@ import {
   Bell,
   BellOff,
   CircleAlert,
-  Circle,
   CircleCheck,
-  CircleDot,
   CircleX,
   Clock,
   ExternalLink,
+  Flag,
+  FlagOff,
   MessageCircle,
   Users,
   type LucideIcon,
@@ -24,7 +24,6 @@ import {
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cx } from "../cx";
 import { usePrPreview } from "../queries";
-import { showsDot } from "../unread";
 import { GitHubHtml } from "./GitHubHtml";
 import { avatarUrl } from "./ItemRow";
 import styles from "./PrPreview.module.css";
@@ -48,11 +47,10 @@ const MAX_STAGGER = 8;
 const CLOSE_SHARE = 0.15;
 const CLOSE_MIN_PX = 80;
 
-// The top bar's buttons: Quiet (or Bring back), Mark unread (or Mark read), and Open.
+// The top bar's buttons: Quiet (or Bring back), and Mark important (or Not important).
 interface SheetActions {
   onToggleQuiet: () => void;
-  onToggleUnread: () => void;
-  onOpen: () => void;
+  onToggleImportant: () => void;
 }
 
 // A bottom sheet with more about a PR: its title, repo, why it's on the list, the
@@ -61,8 +59,7 @@ interface SheetActions {
 export function PrPreview({
   target,
   onToggleQuiet,
-  onToggleUnread,
-  onOpen,
+  onToggleImportant,
   onClose,
 }: {
   target: PreviewTarget | null;
@@ -126,8 +123,7 @@ export function PrPreview({
                 key={shown.item?.id ?? shown.pr.id}
                 target={shown}
                 onToggleQuiet={onToggleQuiet}
-                onToggleUnread={onToggleUnread}
-                onOpen={onOpen}
+                onToggleImportant={onToggleImportant}
               />
             )}
           </Drawer.Popup>
@@ -140,8 +136,7 @@ export function PrPreview({
 function Sheet({
   target: { pr, item, quiet },
   onToggleQuiet,
-  onToggleUnread,
-  onOpen,
+  onToggleImportant,
 }: {
   target: PreviewTarget;
 } & SheetActions) {
@@ -149,7 +144,6 @@ function Sheet({
   const { data } = preview;
   const failing = data?.failingChecks ?? [];
   const QuietIcon = quiet ? Bell : BellOff;
-  const unread = showsDot(pr, item);
   return (
     <>
       <div className={styles.dragArea}>
@@ -164,19 +158,19 @@ function Sheet({
               <QuietIcon aria-hidden="true" />
               {quiet ? "Bring back" : "Quiet"}
             </button>
-            {/* Quiet rows show no dot. */}
+            {/* Quiet rows show no flag. */}
             {!quiet && (
               <button
                 type="button"
                 className={styles.barButton}
-                onClick={onToggleUnread}
+                onClick={onToggleImportant}
               >
-                {unread ? (
-                  <Circle aria-hidden="true" />
+                {pr.important ? (
+                  <FlagOff aria-hidden="true" />
                 ) : (
-                  <CircleDot aria-hidden="true" />
+                  <Flag aria-hidden="true" />
                 )}
-                {unread ? "Mark read" : "Mark unread"}
+                {pr.important ? "Not important" : "Mark important"}
               </button>
             )}
           </div>
@@ -185,7 +179,6 @@ function Sheet({
             href={pr.url}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={onOpen}
           >
             Open
             <ExternalLink aria-hidden="true" />
