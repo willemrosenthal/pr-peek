@@ -1,17 +1,28 @@
 import type { ItemGroup, ItemsResponse, ShowAuthors } from "@pr-peek/core";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Alert } from "../components/Alert";
 import { Banners } from "../components/Banners";
 import { Button } from "../components/Button";
 import { ItemSection } from "../components/ItemSection";
 import { ListHeader } from "../components/ListHeader";
+import {
+  PrPreview,
+  type OnPreview,
+  type PreviewTarget,
+} from "../components/PrPreview";
 import { cx } from "../cx";
 import { useIsTray } from "../hooks/useIsTray";
 import { useMarkSeen } from "../hooks/useMarkSeen";
 import { useStoredState } from "../hooks/useStoredState";
 import { useSync } from "../hooks/useSync";
-import { useItems, useMe, useRepos, useSettings } from "../queries";
+import {
+  useItems,
+  useMe,
+  useRepos,
+  useSetQuiet,
+  useSettings,
+} from "../queries";
 import styles from "./ListPage.module.css";
 
 const SECTIONS: { group: ItemGroup; title: string }[] = [
@@ -38,6 +49,10 @@ export function ListPage() {
   const me = useMe();
   const sync = useSync();
   const tray = useIsTray();
+  const setQuiet = useSetQuiet();
+  // The PR whose preview is open. Kept here, not in its section, so the sheet stays
+  // through its closing slide even when the section goes away.
+  const [preview, setPreview] = useState<PreviewTarget | null>(null);
 
   return (
     <main className={cx(styles.page, tray && styles.tray)}>
@@ -55,13 +70,24 @@ export function ListPage() {
             </div>
           )}
         </div>
-        <ListBody />
+        <ListBody onPreview={setPreview} />
       </div>
+      <PrPreview
+        target={preview}
+        // The row moves, like after a swipe, so the sheet closes.
+        onToggleQuiet={() => {
+          if (preview) {
+            setQuiet.mutate({ prId: preview.pr.id, quiet: !preview.quiet });
+          }
+          setPreview(null);
+        }}
+        onClose={() => setPreview(null)}
+      />
     </main>
   );
 }
 
-function ListBody() {
+function ListBody({ onPreview }: { onPreview: OnPreview }) {
   const items = useItems();
 
   if (items.isPending) return <p className={styles.message}>Loading</p>;
@@ -80,12 +106,18 @@ function ListBody() {
   return (
     <>
       {total === 0 && <EmptyList />}
-      <Sections groups={items.data} />
+      <Sections groups={items.data} onPreview={onPreview} />
     </>
   );
 }
 
-function Sections({ groups }: { groups: ItemsResponse }) {
+function Sections({
+  groups,
+  onPreview,
+}: {
+  groups: ItemsResponse;
+  onPreview: OnPreview;
+}) {
   const [collapsed, setCollapsed] = useStoredState<SectionKey[]>(
     "pr-peek:collapsed",
     [],
@@ -123,6 +155,7 @@ function Sections({ groups }: { groups: ItemsResponse }) {
             showAuthors={showsAuthors(showAuthors, group)}
             open={!collapsed.includes(group)}
             onOpenChange={(open) => setOpen(group, open)}
+            onPreview={onPreview}
           />
         );
       })}
@@ -134,6 +167,7 @@ function Sections({ groups }: { groups: ItemsResponse }) {
           quiet
           open={!collapsed.includes("quiet")}
           onOpenChange={(open) => setOpen("quiet", open)}
+          onPreview={onPreview}
         />
       )}
     </>

@@ -36,7 +36,11 @@ const preview = (
   ...fields,
 });
 
-function setup(answer: () => Response, fields: Partial<ItemDto> = {}) {
+function setup(
+  answer: () => Response,
+  fields: Partial<ItemDto> = {},
+  quiet = false,
+) {
   const row = item({
     kind: "reply",
     summary: 'jordan: "Thanks!"',
@@ -51,8 +55,7 @@ function setup(answer: () => Response, fields: Partial<ItemDto> = {}) {
   render(
     <QueryClientProvider client={queryClient}>
       <PrPreview
-        target={{ pr: row.pr, item: row }}
-        quiet={false}
+        target={{ pr: row.pr, item: row, quiet }}
         onToggleQuiet={onToggleQuiet}
         onClose={() => {}}
       />
@@ -147,6 +150,11 @@ it("has Quiet and Open at the top", async () => {
   expect(onToggleQuiet).toHaveBeenCalledTimes(1);
   const open = screen.getByRole("link", { name: "Open" });
   expect(open.getAttribute("href")).toBe(row.pr.url);
+});
+
+it("offers Bring back for a quiet PR", () => {
+  setup(() => json(preview()), {}, true);
+  expect(screen.getByRole("button", { name: "Bring back" })).toBeTruthy();
 });
 
 it("offers to try again when the details don't load", async () => {

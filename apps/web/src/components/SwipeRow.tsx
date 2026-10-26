@@ -39,15 +39,23 @@ const SELECTION_BLOCK_ENDS = ["pointerup", "touchend", "pointerdown"] as const;
 // and a phone's long press would select the sheet's text. It waits on the window, not
 // the row: a phone can cancel the row's press while the finger stays down. Returns a
 // function that stops it sooner.
+//
+// iPhones don't always send selectstart for a long press, so the data-long-press
+// attribute also makes everything unselectable in CSS (global.css). Anything selected
+// anyway is cleared at the end.
 function blockSelection(onEnd: () => void): () => void {
+  const root = document.documentElement;
   const block = (event: Event) => event.preventDefault();
   const stop = () => {
     document.removeEventListener("selectstart", block);
     for (const type of SELECTION_BLOCK_ENDS) {
       window.removeEventListener(type, stop, true);
     }
+    delete root.dataset.longPress;
+    window.getSelection()?.removeAllRanges();
     onEnd();
   };
+  root.dataset.longPress = "";
   document.addEventListener("selectstart", block);
   // Capture, so nothing that stops these events can hide them.
   for (const type of SELECTION_BLOCK_ENDS) {
