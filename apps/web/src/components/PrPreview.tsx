@@ -100,12 +100,12 @@ export function PrPreview({
             // springs the sheet back up.
             className={cx(styles.popup, !target && styles.closing)}
             initialFocus={popupRef}
-            // Phones send touch events while dragging, other pointers pointer events.
-            // Both fire on a phone, and endDrag only acts once.
+            // Pointer moves track the drag, on a phone too: Base UI keeps its touch moves
+            // to itself. A phone also sends touch start and end, after the pointer ones,
+            // in case the browser cancels the pointer. endDrag only acts once.
             onPointerDown={startDrag}
             onTouchStart={startDrag}
             onPointerMove={trackDrag}
-            onTouchMove={trackDrag}
             onPointerUp={endDrag}
             onTouchEnd={endDrag}
           >

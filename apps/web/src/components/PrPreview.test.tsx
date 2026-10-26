@@ -63,10 +63,11 @@ function setup(
       />
     </QueryClientProvider>
   );
-  const { rerender } = render(sheet({ pr: row.pr, item: row, quiet }));
-  // What the list does with onClose.
-  const close = () => rerender(sheet(null));
-  return { row, onToggleQuiet, onClose, close };
+  const target = { pr: row.pr, item: row, quiet };
+  const { rerender } = render(sheet(target));
+  // Gives the sheet a new target, like the list does. Null closes it.
+  const show = (next: PreviewTarget | null) => rerender(sheet(next));
+  return { row, target, onToggleQuiet, onClose, show };
 }
 
 it("shows the PR right away, then its description as formatted text", async () => {
@@ -201,38 +202,28 @@ it("offers Bring back for a quiet PR", () => {
 });
 
 describe("dragging the sheet down", () => {
-  // A press, a move, and a release, as pointer events or as a phone's touch events.
-  const EVENTS = {
-    pointer: {
-      down: fireEvent.pointerDown,
-      move: fireEvent.pointerMove,
-      up: fireEvent.pointerUp,
-    },
-    touch: {
-      down: fireEvent.touchStart,
-      move: fireEvent.touchMove,
-      up: fireEvent.touchEnd,
-    },
-  };
-  type Kind = keyof typeof EVENTS;
-
   // Base UI sets this on the sheet while it's dragged.
-  const moveTo = (px: number, kind: Kind = "pointer") => {
+  const moveTo = (px: number) => {
     const sheet = screen.getByRole("dialog");
     sheet.style.setProperty("--drawer-swipe-movement-y", `${px}px`);
-    EVENTS[kind].move(sheet);
+    fireEvent.pointerMove(sheet);
   };
-  const drag = (px: number, kind: Kind = "pointer") => {
-    EVENTS[kind].down(screen.getByRole("dialog"));
-    moveTo(px, kind);
-    EVENTS[kind].up(screen.getByRole("dialog"));
+  // A press, a move, and a release. A phone sends each pointer event, then a touch
+  // event, except for the moves: Base UI keeps those to itself.
+  const drag = (px: number, { phone = false } = {}) => {
+    const sheet = screen.getByRole("dialog");
+    fireEvent.pointerDown(sheet);
+    if (phone) fireEvent.touchStart(sheet);
+    moveTo(px);
+    fireEvent.pointerUp(sheet);
+    if (phone) fireEvent.touchEnd(sheet);
   };
 
-  it.each<Kind>(["pointer", "touch"])(
-    "closes it once it's let go past a short distance (%s)",
-    (kind) => {
+  it.each([false, true])(
+    "closes it once it's let go past a short distance (phone: %s)",
+    (phone) => {
       const { onClose } = setup(() => json(preview()));
-      drag(90, kind);
+      drag(90, { phone });
       expect(onClose).toHaveBeenCalledTimes(1);
     },
   );
@@ -253,16 +244,24 @@ describe("dragging the sheet down", () => {
     fireEvent.pointerUp(screen.getByRole("dialog"));
     expect(onClose).not.toHaveBeenCalled();
   });
+});
 
-  it("keeps it sliding down once it's closed, after Base UI ends its drag", () => {
-    const { close } = setup(() => json(preview()));
-    const sheet = screen.getByRole("dialog");
-    close();
-    // On a phone, Base UI ends its drag after the sheet closes. Short of half its
-    // height, it takes its closing mark off the sheet.
-    sheet.removeAttribute("data-ending-style");
-    expect(sheet.matches(`.${styles.closing}`)).toBe(true);
-  });
+it("marks the sheet as sliding away until it's opened again", () => {
+  const { target, show } = setup(() => json(preview()));
+  // Hidden too, in case Base UI hides the sheet from screen readers as it goes.
+  const closing = () =>
+    screen.getByRole("dialog", { hidden: true }).matches(`.${styles.closing}`);
+  expect(closing()).toBe(false);
+
+  show(null);
+  // On a phone, Base UI ends its drag after the sheet closes. Short of half its
+  // height, it takes its own closing mark off. Ours stays.
+  screen.getByRole("dialog").removeAttribute("data-ending-style");
+  expect(closing()).toBe(true);
+
+  // Opened again before it's gone, it comes back up.
+  show(target);
+  expect(closing()).toBe(false);
 });
 
 it("offers to try again when the details don't load", async () => {
