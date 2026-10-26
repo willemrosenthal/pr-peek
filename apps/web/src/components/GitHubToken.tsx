@@ -122,9 +122,9 @@ function TokenSteps() {
           </li>
           <li>
             Under <strong>Repository permissions</strong>, set these to
-            Read-only: <code>Checks</code>, <code>Commit statuses</code>,{" "}
-            <code>Contents</code>, and <code>Pull requests</code>.{" "}
-            <code>Metadata</code> turns on by itself.
+            Read-only: <code>Commit statuses</code>, <code>Contents</code>, and{" "}
+            <code>Pull requests</code>. <code>Metadata</code> turns on by
+            itself.
           </li>
           <li>
             Under <strong>Organization permissions</strong>, set{" "}

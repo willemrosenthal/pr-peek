@@ -105,7 +105,6 @@ it("lists the fine-grained token's permissions", async () => {
 
   await userEvent.click(await screen.findByText("Fine-grained token"));
   for (const permission of [
-    "Checks",
     "Commit statuses",
     "Contents",
     "Pull requests",
