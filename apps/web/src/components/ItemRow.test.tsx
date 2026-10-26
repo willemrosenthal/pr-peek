@@ -1,7 +1,7 @@
-import type { ItemDto, ItemKind, StaleLevel } from "@pr-peek/core";
+import type { ItemKind, StaleLevel } from "@pr-peek/core";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { idlePr, item } from "../test/fake-api";
+import { idlePr, important, item } from "../test/fake-api";
 import { IdlePrRow, ItemRow } from "./ItemRow";
 
 it("links to the PR and shows what happened", () => {
@@ -59,11 +59,6 @@ it("marks unseen items for screen readers too", () => {
 });
 
 describe("a PR marked important", () => {
-  const important = <Row extends { pr: ItemDto["pr"] }>(row: Row): Row => ({
-    ...row,
-    pr: { ...row.pr, important: true },
-  });
-
   it("has a flag, after the dot for something new", () => {
     render(<ItemRow item={important(item({ unseen: true }))} />);
     expect(screen.getByRole("link").textContent).toMatch(/^New: Important: /);

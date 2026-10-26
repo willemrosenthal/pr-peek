@@ -15,6 +15,7 @@ import {
   groups,
   type Handlers,
   idlePr,
+  important,
   item,
   json,
   listApi,
@@ -309,10 +310,6 @@ describe("preview", () => {
 });
 
 describe("marking important", () => {
-  const importantRow = (fields: Partial<ItemDto> = {}) => {
-    const row = item(fields);
-    return { ...row, pr: { ...row.pr, important: true } };
-  };
   const hasFlag = (row: { pr: { url: string } }) =>
     rowOf(row).textContent?.includes("Important: ");
 
@@ -359,7 +356,7 @@ describe("marking important", () => {
   });
 
   it("unmarks it when swiped right again, not when opened", async () => {
-    const marked = importantRow();
+    const marked = important(item());
     const fetch = importantApi([marked]);
     renderApp("/");
     await sectionButton(/Needs my review/);
@@ -394,7 +391,7 @@ describe("marking important", () => {
   });
 
   it("still marks an important PR's new items seen on leaving", async () => {
-    const marked = importantRow({ unseen: true });
+    const marked = important(item({ unseen: true }));
     const fetch = importantApi([marked]);
     renderApp("/");
     await sectionButton(/Needs my review/);

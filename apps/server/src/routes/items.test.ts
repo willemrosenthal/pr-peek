@@ -388,17 +388,17 @@ describe("important PRs", () => {
     expect(item.seenAt).toBeNull();
   });
 
-  it("can't mark another user's PR", async () => {
+  it("can't mark or unmark another user's PR", async () => {
     const { agent } = await setup();
     const other = await otherUser();
-    const theirs = await makePr(other.id);
+    const theirs = await makePr(other.id, 7, { importantAt: hours(-1) });
 
     expect((await markImportant(agent, theirs.id)).status).toBe(404);
-    expect((await unmarkImportant(agent, "missing")).status).toBe(404);
+    expect((await unmarkImportant(agent, theirs.id)).status).toBe(404);
     const after = await db.pullRequest.findUniqueOrThrow({
       where: { id: theirs.id },
     });
-    expect(after.importantAt).toBeNull();
+    expect(after.importantAt).toEqual(hours(-1));
   });
 });
 

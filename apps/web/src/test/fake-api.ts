@@ -90,6 +90,14 @@ export const item = (fields: Partial<ItemDto> = {}): ItemDto => {
   };
 };
 
+// The row with its PR marked important.
+export const important = <Row extends { pr: ItemDto["pr"] }>(
+  row: Row,
+): Row => ({
+  ...row,
+  pr: { ...row.pr, important: true },
+});
+
 export const idlePr = (fields: Partial<IdlePrDto> = {}): IdlePrDto => {
   itemCount += 1;
   return {

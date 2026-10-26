@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { apiError, fakeApi, item, json } from "../test/fake-api";
+import { apiError, fakeApi, important, item, json } from "../test/fake-api";
 import { PrPreview, type PreviewTarget } from "./PrPreview";
 import styles from "./PrPreview.module.css";
 
@@ -203,8 +203,7 @@ it("has Quiet, Mark important, and Open at the top", async () => {
 });
 
 it("offers Remove flag for a PR that's marked", () => {
-  const row = item();
-  setup(() => json(preview()), { pr: { ...row.pr, important: true } });
+  setup(() => json(preview()), { pr: important(item()).pr });
   expect(screen.getByRole("button", { name: "Remove flag" })).toBeTruthy();
 });
 
