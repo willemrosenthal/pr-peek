@@ -1,15 +1,29 @@
-interface GraphQLErrorShape {
-  data?: unknown;
-  errors?: { type?: string }[];
+export interface GraphQLErrorItem {
+  type?: string;
+  path?: (string | number)[];
 }
 
-// True if `err` is a GraphQL error and every error in it is one of `types`.
-export function hasOnlyErrorTypes(err: unknown, types: string[]): boolean {
+interface GraphQLErrorShape {
+  data?: unknown;
+  errors?: GraphQLErrorItem[];
+}
+
+// True if `err` is a GraphQL error and every error in it is one of `types`, or one
+// `alsoAllowed` accepts.
+export function hasOnlyErrorTypes(
+  err: unknown,
+  types: string[],
+  alsoAllowed?: (error: GraphQLErrorItem) => boolean,
+): boolean {
   const { errors } = err as GraphQLErrorShape;
   return (
     Array.isArray(errors) &&
     errors.length > 0 &&
-    errors.every((e) => e.type !== undefined && types.includes(e.type))
+    errors.every(
+      (e) =>
+        (e.type !== undefined && types.includes(e.type)) ||
+        (alsoAllowed?.(e) ?? false),
+    )
   );
 }
 
@@ -24,8 +38,9 @@ export function isNotFound(err: unknown): boolean {
 export function partialDataOrThrow(
   err: unknown,
   types: string[] = ["NOT_FOUND"],
+  alsoAllowed?: (error: GraphQLErrorItem) => boolean,
 ): unknown {
   const { data } = err as GraphQLErrorShape;
-  if (hasOnlyErrorTypes(err, types) && data) return data;
+  if (hasOnlyErrorTypes(err, types, alsoAllowed) && data) return data;
   throw err;
 }

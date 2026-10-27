@@ -4,6 +4,21 @@ import { fakeGraphQL } from "../../test/github";
 import { detailIds, githubPr, prGitHub, recentCommit } from "../../test/pulls";
 import { fetchPrDetails, mentionsIn, preview } from "./pull-details";
 
+// A PR's head commit, with these checks.
+const withHeadChecks = (statusCheckRollup: unknown) => ({
+  commits: {
+    nodes: [
+      {
+        commit: {
+          oid: "abc123",
+          committedDate: "2026-10-21T07:00:00Z",
+          statusCheckRollup,
+        },
+      },
+    ],
+  },
+});
+
 describe("fetchPrDetails", () => {
   it("turns GitHub's answer into a snapshot", async () => {
     const { octokit } = fakeGraphQL(prGitHub({ prs: { PR_1: githubPr() } }));
@@ -111,19 +126,7 @@ describe("fetchPrDetails", () => {
   });
 
   it("handles a commit with no checks", async () => {
-    const pr = githubPr({
-      commits: {
-        nodes: [
-          {
-            commit: {
-              oid: "abc123",
-              committedDate: "2026-10-21T07:00:00Z",
-              statusCheckRollup: null,
-            },
-          },
-        ],
-      },
-    });
+    const pr = githubPr(withHeadChecks(null));
     const { octokit } = fakeGraphQL(prGitHub({ prs: { PR_1: pr } }));
     const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
     expect(snapshots[0]?.checks).toEqual({ state: null, failing: [] });
@@ -242,6 +245,68 @@ describe("fetchPrDetails", () => {
 
     expect(snapshots.map((s) => s.id)).toEqual(["PR_1"]);
     expect(failed).toEqual([{ id: "PR_gone", error: "not found" }]);
+  });
+
+  it("skips check runs hidden from a fine-grained token, and keeps statuses", async () => {
+    const pr = githubPr(
+      withHeadChecks({
+        state: "FAILURE",
+        contexts: {
+          nodes: [
+            null,
+            {
+              __typename: "StatusContext",
+              context: "Vercel",
+              state: "FAILURE",
+              targetUrl: null,
+            },
+          ],
+        },
+      }),
+    );
+    const { octokit } = fakeGraphQL(() => ({
+      data: { nodes: [pr] },
+      errors: [
+        {
+          type: "FORBIDDEN",
+          path: [
+            "nodes",
+            0,
+            "commits",
+            "nodes",
+            0,
+            "commit",
+            "statusCheckRollup",
+            "contexts",
+            "nodes",
+            0,
+          ],
+          message: "Resource not accessible by personal access token",
+        },
+      ],
+    }));
+
+    const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
+    expect(snapshots[0]?.checks).toEqual({
+      state: "FAILURE",
+      failing: [{ name: "Vercel", url: null }],
+    });
+  });
+
+  it("throws when anything other than a check run is forbidden", async () => {
+    const { octokit } = fakeGraphQL(() => ({
+      data: { nodes: [githubPr()] },
+      errors: [
+        {
+          type: "FORBIDDEN",
+          path: ["nodes", 0, "commits", "nodes", 0],
+          message: "Resource not accessible by personal access token",
+        },
+      ],
+    }));
+    await expect(fetchPrDetails(octokit, ["PR_1"])).rejects.toThrow(
+      "Resource not accessible",
+    );
   });
 
   it("throws other GitHub errors", async () => {
