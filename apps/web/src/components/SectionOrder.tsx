@@ -7,6 +7,8 @@ import {
   useSensors,
   type Announcements,
   type DragEndEvent,
+  type Over,
+  type UniqueIdentifier,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -28,17 +30,21 @@ import {
 } from "../sections";
 import styles from "./SectionOrder.module.css";
 
-const titleOf = (id: string | number) =>
+const titleOf = (id: UniqueIdentifier) =>
   SECTIONS.find((section) => section.group === id)?.title ?? String(id);
+
+// Where a row would land, like "place 2 of 4". Sortable rows keep their index in `data`.
+const placeOf = (over: Over) =>
+  `place ${Number(over.data.current?.sortable.index) + 1} of ${SECTIONS.length}`;
 
 // What screen readers hear while moving a section with the keyboard.
 const announcements: Announcements = {
   onDragStart: ({ active }) =>
     `Picked up ${titleOf(active.id)}. Use the arrow keys to move it.`,
   onDragOver: ({ active, over }) =>
-    over ? `${titleOf(active.id)} is over ${titleOf(over.id)}.` : undefined,
+    over ? `${titleOf(active.id)} is now in ${placeOf(over)}.` : undefined,
   onDragEnd: ({ active, over }) =>
-    over ? `Dropped ${titleOf(active.id)}.` : undefined,
+    over ? `Dropped ${titleOf(active.id)} in ${placeOf(over)}.` : undefined,
   onDragCancel: ({ active }) => `Put ${titleOf(active.id)} back.`,
 };
 

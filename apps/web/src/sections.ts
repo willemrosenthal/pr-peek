@@ -18,16 +18,16 @@ export const sectionOrder = localSetting<string>(
 );
 
 // The sections in the saved order. Ones the order doesn't name, like a section added
-// after it was saved, keep their default place at the end.
+// after it was saved, go at the end in their default order.
 export function orderSections(order: string) {
   const saved = order.split(",");
-  const rank = (group: ItemGroup) => {
-    const at = saved.indexOf(group);
-    return at === -1 ? saved.length + SECTIONS.length : at;
-  };
-  return SECTIONS.map((section, i) => ({ section, i }))
-    .sort((a, b) => rank(a.section.group) - rank(b.section.group) || a.i - b.i)
-    .map(({ section }) => section);
+  const at = ({ group }: (typeof SECTIONS)[number]) => saved.indexOf(group);
+  return [
+    ...SECTIONS.filter((section) => at(section) !== -1).sort(
+      (a, b) => at(a) - at(b),
+    ),
+    ...SECTIONS.filter((section) => at(section) === -1),
+  ];
 }
 
 export const saveSectionOrder = (groups: ItemGroup[]) =>

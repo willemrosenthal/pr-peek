@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { beforeAll, describe, expect, it } from "vitest";
+import { sectionOrder } from "../sections";
 import {
   apiError,
   callsTo,
@@ -25,7 +26,6 @@ import {
   settingsResponse,
   syncStatus,
 } from "../test/fake-api";
-import { sectionOrder } from "../sections";
 import { renderApp } from "../test/render";
 import { drag, FAR_ENOUGH, stubPointerCapture } from "../test/swipe";
 import { callsOf, stubTauri } from "../test/tauri";

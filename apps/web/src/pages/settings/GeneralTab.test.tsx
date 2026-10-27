@@ -225,6 +225,9 @@ it("moves a section with the keyboard, and saves the order on this device", asyn
     ]),
   );
   expect(sectionOrder.get()).toBe("replies,review,assigned,mine");
+  expect(
+    screen.getByText("Dropped Needs my review in place 2 of 4."),
+  ).toBeTruthy();
 });
 
 it("turns launching at login off, only inside the Mac app", async () => {
