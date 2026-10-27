@@ -4,6 +4,21 @@ import { fakeGraphQL } from "../../test/github";
 import { detailIds, githubPr, prGitHub, recentCommit } from "../../test/pulls";
 import { fetchPrDetails, mentionsIn, preview } from "./pull-details";
 
+// A PR's head commit, with these checks.
+const withHeadChecks = (statusCheckRollup: unknown) => ({
+  commits: {
+    nodes: [
+      {
+        commit: {
+          oid: "abc123",
+          committedDate: "2026-10-21T07:00:00Z",
+          statusCheckRollup,
+        },
+      },
+    ],
+  },
+});
+
 describe("fetchPrDetails", () => {
   it("turns GitHub's answer into a snapshot", async () => {
     const { octokit } = fakeGraphQL(prGitHub({ prs: { PR_1: githubPr() } }));
@@ -111,19 +126,7 @@ describe("fetchPrDetails", () => {
   });
 
   it("handles a commit with no checks", async () => {
-    const pr = githubPr({
-      commits: {
-        nodes: [
-          {
-            commit: {
-              oid: "abc123",
-              committedDate: "2026-10-21T07:00:00Z",
-              statusCheckRollup: null,
-            },
-          },
-        ],
-      },
-    });
+    const pr = githubPr(withHeadChecks(null));
     const { octokit } = fakeGraphQL(prGitHub({ prs: { PR_1: pr } }));
     const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
     expect(snapshots[0]?.checks).toEqual({ state: null, failing: [] });
@@ -245,32 +248,22 @@ describe("fetchPrDetails", () => {
   });
 
   it("skips check runs hidden from a fine-grained token, and keeps statuses", async () => {
-    const pr = githubPr({
-      commits: {
-        nodes: [
-          {
-            commit: {
-              oid: "abc123",
-              committedDate: "2026-10-21T07:00:00Z",
-              statusCheckRollup: {
-                state: "FAILURE",
-                contexts: {
-                  nodes: [
-                    null,
-                    {
-                      __typename: "StatusContext",
-                      context: "Vercel",
-                      state: "FAILURE",
-                      targetUrl: null,
-                    },
-                  ],
-                },
-              },
+    const pr = githubPr(
+      withHeadChecks({
+        state: "FAILURE",
+        contexts: {
+          nodes: [
+            null,
+            {
+              __typename: "StatusContext",
+              context: "Vercel",
+              state: "FAILURE",
+              targetUrl: null,
             },
-          },
-        ],
-      },
-    });
+          ],
+        },
+      }),
+    );
     const { octokit } = fakeGraphQL(() => ({
       data: { nodes: [pr] },
       errors: [
