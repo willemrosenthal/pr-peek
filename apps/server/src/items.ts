@@ -229,7 +229,9 @@ export async function saveItems(
 
       // Nothing is new while it's the author's turn: the user acted last.
       const isNewEvent =
-        !item.waitingOnAuthor && existing?.latestEventId !== item.latestEventId;
+        !item.waitingOnAuthor &&
+        !item.startsSeen &&
+        existing?.latestEventId !== item.latestEventId;
       // Reopens an item that was resolved before.
       const update = { ...fields, status: "open" as const, resolvedAt: null };
       const saved = await tx.item.upsert({
@@ -239,6 +241,7 @@ export async function saveItems(
           pullRequestId: pr.id,
           dedupeKey: item.dedupeKey,
           ...update,
+          ...(item.startsSeen && { seenAt: now }),
         },
         // Something new happened, so the user hasn't seen it yet.
         update: { ...update, ...(isNewEvent && { seenAt: null }) },

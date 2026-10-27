@@ -17,6 +17,17 @@ export interface WaitSettings {
 
 export type StaleLevel = "fresh" | "warn" | "late";
 
+// Assigned work takes longer than a review, so it turns orange after 3 days and red
+// after 7, whatever the user set for reviews.
+const ASSIGNED_STALE_HOURS = { staleWarnHours: 72, staleLateHours: 168 };
+
+// The settings that decide how stale an item of this kind is.
+export const waitSettingsFor = <T extends WaitSettings>(
+  kind: ItemKind,
+  settings: T,
+): T =>
+  kind === "assigned" ? { ...settings, ...ASSIGNED_STALE_HOURS } : settings;
+
 // Lower is more severe.
 export const SEVERITY_RANK: Record<Severity, number> = {
   high: 0,
@@ -121,8 +132,9 @@ export function urgencyScore(
   settings: WaitSettings,
   now: Date,
 ): number {
+  const forKind = waitSettingsFor(item.kind, settings);
   const stale = item.waitingSince
-    ? staleLevel(waitingFor(item.waitingSince, now, settings), settings)
+    ? staleLevel(waitingFor(item.waitingSince, now, forKind), forKind)
     : "fresh";
   return (
     URGENCY_WEIGHTS.severity[item.severity] +

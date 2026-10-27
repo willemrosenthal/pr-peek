@@ -1,4 +1,4 @@
-import type { ItemsResponse, SummaryResponse } from "@pr-peek/core";
+import type { ItemsResponse, PrSnapshot, SummaryResponse } from "@pr-peek/core";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
   APP_URL,
@@ -112,6 +112,8 @@ describe("GET /api/items", () => {
       age: "5h",
       staleLevel: "warn",
       waitingOnAuthor: false,
+      assignedState: null,
+      assigned: false,
       severity: "normal",
       unseen: false,
       otherIds: [],
@@ -159,9 +161,103 @@ describe("GET /api/items", () => {
     expect(body).toEqual({
       review: [],
       replies: [],
+      assigned: [],
       mine: [],
       idlePrs: [],
       quiet: { items: [], idlePrs: [] },
+    });
+  });
+
+  describe("assigned PRs", () => {
+    const snapshot = (fields: Partial<PrSnapshot> = {}): PrSnapshot => ({
+      id: "PR_7",
+      number: 7,
+      repo: { owner: "acme", name: "web-app" },
+      title: "Add login",
+      url: "https://github.com/acme/web-app/pull/7",
+      author: { login: "sam", isBot: false },
+      isDraft: false,
+      headSha: "abc123",
+      headCommittedAt: NOW.toISOString(),
+      updatedAt: NOW.toISOString(),
+      reviewRequests: [],
+      reviewRequestEvents: [],
+      reviews: [],
+      threads: [],
+      comments: [],
+      checks: { state: "SUCCESS", failing: [] },
+      ...fields,
+    });
+
+    it("shows what the PR needs next, from its snapshot", async () => {
+      const { agent, user } = await setup();
+      const ready = await makePr(user.id, 7, {
+        snapshot: snapshot({ reviewDecision: "APPROVED" }),
+      });
+      const failing = await makePr(user.id, 8, {
+        snapshot: snapshot({ checks: { state: "FAILURE", failing: [] } }),
+      });
+      // Stored before snapshots were checked, so it can't be read.
+      const unreadable = await makePr(user.id, 9);
+      for (const pr of [ready, failing, unreadable]) {
+        await makeItem(user.id, pr.id, "assigned");
+      }
+
+      const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
+      const stateOf = (prId: string) =>
+        body.assigned.find((row) => row.pr.id === prId)?.assignedState;
+      expect(body.assigned).toHaveLength(3);
+      expect(stateOf(ready.id)).toBe("ready_to_merge");
+      expect(stateOf(failing.id)).toBe("checks_failing");
+      expect(stateOf(unreadable.id)).toBe("waiting_on_review");
+      expect(body.assigned.every((row) => row.assigned)).toBe(true);
+    });
+
+    it("keeps a PR you're asked to review in that section, tagged assigned", async () => {
+      const { agent, user } = await setup();
+      const pr = await makePr(user.id);
+      const asked = await makeItem(user.id, pr.id, "review_requested");
+      const assigned = await makeItem(user.id, pr.id, "assigned");
+      const other = await makePr(user.id, 8);
+      await makeItem(user.id, other.id, "reply");
+
+      const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
+      expect(body.assigned).toEqual([]);
+      expect(body.review).toEqual([
+        expect.objectContaining({
+          id: asked.id,
+          assigned: true,
+          assignedState: null,
+          otherIds: [assigned.id],
+        }),
+      ]);
+      expect(body.replies[0]?.assigned).toBe(false);
+    });
+
+    it("turns orange after 3 days and red after 7", async () => {
+      const { agent, user } = await setup();
+      const levels = [
+        [hours(-71), "fresh"],
+        [hours(-72), "warn"],
+        [hours(-168), "late"],
+      ] as const;
+      for (const [index, [since]] of levels.entries()) {
+        await makeItem(
+          user.id,
+          (await makePr(user.id, 7 + index)).id,
+          "assigned",
+          {
+            waitingSince: since,
+          },
+        );
+      }
+
+      const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
+      expect(
+        body.assigned.map((row) => [row.waitingSince, row.staleLevel]),
+      ).toEqual(
+        levels.map(([since, level]) => [since.toISOString(), level]).reverse(),
+      );
     });
   });
 
@@ -443,6 +539,7 @@ describe("GET /api/summary", () => {
       total: 1,
       review: 0,
       replies: 1,
+      assigned: 0,
       mine: 0,
       hasStale: false,
       hasFailing: false,
@@ -461,12 +558,14 @@ describe("GET /api/summary", () => {
     const mine = await makePr(user.id, 9);
     await makeItem(user.id, mine.id, "reviewed");
     await makeItem(user.id, mine.id, "commented", { status: "resolved" });
+    await makeItem(user.id, (await makePr(user.id, 10)).id, "assigned");
 
     const res = await agent.get("/api/summary");
     expect(bodyOf<SummaryResponse>(res)).toEqual({
-      total: 3,
+      total: 4,
       review: 1,
       replies: 1,
+      assigned: 1,
       mine: 1,
       hasStale: false,
       hasFailing: false,
@@ -490,6 +589,19 @@ describe("GET /api/summary", () => {
     expect(bodyOf<SummaryResponse>(res)).toMatchObject({
       hasStale: true,
       hasFailing: true,
+    });
+  });
+
+  it("doesn't flag a late assigned PR", async () => {
+    const { agent, user } = await setup();
+    await makeItem(user.id, (await makePr(user.id)).id, "assigned", {
+      waitingSince: hours(-200),
+    });
+
+    const res = await agent.get("/api/summary");
+    expect(bodyOf<SummaryResponse>(res)).toMatchObject({
+      assigned: 1,
+      hasStale: false,
     });
   });
 });

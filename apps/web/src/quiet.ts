@@ -13,10 +13,16 @@ export function moveQuiet(
     rows.filter((row) => !isPr(row));
 
   if (quiet) {
-    const items = [...list.review, ...list.replies, ...list.mine].filter(isPr);
+    const items = [
+      ...list.review,
+      ...list.replies,
+      ...list.assigned,
+      ...list.mine,
+    ].filter(isPr);
     return {
       review: without(list.review),
       replies: without(list.replies),
+      assigned: without(list.assigned),
       mine: without(list.mine),
       idlePrs: without(list.idlePrs),
       quiet: {
@@ -29,6 +35,7 @@ export function moveQuiet(
   const groups = {
     review: [...list.review],
     replies: [...list.replies],
+    assigned: [...list.assigned],
     mine: [...list.mine],
   };
   for (const item of list.quiet.items.filter(isPr)) {

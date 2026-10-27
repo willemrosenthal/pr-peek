@@ -119,7 +119,7 @@ describe("syncUser", () => {
 
     expect(result).toMatchObject({ found: 1, fetched: 0 });
     expect(detailIds(requests)).toEqual([]);
-    expect(searchQueries(requests)).toHaveLength(4);
+    expect(searchQueries(requests)).toHaveLength(5);
     const row = await db.pullRequest.findFirstOrThrow();
     expect(row.lastSeenAt).toEqual(later);
   });
@@ -575,6 +575,83 @@ describe("items", () => {
     expect(await itemOf("mention")).toMatchObject({
       latestEventId: "IC_1",
       eventCount: 2,
+    });
+  });
+
+  describe("assigned PRs", () => {
+    // PR_1 with only octocat assigned, by `by`, and nothing else for them.
+    const assignedPr = (by: string) =>
+      githubPr({
+        reviewRequests: { nodes: [] },
+        reviewThreads: { nodes: [] },
+        comments: { nodes: [] },
+        assignees: { nodes: [{ login: "octocat" }] },
+        assignEvents: {
+          nodes: [
+            {
+              __typename: "AssignedEvent",
+              id: "AE_2",
+              createdAt: "2026-10-21T09:00:00Z",
+              actor: { __typename: "User", login: by },
+              assignee: { __typename: "User", login: "octocat" },
+            },
+          ],
+        },
+      });
+    const assignedSearch = (pr: unknown) => ({
+      assigned: [searchHit("PR_1", { repoId: WATCHED })],
+      prs: { PR_1: pr },
+    });
+
+    it("lists a PR only the assignee search finds, and notifies", async () => {
+      const user = await makeUser();
+      const { result } = await sync(user.id, assignedSearch(assignedPr("sam")));
+
+      const item = await itemOf("assigned");
+      expect(item).toMatchObject({
+        dedupeKey: "as:PR_1:AE_2",
+        actorLogin: "sam",
+        summary: "sam assigned you",
+        waitingSince: new Date("2026-10-21T09:00:00Z"),
+        seenAt: null,
+      });
+      expect(result.newEventItemIds).toEqual([item.id]);
+    });
+
+    it("saves assigning yourself as seen, without notifying", async () => {
+      const user = await makeUser();
+      const { result } = await sync(
+        user.id,
+        assignedSearch(assignedPr("octocat")),
+      );
+
+      expect(await itemOf("assigned")).toMatchObject({ seenAt: NOW });
+      expect(result.newEventItemIds).toEqual([]);
+    });
+
+    it("resolves the item when you're unassigned", async () => {
+      const user = await makeUser();
+      await sync(user.id, assignedSearch(assignedPr("sam")));
+
+      const unassigned = githubPr({
+        ...assignedPr("sam"),
+        assignees: { nodes: [] },
+        updatedAt: "2026-10-21T11:00:00Z",
+      });
+      await sync(
+        user.id,
+        {
+          assigned: [
+            searchHit("PR_1", {
+              repoId: WATCHED,
+              updatedAt: "2026-10-21T11:00:00Z",
+            }),
+          ],
+          prs: { PR_1: unassigned },
+        },
+        hours(1),
+      );
+      expect(await openItemCount()).toBe(0);
     });
   });
 

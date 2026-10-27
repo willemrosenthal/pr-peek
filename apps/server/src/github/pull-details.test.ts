@@ -55,6 +55,19 @@ describe("fetchPrDetails", () => {
             createdAt: "2026-10-21T08:30:00Z",
           },
         ],
+        // The unassign of a deleted account is left out.
+        assignees: ["jlee"],
+        assignEvents: [
+          {
+            id: "AE_1",
+            action: "assigned",
+            assignee: "jlee",
+            actor: { login: "sam", isBot: false },
+            createdAt: "2026-10-21T07:30:00Z",
+          },
+        ],
+        reviewDecision: "APPROVED",
+        mergeable: "MERGEABLE",
         reviews: [
           {
             id: "R_1",

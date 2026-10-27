@@ -128,4 +128,14 @@ describe("sendDueReminders", () => {
     await makeItem(user.id, pr.id, "reply", { occurredAt: NOW });
     expect(await run(hours(48))).toBe(0);
   });
+
+  it("never reminds about assigned PRs, even when they turn red", async () => {
+    const { user, pr, item, run } = await setup();
+    await db.item.delete({ where: { id: item.id } });
+    await makeItem(user.id, pr.id, "assigned", {
+      occurredAt: NOW,
+      waitingSince: NOW,
+    });
+    expect(await run(hours(24 * 8))).toBe(0);
+  });
 });

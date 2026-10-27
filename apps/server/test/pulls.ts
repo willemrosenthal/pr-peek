@@ -41,8 +41,30 @@ export function githubPr(overrides: Record<string, unknown> = {}) {
     updatedAt: "2026-10-21T10:00:00Z",
     createdAt: "2026-10-21T06:00:00Z",
     bodyText: "Adds a login page.",
+    reviewDecision: "APPROVED",
+    mergeable: "MERGEABLE",
     repository: { name: "web-app", owner: { login: "acme" } },
     author: user("sam"),
+    assignees: { nodes: [{ login: "jlee" }] },
+    assignEvents: {
+      nodes: [
+        {
+          __typename: "AssignedEvent",
+          id: "AE_1",
+          createdAt: "2026-10-21T07:30:00Z",
+          actor: user("sam"),
+          assignee: user("jlee"),
+        },
+        // A deleted account.
+        {
+          __typename: "UnassignedEvent",
+          id: "UE_1",
+          createdAt: "2026-10-21T07:40:00Z",
+          actor: null,
+          assignee: null,
+        },
+      ],
+    },
     reviewRequests: {
       nodes: [
         { requestedReviewer: user("octocat") },
@@ -210,6 +232,7 @@ export interface FakePrGitHub {
   authored?: unknown[];
   commented?: unknown[];
   mentioned?: unknown[];
+  assigned?: unknown[];
   // Details by PR id. Missing ids answer null, like a deleted PR.
   prs?: Record<string, unknown>;
   // Status by PR id, for tracked PRs the searches miss (see `searchHit`). Missing ids
@@ -239,7 +262,9 @@ export function prGitHub(fake: FakePrGitHub) {
           ? fake.commented
           : q.includes("mentions:@me")
             ? fake.mentioned
-            : fake.authored;
+            : q.includes("assignee:@me")
+              ? fake.assigned
+              : fake.authored;
       return {
         data: {
           search: {

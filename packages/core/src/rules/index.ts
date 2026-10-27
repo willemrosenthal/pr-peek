@@ -1,3 +1,4 @@
+import { assigned } from "./assigned";
 import { checkFailed } from "./check-failed";
 import { commented } from "./commented";
 import { mention } from "./mention";
@@ -17,4 +18,5 @@ export const rules: Rule[] = [
   reviewed,
   commented,
   checkFailed,
+  assigned,
 ];

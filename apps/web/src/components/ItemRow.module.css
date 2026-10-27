@@ -176,6 +176,10 @@
   color: var(--color-kind-approved);
 }
 
+.assigned {
+  color: var(--color-kind-assigned);
+}
+
 .failed {
   color: var(--color-kind-failed);
 }

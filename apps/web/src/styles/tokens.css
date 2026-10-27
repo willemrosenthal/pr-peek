@@ -30,6 +30,7 @@
   --color-kind-failed: #ff3355;
   --color-kind-talk: #b23cf0;
   --color-kind-comment: #f0428f;
+  --color-kind-assigned: #0a9fae;
   /* Bot comments. */
   --color-bot: #9a7fb8;
 
@@ -90,6 +91,7 @@
     --color-kind-failed: #ff5d6e;
     --color-kind-talk: #c47bff;
     --color-kind-comment: #ff7ab8;
+    --color-kind-assigned: #3ed2df;
     --color-bot: #b78dc9;
     --shadow-panel: 0 12px 32px rgb(0 0 0 / 50%);
     --color-scrollbar: rgb(255 255 255 / 35%);
