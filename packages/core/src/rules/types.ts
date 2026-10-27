@@ -15,7 +15,7 @@ export type Severity = "low" | "normal" | "high";
 // Where an item shows up: the list only, or also a push notification.
 export type Channel = "list" | "push";
 // The list section a rule's items go in.
-export type RuleGroup = "Other PRs" | "Assigned to me" | "My PRs";
+export type RuleGroup = "Other PRs" | "My PRs";
 
 export interface RuleContext {
   viewerLogin: string;

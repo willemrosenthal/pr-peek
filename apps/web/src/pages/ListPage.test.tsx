@@ -74,7 +74,35 @@ describe("sections", () => {
     expect((await sectionButton(/Needs my review/)).textContent).toContain("2");
     expect((await sectionButton(/My PRs/)).textContent).toContain("1");
     expect(screen.queryByRole("button", { name: /Replies to me/ })).toBe(null);
+    expect(screen.queryByRole("button", { name: /Assigned to me/ })).toBe(null);
     expect(rows()).toHaveLength(3);
+  });
+
+  it("shows assigned PRs between replies and My PRs", async () => {
+    const assigned = item({
+      kind: "assigned",
+      assigned: true,
+      assignedState: "ready_to_merge",
+    });
+    fakeApi(
+      listApi({
+        "GET /api/items": () =>
+          json(
+            groups({ replies: [item()], assigned: [assigned], mine: [item()] }),
+          ),
+      }),
+    );
+    renderApp("/");
+
+    const titles = await screen.findAllByRole("button", {
+      name: /Replies to me|Assigned to me|My PRs/,
+    });
+    expect(titles.map((title) => title.textContent)).toEqual([
+      expect.stringContaining("Replies to me"),
+      expect.stringContaining("Assigned to me"),
+      expect.stringContaining("My PRs"),
+    ]);
+    expect(rowOf(assigned).textContent).toContain("Ready to merge");
   });
 
   // Whether the review row and the My PRs row have pictures.

@@ -1,4 +1,4 @@
-import type { ItemKind, StaleLevel } from "@pr-peek/core";
+import type { AssignedState, ItemKind, StaleLevel } from "@pr-peek/core";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { idlePr, important, item } from "../test/fake-api";
@@ -68,6 +68,49 @@ it("has no tag when it's your turn", () => {
   expect(screen.queryByText("Waiting on author")).toBe(null);
 });
 
+describe("a PR you're assigned to", () => {
+  const assigned = (assignedState: AssignedState) =>
+    item({ kind: "assigned", assigned: true, assignedState });
+
+  it.each<[AssignedState, string, string, string]>([
+    ["draft", "Draft", "lucide-squircle-dashed", "muted"],
+    ["conflicts", "Has conflicts", "lucide-triangle-alert", "warning"],
+    ["checks_failing", "Checks failing", "lucide-circle-x", "failed"],
+    [
+      "changes_requested",
+      "Changes requested",
+      "lucide-message-square-text",
+      "comment",
+    ],
+    ["ready_to_merge", "Ready to merge", "lucide-git-merge", "approved"],
+    ["checks_running", "Checks running", "lucide-circle-dashed", "muted"],
+    [
+      "waiting_on_review",
+      "Waiting on review",
+      "lucide-circle-user-round",
+      "muted",
+    ],
+  ])("shows %s as %o", (state, label, icon, tone) => {
+    render(<ItemRow item={assigned(state)} />);
+    const shown = screen.getByText(label);
+    expect(shown.className).toContain(tone);
+    expect(shown.querySelector("svg")?.classList).toContain(icon);
+  });
+
+  it("puts the state before the summary, with no tag", () => {
+    render(<ItemRow item={assigned("ready_to_merge")} />);
+    expect(screen.getByRole("link").textContent).toMatch(
+      /Ready to merge.*jlee asked for your review/,
+    );
+    expect(screen.queryByText("Assigned")).toBe(null);
+  });
+
+  it("tags a row of another kind", () => {
+    render(<ItemRow item={item({ assigned: true })} />);
+    expect(screen.getByText("Assigned").className).toContain("tag");
+  });
+});
+
 it("marks unseen items for screen readers too", () => {
   render(<ItemRow item={item({ unseen: true })} />);
   expect(screen.getByRole("link").textContent).toMatch(/^New: /);
@@ -98,6 +141,7 @@ it.each<[ItemKind, string]>([
   ["reviewed", "approved"],
   ["commented", "comment"],
   ["check_failed", "failed"],
+  ["assigned", "assigned"],
 ])("colors the %s icon %s", (kind, tone) => {
   render(<ItemRow item={item({ kind })} />);
   const svg = screen.getByRole("link").querySelector("svg");

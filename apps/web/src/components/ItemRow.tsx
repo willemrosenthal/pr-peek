@@ -1,18 +1,27 @@
-import type { IdlePrDto, ItemDto, ItemKind, StaleLevel } from "@pr-peek/core";
+import type {
+  AssignedState,
+  IdlePrDto,
+  ItemDto,
+  ItemKind,
+  StaleLevel,
+} from "@pr-peek/core";
 import {
   AtSign,
   BotMessageSquare,
   CircleCheck,
+  CircleDashed,
   CircleUserRound,
   CircleX,
   Eye,
   Flag,
+  GitMerge,
   MessageCircle,
   MessageCircleQuestionMark,
   MessageSquareText,
   RefreshCw,
   Squircle,
   SquircleDashed,
+  TriangleAlert,
   type LucideIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -35,6 +44,44 @@ const KIND_ICONS: Record<
 
 // A review that's the author's turn. Talk's color, like replies: it's a conversation.
 const WAITING_ICON = { Icon: MessageCircleQuestionMark, tone: styles.talk };
+
+// What an assigned PR needs next, before the summary. Its color says what to do.
+const ASSIGNED_STATES: Record<
+  AssignedState,
+  { label: string; Icon: LucideIcon; tone: string | undefined }
+> = {
+  draft: { label: "Draft", Icon: SquircleDashed, tone: styles.muted },
+  conflicts: {
+    label: "Has conflicts",
+    Icon: TriangleAlert,
+    tone: styles.warning,
+  },
+  checks_failing: {
+    label: "Checks failing",
+    Icon: CircleX,
+    tone: styles.failed,
+  },
+  changes_requested: {
+    label: "Changes requested",
+    Icon: MessageSquareText,
+    tone: styles.comment,
+  },
+  ready_to_merge: {
+    label: "Ready to merge",
+    Icon: GitMerge,
+    tone: styles.approved,
+  },
+  checks_running: {
+    label: "Checks running",
+    Icon: CircleDashed,
+    tone: styles.muted,
+  },
+  waiting_on_review: {
+    label: "Waiting on review",
+    Icon: CircleUserRound,
+    tone: styles.muted,
+  },
+};
 
 const AGE_TONES: Record<StaleLevel, string | undefined> = {
   fresh: styles.muted,
@@ -90,11 +137,26 @@ export function ItemRow({
       {item.waitingOnAuthor && (
         <span className={styles.tag}>Waiting on author</span>
       )}
+      {/* An assigned row says so with its icon and state. Other rows need the tag. */}
+      {item.assigned && !item.assignedState && (
+        <span className={styles.tag}>Assigned</span>
+      )}
+      {item.assignedState && <StateLabel state={item.assignedState} />}
       <span className={styles.summaryText}>{item.summary}</span>
       {item.otherIds.length > 0 && (
         <span className={styles.more}>+{item.otherIds.length} more</span>
       )}
     </Row>
+  );
+}
+
+function StateLabel({ state }: { state: AssignedState }) {
+  const { label, Icon, tone } = ASSIGNED_STATES[state];
+  return (
+    <span className={cx(styles.state, tone)}>
+      <Icon />
+      {label}
+    </span>
   );
 }
 

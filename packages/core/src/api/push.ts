@@ -168,6 +168,14 @@ export const TEST_PUSHES: { name: string; payload: PushPayload }[] = [
     },
   },
   {
+    name: "Assigned",
+    payload: {
+      title: "dana-wu assigned you",
+      body: prPushBody("Add rate limits to exports", "acme/api", 812),
+      icon: testAvatar("dana-wu"),
+    },
+  },
+  {
     name: "Overdue reminder",
     payload: {
       title: "Waiting 2d: Review requested",
