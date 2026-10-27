@@ -80,7 +80,7 @@ A Notification Service Extension: a small Swift target in the Xcode project that
 
 - [ ] Add the extension target, the Push Notifications and Communication Notifications capabilities, and `INSendMessageIntent` in `NSUserActivityTypes`.
 - [ ] When there's an `actor`: download the avatar, make an `INPerson`, and turn the notification into a communication notification (`INSendMessageIntent`, then `content.updating(from:)`). iOS then shows the picture on the left with the app icon as a badge. iOS draws the badge from the app icon itself, so the separate "arm + face" badge from the canvas can't be used.
-- [ ] Attach the kind's tile as a thumbnail (`UNNotificationAttachment`). The tiles are PNGs in the extension, made from the Candy colors and the Lucide icons the list uses.
+- [ ] Attach the kind's tile as a thumbnail (`UNNotificationAttachment`). The tiles are PNGs in the extension, made from the Candy colors and the Lucide icons the list uses. That includes `assigned`, from [plan 14](completed/14-assigned.md): teal `CircleUserRound`.
 - [ ] If anything fails or runs out of time, show the plain notification. Never drop it.
 - [ ] Check early that the tile still shows on the right of a communication notification. If iOS hides it, decide between the avatar and the tile.
 

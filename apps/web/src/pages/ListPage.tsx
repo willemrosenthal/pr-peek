@@ -30,6 +30,7 @@ import styles from "./ListPage.module.css";
 const SECTIONS: { group: ItemGroup; title: string }[] = [
   { group: "review", title: "Needs my review" },
   { group: "replies", title: "Replies to me" },
+  { group: "assigned", title: "Assigned to me" },
   { group: "mine", title: "My PRs" },
 ];
 

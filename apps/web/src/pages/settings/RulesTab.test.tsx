@@ -37,6 +37,7 @@ describe("the Rules tab", () => {
     });
     expect(within(others).getByText("Review requested")).toBeTruthy();
     expect(within(others).getByText("Mentioned me")).toBeTruthy();
+    expect(within(others).getByText("Assigned to me")).toBeTruthy();
     const mine = screen.getByRole("list", { name: "My PRs" });
     expect(within(mine).getByText("Check failed on my PR")).toBeTruthy();
   });

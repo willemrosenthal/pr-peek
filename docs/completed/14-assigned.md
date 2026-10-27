@@ -54,15 +54,15 @@ Two PRs, since the server side and the screen are each a good size:
 
 ### 14.1 Sync assigned PRs
 
-- [x] Add the search `assignee:@me -author:@me` to `findRelevantPrs` in [pull-search.ts](../apps/server/src/github/pull-search.ts).
-- [x] Fetch the PR's assignees, its assign and unassign events (who, whom, when), `reviewDecision`, and `mergeable` in [pull-details.ts](../apps/server/src/github/pull-details.ts).
-- [x] Add them to the snapshot in [pr-snapshot.ts](../packages/core/src/pr-snapshot.ts). Make them optional, so snapshots saved before this still parse.
+- [x] Add the search `assignee:@me -author:@me` to `findRelevantPrs` in [pull-search.ts](../../apps/server/src/github/pull-search.ts).
+- [x] Fetch the PR's assignees, its assign and unassign events (who, whom, when), `reviewDecision`, and `mergeable` in [pull-details.ts](../../apps/server/src/github/pull-details.ts).
+- [x] Add them to the snapshot in [pr-snapshot.ts](../../packages/core/src/pr-snapshot.ts). Make them optional, so snapshots saved before this still parse.
 - [x] Fetch an assigned PR again when only its checks change, like the user's own PRs. A check finishing doesn't change `updatedAt`, so without this "Checks running" would never move on.
 - [x] Tests for the new fields, and for old snapshots without them.
 
 ### 14.2 The `assigned` rule
 
-- [x] New kind `assigned` in group "Assigned to me". Default severity normal, channels list and push.
+- [x] New kind `assigned`, in the list's new "Assigned to me" section. Default severity normal, channels list and push.
 - [x] One item while the viewer is assigned and isn't the author. The actor is whoever assigned them, and `waitingSince` is when.
 - [x] The dedupe key (the ID that tells items apart) includes the assign event. Unassigned, then assigned again, is a new item.
 - [x] The item closes when the viewer is unassigned, or the PR is merged or closed.
@@ -73,7 +73,7 @@ Two PRs, since the server side and the screen are each a good size:
 
 ### 14.3 API
 
-- [x] New group `assigned` in `ITEM_GROUPS` and `ItemGroups` in [items.ts](../packages/core/src/api/items.ts).
+- [x] New group `assigned` in `ITEM_GROUPS` and `ItemGroups` in [items.ts](../../packages/core/src/api/items.ts).
 - [x] `ItemDto` gets `assignedState` (one of the states above), filled from the snapshot for assigned rows. Null for other rows.
 - [x] `ItemDto` gets `assigned: boolean`, for the tag on review rows.
 - [x] When a PR has both a review item and an assigned item, its row goes in the review group.
@@ -85,31 +85,33 @@ Two PRs, since the server side and the screen are each a good size:
 
 ### 14.4 Color and icons
 
-- [x] Add `--color-kind-assigned` to [tokens.css](../apps/web/src/styles/tokens.css), light and dark.
-- [x] `assigned` in `KIND_ICONS` in [ItemRow.tsx](../apps/web/src/components/ItemRow.tsx): `CircleUserRound`, teal.
-- [ ] Assigned rows show the state's icon and label in the summary line.
-- [ ] Review rows with `assigned` show an "Assigned" tag, like "Waiting on author".
+- [x] Add `--color-kind-assigned` to [tokens.css](../../apps/web/src/styles/tokens.css), light and dark.
+- [x] `assigned` in `KIND_ICONS` in [ItemRow.tsx](../../apps/web/src/components/ItemRow.tsx): `CircleUserRound`, teal.
+- [x] Assigned rows show the state's icon and label, in the state's color, before the summary.
+- [x] Review rows with `assigned` show an "Assigned" tag, like "Waiting on author".
 
 ### 14.5 The section
 
-- [ ] "Assigned to me" in [ListPage.tsx](../apps/web/src/pages/ListPage.tsx), after Replies and before My PRs. It can be collapsed like the others.
-- [ ] Hidden when empty, so teams that don't use assignees never see it.
-- [ ] Quiet and Important work on its rows like any other.
+- [x] "Assigned to me" in [ListPage.tsx](../../apps/web/src/pages/ListPage.tsx), after Replies and before My PRs. It can be collapsed like the others.
+- [x] Hidden when empty, so teams that don't use assignees never see it.
+- [x] Quiet and Important work on its rows like any other. Nothing new needed: they work by PR, and PR 1 added the section to both.
 
 ### 14.6 Settings and push
 
-- [ ] The rule shows in the Rules tab, on by default, with its own push toggle.
+- [x] The rule shows in the Rules tab, on by default, with its own push toggle. It sits under "Other people's PRs", since it never covers your own. A group of its own would hold one rule with the same name as the group, so the "Assigned to me" rule group from PR 1 was dropped.
 - [x] Push text: "alice assigned you" with the PR title. Already works: the push title is the item's summary.
-- [ ] The menu bar's count style that splits by section (`review · replies · mine`) adds the assigned count.
-- [ ] A teal tile for this kind on the iPhone app's rich notifications (plan 12), when that's built.
-- [ ] The test notification button covers the new kind.
+- [x] The menu bar's count style that splits by section adds the assigned count, between replies and My PRs. Only when it's above 0, so teams that don't use assignees keep three numbers.
+- [x] The iPhone app's teal tile for this kind moved to [plan 12](../12-ios-app.md), step 12.4, since that app isn't built yet.
+- [x] The test notification button covers the new kind ("Assigned", after "Checks failed").
 
 ## Done when
 
-- [ ] Being assigned to someone else's PR puts it in "Assigned to me" and sends a push.
-- [ ] A PR you opened and are assigned to stays only in My PRs.
-- [ ] The row's state changes as checks and reviews change, without marking it unread.
-- [ ] Unassigning you removes the row.
-- [ ] A PR you're assigned to and asked to review shows once, in Review requests, with the "Assigned" tag.
-- [ ] With no assigned PRs, the section doesn't show.
-- [ ] Teal looks right in light mode, dark mode, and the Mac app.
+- [ ] **(You)** Being assigned to someone else's PR puts it in "Assigned to me" and sends a push.
+- [ ] **(You)** A PR you opened and are assigned to stays only in My PRs.
+- [ ] **(You)** The row's state changes as checks and reviews change, without marking it unread.
+- [ ] **(You)** Unassigning you removes the row.
+- [ ] **(You)** A PR you're assigned to and asked to review shows once, in Review requests, with the "Assigned" tag.
+- [ ] **(You)** With no assigned PRs, the section doesn't show.
+- [ ] **(You)** Teal looks right in light mode, dark mode, and the Mac app.
+
+Each of these is also covered by automated tests, but needs a check on real PRs.

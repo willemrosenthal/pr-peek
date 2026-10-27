@@ -6,7 +6,7 @@ import type { Rule } from "./types";
 export const assigned: Rule = {
   id: "assigned",
   name: "Assigned to me",
-  group: "Assigned to me",
+  group: "Other PRs",
   defaultSeverity: "normal",
   defaultChannels: ["list", "push"],
   detect(snapshot, ctx) {

@@ -21,6 +21,11 @@ describe("the menu bar", () => {
     expect(trayTitle(counts, style)).toBe(title);
   });
 
+  it("adds the assigned count to the split count only when there is one", () => {
+    const assigned = summary({ ...counts, total: 9, assigned: 2 });
+    expect(trayTitle(assigned, "split")).toBe("3 · 1 · 2 · 3");
+  });
+
   it("shows nothing when nothing is open", () => {
     expect(trayTitle(summary({ total: 0 }), "dot")).toBe("");
   });

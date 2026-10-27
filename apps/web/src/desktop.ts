@@ -30,7 +30,11 @@ export function trayTitle(summary: SummaryResponse, style: CountStyle) {
   if (summary.total === 0 || style === "none") return "";
   if (style === "dot") return "•";
   if (style === "split") {
-    return [summary.review, summary.replies, summary.mine].join(" · ");
+    // Assigned only when there is one, so teams that don't use assignees keep three.
+    const assigned = summary.assigned > 0 ? [summary.assigned] : [];
+    return [summary.review, summary.replies, ...assigned, summary.mine].join(
+      " · ",
+    );
   }
   return String(summary.total);
 }
