@@ -25,6 +25,7 @@ import {
   settingsResponse,
   syncStatus,
 } from "../test/fake-api";
+import { sectionOrder } from "../sections";
 import { renderApp } from "../test/render";
 import { drag, FAR_ENOUGH, stubPointerCapture } from "../test/swipe";
 import { callsOf, stubTauri } from "../test/tauri";
@@ -159,6 +160,35 @@ describe("sections", () => {
     expect(await screen.findByText("Nothing needs you right now")).toBeTruthy();
     expect((await sectionButton(/My PRs/)).textContent).toContain("1");
     expect(rows()).toHaveLength(1);
+  });
+
+  it("shows the sections in the order saved in settings, Quiet last", async () => {
+    sectionOrder.set("mine,review");
+    fakeApi(
+      listApi({
+        "GET /api/items": () =>
+          json(
+            groups({
+              review: [item()],
+              replies: [item({ kind: "reply" })],
+              mine: [item()],
+              quiet: { items: [item()], idlePrs: [] },
+            }),
+          ),
+      }),
+    );
+    renderApp("/");
+
+    await sectionButton(/My PRs/);
+    const titles = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((heading) => heading.textContent?.replace(/\d+$/, ""));
+    expect(titles).toEqual([
+      "My PRs",
+      "Needs my review",
+      "Replies to me",
+      "Quiet",
+    ]);
   });
 
   it("collapses a section and remembers it", async () => {

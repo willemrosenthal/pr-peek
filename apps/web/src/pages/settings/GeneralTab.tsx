@@ -14,6 +14,7 @@ import { Card, CardRow } from "../../components/Card";
 import { Select } from "../../components/Field";
 import { GitHubToken } from "../../components/GitHubToken";
 import { RowText } from "../../components/RowText";
+import { SectionOrder } from "../../components/SectionOrder";
 import { SettingSwitch } from "../../components/SettingSwitch";
 import { Switch } from "../../components/Switch";
 import {
@@ -71,6 +72,7 @@ export function GeneralTab() {
       )}
       <Card label="This device">
         <SizeRow />
+        <SectionOrderRow />
       </Card>
       {inDesktopApp() && (
         <Card label="Menu bar">
@@ -168,6 +170,18 @@ function SizeRow() {
         />
         <span aria-hidden="true">{percent(scale)}</span>
       </span>
+    </CardRow>
+  );
+}
+
+function SectionOrderRow() {
+  return (
+    <CardRow>
+      <RowText
+        label="Section order"
+        hint="Drag a section by its handle to move it on the list. Only on this device."
+      />
+      <SectionOrder />
     </CardRow>
   );
 }
