@@ -114,4 +114,4 @@ Two PRs, since the server side and the screen are each a good size:
 - [ ] **(You)** With no assigned PRs, the section doesn't show.
 - [ ] **(You)** Teal looks right in light mode, dark mode, and the Mac app.
 
-Each of these is also covered by automated tests, but needs a check on real PRs.
+All but the last are also covered by automated tests, but need a check on real PRs. The last can only be checked by eye.
