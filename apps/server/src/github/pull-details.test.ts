@@ -244,6 +244,78 @@ describe("fetchPrDetails", () => {
     expect(failed).toEqual([{ id: "PR_gone", error: "not found" }]);
   });
 
+  it("skips check runs hidden from a fine-grained token, and keeps statuses", async () => {
+    const pr = githubPr({
+      commits: {
+        nodes: [
+          {
+            commit: {
+              oid: "abc123",
+              committedDate: "2026-10-21T07:00:00Z",
+              statusCheckRollup: {
+                state: "FAILURE",
+                contexts: {
+                  nodes: [
+                    null,
+                    {
+                      __typename: "StatusContext",
+                      context: "Vercel",
+                      state: "FAILURE",
+                      targetUrl: null,
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+    const { octokit } = fakeGraphQL(() => ({
+      data: { nodes: [pr] },
+      errors: [
+        {
+          type: "FORBIDDEN",
+          path: [
+            "nodes",
+            0,
+            "commits",
+            "nodes",
+            0,
+            "commit",
+            "statusCheckRollup",
+            "contexts",
+            "nodes",
+            0,
+          ],
+          message: "Resource not accessible by personal access token",
+        },
+      ],
+    }));
+
+    const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
+    expect(snapshots[0]?.checks).toEqual({
+      state: "FAILURE",
+      failing: [{ name: "Vercel", url: null }],
+    });
+  });
+
+  it("throws when anything other than a check run is forbidden", async () => {
+    const { octokit } = fakeGraphQL(() => ({
+      data: { nodes: [githubPr()] },
+      errors: [
+        {
+          type: "FORBIDDEN",
+          path: ["nodes", 0, "commits", "nodes", 0],
+          message: "Resource not accessible by personal access token",
+        },
+      ],
+    }));
+    await expect(fetchPrDetails(octokit, ["PR_1"])).rejects.toThrow(
+      "Resource not accessible",
+    );
+  });
+
   it("throws other GitHub errors", async () => {
     const { octokit } = fakeGraphQL(() => ({
       data: null,

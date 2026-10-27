@@ -8,7 +8,7 @@ import {
 } from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import { z } from "zod";
-import { partialDataOrThrow } from "./errors";
+import { type GraphQLErrorItem, partialDataOrThrow } from "./errors";
 
 // PRs per request. Keeps each query well under GitHub's cost limits.
 const DETAILS_BATCH_SIZE = 10;
@@ -98,6 +98,13 @@ const rawComment = z.object({
   replyTo: z.object({ id: z.string() }).nullable().optional(),
 });
 
+// Fine-grained tokens can't have the Checks permission, so GitHub hides each check run
+// from them (path ends in `contexts.nodes.<index>`). Commit statuses still come through.
+const isHiddenCheckRun = ({ type, path }: GraphQLErrorItem) =>
+  type === "FORBIDDEN" &&
+  path?.at(-2) === "nodes" &&
+  path.at(-3) === "contexts";
+
 const nodesOf = <T extends z.ZodType>(item: T) =>
   z.object({ nodes: z.array(item) });
 
@@ -172,15 +179,18 @@ const rawPr = z.object({
               .object({
                 state: checkState,
                 contexts: nodesOf(
-                  z.object({
-                    __typename: z.string(),
-                    name: z.string().optional(),
-                    conclusion: z.string().nullable().optional(),
-                    detailsUrl: z.string().nullable().optional(),
-                    context: z.string().optional(),
-                    state: z.string().optional(),
-                    targetUrl: z.string().nullable().optional(),
-                  }),
+                  z
+                    .object({
+                      __typename: z.string(),
+                      name: z.string().optional(),
+                      conclusion: z.string().nullable().optional(),
+                      detailsUrl: z.string().nullable().optional(),
+                      context: z.string().optional(),
+                      state: z.string().optional(),
+                      targetUrl: z.string().nullable().optional(),
+                    })
+                    // A check run hidden from a fine-grained token.
+                    .nullable(),
                 ),
               })
               .nullable(),
@@ -250,7 +260,9 @@ const toComment = (raw: z.infer<typeof rawComment>): PrComment => ({
 function toSnapshot(raw: RawPr): PrSnapshot {
   // The schema requires at least one commit.
   const head = raw.commits.nodes[0]!.commit;
-  const contexts = head.statusCheckRollup?.contexts.nodes ?? [];
+  const contexts = (head.statusCheckRollup?.contexts.nodes ?? []).filter(
+    (c) => c !== null,
+  );
   // A merge commit has two parents.
   const push = raw.recentCommits.nodes
     .map((node) => node.commit)
@@ -351,7 +363,9 @@ export async function fetchPrDetails(
     const batch = ids.slice(i, i + DETAILS_BATCH_SIZE);
     const data: unknown = await octokit
       .graphql(DETAILS_QUERY, { ids: batch })
-      .catch(partialDataOrThrow);
+      .catch((err: unknown) =>
+        partialDataOrThrow(err, ["NOT_FOUND"], isHiddenCheckRun),
+      );
     const { nodes } = z.object({ nodes: z.array(z.unknown()) }).parse(data);
 
     batch.forEach((id, index) => {

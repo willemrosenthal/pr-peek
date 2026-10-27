@@ -113,7 +113,9 @@ function TokenSteps() {
         <div className={styles.kindBody}>
           <p className={styles.hint}>
             For orgs that only allow fine-grained tokens. Each one works for a
-            single org or account, so PRs elsewhere won't show up.
+            single org or account, so PRs elsewhere won't show up. GitHub
+            doesn't let these tokens read check runs, so failed GitHub Actions
+            checks aren't named. Whether checks passed still shows.
           </p>
           <ol className={styles.steps}>
             <li>
