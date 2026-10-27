@@ -633,21 +633,14 @@ describe("items", () => {
       const user = await makeUser();
       await sync(user.id, assignedSearch(assignedPr("sam")));
 
-      const unassigned = githubPr({
-        ...assignedPr("sam"),
-        assignees: { nodes: [] },
-        updatedAt: "2026-10-21T11:00:00Z",
-      });
+      const updatedAt = "2026-10-21T11:00:00Z";
       await sync(
         user.id,
         {
-          assigned: [
-            searchHit("PR_1", {
-              repoId: WATCHED,
-              updatedAt: "2026-10-21T11:00:00Z",
-            }),
-          ],
-          prs: { PR_1: unassigned },
+          assigned: [searchHit("PR_1", { repoId: WATCHED, updatedAt })],
+          prs: {
+            PR_1: { ...assignedPr("sam"), assignees: { nodes: [] }, updatedAt },
+          },
         },
         hours(1),
       );

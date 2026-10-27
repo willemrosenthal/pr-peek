@@ -3,11 +3,9 @@ import {
   byUrgency,
   formatAge,
   ITEM_GROUPS,
+  itemStaleLevel,
   prSnapshot,
   SEVERITY_RANK,
-  staleLevel,
-  waitingFor,
-  waitSettingsFor,
   type AssignedState,
   type IdlePrDto,
   type ItemDto,
@@ -120,7 +118,6 @@ export async function openItems(
     .flatMap((item): ItemDto[] => {
       // Skips kinds from rules that no longer exist.
       if (!isItemKind(item.kind)) return [];
-      const waitSettings = waitSettingsFor(item.kind, settings);
       return [
         {
           id: item.id,
@@ -132,12 +129,11 @@ export async function openItems(
           waitingSince: item.waitingSince?.toISOString() ?? null,
           age: formatAge(item.waitingSince ?? item.occurredAt, now),
           waitingOnAuthor: item.waitingOnAuthor,
-          staleLevel: item.waitingSince
-            ? staleLevel(
-                waitingFor(item.waitingSince, now, waitSettings),
-                waitSettings,
-              )
-            : null,
+          staleLevel: itemStaleLevel(
+            { kind: item.kind, waitingSince: item.waitingSince },
+            now,
+            settings,
+          ),
           assignedState:
             item.kind === "assigned"
               ? (states.get(item.pullRequestId) ?? "waiting_on_review")

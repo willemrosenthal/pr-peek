@@ -12,6 +12,7 @@ export * from "./assigned-state";
 export * from "./pr-snapshot";
 export * from "./quiet";
 export * from "./quiet-hours";
+export * from "./review-verdicts";
 export * from "./rules";
 export * from "./summary";
 export * from "./urgency";

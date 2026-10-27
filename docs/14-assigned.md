@@ -25,6 +25,8 @@ States, first match wins:
 
 Drafts are a state of their own, first in the order. Item rows don't know if a PR is a draft (only the idle rows under My PRs do), and a draft has nothing for you to do yet anyway.
 
+"Approved" and "Changes requested" come from GitHub's `reviewDecision`. Repos whose branch rules don't require reviews have none, so then each reviewer's latest verdict decides, the same way the preview shows reviewers.
+
 Running checks block "Ready to merge" even once approved. A merge state GitHub hasn't worked out yet (`UNKNOWN`) doesn't count as a conflict.
 
 **Known gap:** a conflict caused by the base branch moving doesn't change the PR's `updatedAt`, so the sync doesn't fetch it again. "Has conflicts" can show late, until something else changes on the PR.

@@ -60,6 +60,7 @@ describe("assigned to me", () => {
   });
 
   it("skips PRs you aren't assigned to", () => {
+    // Also a snapshot stored before assignees were saved.
     expect(detect(snapshot())).toEqual([]);
     expect(detect(snapshot({ assignees: ["bob"] }))).toEqual([]);
   });
@@ -120,9 +121,5 @@ describe("assigned to me", () => {
     expect(
       detect(pr, ctx({ settings: { hideBots: true } }))[0]?.startsSeen,
     ).toBe(true);
-  });
-
-  it("works on snapshots stored before assignees were saved", () => {
-    expect(detect(snapshot({ assignees: undefined }))).toEqual([]);
   });
 });
