@@ -1,9 +1,10 @@
 import { z } from "zod";
+import type { AssignedState } from "../assigned-state";
 import type { ItemKind, Severity } from "../rules";
 import type { StaleLevel } from "../urgency";
 
 // The list's sections.
-export type ItemGroup = "review" | "replies" | "mine";
+export type ItemGroup = "review" | "replies" | "assigned" | "mine";
 
 export const ITEM_GROUPS: Record<ItemKind, ItemGroup> = {
   review_requested: "review",
@@ -13,6 +14,7 @@ export const ITEM_GROUPS: Record<ItemKind, ItemGroup> = {
   reviewed: "mine",
   commented: "mine",
   check_failed: "mine",
+  assigned: "assigned",
 };
 
 // Most items marked seen in one request.
@@ -38,6 +40,10 @@ export interface ItemDto {
   staleLevel: StaleLevel | null;
   // A review request you commented on, until the author replies or pushes.
   waitingOnAuthor: boolean;
+  // What the PR needs next, on assigned rows. Null on other rows.
+  assignedState: AssignedState | null;
+  // The user is assigned to the PR. Rows of other kinds show a tag.
+  assigned: boolean;
   severity: Severity;
   // True if any of the PR's open items is unseen.
   unseen: boolean;
@@ -84,6 +90,7 @@ export interface SummaryResponse {
   total: number;
   review: number;
   replies: number;
+  assigned: number;
   mine: number;
   // Some review request is orange or red.
   hasStale: boolean;

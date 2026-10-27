@@ -13,6 +13,7 @@ export function markImportant(
   return {
     review: mark(list.review),
     replies: mark(list.replies),
+    assigned: mark(list.assigned),
     mine: mark(list.mine),
     idlePrs: mark(list.idlePrs),
     quiet: { items: mark(list.quiet.items), idlePrs: mark(list.quiet.idlePrs) },

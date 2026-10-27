@@ -25,6 +25,7 @@ const PARTS: { kinds: ItemKind[]; one: string; many: string }[] = [
     many: "reviews waiting",
   },
   { kinds: ["check_failed"], one: "failing check", many: "failing checks" },
+  { kinds: ["assigned"], one: "assigned PR", many: "assigned PRs" },
   {
     kinds: ["reviewed"],
     one: "review of your PR",

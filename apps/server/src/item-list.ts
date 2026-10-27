@@ -1,10 +1,12 @@
 import {
+  assignedState,
   byUrgency,
   formatAge,
   ITEM_GROUPS,
+  itemStaleLevel,
+  prSnapshot,
   SEVERITY_RANK,
-  staleLevel,
-  waitingFor,
+  type AssignedState,
   type IdlePrDto,
   type ItemDto,
   type ItemGroups,
@@ -56,6 +58,25 @@ const toPrDto = (pr: PrRow, colors: Map<number, string>): ItemDto["pr"] => ({
   important: pr.importantAt !== null,
 });
 
+// What each PR needs next, by PR id, from the stored snapshots. Read separately, and
+// only for assigned items, since snapshots are large.
+async function assignedStates(
+  db: Db,
+  prIds: string[],
+): Promise<Map<string, AssignedState>> {
+  if (prIds.length === 0) return new Map();
+  const rows = await db.pullRequest.findMany({
+    where: { id: { in: prIds } },
+    select: { id: true, snapshot: true },
+  });
+  return new Map(
+    rows.flatMap((row): [string, AssignedState][] => {
+      const parsed = prSnapshot.safeParse(row.snapshot);
+      return parsed.success ? [[row.id, assignedState(parsed.data)]] : [];
+    }),
+  );
+}
+
 // Matches PRs the user quieted, or the rest.
 const quietWhere = (quiet: boolean) => ({
   quietAt: quiet ? { not: null } : null,
@@ -86,6 +107,12 @@ export async function openItems(
     repoColors(db, userId),
   ]);
   const severityOf = new Map(ruleSettings.map((s) => [s.rule.id, s.severity]));
+  const assignedPrIds = new Set(
+    items
+      .filter((item) => item.kind === "assigned")
+      .map((item) => item.pullRequestId),
+  );
+  const states = await assignedStates(db, [...assignedPrIds]);
 
   return items
     .flatMap((item): ItemDto[] => {
@@ -102,9 +129,16 @@ export async function openItems(
           waitingSince: item.waitingSince?.toISOString() ?? null,
           age: formatAge(item.waitingSince ?? item.occurredAt, now),
           waitingOnAuthor: item.waitingOnAuthor,
-          staleLevel: item.waitingSince
-            ? staleLevel(waitingFor(item.waitingSince, now, settings), settings)
-            : null,
+          staleLevel: itemStaleLevel(
+            { kind: item.kind, waitingSince: item.waitingSince },
+            now,
+            settings,
+          ),
+          assignedState:
+            item.kind === "assigned"
+              ? (states.get(item.pullRequestId) ?? "waiting_on_review")
+              : null,
+          assigned: assignedPrIds.has(item.pullRequestId),
           severity: severityOf.get(item.kind) ?? "normal",
           unseen: item.seenAt === null,
           otherIds: [],
@@ -122,9 +156,11 @@ const KIND_RANK: Record<ItemKind, number> = {
   review_requested: 1,
   check_failed: 2,
   reviewed: 3,
-  reply: 4,
-  mention: 5,
-  commented: 6,
+  // After review requests, so a PR you're asked to review stays in that section.
+  assigned: 4,
+  reply: 5,
+  mention: 6,
+  commented: 7,
 };
 
 const byRowRank = (a: ItemDto, b: ItemDto) =>
@@ -184,7 +220,12 @@ export async function idlePrs(
 
 // Splits sorted items into the list's sections, one row per PR, keeping their order.
 export function groupItems(items: ItemDto[]): ItemGroups {
-  const groups: ItemGroups = { review: [], replies: [], mine: [] };
+  const groups: ItemGroups = {
+    review: [],
+    replies: [],
+    assigned: [],
+    mine: [],
+  };
   for (const row of onePerPr(items)) groups[ITEM_GROUPS[row.kind]].push(row);
   return groups;
 }
@@ -194,12 +235,21 @@ export function groupItems(items: ItemDto[]): ItemGroups {
 export function summarize(items: ItemDto[]): SummaryResponse {
   const groups = groupItems(items.filter((item) => !item.waitingOnAuthor));
   return {
-    total: groups.review.length + groups.replies.length + groups.mine.length,
+    total:
+      groups.review.length +
+      groups.replies.length +
+      groups.assigned.length +
+      groups.mine.length,
     review: groups.review.length,
     replies: groups.replies.length,
+    assigned: groups.assigned.length,
     mine: groups.mine.length,
+    // Review requests only. An assigned PR days old shouldn't color the menu bar icon.
     hasStale: items.some(
-      (item) => item.staleLevel !== null && item.staleLevel !== "fresh",
+      (item) =>
+        item.kind !== "assigned" &&
+        item.staleLevel !== null &&
+        item.staleLevel !== "fresh",
     ),
     hasFailing: items.some((item) => item.kind === "check_failed"),
   };

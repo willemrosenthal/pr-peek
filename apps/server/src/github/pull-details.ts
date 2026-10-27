@@ -4,6 +4,7 @@ import {
   type PrComment,
   prReview,
   type PrReviewer,
+  prSnapshot,
   type PrSnapshot,
 } from "@pr-peek/core";
 import type { Octokit } from "octokit";
@@ -23,13 +24,28 @@ const REVIEWER = `requestedReviewer {
   ... on Team { combinedSlug }
 }`;
 const COMMENT = `id ${ACTOR} bodyText createdAt`;
+const ASSIGNEE = `assignee {
+  __typename
+  ... on User { login }
+  ... on Bot { login }
+  ... on Mannequin { login }
+}`;
+const ASSIGN_ACTOR = `actor { __typename login }`;
 
 const DETAILS_QUERY = `query ($ids: [ID!]!) {
   nodes(ids: $ids) {
     ... on PullRequest {
-      id number title url isDraft updatedAt createdAt bodyText
+      id number title url isDraft updatedAt createdAt bodyText reviewDecision mergeable
       repository { name owner { login } }
       ${ACTOR}
+      assignees(first: 20) { nodes { login } }
+      assignEvents: timelineItems(last: 20, itemTypes: [ASSIGNED_EVENT, UNASSIGNED_EVENT]) {
+        nodes {
+          __typename
+          ... on AssignedEvent { id createdAt ${ASSIGN_ACTOR} ${ASSIGNEE} }
+          ... on UnassignedEvent { id createdAt ${ASSIGN_ACTOR} ${ASSIGNEE} }
+        }
+      }
       reviewRequests(first: 50) { nodes { ${REVIEWER} } }
       timelineItems(last: 50, itemTypes: [REVIEW_REQUESTED_EVENT, REVIEW_REQUEST_REMOVED_EVENT]) {
         nodes {
@@ -127,11 +143,24 @@ const rawPr = z.object({
   updatedAt: z.string(),
   createdAt: z.string(),
   bodyText: z.string(),
+  reviewDecision: prSnapshot.shape.reviewDecision,
+  mergeable: prSnapshot.shape.mergeable,
   repository: z.object({
     name: z.string(),
     owner: z.object({ login: z.string() }),
   }),
   author: rawActor.nullable(),
+  assignees: nodesOf(z.object({ login: z.string() })),
+  assignEvents: nodesOf(
+    z.object({
+      __typename: z.enum(["AssignedEvent", "UnassignedEvent"]),
+      id: z.string(),
+      createdAt: z.string(),
+      actor: rawActor.nullable(),
+      // Null when the assignee's account is gone.
+      assignee: z.object({ login: z.string().optional() }).nullable(),
+    }),
+  ),
   reviewRequests: nodesOf(z.object({ requestedReviewer: rawReviewer })),
   timelineItems: nodesOf(
     z.object({
@@ -308,6 +337,23 @@ function toSnapshot(raw: RawPr): PrSnapshot {
             mentions: mentionsIn(review.bodyText),
           },
     ),
+    assignees: raw.assignees.nodes.map((assignee) => assignee.login),
+    assignEvents: raw.assignEvents.nodes.flatMap((event) =>
+      event.assignee?.login
+        ? {
+            id: event.id,
+            action:
+              event.__typename === "AssignedEvent"
+                ? ("assigned" as const)
+                : ("unassigned" as const),
+            assignee: event.assignee.login,
+            actor: toActor(event.actor),
+            createdAt: event.createdAt,
+          }
+        : [],
+    ),
+    reviewDecision: raw.reviewDecision,
+    mergeable: raw.mergeable,
     description: toComment({
       id: `body:${raw.id}`,
       author: raw.author,

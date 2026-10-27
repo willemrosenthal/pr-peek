@@ -33,6 +33,7 @@ describe("upsertGitHubUser", () => {
       where: { userId: user.id },
     });
     expect(ruleSettings.map((s) => s.ruleId).sort()).toEqual([
+      "assigned",
       "check_failed",
       "commented",
       "mention",

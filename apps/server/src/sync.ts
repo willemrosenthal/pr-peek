@@ -52,10 +52,12 @@ interface StoredPr {
   checkState: string | null;
   authorLogin: string;
   state: PrState;
+  // The open assigned item, if the user is assigned. At most one.
+  items: { id: string }[];
 }
 
-// New PRs, PRs that changed or are back after they ended, and the user's own PRs whose
-// checks changed.
+// New PRs, PRs that changed or are back after they ended, and the user's own or assigned
+// PRs whose checks changed. Checks can change without `updatedAt` changing.
 function needsDetails(
   pr: PrStatus,
   stored: StoredPr | undefined,
@@ -64,7 +66,8 @@ function needsDetails(
   if (!stored || stored.state !== "open") return true;
   if (stored.githubUpdatedAt.getTime() !== pr.updatedAt.getTime()) return true;
   const isOwn = stored.authorLogin.toLowerCase() === viewerLogin.toLowerCase();
-  return isOwn && stored.checkState !== pr.checkState;
+  const isAssigned = stored.items.length > 0;
+  return (isOwn || isAssigned) && stored.checkState !== pr.checkState;
 }
 
 function toRow(snapshot: PrSnapshot, githubRepoId: number) {
@@ -126,6 +129,11 @@ async function fetchFromGitHub(
         checkState: true,
         authorLogin: true,
         state: true,
+        items: {
+          where: { kind: "assigned", status: "open" },
+          select: { id: true },
+          take: 1,
+        },
       },
     }),
   ]);

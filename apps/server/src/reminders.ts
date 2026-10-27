@@ -11,7 +11,8 @@ export async function sendDueReminders(
 ): Promise<number> {
   const { db } = deps;
   if (!deps.send) return 0;
-  // Only review requests wait, so only they have `waitingSince`. Quiet PRs get none.
+  // Only review requests get reminders. Assigned PRs wait too, but turn orange over days,
+  // so a push would nag. Quiet PRs get none.
   const users = await db.user.findMany({
     where: reachableUsers(now),
     select: {
@@ -20,6 +21,7 @@ export async function sendDueReminders(
       items: {
         where: {
           status: "open",
+          kind: { in: ["review_requested", "re_requested"] },
           waitingSince: { not: null },
           pullRequest: { quietAt: null },
         },

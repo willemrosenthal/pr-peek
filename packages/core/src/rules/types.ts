@@ -8,13 +8,14 @@ export type ItemKind =
   | "mention"
   | "reviewed"
   | "commented"
-  | "check_failed";
+  | "check_failed"
+  | "assigned";
 
 export type Severity = "low" | "normal" | "high";
 // Where an item shows up: the list only, or also a push notification.
 export type Channel = "list" | "push";
 // The list section a rule's items go in.
-export type RuleGroup = "Other PRs" | "My PRs";
+export type RuleGroup = "Other PRs" | "Assigned to me" | "My PRs";
 
 export interface RuleContext {
   viewerLogin: string;
@@ -47,6 +48,9 @@ export interface DetectedItem {
   // A review request the viewer commented on, until the author replies or pushes.
   // Sorts last, with no stale color, reminders, or push.
   waitingOnAuthor: boolean;
+  // Nothing new for the viewer, like assigning yourself. A new item starts seen and
+  // doesn't push.
+  startsSeen?: boolean;
 }
 
 export interface Rule {

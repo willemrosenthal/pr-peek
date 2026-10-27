@@ -1,6 +1,30 @@
+import type { PrSnapshot } from "@pr-peek/core";
 import type { Db } from "../src/db";
 import type { Prisma } from "../src/generated/prisma/client";
 import { hours, NOW } from "./fakes";
+
+// A stored snapshot of PR_7, by sam, with passing checks and nothing else on it.
+export const storedSnapshot = (
+  fields: Partial<PrSnapshot> = {},
+): PrSnapshot => ({
+  id: "PR_7",
+  number: 7,
+  repo: { owner: "acme", name: "web-app" },
+  title: "Add login",
+  url: "https://github.com/acme/web-app/pull/7",
+  author: { login: "sam", isBot: false },
+  isDraft: false,
+  headSha: "abc123",
+  headCommittedAt: NOW.toISOString(),
+  updatedAt: NOW.toISOString(),
+  reviewRequests: [],
+  reviewRequestEvents: [],
+  reviews: [],
+  threads: [],
+  comments: [],
+  checks: { state: "SUCCESS", failing: [] },
+  ...fields,
+});
 
 // Creates stored PRs and items directly, for tests that don't need a sync.
 export function itemRows(db: Db) {

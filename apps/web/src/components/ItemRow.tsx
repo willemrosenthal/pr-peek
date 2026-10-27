@@ -3,6 +3,7 @@ import {
   AtSign,
   BotMessageSquare,
   CircleCheck,
+  CircleUserRound,
   CircleX,
   Eye,
   Flag,
@@ -29,6 +30,7 @@ const KIND_ICONS: Record<
   reviewed: { Icon: CircleCheck, tone: styles.approved },
   commented: { Icon: MessageSquareText, tone: styles.comment },
   check_failed: { Icon: CircleX, tone: styles.failed },
+  assigned: { Icon: CircleUserRound, tone: styles.assigned },
 };
 
 // A review that's the author's turn. Talk's color, like replies: it's a conversation.

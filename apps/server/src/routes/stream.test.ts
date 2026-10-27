@@ -109,6 +109,7 @@ const itemsChanged = (summary: Partial<SummaryResponse>) =>
     total: 0,
     review: 0,
     replies: 0,
+    assigned: 0,
     mine: 0,
     hasStale: false,
     hasFailing: false,

@@ -54,6 +54,18 @@ export const prThread = z.object({
 });
 export type PrThread = z.infer<typeof prThread>;
 
+// Someone was assigned to the PR, or taken off it.
+export const prAssignEvent = z.object({
+  id: z.string(),
+  action: z.enum(["assigned", "unassigned"]),
+  // The login assigned or taken off.
+  assignee: z.string(),
+  // Who did it.
+  actor: prActor,
+  createdAt: z.string(),
+});
+export type PrAssignEvent = z.infer<typeof prAssignEvent>;
+
 // GitHub's overall result for the latest commit's checks.
 export const checkState = z.enum([
   "SUCCESS",
@@ -78,6 +90,18 @@ export const prSnapshot = z.object({
   reviewRequests: z.array(prReviewer),
   reviewRequestEvents: z.array(prReviewRequestEvent),
   reviews: z.array(prReview),
+  // The four below are missing in snapshots stored before they were added.
+  // Logins of the PR's assignees.
+  assignees: z.array(z.string()).optional(),
+  assignEvents: z.array(prAssignEvent).optional(),
+  // GitHub's review verdict, as the branch rules see it. Null when reviews aren't required
+  // and nobody approved or asked for changes.
+  reviewDecision: z
+    .enum(["APPROVED", "CHANGES_REQUESTED", "REVIEW_REQUIRED"])
+    .nullable()
+    .optional(),
+  // UNKNOWN while GitHub is still working it out.
+  mergeable: z.enum(["MERGEABLE", "CONFLICTING", "UNKNOWN"]).optional(),
   threads: z.array(prThread),
   comments: z.array(prComment),
   // The PR's description, as a comment by its author when the PR was opened. Missing in
