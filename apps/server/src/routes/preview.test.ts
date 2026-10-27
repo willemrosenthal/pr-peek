@@ -10,7 +10,7 @@ import {
   TEST_KEY,
 } from "../../test/fakes";
 import { fakeGraphQL, type GraphQLRequest } from "../../test/github";
-import { itemRows } from "../../test/items";
+import { itemRows, storedSnapshot } from "../../test/items";
 import { upsertGitHubUser } from "../users";
 import { previewRouter } from "./preview";
 
@@ -21,27 +21,13 @@ beforeEach(() => resetDb(db));
 const { makePr, makeItem } = itemRows(db);
 
 // A stored snapshot with two failing checks.
-const snapshot = {
-  id: "PR_7",
-  number: 7,
-  repo: { owner: "acme", name: "web-app" },
-  title: "Add login",
-  url: "https://github.com/acme/web-app/pull/7",
-  author: { login: "sam", isBot: false },
-  isDraft: false,
-  headSha: "abc123",
-  headCommittedAt: NOW.toISOString(),
-  updatedAt: NOW.toISOString(),
+const snapshot = storedSnapshot({
   // The signed in user (octocat, in other capitals), someone else, and a team.
   reviewRequests: [
     { type: "user", login: "OctoCat" },
     { type: "user", login: "dev-sam" },
     { type: "team", slug: "acme/web" },
   ],
-  reviewRequestEvents: [],
-  reviews: [],
-  threads: [],
-  comments: [],
   checks: {
     state: "FAILURE",
     failing: [
@@ -49,7 +35,7 @@ const snapshot = {
       { name: "e2e", url: null },
     ],
   },
-};
+});
 
 // GitHub with one PR, PR_7, that has one comment.
 function github(request: GraphQLRequest) {

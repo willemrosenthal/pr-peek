@@ -1,4 +1,4 @@
-import type { ItemsResponse, PrSnapshot, SummaryResponse } from "@pr-peek/core";
+import type { ItemsResponse, SummaryResponse } from "@pr-peek/core";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
   APP_URL,
@@ -15,7 +15,7 @@ import {
   NOW,
   TEST_KEY,
 } from "../../test/fakes";
-import { itemRows } from "../../test/items";
+import { itemRows, storedSnapshot } from "../../test/items";
 import { upsertGitHubUser } from "../users";
 import { itemsRouter } from "./items";
 
@@ -169,33 +169,13 @@ describe("GET /api/items", () => {
   });
 
   describe("assigned PRs", () => {
-    const snapshot = (fields: Partial<PrSnapshot> = {}): PrSnapshot => ({
-      id: "PR_7",
-      number: 7,
-      repo: { owner: "acme", name: "web-app" },
-      title: "Add login",
-      url: "https://github.com/acme/web-app/pull/7",
-      author: { login: "sam", isBot: false },
-      isDraft: false,
-      headSha: "abc123",
-      headCommittedAt: NOW.toISOString(),
-      updatedAt: NOW.toISOString(),
-      reviewRequests: [],
-      reviewRequestEvents: [],
-      reviews: [],
-      threads: [],
-      comments: [],
-      checks: { state: "SUCCESS", failing: [] },
-      ...fields,
-    });
-
     it("shows what the PR needs next, from its snapshot", async () => {
       const { agent, user } = await setup();
       const ready = await makePr(user.id, 7, {
-        snapshot: snapshot({ reviewDecision: "APPROVED" }),
+        snapshot: storedSnapshot({ reviewDecision: "APPROVED" }),
       });
       const failing = await makePr(user.id, 8, {
-        snapshot: snapshot({ checks: { state: "FAILURE", failing: [] } }),
+        snapshot: storedSnapshot({ checks: { state: "FAILURE", failing: [] } }),
       });
       // Stored before snapshots were checked, so it can't be read.
       const unreadable = await makePr(user.id, 9);
@@ -236,28 +216,24 @@ describe("GET /api/items", () => {
 
     it("turns orange after 3 days and red after 7", async () => {
       const { agent, user } = await setup();
-      const levels = [
-        [hours(-71), "fresh"],
-        [hours(-72), "warn"],
-        [hours(-168), "late"],
-      ] as const;
-      for (const [index, [since]] of levels.entries()) {
-        await makeItem(
-          user.id,
-          (await makePr(user.id, 7 + index)).id,
-          "assigned",
-          {
-            waitingSince: since,
-          },
-        );
+      for (const [number, hoursAgo] of [
+        [7, 71],
+        [8, 72],
+        [9, 168],
+      ] as const) {
+        const pr = await makePr(user.id, number);
+        await makeItem(user.id, pr.id, "assigned", {
+          waitingSince: hours(-hoursAgo),
+        });
       }
 
       const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
-      expect(
-        body.assigned.map((row) => [row.waitingSince, row.staleLevel]),
-      ).toEqual(
-        levels.map(([since, level]) => [since.toISOString(), level]).reverse(),
-      );
+      // Most urgent first.
+      expect(body.assigned.map((row) => row.staleLevel)).toEqual([
+        "late",
+        "warn",
+        "fresh",
+      ]);
     });
   });
 
