@@ -17,6 +17,7 @@ import { useMarkSeen } from "../hooks/useMarkSeen";
 import { useStoredState } from "../hooks/useStoredState";
 import { useSync } from "../hooks/useSync";
 import { useWhenHidden } from "../hooks/useWhenHidden";
+import { useLocalSetting } from "../localSetting";
 import {
   useItems,
   useMe,
@@ -25,14 +26,8 @@ import {
   useSettings,
   useToggleImportant,
 } from "../queries";
+import { orderSections, SECTIONS, sectionOrder } from "../sections";
 import styles from "./ListPage.module.css";
-
-const SECTIONS: { group: ItemGroup; title: string }[] = [
-  { group: "review", title: "Needs my review" },
-  { group: "replies", title: "Replies to me" },
-  { group: "assigned", title: "Assigned to me" },
-  { group: "mine", title: "My PRs" },
-];
 
 // Whether a section's rows show their authors' pictures.
 const showsAuthors = (setting: ShowAuthors, group: ItemGroup) =>
@@ -150,11 +145,12 @@ function Sections({
   );
   useMarkSeen(unseenIds);
   const showAuthors = useSettings().data?.settings.showAuthors ?? "off";
+  const sections = orderSections(useLocalSetting(sectionOrder));
 
   const { quiet } = groups;
   return (
     <>
-      {SECTIONS.map(({ group, title }) => {
+      {sections.map(({ group, title }) => {
         const idle = group === "mine" ? groups.idlePrs : [];
         if (groups[group].length + idle.length === 0) return null;
         return (
