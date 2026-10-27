@@ -162,6 +162,23 @@ describe("syncUser", () => {
     expect(detailIds(requests)).toEqual(["PR_1"]);
   });
 
+  it("fetches PRs the user is assigned to when their checks change", async () => {
+    const user = await makeUser();
+    const assigned = {
+      PR_1: githubPr({ assignees: { nodes: [{ login: "octocat" }] } }),
+    };
+    await sync(user.id, {
+      assigned: [searchHit("PR_1", { repoId: WATCHED, checkState: "PENDING" })],
+      prs: assigned,
+    });
+
+    const { requests } = await sync(user.id, {
+      assigned: [searchHit("PR_1", { repoId: WATCHED, checkState: "SUCCESS" })],
+      prs: assigned,
+    });
+    expect(detailIds(requests)).toEqual(["PR_1"]);
+  });
+
   it("ignores check changes on other people's PRs", async () => {
     const user = await makeUser();
     await sync(user.id, {

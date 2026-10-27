@@ -57,6 +57,7 @@ Two PRs, since the server side and the screen are each a good size:
 - [x] Add the search `assignee:@me -author:@me` to `findRelevantPrs` in [pull-search.ts](../apps/server/src/github/pull-search.ts).
 - [x] Fetch the PR's assignees, its assign and unassign events (who, whom, when), `reviewDecision`, and `mergeable` in [pull-details.ts](../apps/server/src/github/pull-details.ts).
 - [x] Add them to the snapshot in [pr-snapshot.ts](../packages/core/src/pr-snapshot.ts). Make them optional, so snapshots saved before this still parse.
+- [x] Fetch an assigned PR again when only its checks change, like the user's own PRs. A check finishing doesn't change `updatedAt`, so without this "Checks running" would never move on.
 - [x] Tests for the new fields, and for old snapshots without them.
 
 ### 14.2 The `assigned` rule
