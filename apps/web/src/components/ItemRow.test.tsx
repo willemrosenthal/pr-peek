@@ -99,8 +99,8 @@ describe("a PR you're assigned to", () => {
 
   it("puts the state before the summary, with no tag", () => {
     render(<ItemRow item={assigned("ready_to_merge")} />);
-    expect(screen.getByRole("link").textContent).toContain(
-      "Ready to mergejlee asked for your review",
+    expect(screen.getByRole("link").textContent).toMatch(
+      /Ready to merge.*jlee asked for your review/,
     );
     expect(screen.queryByText("Assigned")).toBe(null);
   });
