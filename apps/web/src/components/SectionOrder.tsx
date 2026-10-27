@@ -12,6 +12,7 @@ import {
 } from "@dnd-kit/core";
 import {
   arrayMove,
+  hasSortableData,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -35,7 +36,9 @@ const titleOf = (id: UniqueIdentifier) =>
 
 // Where a row would land, like "place 2 of 4". Sortable rows keep their index in `data`.
 const placeOf = (over: Over) =>
-  `place ${Number(over.data.current?.sortable.index) + 1} of ${SECTIONS.length}`;
+  hasSortableData(over)
+    ? `place ${over.data.current.sortable.index + 1} of ${SECTIONS.length}`
+    : "its place";
 
 // What screen readers hear while moving a section with the keyboard.
 const announcements: Announcements = {
