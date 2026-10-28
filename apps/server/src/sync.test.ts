@@ -217,6 +217,28 @@ describe("syncUser", () => {
     expect(await db.pullRequest.count()).toBe(0);
   });
 
+  it("keeps important PRs past 7 days while open or merged, until unmarked", async () => {
+    const user = await makeUser();
+    await sync(user.id, {
+      reviewRequested: [searchHit("PR_1", { repoId: WATCHED })],
+      prs,
+    });
+    await db.pullRequest.updateMany({ data: { importantAt: NOW } });
+    // Nothing on it needs the user, so only the mark keeps it.
+    await db.ruleSetting.updateMany({ data: { enabled: false } });
+
+    const open = { statuses: { PR_1: searchHit("PR_1") } };
+    expect((await sync(user.id, open, hours(24 * 8))).result.deleted).toBe(0);
+    const merged = {
+      statuses: { PR_1: searchHit("PR_1", { state: "MERGED" }) },
+    };
+    expect((await sync(user.id, merged, hours(24 * 9))).result.deleted).toBe(0);
+
+    await db.pullRequest.updateMany({ data: { importantAt: null } });
+    const { result } = await sync(user.id, merged, hours(24 * 10));
+    expect(result.deleted).toBe(1);
+  });
+
   it("keeps PRs with open items past 7 days", async () => {
     const user = await makeUser();
     await sync(user.id, asked());
@@ -327,6 +349,7 @@ describe("syncUser", () => {
       ended: 0,
       deleted: 0,
       newEventItemIds: [],
+      mergedImportantPrIds: [],
     });
   });
 });
@@ -544,6 +567,52 @@ describe("items", () => {
     expect(result.ended).toBe(1);
     expect(await openItemCount()).toBe(0);
     expect((await db.pullRequest.findFirstOrThrow()).state).toBe(state);
+  });
+
+  it("lists important PRs that merge, once, and saves when", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    await db.pullRequest.updateMany({ data: { importantAt: NOW } });
+
+    const merged = {
+      statuses: { PR_1: searchHit("PR_1", { state: "MERGED" }) },
+    };
+    const { result } = await sync(user.id, merged, hours(1));
+    const pr = await db.pullRequest.findFirstOrThrow();
+    expect(result.mergedImportantPrIds).toEqual([pr.id]);
+    expect(pr.mergedAt).toEqual(hours(1));
+
+    // Ended PRs aren't checked again.
+    const again = await sync(user.id, merged, hours(2));
+    expect(again.result.mergedImportantPrIds).toEqual([]);
+  });
+
+  it("doesn't list PRs that merge unmarked, or close", async () => {
+    const user = await makeUser();
+    await sync(user.id, {
+      reviewRequested: [
+        searchHit("PR_1", { repoId: WATCHED }),
+        searchHit("PR_2", { repoId: WATCHED }),
+      ],
+      prs: { PR_1: githubPr(), PR_2: githubPr({ id: "PR_2" }) },
+    });
+    await db.pullRequest.updateMany({
+      where: { githubNodeId: "PR_2" },
+      data: { importantAt: NOW },
+    });
+
+    const { result } = await sync(
+      user.id,
+      {
+        statuses: {
+          PR_1: searchHit("PR_1", { state: "MERGED" }),
+          PR_2: searchHit("PR_2", { state: "CLOSED" }),
+        },
+      },
+      hours(1),
+    );
+    expect(result.ended).toBe(2);
+    expect(result.mergedImportantPrIds).toEqual([]);
   });
 
   it("reopens items without notifying when a closed PR opens again", async () => {

@@ -16,6 +16,7 @@ export function markImportant(
     assigned: mark(list.assigned),
     mine: mark(list.mine),
     idlePrs: mark(list.idlePrs),
+    merged: mark(list.merged),
     quiet: { items: mark(list.quiet.items), idlePrs: mark(list.quiet.idlePrs) },
   };
 }

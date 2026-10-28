@@ -179,6 +179,10 @@ model PullRequest {
   quietAt         DateTime?
   // When the user marked it important, as a reminder. Stays until they unmark it.
   importantAt     DateTime?
+  // When a sync saw it merged. Important PRs stay on the list after, until unmarked.
+  mergedAt        DateTime?
+  // When the push saying an important PR merged went out, so it goes once.
+  mergeNotifiedAt DateTime?
   snapshot        Json
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

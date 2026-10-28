@@ -78,9 +78,23 @@ export interface IdlePrDto {
   pr: ItemDto["pr"];
 }
 
+// A PR the user marked important that merged. It stays on the list until they unmark it.
+export interface MergedPrDto {
+  id: string;
+  // The section it shows in: the user's own PRs, ones they're assigned to, or else
+  // review.
+  group: ItemGroup;
+  // Real time since it merged, like "3h".
+  age: string;
+  pr: ItemDto["pr"];
+}
+
 export interface ItemsResponse extends ItemGroups {
   // Newest change first.
   idlePrs: IdlePrDto[];
+  // Newest merge first, at the end of their sections. Quiet ones too, since a merge is
+  // something new.
+  merged: MergedPrDto[];
   // PRs the user quieted, in the same orders. Left out of the sections above.
   quiet: { items: ItemDto[]; idlePrs: IdlePrDto[] };
 }

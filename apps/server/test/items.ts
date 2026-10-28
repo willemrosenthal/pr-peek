@@ -34,12 +34,14 @@ export function itemRows(db: Db) {
     fields: Partial<
       Pick<
         Prisma.PullRequestUncheckedCreateInput,
+        | "githubRepoId"
         | "authorLogin"
         | "isDraft"
         | "state"
         | "githubUpdatedAt"
         | "quietAt"
         | "importantAt"
+        | "mergedAt"
         | "snapshot"
       >
     > = {},

@@ -5,6 +5,8 @@ export const SYNC_DISPATCH = "sync-dispatch";
 export const SYNC_USER = "sync-user";
 // One job per sync, with all its new items, so they can go out as one push.
 export const NOTIFY_ITEMS = "notify-items";
+// Important PRs that merged in one sync.
+export const NOTIFY_MERGED = "notify-merged";
 export const SUMMARY_DISPATCH = "summary-dispatch";
 export const REMINDER_DISPATCH = "reminder-dispatch";
 
@@ -36,6 +38,7 @@ export async function createQueues(boss: PgBoss): Promise<void> {
     expireInSeconds: SYNC_TIMEOUT_SECONDS,
   });
   await boss.createQueue(NOTIFY_ITEMS);
+  await boss.createQueue(NOTIFY_MERGED);
   await boss.createQueue(SUMMARY_DISPATCH);
   await boss.createQueue(REMINDER_DISPATCH);
 }

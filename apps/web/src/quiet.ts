@@ -25,6 +25,7 @@ export function moveQuiet(
       assigned: without(list.assigned),
       mine: without(list.mine),
       idlePrs: without(list.idlePrs),
+      merged: list.merged,
       quiet: {
         items: [...items, ...list.quiet.items],
         idlePrs: [...list.idlePrs.filter(isPr), ...list.quiet.idlePrs],
@@ -44,6 +45,7 @@ export function moveQuiet(
   return {
     ...groups,
     idlePrs: [...list.idlePrs, ...list.quiet.idlePrs.filter(isPr)],
+    merged: list.merged,
     quiet: {
       items: without(list.quiet.items),
       idlePrs: without(list.quiet.idlePrs),
