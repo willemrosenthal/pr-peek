@@ -260,23 +260,26 @@ export async function syncUser(
     );
 
     // Rows stay, so the items reopen without notifying if the PR comes back.
+    const endedAs = (state: EndedState) =>
+      [...ended].filter(([, s]) => s === state).map(([id]) => id);
     for (const state of new Set(ended.values())) {
-      const ids = [...ended].filter(([, s]) => s === state).map(([id]) => id);
       await tx.pullRequest.updateMany({
-        where: { userId, githubNodeId: { in: ids } },
+        where: { userId, githubNodeId: { in: endedAs(state) } },
         data: { state, ...(state === "merged" && { mergedAt: now }) },
       });
     }
-    const mergedImportant = await tx.pullRequest.findMany({
-      where: {
-        userId,
-        githubNodeId: {
-          in: [...ended].filter(([, s]) => s === "merged").map(([id]) => id),
-        },
-        importantAt: { not: null },
-      },
-      select: { id: true },
-    });
+    const mergedIds = endedAs("merged");
+    const mergedImportant =
+      mergedIds.length === 0
+        ? []
+        : await tx.pullRequest.findMany({
+            where: {
+              userId,
+              githubNodeId: { in: mergedIds },
+              importantAt: { not: null },
+            },
+            select: { id: true },
+          });
     await resolveItemsOf(tx, userId, [...ended.keys()], now);
     // A fetched PR may show a new title, even if its items didn't change. An ended PR
     // leaves My PRs, even with no items.

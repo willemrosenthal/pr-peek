@@ -125,41 +125,12 @@ describe("runSync", () => {
         headers: rateLimitHeaders(remaining, resetAt),
       });
 
-  it("queues notifications for new items", async () => {
-    const user = await makeUser();
-    const notifyItems = vi.fn(() => Promise.resolve());
-    const fake = {
-      reviewRequested: [searchHit("PR_1")],
-      prs: { PR_1: githubPr() },
+  // Syncs the user at `now` against a fake GitHub, with queues that record what they get.
+  function syncer(userId: string) {
+    const queues = {
+      notifyItems: vi.fn(() => Promise.resolve()),
+      notifyMerged: vi.fn(() => Promise.resolve()),
     };
-    const syncAt = (now: Date) =>
-      runSync(
-        {
-          db,
-          logger,
-          github: () => Promise.resolve(fakeGraphQL(prGitHub(fake)).octokit),
-          now: () => now,
-          notifyItems,
-        },
-        user.id,
-      );
-
-    await syncAt(NOW);
-    const itemIds = (await db.item.findMany()).map((item) => item.id);
-    // A review request, a reply, and a mention.
-    expect(itemIds).toHaveLength(3);
-    expect(notifyItems).toHaveBeenCalledExactlyOnceWith(
-      expect.arrayContaining(itemIds),
-    );
-
-    // Nothing new, so nothing to notify.
-    await syncAt(minutes(1));
-    expect(notifyItems).toHaveBeenCalledOnce();
-  });
-
-  it("queues a push for important PRs that merged", async () => {
-    const user = await makeUser();
-    const notifyMerged = vi.fn(() => Promise.resolve());
     const syncAt = (now: Date, fake: FakePrGitHub) =>
       runSync(
         {
@@ -167,23 +138,45 @@ describe("runSync", () => {
           logger,
           github: () => Promise.resolve(fakeGraphQL(prGitHub(fake)).octokit),
           now: () => now,
-          notifyMerged,
+          ...queues,
         },
-        user.id,
+        userId,
       );
+    return { queues, syncAt };
+  }
+  const asked = {
+    reviewRequested: [searchHit("PR_1")],
+    prs: { PR_1: githubPr() },
+  };
 
-    await syncAt(NOW, {
-      reviewRequested: [searchHit("PR_1")],
-      prs: { PR_1: githubPr() },
-    });
+  it("queues notifications for new items", async () => {
+    const user = await makeUser();
+    const { queues, syncAt } = syncer(user.id);
+    await syncAt(NOW, asked);
+    const itemIds = (await db.item.findMany()).map((item) => item.id);
+    // A review request, a reply, and a mention.
+    expect(itemIds).toHaveLength(3);
+    expect(queues.notifyItems).toHaveBeenCalledExactlyOnceWith(
+      expect.arrayContaining(itemIds),
+    );
+
+    // Nothing new, so nothing to notify.
+    await syncAt(minutes(1), asked);
+    expect(queues.notifyItems).toHaveBeenCalledOnce();
+  });
+
+  it("queues a push for important PRs that merged", async () => {
+    const user = await makeUser();
+    const { queues, syncAt } = syncer(user.id);
+    await syncAt(NOW, asked);
     await db.pullRequest.updateMany({ data: { importantAt: NOW } });
-    expect(notifyMerged).not.toHaveBeenCalled();
+    expect(queues.notifyMerged).not.toHaveBeenCalled();
 
     await syncAt(minutes(1), {
       statuses: { PR_1: searchHit("PR_1", { state: "MERGED" }) },
     });
     const pr = await db.pullRequest.findFirstOrThrow();
-    expect(notifyMerged).toHaveBeenCalledExactlyOnceWith([pr.id]);
+    expect(queues.notifyMerged).toHaveBeenCalledExactlyOnceWith([pr.id]);
   });
 
   it("marks the sync as running until it ends, even when it fails", async () => {

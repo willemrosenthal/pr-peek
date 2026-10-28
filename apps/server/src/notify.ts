@@ -180,7 +180,7 @@ async function decide(
   };
 }
 
-type Reachable = User & {
+type Reachable = Pick<User, "id" | "desktopSeenAt"> & {
   settings: UserSettings | null;
   pushSubscriptions: PushSubscription[];
 };

@@ -230,13 +230,10 @@ describe("syncUser", () => {
     const merged = {
       statuses: { PR_1: searchHit("PR_1", { state: "MERGED" }) },
     };
-    await sync(user.id, merged, hours(24 * 9));
-    expect((await sync(user.id, merged, hours(24 * 10))).result.deleted).toBe(
-      0,
-    );
+    expect((await sync(user.id, merged, hours(24 * 9))).result.deleted).toBe(0);
 
     await db.pullRequest.updateMany({ data: { importantAt: null } });
-    const { result } = await sync(user.id, merged, hours(24 * 11));
+    const { result } = await sync(user.id, merged, hours(24 * 10));
     expect(result.deleted).toBe(1);
   });
 
@@ -570,7 +567,7 @@ describe("items", () => {
     expect((await db.pullRequest.findFirstOrThrow()).state).toBe(state);
   });
 
-  it("lists important PRs that merge, once, and keeps when", async () => {
+  it("lists important PRs that merge, once, and saves when", async () => {
     const user = await makeUser();
     await sync(user.id, asked());
     await db.pullRequest.updateMany({ data: { importantAt: NOW } });

@@ -515,6 +515,14 @@ describe("important PRs", () => {
         ],
       }),
     });
+    const asked = await makePr(user.id, 12, {
+      ...merged,
+      mergedAt: hours(-4),
+      snapshot: storedSnapshot({
+        assignees: ["octocat"],
+        reviewRequests: [{ type: "user", login: "octocat" }],
+      }),
+    });
     // Left out: not important, or closed.
     await makePr(user.id, 10, { state: "merged" });
     await makePr(user.id, 11, { ...merged, state: "closed" });
@@ -526,6 +534,7 @@ describe("important PRs", () => {
       { id: assigned.id, group: "assigned", age: "1h" },
       { id: reviewed.id, group: "review", age: "2h" },
       { id: mine.id, group: "mine", age: "3h" },
+      { id: asked.id, group: "review", age: "4h" },
     ]);
     expect(body.merged[0]?.pr.important).toBe(true);
     expect(body.idlePrs).toEqual([]);
