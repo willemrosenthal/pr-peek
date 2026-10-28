@@ -127,7 +127,7 @@ export function ItemRow({
           {item.unseen && !quiet && (
             <span className="visually-hidden">New: </span>
           )}
-          {!quiet && <ImportantFlag pr={item.pr} />}
+          <ImportantFlag pr={item.pr} />
           {item.pr.title}
         </>
       }
@@ -181,7 +181,7 @@ export function IdlePrRow({
       tone={styles.muted}
       title={
         <>
-          {!quiet && <ImportantFlag pr={pr.pr} />}
+          <ImportantFlag pr={pr.pr} />
           {pr.pr.title}
         </>
       }
@@ -287,7 +287,8 @@ function Row({
   );
 }
 
-// A flag before the title of a PR the user marked important, after the dot.
+// A flag before the title of a PR the user marked important, after the dot. Smaller on
+// a quiet row, where it sits right after the icon.
 function ImportantFlag({ pr }: { pr: ItemDto["pr"] }) {
   if (!pr.important) return null;
   return (

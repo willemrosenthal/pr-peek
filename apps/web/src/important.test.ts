@@ -38,10 +38,16 @@ describe("markImportant", () => {
     const merged = mergedPr();
     const flagged = important(idlePr({ group: "review" }));
     const own = important(idlePr());
-    const list = groups({ idlePrs: [flagged, own], merged: [merged] });
+    const hushed = important(idlePr({ group: "review" }));
+    const list = groups({
+      idlePrs: [flagged, own],
+      merged: [merged],
+      quiet: { items: [], idlePrs: [hushed] },
+    });
 
     expect(markImportant(list, merged.pr.id, false).merged).toEqual([]);
     expect(markImportant(list, flagged.pr.id, false).idlePrs).toEqual([own]);
+    expect(markImportant(list, hushed.pr.id, false).quiet.idlePrs).toEqual([]);
     const unmarked = markImportant(list, own.pr.id, false);
     expect(unmarked.idlePrs.map((row) => row.id)).toEqual([flagged.id, own.id]);
     expect(unmarked.idlePrs[1]?.pr.important).toBe(false);

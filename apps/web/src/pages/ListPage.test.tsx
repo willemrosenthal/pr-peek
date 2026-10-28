@@ -1,4 +1,9 @@
-import type { ItemDto, MarkSeenBody, ShowAuthors } from "@pr-peek/core";
+import type {
+  ItemDto,
+  ItemsResponse,
+  MarkSeenBody,
+  ShowAuthors,
+} from "@pr-peek/core";
 import {
   act,
   cleanup,
@@ -426,20 +431,27 @@ describe("marking important", () => {
   const hasFlag = (row: { pr: { url: string } }) =>
     rowOf(row).textContent?.includes("Important: ");
 
-  // A list with `rows` under review, that keeps each PR's mark as it's saved.
-  function importantApi(rows: ItemDto[], overrides: Handlers = {}) {
+  // A list with `rows` where `place` puts them, like `underReview`, that keeps each PR's
+  // mark as it's saved.
+  function importantApi<Row extends { pr: ItemDto["pr"] }>(
+    rows: Row[],
+    place: (rows: Row[]) => Partial<ItemsResponse>,
+    overrides: Handlers = {},
+  ) {
     const marked = new Set(
       rows.filter((row) => row.pr.important).map((row) => row.pr.id),
     );
     const handlers: Handlers = {
       "GET /api/items": () =>
         json(
-          groups({
-            review: rows.map((row) => ({
-              ...row,
-              pr: { ...row.pr, important: marked.has(row.pr.id) },
-            })),
-          }),
+          groups(
+            place(
+              rows.map((row) => ({
+                ...row,
+                pr: { ...row.pr, important: marked.has(row.pr.id) },
+              })),
+            ),
+          ),
         ),
     };
     for (const { pr } of rows) {
@@ -454,10 +466,11 @@ describe("marking important", () => {
     }
     return fakeApi(listApi({ ...handlers, ...overrides }));
   }
+  const underReview = (rows: ItemDto[]) => ({ review: rows });
 
   it("marks a PR important when swiped right, and keeps its row", async () => {
     const asked = item();
-    const fetch = importantApi([asked]);
+    const fetch = importantApi([asked], underReview);
     renderApp("/");
 
     await sectionButton(/Needs my review/);
@@ -470,7 +483,7 @@ describe("marking important", () => {
 
   it("unmarks it when swiped right again, not when opened", async () => {
     const marked = important(item());
-    const fetch = importantApi([marked]);
+    const fetch = importantApi([marked], underReview);
     renderApp("/");
     await sectionButton(/Needs my review/);
 
@@ -490,7 +503,7 @@ describe("marking important", () => {
 
   it("marks a PR important from its preview, which closes", async () => {
     const asked = item();
-    const fetch = importantApi([asked], previewApi(asked));
+    const fetch = importantApi([asked], underReview, previewApi(asked));
     renderApp("/");
 
     await sectionButton(/Needs my review/);
@@ -503,25 +516,29 @@ describe("marking important", () => {
     expect(hasFlag(asked)).toBe(true);
   });
 
+  it("marks a quiet PR important when swiped right, and it stays quiet", async () => {
+    const hushed = item();
+    const fetch = importantApi([hushed], (rows) => ({
+      quiet: { items: rows, idlePrs: [] },
+    }));
+    renderApp("/");
+
+    await sectionButton(QUIET);
+    drag(rowOf(hushed), FAR_ENOUGH);
+    await waitFor(() => expect(hasFlag(hushed)).toBe(true));
+    expect(callsTo(fetch, `/api/prs/${hushed.pr.id}/important`)).toHaveLength(
+      1,
+    );
+    expect(await sectionButton(QUIET)).toBeTruthy();
+  });
+
   it("unflags a merged PR when swiped either way, which takes it off the list", async () => {
     const left = mergedPr();
     const right = mergedPr();
-    const unflagged = new Set<string>();
-    const handlers: Handlers = {
-      "GET /api/items": () =>
-        json(
-          groups({
-            merged: [left, right].filter((row) => !unflagged.has(row.pr.id)),
-          }),
-        ),
-    };
-    for (const { pr } of [left, right]) {
-      handlers[`DELETE /api/prs/${pr.id}/important`] = () => {
-        unflagged.add(pr.id);
-        return noContent();
-      };
-    }
-    const fetch = fakeApi(listApi(handlers));
+    // Unflagged, a merged PR leaves the list.
+    const fetch = importantApi([left, right], (rows) => ({
+      merged: rows.filter((row) => row.pr.important),
+    }));
     renderApp("/");
     await sectionButton(/Needs my review/);
 
@@ -553,7 +570,7 @@ describe("marking important", () => {
 
   it("still marks an important PR's new items seen on leaving", async () => {
     const marked = important(item({ unseen: true }));
-    const fetch = importantApi([marked]);
+    const fetch = importantApi([marked], underReview);
     renderApp("/");
     await sectionButton(/Needs my review/);
 

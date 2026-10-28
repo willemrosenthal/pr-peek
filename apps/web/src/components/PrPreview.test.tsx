@@ -207,10 +207,10 @@ it("offers Remove flag for a PR that's marked", () => {
   expect(screen.getByRole("button", { name: "Remove flag" })).toBeTruthy();
 });
 
-it("offers Bring back for a quiet PR, and no Important", () => {
+it("offers Bring back and Important for a quiet PR", () => {
   setup(() => json(preview()), {}, true);
   expect(screen.getByRole("button", { name: "Bring back" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Important" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Important" })).toBeTruthy();
 });
 
 describe("dragging the sheet down", () => {

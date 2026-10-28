@@ -81,11 +81,10 @@ function blockNextClick(row: Element) {
 
 // A list row that quiets its PR, or brings it back, when swiped left. Swiped right, it
 // calls `onToggleImportant` to mark it important, or unmark it when it is (`important`).
-// Rows without `onToggleImportant`, like quiet ones, quiet or come back either way. A
-// quiet row also has a bell button that brings it back. With `unflags`, like a merged
-// row, a swipe either way removes the flag with `onToggle`, and the row leaves. A long
-// press or a right click
-// calls `onLongPress`. `onPressStart` comes partway through a long press, so the
+// Rows without `onToggleImportant` quiet or come back either way. A quiet row also has
+// a bell button that brings it back. With `unflags`, like a merged row, a swipe either
+// way removes the flag with `onToggle`, and the row leaves. A long press or a right
+// click calls `onLongPress`. `onPressStart` comes partway through a long press, so the
 // preview can start loading.
 export function SwipeRow({
   quiet,

@@ -252,6 +252,11 @@
   font-weight: 500;
 }
 
+.quiet .flag {
+  width: 10px;
+  height: 10px;
+}
+
 .quiet .age {
   font-size: var(--text-xs);
   font-weight: 600;

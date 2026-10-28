@@ -127,9 +127,9 @@ describe("a PR marked important", () => {
     expect(screen.getByRole("link").textContent).toMatch(/^Important: /);
   });
 
-  it("has no flag when quiet", () => {
+  it("keeps its flag when quiet", () => {
     render(<ItemRow item={important(item())} quiet />);
-    expect(screen.getByRole("link").textContent).not.toContain("Important");
+    expect(screen.getByRole("link").textContent).toContain("Important: ");
   });
 });
 

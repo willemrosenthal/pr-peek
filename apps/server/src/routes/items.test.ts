@@ -554,8 +554,10 @@ describe("important PRs", () => {
         ],
       }),
     });
+    // Quiet, but a merge is something new.
     const asked = await makePr(user.id, 12, {
       ...merged,
+      quietAt: hours(-5),
       mergedAt: hours(-4),
       snapshot: storedSnapshot({
         assignees: ["octocat"],
@@ -579,6 +581,7 @@ describe("important PRs", () => {
     ]);
     expect(body.merged[0]?.pr.important).toBe(true);
     expect(body.idlePrs).toEqual([]);
+    expect(body.quiet).toEqual({ items: [], idlePrs: [] });
   });
 
   it("can't mark or unmark another user's PR", async () => {
