@@ -224,6 +224,8 @@ describe("syncUser", () => {
       prs,
     });
     await db.pullRequest.updateMany({ data: { importantAt: NOW } });
+    // Nothing on it needs the user, so only the mark keeps it.
+    await db.ruleSetting.updateMany({ data: { enabled: false } });
 
     const open = { statuses: { PR_1: searchHit("PR_1") } };
     expect((await sync(user.id, open, hours(24 * 8))).result.deleted).toBe(0);
