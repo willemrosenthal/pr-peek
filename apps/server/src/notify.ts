@@ -8,7 +8,11 @@ import {
 } from "@pr-peek/core";
 import type { Logger } from "pino";
 import type { Db } from "./db";
-import type { PushSubscription } from "./generated/prisma/client";
+import type {
+  PushSubscription,
+  User,
+  UserSettings,
+} from "./generated/prisma/client";
 import { openItems, summarize } from "./item-list";
 import { loadRuleSettings } from "./items";
 import {
@@ -45,6 +49,7 @@ export type NotifyOutcome =
   | "push_off"
   | "not_open"
   | "seen"
+  | "not_important"
   | "rule_off"
   | "muted"
   | "quiet"
@@ -147,24 +152,8 @@ async function decide(
   if (!setting?.enabled || !setting.channels.includes("push")) {
     return "rule_off";
   }
-  const repo = await db.watchedRepo.findUnique({
-    where: {
-      userId_githubRepoId: { userId, githubRepoId: pr.githubRepoId },
-    },
-    select: { muted: true },
-  });
-  if (repo?.muted) return "muted";
-
-  const { settings } = user;
-  const breaksQuiet = settings?.highBreaksQuiet && setting.severity === "high";
-  if (settings && isQuiet(settings, now) && !breaksQuiet) return "quiet";
-
-  const devices = user.pushSubscriptions.filter((device) =>
-    isAtLeast(setting.severity, device.minSeverity),
-  );
-  // The running Mac menu bar app takes every severity.
-  const desktop = isDesktopOnline(user.desktopSeenAt, now);
-  if (devices.length === 0 && !desktop) return "no_devices";
+  const devices = await reach(db, now, user, pr.githubRepoId, setting.severity);
+  if (typeof devices === "string") return devices;
 
   return {
     userId,
@@ -189,6 +178,96 @@ async function decide(
       itemId,
     },
   };
+}
+
+type Reachable = User & {
+  settings: UserSettings | null;
+  pushSubscriptions: PushSubscription[];
+};
+
+// The user's devices that take a notification of this severity about a PR in this repo,
+// or why none do.
+async function reach(
+  db: Db,
+  now: Date,
+  user: Reachable,
+  githubRepoId: number,
+  severity: Severity,
+): Promise<"muted" | "quiet" | "no_devices" | PushSubscription[]> {
+  const repo = await db.watchedRepo.findUnique({
+    where: { userId_githubRepoId: { userId: user.id, githubRepoId } },
+    select: { muted: true },
+  });
+  if (repo?.muted) return "muted";
+
+  const { settings } = user;
+  const breaksQuiet = settings?.highBreaksQuiet && severity === "high";
+  if (settings && isQuiet(settings, now) && !breaksQuiet) return "quiet";
+
+  const devices = user.pushSubscriptions.filter((device) =>
+    isAtLeast(severity, device.minSeverity),
+  );
+  // The running Mac menu bar app takes every severity.
+  const desktop = isDesktopOnline(user.desktopSeenAt, now);
+  if (devices.length === 0 && !desktop) return "no_devices";
+  return devices;
+}
+
+// Sends a push saying each important PR merged, once, even if this runs again. High
+// severity, since the user marked it. Outcomes match `prIds`.
+export async function notifyMerged(
+  deps: NotifyDeps,
+  prIds: string[],
+): Promise<NotifyOutcome[]> {
+  const { send } = deps;
+  const now = deps.now?.() ?? new Date();
+  if (!send) return prIds.map(() => "push_off");
+  const outcomes: NotifyOutcome[] = [];
+  for (const prId of prIds) {
+    outcomes.push(await notifyOneMerged({ ...deps, send }, now, prId));
+  }
+  return outcomes;
+}
+
+async function notifyOneMerged(
+  deps: NotifyDeps & { send: SendPush },
+  now: Date,
+  prId: string,
+): Promise<NotifyOutcome> {
+  const { db, send, logger } = deps;
+  const pr = await db.pullRequest.findUnique({
+    where: { id: prId },
+    include: { user: { include: { settings: true, pushSubscriptions: true } } },
+  });
+  if (!pr || pr.state !== "merged" || !pr.importantAt) return "not_important";
+  const devices = await reach(db, now, pr.user, pr.githubRepoId, "high");
+  if (typeof devices === "string") return devices;
+
+  // Claims it before sending. A second run finds it claimed and stops.
+  const { count } = await db.pullRequest.updateMany({
+    where: { id: prId, mergeNotifiedAt: null },
+    data: { mergeNotifiedAt: now },
+  });
+  if (count === 0) return "already_sent";
+  try {
+    const badge = summarize(await openItems(db, pr.userId, now)).total;
+    return await deliver(
+      { db, send, logger },
+      pr.user,
+      devices,
+      {
+        title: "Important PR merged",
+        body: prPushBody(pr.title, pr.repoName, pr.number),
+        url: pr.url,
+        tag: `merged:${pr.id}`,
+        badge,
+      },
+      { ttlSeconds: NOTIFY_TTL_SECONDS, urgency: "high", now },
+    );
+  } catch (err) {
+    logger.error({ err, prId }, "notify merged failed");
+    return "failed";
+  }
 }
 
 // Sends claimed notifications for one user: alone, or as one batch push. Marks their logs

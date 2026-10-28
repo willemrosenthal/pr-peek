@@ -6,6 +6,7 @@ import {
   createBoss,
   createQueues,
   NOTIFY_ITEMS,
+  NOTIFY_MERGED,
   queueSync,
   REMINDER_DISPATCH,
   SUMMARY_DISPATCH,
@@ -13,7 +14,7 @@ import {
   SYNC_USER,
 } from "./jobs";
 import { createLogger } from "./logger";
-import { notifyItems } from "./notify";
+import { notifyItems, notifyMerged } from "./notify";
 import { vapidFrom, webPushSender } from "./push";
 import { sendDueReminders } from "./reminders";
 import { onShutdown } from "./shutdown";
@@ -74,6 +75,9 @@ await boss.work<{ userId: string }>(
         notifyItems: async (itemIds) => {
           await boss.send(NOTIFY_ITEMS, { itemIds });
         },
+        notifyMerged: async (prIds) => {
+          await boss.send(NOTIFY_MERGED, { prIds });
+        },
       },
       job.data.userId,
     );
@@ -90,6 +94,13 @@ await boss.work<{ itemIds: string[] }>(NOTIFY_ITEMS, async ([job]) => {
     itemIds.map((itemId) => ({ itemId })),
   );
   logger.info({ itemIds, outcomes }, "notify items");
+});
+
+await boss.work<{ prIds: string[] }>(NOTIFY_MERGED, async ([job]) => {
+  if (!job) return;
+  const { prIds } = job.data;
+  const outcomes = await notifyMerged({ db, send, logger }, prIds);
+  logger.info({ prIds, outcomes }, "notify merged");
 });
 
 await boss.schedule(SUMMARY_DISPATCH, "*/15 * * * *");

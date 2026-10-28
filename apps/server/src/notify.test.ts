@@ -6,7 +6,7 @@ import { desktopNotifications } from "../test/desktop";
 import { githubTokens, githubUser, hours, NOW, TEST_KEY } from "../test/fakes";
 import { itemRows } from "../test/items";
 import { createLogger } from "./logger";
-import { BATCH_MIN, notifyItem, notifyItems } from "./notify";
+import { BATCH_MIN, notifyItem, notifyItems, notifyMerged } from "./notify";
 import type { SendPush } from "./push";
 import { upsertGitHubUser } from "./users";
 
@@ -329,5 +329,92 @@ describe("notifyItems", () => {
     await notifyAll();
     expect(await notifyAll()).toEqual(Array(3).fill("already_sent"));
     expect(send).toHaveBeenCalledOnce();
+  });
+});
+
+describe("notifyMerged", () => {
+  // A user with a merged PR marked important, and a device that only takes high.
+  async function merged() {
+    const { user } = await upsertGitHubUser(
+      db,
+      githubUser(),
+      githubTokens(),
+      TEST_KEY,
+    );
+    const pr = await makePr(user.id, 7, {
+      state: "merged",
+      importantAt: hours(-1),
+      mergedAt: NOW,
+    });
+    await addDevice(user.id, "watch", "high");
+    const send = vi.fn<SendPush>(() => Promise.resolve());
+    const notify = () =>
+      notifyMerged({ db, send, logger, now: () => NOW }, [pr.id]);
+    return { user, pr, send, notify };
+  }
+
+  it("sends a high severity push that opens the PR", async () => {
+    const { pr, send, notify } = await merged();
+
+    expect(await notify()).toEqual(["sent"]);
+    expect(send).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ endpoint: endpoint("watch") }),
+      {
+        title: "Important PR merged",
+        body: "Add login\nweb-app #7",
+        url: "https://github.com/acme/web-app/pull/7",
+        tag: `merged:${pr.id}`,
+        badge: 0,
+      } satisfies PushPayload,
+      { ttlSeconds: 12 * 60 * 60, urgency: "high" },
+    );
+  });
+
+  it("sends once, even when run again", async () => {
+    const { send, notify } = await merged();
+    await notify();
+    expect(await notify()).toEqual(["already_sent"]);
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it("skips a PR that's no longer important", async () => {
+    const { pr, send, notify } = await merged();
+    await db.pullRequest.update({
+      where: { id: pr.id },
+      data: { importantAt: null },
+    });
+    expect(await notify()).toEqual(["not_important"]);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("skips quiet hours, unless high lets through", async () => {
+    const { user, send, notify } = await merged();
+    const quietNow = { quietStart: "11:00", quietEnd: "13:00" };
+    await db.userSettings.update({
+      where: { userId: user.id },
+      data: quietNow,
+    });
+    expect(await notify()).toEqual(["quiet"]);
+
+    await db.userSettings.update({
+      where: { userId: user.id },
+      data: { highBreaksQuiet: true },
+    });
+    expect(await notify()).toEqual(["sent"]);
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it("skips a muted repo", async () => {
+    const { user, notify } = await merged();
+    await db.watchedRepo.create({
+      data: {
+        userId: user.id,
+        githubRepoId: 1,
+        owner: "acme",
+        name: "web-app",
+        muted: true,
+      },
+    });
+    expect(await notify()).toEqual(["muted"]);
   });
 });

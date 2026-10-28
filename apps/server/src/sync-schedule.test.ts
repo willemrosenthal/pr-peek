@@ -10,7 +10,12 @@ import {
   TEST_KEY,
 } from "../test/fakes";
 import { fakeGraphQL, type GraphQLRequest } from "../test/github";
-import { githubPr, prGitHub, searchHit } from "../test/pulls";
+import {
+  githubPr,
+  prGitHub,
+  searchHit,
+  type FakePrGitHub,
+} from "../test/pulls";
 import {
   encryptPersonalToken,
   NeedsReauthError,
@@ -150,6 +155,35 @@ describe("runSync", () => {
     // Nothing new, so nothing to notify.
     await syncAt(minutes(1));
     expect(notifyItems).toHaveBeenCalledOnce();
+  });
+
+  it("queues a push for important PRs that merged", async () => {
+    const user = await makeUser();
+    const notifyMerged = vi.fn(() => Promise.resolve());
+    const syncAt = (now: Date, fake: FakePrGitHub) =>
+      runSync(
+        {
+          db,
+          logger,
+          github: () => Promise.resolve(fakeGraphQL(prGitHub(fake)).octokit),
+          now: () => now,
+          notifyMerged,
+        },
+        user.id,
+      );
+
+    await syncAt(NOW, {
+      reviewRequested: [searchHit("PR_1")],
+      prs: { PR_1: githubPr() },
+    });
+    await db.pullRequest.updateMany({ data: { importantAt: NOW } });
+    expect(notifyMerged).not.toHaveBeenCalled();
+
+    await syncAt(minutes(1), {
+      statuses: { PR_1: searchHit("PR_1", { state: "MERGED" }) },
+    });
+    const pr = await db.pullRequest.findFirstOrThrow();
+    expect(notifyMerged).toHaveBeenCalledExactlyOnceWith([pr.id]);
   });
 
   it("marks the sync as running until it ends, even when it fails", async () => {

@@ -43,6 +43,8 @@ export interface SyncResult {
   deleted: number;
   // Items that are new or have a new event, to notify about.
   newEventItemIds: string[];
+  // Important PRs that just merged, to notify about.
+  mergedImportantPrIds: string[];
 }
 
 interface StoredPr {
@@ -221,7 +223,7 @@ export async function syncUser(
 
   const repoIdOf = new Map(open.map((pr) => [pr.id, pr.githubRepoId]));
   // PRs and their items save together, so a PR is never stored without its items.
-  const newEventItemIds = await db.$transaction(async (tx) => {
+  const changes = await db.$transaction(async (tx) => {
     await lockUserItems(tx, userId);
     await tx.pullRequest.updateMany({
       where: { userId, githubNodeId: { in: searchedIds } },
@@ -262,16 +264,29 @@ export async function syncUser(
       const ids = [...ended].filter(([, s]) => s === state).map(([id]) => id);
       await tx.pullRequest.updateMany({
         where: { userId, githubNodeId: { in: ids } },
-        data: { state },
+        data: { state, ...(state === "merged" && { mergedAt: now }) },
       });
     }
+    const mergedImportant = await tx.pullRequest.findMany({
+      where: {
+        userId,
+        githubNodeId: {
+          in: [...ended].filter(([, s]) => s === "merged").map(([id]) => id),
+        },
+        importantAt: { not: null },
+      },
+      select: { id: true },
+    });
     await resolveItemsOf(tx, userId, [...ended.keys()], now);
     // A fetched PR may show a new title, even if its items didn't change. An ended PR
     // leaves My PRs, even with no items.
     if (saved.length > 0 || items.changed || ended.size > 0 || woke > 0) {
       await publishItemsChanged(tx, userId);
     }
-    return items.newEventIds;
+    return {
+      newEventItemIds: items.newEventIds,
+      mergedImportantPrIds: mergedImportant.map((pr) => pr.id),
+    };
   }, ITEMS_TX);
 
   const { count: deleted } = await db.pullRequest.deleteMany({
@@ -279,6 +294,8 @@ export async function syncUser(
       userId,
       lastSeenAt: { lt: new Date(now.getTime() - KEEP_UNSEEN_MS) },
       items: { none: { status: "open" } },
+      // Important PRs stay while open, and once merged, until the user unmarks them.
+      NOT: { importantAt: { not: null }, state: { in: ["open", "merged"] } },
     },
   });
   await db.user.update({
@@ -292,6 +309,6 @@ export async function syncUser(
     failed: details.failed,
     ended: ended.size,
     deleted,
-    newEventItemIds,
+    ...changes,
   };
 }

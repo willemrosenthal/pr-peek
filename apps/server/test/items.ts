@@ -40,6 +40,7 @@ export function itemRows(db: Db) {
         | "githubUpdatedAt"
         | "quietAt"
         | "importantAt"
+        | "mergedAt"
         | "snapshot"
       >
     > = {},

@@ -28,6 +28,8 @@ export interface ScheduleDeps extends SyncDeps {
   logger: Logger;
   // Queues a notification check for each item that's new or has a new event.
   notifyItems?: (itemIds: string[]) => Promise<void>;
+  // Queues a push for each important PR that merged.
+  notifyMerged?: (prIds: string[]) => Promise<void>;
 }
 
 const syncInterval = (lastActiveAt: Date, now: Date) =>
@@ -129,6 +131,9 @@ async function syncAndSchedule(
     // After the sync's transaction, so a notification never points at an unsaved item.
     if (result.newEventItemIds.length > 0) {
       await deps.notifyItems?.(result.newEventItemIds);
+    }
+    if (result.mergedImportantPrIds.length > 0) {
+      await deps.notifyMerged?.(result.mergedImportantPrIds);
     }
     log.info({ ...result, rateLimit, ms: Date.now() - started }, "sync done");
   } catch (err) {

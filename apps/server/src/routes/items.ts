@@ -5,6 +5,7 @@ import { HttpError, parseInput } from "../http-error";
 import {
   groupItems,
   idlePrs,
+  mergedPrs,
   onePerPr,
   openItems,
   summarize,
@@ -24,15 +25,17 @@ export function itemsRouter(deps: ItemDeps): Router {
 
   router.get("/items", async (_req, res) => {
     const user = currentUser(res);
-    const [items, idle, quietItems, quietIdle] = await Promise.all([
+    const [items, idle, merged, quietItems, quietIdle] = await Promise.all([
       openItems(deps.db, user.id, now()),
       idlePrs(deps.db, user, now()),
+      mergedPrs(deps.db, user, now()),
       openItems(deps.db, user.id, now(), true),
       idlePrs(deps.db, user, now(), true),
     ]);
     const body: ItemsResponse = {
       ...groupItems(items),
       idlePrs: idle,
+      merged,
       quiet: { items: onePerPr(quietItems), idlePrs: quietIdle },
     };
     res.json(body);

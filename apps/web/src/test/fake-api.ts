@@ -118,6 +118,7 @@ export const groups = (fields: Partial<ItemsResponse> = {}): ItemsResponse => ({
   assigned: [],
   mine: [],
   idlePrs: [],
+  merged: [],
   quiet: { items: [], idlePrs: [] },
   ...fields,
 });

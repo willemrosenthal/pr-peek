@@ -9,8 +9,11 @@ import {
   type AssignedState,
   type IdlePrDto,
   type ItemDto,
+  type ItemGroup,
   type ItemGroups,
   type ItemKind,
+  type MergedPrDto,
+  type PrSnapshot,
   type SummaryResponse,
 } from "@pr-peek/core";
 import type { Db } from "./db";
@@ -216,6 +219,51 @@ export async function idlePrs(
     age: formatAge(row.githubUpdatedAt, now),
     pr: toPrDto(row, colors),
   }));
+}
+
+// The section a merged PR shows in. Its items are resolved, so it goes by the PR: the
+// user's own, or one they're assigned to and not reviewing. Any other goes under review.
+export function mergedGroup(
+  snapshot: PrSnapshot,
+  viewerLogin: string,
+): ItemGroup {
+  const isViewer = (login: string) =>
+    login.toLowerCase() === viewerLogin.toLowerCase();
+  if (isViewer(snapshot.author.login)) return "mine";
+  const reviewing =
+    snapshot.reviews.some((review) => isViewer(review.author.login)) ||
+    snapshot.reviewRequests.some(
+      (reviewer) => reviewer.type === "user" && isViewer(reviewer.login),
+    );
+  const assigned = snapshot.assignees?.some(isViewer) ?? false;
+  return assigned && !reviewing ? "assigned" : "review";
+}
+
+// The user's important PRs that merged, newest merge first.
+export async function mergedPrs(
+  db: Db,
+  user: { id: string; login: string },
+  now: Date,
+): Promise<MergedPrDto[]> {
+  const [rows, colors] = await Promise.all([
+    db.pullRequest.findMany({
+      where: { userId: user.id, state: "merged", importantAt: { not: null } },
+      orderBy: { mergedAt: "desc" },
+    }),
+    repoColors(db, user.id),
+  ]);
+  return rows.map((row) => {
+    const snapshot = prSnapshot.safeParse(row.snapshot);
+    return {
+      id: row.id,
+      group: snapshot.success
+        ? mergedGroup(snapshot.data, user.login)
+        : "review",
+      // Merged before we kept the time. The last change on GitHub is close.
+      age: formatAge(row.mergedAt ?? row.githubUpdatedAt, now),
+      pr: toPrDto(row, colors),
+    };
+  });
 }
 
 // Splits sorted items into the list's sections, one row per PR, keeping their order.

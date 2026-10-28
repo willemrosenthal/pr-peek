@@ -164,6 +164,7 @@ describe("GET /api/items", () => {
       assigned: [],
       mine: [],
       idlePrs: [],
+      merged: [],
       quiet: { items: [], idlePrs: [] },
     });
   });
@@ -484,6 +485,50 @@ describe("important PRs", () => {
     expect(after.importantAt).toBeNull();
     const item = await db.item.findUniqueOrThrow({ where: { id: reply.id } });
     expect(item.seenAt).toBeNull();
+  });
+
+  it("lists merged ones, newest first, each in its section", async () => {
+    const { agent, user } = await setup();
+    const merged = { state: "merged" as const, importantAt: hours(-9) };
+    const mine = await makePr(user.id, 7, {
+      ...merged,
+      mergedAt: hours(-3),
+      snapshot: storedSnapshot({ author: { login: "Octocat", isBot: false } }),
+    });
+    const assigned = await makePr(user.id, 8, {
+      ...merged,
+      mergedAt: hours(-1),
+      snapshot: storedSnapshot({ assignees: ["octocat"] }),
+    });
+    const reviewed = await makePr(user.id, 9, {
+      ...merged,
+      mergedAt: hours(-2),
+      snapshot: storedSnapshot({
+        assignees: ["octocat"],
+        reviews: [
+          {
+            id: "R_1",
+            author: { login: "octocat", isBot: false },
+            state: "APPROVED",
+            submittedAt: hours(-4).toISOString(),
+          },
+        ],
+      }),
+    });
+    // Left out: not important, or closed.
+    await makePr(user.id, 10, { state: "merged" });
+    await makePr(user.id, 11, { ...merged, state: "closed" });
+
+    const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
+    expect(
+      body.merged.map(({ id, group, age }) => ({ id, group, age })),
+    ).toEqual([
+      { id: assigned.id, group: "assigned", age: "1h" },
+      { id: reviewed.id, group: "review", age: "2h" },
+      { id: mine.id, group: "mine", age: "3h" },
+    ]);
+    expect(body.merged[0]?.pr.important).toBe(true);
+    expect(body.idlePrs).toEqual([]);
   });
 
   it("can't mark or unmark another user's PR", async () => {
