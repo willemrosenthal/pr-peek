@@ -487,8 +487,20 @@ describe("important PRs", () => {
     expect(item.seenAt).toBeNull();
   });
 
-  it("lists merged ones, newest first, each in its section", async () => {
+  it("lists merged ones in watched repos, newest first, each in its section", async () => {
     const { agent, user } = await setup();
+    await db.watchedRepo.createMany({
+      data: [
+        { userId: user.id, githubRepoId: 1, owner: "acme", name: "web-app" },
+        {
+          userId: user.id,
+          githubRepoId: 2,
+          owner: "acme",
+          name: "old",
+          enabled: false,
+        },
+      ],
+    });
     const merged = { state: "merged" as const, importantAt: hours(-9) };
     const mine = await makePr(user.id, 7, {
       ...merged,
@@ -523,9 +535,11 @@ describe("important PRs", () => {
         reviewRequests: [{ type: "user", login: "octocat" }],
       }),
     });
-    // Left out: not important, or closed.
+    // Left out: not important, closed, in a paused repo, or one not watched.
     await makePr(user.id, 10, { state: "merged" });
     await makePr(user.id, 11, { ...merged, state: "closed" });
+    await makePr(user.id, 13, { ...merged, githubRepoId: 2 });
+    await makePr(user.id, 14, { ...merged, githubRepoId: 3 });
 
     const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
     expect(

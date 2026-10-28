@@ -46,6 +46,9 @@ const addDevice = (userId: string, name: string, minSeverity: Severity) =>
     data: { userId, endpoint: endpoint(name), ...keys, minSeverity },
   });
 
+// NOW is 12:00 UTC, so these quiet hours cover it.
+const QUIET_NOW = { quietStart: "11:00", quietEnd: "13:00" };
+
 const sentTo = (send: ReturnType<typeof vi.fn<SendPush>>) =>
   send.mock.calls.map(([target]) => target.endpoint);
 
@@ -181,9 +184,6 @@ describe("notifyItem", () => {
   });
 
   describe("quiet hours", () => {
-    // NOW is 12:00 UTC, so these quiet hours cover it.
-    const quietNow = { quietStart: "11:00", quietEnd: "13:00" };
-
     it.each<[Severity, boolean, string]>([
       ["normal", false, "quiet"],
       ["high", false, "quiet"],
@@ -195,7 +195,7 @@ describe("notifyItem", () => {
         const { user, notify } = await setup({ severity });
         await db.userSettings.update({
           where: { userId: user.id },
-          data: { ...quietNow, highBreaksQuiet },
+          data: { ...QUIET_NOW, highBreaksQuiet },
         });
         expect(await notify()).toBe(outcome);
       },
@@ -389,10 +389,9 @@ describe("notifyMerged", () => {
 
   it("skips quiet hours, unless high lets through", async () => {
     const { user, send, notify } = await merged();
-    const quietNow = { quietStart: "11:00", quietEnd: "13:00" };
     await db.userSettings.update({
       where: { userId: user.id },
-      data: quietNow,
+      data: QUIET_NOW,
     });
     expect(await notify()).toEqual(["quiet"]);
 

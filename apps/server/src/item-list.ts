@@ -239,31 +239,39 @@ export function mergedGroup(
   return assigned && !reviewing ? "assigned" : "review";
 }
 
-// The user's important PRs that merged, newest merge first.
+// The user's important PRs that merged, newest merge first. Only those in repos the user
+// watches now, like open items. A paused repo's come back when it's on again.
 export async function mergedPrs(
   db: Db,
   user: { id: string; login: string },
   now: Date,
 ): Promise<MergedPrDto[]> {
-  const [rows, colors] = await Promise.all([
+  const [rows, colors, watched] = await Promise.all([
     db.pullRequest.findMany({
       where: { userId: user.id, state: "merged", importantAt: { not: null } },
       orderBy: { mergedAt: "desc" },
     }),
     repoColors(db, user.id),
+    db.watchedRepo.findMany({
+      where: { userId: user.id, enabled: true },
+      select: { githubRepoId: true },
+    }),
   ]);
-  return rows.map((row) => {
-    const snapshot = prSnapshot.safeParse(row.snapshot);
-    return {
-      id: row.id,
-      group: snapshot.success
-        ? mergedGroup(snapshot.data, user.login)
-        : "review",
-      // Merged before we kept the time. The last change on GitHub is close.
-      age: formatAge(row.mergedAt ?? row.githubUpdatedAt, now),
-      pr: toPrDto(row, colors),
-    };
-  });
+  const watchedIds = new Set(watched.map((repo) => repo.githubRepoId));
+  return rows
+    .filter((row) => watchedIds.has(row.githubRepoId))
+    .map((row) => {
+      const snapshot = prSnapshot.safeParse(row.snapshot);
+      return {
+        id: row.id,
+        group: snapshot.success
+          ? mergedGroup(snapshot.data, user.login)
+          : "review",
+        // Merged before we kept the time. The last change on GitHub is close.
+        age: formatAge(row.mergedAt ?? row.githubUpdatedAt, now),
+        pr: toPrDto(row, colors),
+      };
+    });
 }
 
 // Splits sorted items into the list's sections, one row per PR, keeping their order.
