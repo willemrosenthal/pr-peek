@@ -3,6 +3,7 @@ import type {
   IdlePrDto,
   ItemDto,
   ItemKind,
+  MergedPrDto,
   StaleLevel,
 } from "@pr-peek/core";
 import {
@@ -194,7 +195,37 @@ export function IdlePrRow({
   );
 }
 
-// The two line layout both rows share. Children are the second line's text, which a
+// A PR the user marked important that merged. It stays until they remove the flag.
+export function MergedPrRow({
+  pr,
+  showAuthor = false,
+}: {
+  pr: MergedPrDto;
+  showAuthor?: boolean;
+}) {
+  return (
+    <Row
+      pr={pr.pr}
+      quiet={false}
+      showAuthor={showAuthor}
+      className={undefined}
+      Icon={GitMerge}
+      tone={styles.merged}
+      title={
+        <>
+          <ImportantFlag pr={pr.pr} />
+          {pr.pr.title}
+        </>
+      }
+      age={pr.age}
+      ageTone={styles.muted}
+    >
+      <span className={cx(styles.tag, styles.mergedTag)}>Merged</span>
+    </Row>
+  );
+}
+
+// The two line layout the rows share. Children are the second line's text, which a
 // quiet row leaves out. Quiet rows keep the plain icon, without the author.
 function Row({
   pr,

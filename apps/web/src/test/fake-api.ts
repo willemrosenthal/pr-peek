@@ -1,6 +1,7 @@
 import {
   rules,
   type IdlePrDto,
+  type MergedPrDto,
   type ItemDto,
   type ItemsResponse,
   type MeResponse,
@@ -105,9 +106,22 @@ export const idlePr = (fields: Partial<IdlePrDto> = {}): IdlePrDto => {
   itemCount += 1;
   return {
     id: `pr-${itemCount}`,
+    group: "mine",
     isDraft: false,
     age: "1d",
     pr: prRef(),
+    ...fields,
+  };
+};
+
+// A merged PR the user marked important.
+export const mergedPr = (fields: Partial<MergedPrDto> = {}): MergedPrDto => {
+  itemCount += 1;
+  return {
+    id: `pr-${itemCount}`,
+    group: "review",
+    age: "3h",
+    pr: { ...prRef(), important: true },
     ...fields,
   };
 };

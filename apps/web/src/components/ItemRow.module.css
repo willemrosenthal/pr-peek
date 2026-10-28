@@ -167,6 +167,12 @@
   color: var(--color-text-secondary);
 }
 
+/* On a merged PR, in the merged color. */
+.mergedTag {
+  background: var(--color-kind-merged);
+  color: var(--color-on-merged);
+}
+
 /* What an assigned PR needs next, before the summary, in its state's color. */
 .state {
   display: inline-flex;
@@ -201,6 +207,10 @@
 
 .talk {
   color: var(--color-kind-talk);
+}
+
+.merged {
+  color: var(--color-kind-merged);
 }
 
 .comment {

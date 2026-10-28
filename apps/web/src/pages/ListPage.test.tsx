@@ -21,6 +21,7 @@ import {
   json,
   listApi,
   me,
+  mergedPr,
   noContent,
   sentBodies,
   settingsResponse,
@@ -49,17 +50,22 @@ const rowOf = (row: { pr: { url: string } }) => {
   return link;
 };
 
-// A fake preview for `row`, to add to the list's handlers.
-const previewApi = (row: ItemDto): Handlers => ({
-  [`GET /api/prs/${row.pr.id}/preview?item=${row.id}`]: () =>
-    json({
-      bodyHtml: "<p>Adds login.</p>",
-      openedAge: "2d",
-      failingChecks: [],
-      reviewers: [],
-      comments: [],
-      focusId: null,
-    }),
+// A fake preview for `row`, to add to the list's handlers. Rows without an item, like
+// merged ones, ask without one.
+const previewApi = (
+  row: { id: string; pr: { id: string } },
+  withItem = true,
+): Handlers => ({
+  [`GET /api/prs/${row.pr.id}/preview${withItem ? `?item=${row.id}` : ""}`]:
+    () =>
+      json({
+        bodyHtml: "<p>Adds login.</p>",
+        openedAge: "2d",
+        failingChecks: [],
+        reviewers: [],
+        comments: [],
+        focusId: null,
+      }),
 });
 
 describe("sections", () => {
@@ -147,6 +153,36 @@ describe("sections", () => {
       expect.stringContaining(busy.pr.title),
       expect.stringContaining(idle.pr.title),
     ]);
+  });
+
+  it("lists idle and merged PRs at the end of their sections", async () => {
+    const asked = item();
+    const flagged = important(idlePr({ group: "review" }));
+    const reviewed = mergedPr({ group: "review" });
+    const own = mergedPr({ group: "mine" });
+    fakeApi(
+      listApi({
+        "GET /api/items": () =>
+          json(
+            groups({
+              review: [asked],
+              idlePrs: [flagged],
+              merged: [reviewed, own],
+            }),
+          ),
+      }),
+    );
+    renderApp("/");
+
+    expect((await sectionButton(/Needs my review/)).textContent).toContain("3");
+    expect((await sectionButton(/My PRs/)).textContent).toContain("1");
+    expect(rows().map((row) => row.textContent)).toEqual([
+      expect.stringContaining(asked.pr.title),
+      expect.stringContaining("Nothing to do"),
+      expect.stringContaining("Merged"),
+      expect.stringContaining("Merged"),
+    ]);
+    expect(rowOf(own).textContent).toContain("Important: ");
   });
 
   it("still lists idle PRs when nothing needs you", async () => {
@@ -465,6 +501,54 @@ describe("marking important", () => {
     expect(callsTo(fetch, `/api/prs/${asked.pr.id}/important`)).toHaveLength(1);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null));
     expect(hasFlag(asked)).toBe(true);
+  });
+
+  it("unflags a merged PR when swiped either way, which takes it off the list", async () => {
+    const left = mergedPr();
+    const right = mergedPr();
+    const unflagged = new Set<string>();
+    const handlers: Handlers = {
+      "GET /api/items": () =>
+        json(
+          groups({
+            merged: [left, right].filter((row) => !unflagged.has(row.pr.id)),
+          }),
+        ),
+    };
+    for (const { pr } of [left, right]) {
+      handlers[`DELETE /api/prs/${pr.id}/important`] = () => {
+        unflagged.add(pr.id);
+        return noContent();
+      };
+    }
+    const fetch = fakeApi(listApi(handlers));
+    renderApp("/");
+    await sectionButton(/Needs my review/);
+
+    drag(rowOf(left), -FAR_ENOUGH);
+    drag(rowOf(right), FAR_ENOUGH);
+    await waitFor(() => expect(rows()).toHaveLength(0));
+    for (const row of [left, right]) {
+      expect(callsTo(fetch, `/api/prs/${row.pr.id}/important`)).toHaveLength(1);
+    }
+  });
+
+  it("offers no Quiet in a merged PR's preview", async () => {
+    const merged = mergedPr();
+    fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ merged: [merged] })),
+        ...previewApi(merged, false),
+      }),
+    );
+    renderApp("/");
+
+    await sectionButton(/Needs my review/);
+    fireEvent.contextMenu(rowOf(merged));
+    expect(
+      await screen.findByRole("button", { name: "Remove flag" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Quiet" })).toBe(null);
   });
 
   it("still marks an important PR's new items seen on leaving", async () => {

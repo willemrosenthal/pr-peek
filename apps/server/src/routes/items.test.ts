@@ -267,6 +267,7 @@ describe("GET /api/items", () => {
     ]);
     expect(body.idlePrs[1]).toEqual({
       id: older.id,
+      group: "mine",
       isDraft: false,
       age: "5h",
       pr: {
@@ -487,6 +488,32 @@ describe("important PRs", () => {
     expect(item.seenAt).toBeNull();
   });
 
+  it("lists open ones with nothing to do, each in its section", async () => {
+    const { agent, user } = await setup();
+    const important = { importantAt: hours(-9) };
+    const asked = await makePr(user.id, 7, {
+      ...important,
+      githubUpdatedAt: hours(-1),
+      snapshot: storedSnapshot(),
+    });
+    const assigned = await makePr(user.id, 8, {
+      ...important,
+      githubUpdatedAt: hours(-2),
+      snapshot: storedSnapshot({ assignees: ["octocat"] }),
+    });
+    // Left out: has an open item, so it's a row already, or isn't important.
+    const busy = await makePr(user.id, 9, important);
+    await makeItem(user.id, busy.id, "reply");
+    await makePr(user.id, 10);
+
+    const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
+    expect(body.idlePrs.map(({ id, group }) => ({ id, group }))).toEqual([
+      { id: asked.id, group: "review" },
+      { id: assigned.id, group: "assigned" },
+    ]);
+    expect(body.replies.map((row) => row.pr.id)).toEqual([busy.id]);
+  });
+
   it("lists merged ones in watched repos, newest first, each in its section", async () => {
     const { agent, user } = await setup();
     await db.watchedRepo.createMany({
@@ -505,7 +532,7 @@ describe("important PRs", () => {
     const mine = await makePr(user.id, 7, {
       ...merged,
       mergedAt: hours(-3),
-      snapshot: storedSnapshot({ author: { login: "Octocat", isBot: false } }),
+      authorLogin: "Octocat",
     });
     const assigned = await makePr(user.id, 8, {
       ...merged,

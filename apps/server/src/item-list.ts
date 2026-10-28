@@ -13,7 +13,6 @@ import {
   type ItemGroups,
   type ItemKind,
   type MergedPrDto,
-  type PrSnapshot,
   type SummaryResponse,
 } from "@pr-peek/core";
 import type { Db } from "./db";
@@ -192,8 +191,8 @@ export function onePerPr(items: ItemDto[]): ItemDto[] {
   });
 }
 
-// The user's open PRs that have no open items, newest change first. Only quiet ones
-// when `quiet`.
+// The user's open PRs, and ones they marked important, that have no open items, newest
+// change first. Only quiet ones when `quiet`.
 export async function idlePrs(
   db: Db,
   user: { id: string; login: string },
@@ -206,7 +205,10 @@ export async function idlePrs(
         userId: user.id,
         state: "open",
         ...quietWhere(quiet),
-        authorLogin: { equals: user.login, mode: "insensitive" },
+        OR: [
+          { authorLogin: { equals: user.login, mode: "insensitive" } },
+          { importantAt: { not: null } },
+        ],
         items: { none: { status: "open" } },
       },
       orderBy: { githubUpdatedAt: "desc" },
@@ -215,21 +217,26 @@ export async function idlePrs(
   ]);
   return rows.map((row) => ({
     id: row.id,
+    group: prGroup(row, user.login),
     isDraft: row.isDraft,
     age: formatAge(row.githubUpdatedAt, now),
     pr: toPrDto(row, colors),
   }));
 }
 
-// The section a merged PR shows in. Its items are resolved, so it goes by the PR: the
-// user's own, or one they're assigned to and not reviewing. Any other goes under review.
-export function mergedGroup(
-  snapshot: PrSnapshot,
+// The section a PR with no open items shows in. With no item to go by, it goes by the PR:
+// the user's own, or one they're assigned to and not reviewing. Any other goes under
+// review.
+function prGroup(
+  pr: Pick<PullRequest, "authorLogin" | "snapshot">,
   viewerLogin: string,
 ): ItemGroup {
   const isViewer = (login: string) =>
     login.toLowerCase() === viewerLogin.toLowerCase();
-  if (isViewer(snapshot.author.login)) return "mine";
+  if (isViewer(pr.authorLogin)) return "mine";
+  const parsed = prSnapshot.safeParse(pr.snapshot);
+  if (!parsed.success) return "review";
+  const snapshot = parsed.data;
   const reviewing =
     snapshot.reviews.some((review) => isViewer(review.author.login)) ||
     snapshot.reviewRequests.some(
@@ -260,18 +267,13 @@ export async function mergedPrs(
   const watchedIds = new Set(watched.map((repo) => repo.githubRepoId));
   return rows
     .filter((row) => watchedIds.has(row.githubRepoId))
-    .map((row) => {
-      const snapshot = prSnapshot.safeParse(row.snapshot);
-      return {
-        id: row.id,
-        group: snapshot.success
-          ? mergedGroup(snapshot.data, user.login)
-          : "review",
-        // Merged before we kept the time. The last change on GitHub is close.
-        age: formatAge(row.mergedAt ?? row.githubUpdatedAt, now),
-        pr: toPrDto(row, colors),
-      };
-    });
+    .map((row) => ({
+      id: row.id,
+      group: prGroup(row, user.login),
+      // Merged before we kept the time. The last change on GitHub is close.
+      age: formatAge(row.mergedAt ?? row.githubUpdatedAt, now),
+      pr: toPrDto(row, colors),
+    }));
 }
 
 // Splits sorted items into the list's sections, one row per PR, keeping their order.

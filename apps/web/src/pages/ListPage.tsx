@@ -151,14 +151,18 @@ function Sections({
   return (
     <>
       {sections.map(({ group, title }) => {
-        const idle = group === "mine" ? groups.idlePrs : [];
-        if (groups[group].length + idle.length === 0) return null;
+        const idle = groups.idlePrs.filter((pr) => pr.group === group);
+        const merged = groups.merged.filter((pr) => pr.group === group);
+        if (groups[group].length + idle.length + merged.length === 0) {
+          return null;
+        }
         return (
           <ItemSection
             key={group}
             title={title}
             items={groups[group]}
             idle={idle}
+            merged={merged}
             showAuthors={showsAuthors(showAuthors, group)}
             open={!collapsed.includes(group)}
             onOpenChange={(open) => setOpen(group, open)}
