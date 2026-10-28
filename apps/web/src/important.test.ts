@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { markImportant } from "./important";
-import { groups, idlePr, item } from "./test/fake-api";
+import { groups, idlePr, important, item, mergedPr } from "./test/fake-api";
 
 describe("markImportant", () => {
   it("marks one PR's row important, in place", () => {
@@ -32,5 +32,18 @@ describe("markImportant", () => {
       unseen: true,
       pr: { important: false },
     });
+  });
+
+  it("takes out the rows only the flag kept", () => {
+    const merged = mergedPr();
+    const flagged = important(idlePr({ group: "review" }));
+    const own = important(idlePr());
+    const list = groups({ idlePrs: [flagged, own], merged: [merged] });
+
+    expect(markImportant(list, merged.pr.id, false).merged).toEqual([]);
+    expect(markImportant(list, flagged.pr.id, false).idlePrs).toEqual([own]);
+    const unmarked = markImportant(list, own.pr.id, false);
+    expect(unmarked.idlePrs.map((row) => row.id)).toEqual([flagged.id, own.id]);
+    expect(unmarked.idlePrs[1]?.pr.important).toBe(false);
   });
 });

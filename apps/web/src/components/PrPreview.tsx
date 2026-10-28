@@ -28,12 +28,13 @@ import { GitHubHtml } from "./GitHubHtml";
 import { avatarUrl } from "./ItemRow";
 import styles from "./PrPreview.module.css";
 
-// What a preview is opened on: a row's PR, its item if it has one, and whether it's in
-// the Quiet section.
+// What a preview is opened on: a row's PR, its item if it has one, whether it's in the
+// Quiet section, and whether it merged.
 export interface PreviewTarget {
   pr: ItemDto["pr"];
   item: ItemDto | null;
   quiet: boolean;
+  merged?: boolean;
 }
 
 // Opens the preview on a row. The list passes it down to its rows.
@@ -134,7 +135,7 @@ export function PrPreview({
 }
 
 function Sheet({
-  target: { pr, item, quiet },
+  target: { pr, item, quiet, merged = false },
   onToggleQuiet,
   onToggleImportant,
 }: {
@@ -150,14 +151,17 @@ function Sheet({
         <div className={styles.handle} aria-hidden="true" />
         <div className={styles.bar}>
           <div className={styles.barGroup}>
-            <button
-              type="button"
-              className={styles.barButton}
-              onClick={onToggleQuiet}
-            >
-              <QuietIcon aria-hidden="true" />
-              {quiet ? "Bring back" : "Quiet"}
-            </button>
+            {/* A merged PR has nothing new to quiet. */}
+            {!merged && (
+              <button
+                type="button"
+                className={styles.barButton}
+                onClick={onToggleQuiet}
+              >
+                <QuietIcon aria-hidden="true" />
+                {quiet ? "Bring back" : "Quiet"}
+              </button>
+            )}
             {/* Quiet rows show no flag. */}
             {!quiet && (
               <button

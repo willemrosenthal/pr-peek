@@ -69,9 +69,11 @@ export interface ItemDto {
 // Open items in each section, most urgent first.
 export type ItemGroups = Record<ItemGroup, ItemDto[]>;
 
-// One of the user's open PRs with nothing to do. Shown under My PRs.
+// An open PR with nothing to do: one of the user's, or one they marked important.
 export interface IdlePrDto {
   id: string;
+  // The section it shows in, like a merged PR's.
+  group: ItemGroup;
   isDraft: boolean;
   // Real time since the PR last changed, like "3h".
   age: string;
@@ -82,7 +84,7 @@ export interface IdlePrDto {
 export interface MergedPrDto {
   id: string;
   // The section it shows in: the user's own PRs, ones they're assigned to, or else
-  // review.
+  // review. Picked by `prGroup` on the server.
   group: ItemGroup;
   // Real time since it merged, like "3h".
   age: string;

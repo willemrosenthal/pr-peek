@@ -198,6 +198,21 @@ describe("SwipeRow right swipe", () => {
   });
 });
 
+describe("SwipeRow that unflags", () => {
+  it.each([-100, 100])("says Remove flag in amber when swiped %ipx", (dx) => {
+    render(
+      <SwipeRow quiet={false} onToggle={vi.fn()} unflags>
+        <a href="https://github.com/acme/web-app/pull/7">Add login</a>
+      </SwipeRow>,
+    );
+    hold(screen.getByRole("link", { name: "Add login" }), dx);
+    expect(screen.getByText("Remove flag").className).toContain(
+      styles.important,
+    );
+    expect(strip()).toBe(null);
+  });
+});
+
 describe("SwipeRow long press", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());

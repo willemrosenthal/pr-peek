@@ -31,6 +31,9 @@
   --color-kind-talk: #b23cf0;
   --color-kind-comment: #f0428f;
   --color-kind-assigned: #0a9fae;
+  /* A merged PR: its icon, and its tag with the text on it. */
+  --color-kind-merged: #8250df;
+  --color-on-merged: #ffffff;
   /* Bot comments. */
   --color-bot: #9a7fb8;
 
@@ -92,6 +95,8 @@
     --color-kind-talk: #c47bff;
     --color-kind-comment: #ff7ab8;
     --color-kind-assigned: #3ed2df;
+    --color-kind-merged: #a371f7;
+    --color-on-merged: #1d1d1f;
     --color-bot: #b78dc9;
     --shadow-panel: 0 12px 32px rgb(0 0 0 / 50%);
     --color-scrollbar: rgb(255 255 255 / 35%);

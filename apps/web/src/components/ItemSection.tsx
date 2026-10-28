@@ -1,23 +1,25 @@
 import { Collapsible } from "@base-ui/react/collapsible";
-import type { IdlePrDto, ItemDto } from "@pr-peek/core";
+import type { IdlePrDto, ItemDto, MergedPrDto } from "@pr-peek/core";
 import { ChevronRight } from "lucide-react";
 import {
   usePrefetchPreview,
   useSetQuiet,
   useToggleImportant,
 } from "../queries";
-import { IdlePrRow, ItemRow } from "./ItemRow";
+import { IdlePrRow, ItemRow, MergedPrRow } from "./ItemRow";
 import styles from "./ItemSection.module.css";
 import type { OnPreview } from "./PrPreview";
 import { SwipeRow } from "./SwipeRow";
 
-// A section of the list. `idle` PRs come after the items. Rows in the `quiet` section
+// A section of the list. `idle` PRs come after the items, then `merged` ones, which a
+// swipe either way unflags, taking them off the list. Rows in the `quiet` section
 // are one line, and swiping one brings it back. A long press on a row calls
 // `onPreview`. The list shows the sheet, so it stays open if this section goes away.
 export function ItemSection({
   title,
   items,
   idle = [],
+  merged = [],
   quiet = false,
   showAuthors = false,
   open,
@@ -27,6 +29,7 @@ export function ItemSection({
   title: string;
   items: ItemDto[];
   idle?: IdlePrDto[];
+  merged?: MergedPrDto[];
   quiet?: boolean;
   showAuthors?: boolean;
   open: boolean;
@@ -53,7 +56,7 @@ export function ItemSection({
         <Collapsible.Trigger className={styles.trigger}>
           <ChevronRight size={10} className={styles.chevron} />
           <span className={styles.title}>{title}</span>
-          <span>{items.length + idle.length}</span>
+          <span>{items.length + idle.length + merged.length}</span>
         </Collapsible.Trigger>
       </h2>
       <Collapsible.Panel>
@@ -65,6 +68,20 @@ export function ItemSection({
         {idle.map((pr) => (
           <SwipeRow key={pr.id} {...rowProps(pr.pr, null)}>
             <IdlePrRow pr={pr} quiet={quiet} showAuthor={showAuthors} />
+          </SwipeRow>
+        ))}
+        {merged.map((pr) => (
+          <SwipeRow
+            key={pr.id}
+            quiet={false}
+            onToggle={() => toggleImportant(pr.pr)}
+            unflags
+            onLongPress={() =>
+              onPreview({ pr: pr.pr, item: null, quiet: false, merged: true })
+            }
+            onPressStart={() => prefetch(pr.pr.id, null)}
+          >
+            <MergedPrRow pr={pr} showAuthor={showAuthors} />
           </SwipeRow>
         ))}
       </Collapsible.Panel>

@@ -82,12 +82,15 @@ function blockNextClick(row: Element) {
 // A list row that quiets its PR, or brings it back, when swiped left. Swiped right, it
 // calls `onToggleImportant` to mark it important, or unmark it when it is (`important`).
 // Rows without `onToggleImportant`, like quiet ones, quiet or come back either way. A
-// quiet row also has a bell button that brings it back. A long press or a right click
+// quiet row also has a bell button that brings it back. With `unflags`, like a merged
+// row, a swipe either way removes the flag with `onToggle`, and the row leaves. A long
+// press or a right click
 // calls `onLongPress`. `onPressStart` comes partway through a long press, so the
 // preview can start loading.
 export function SwipeRow({
   quiet,
   onToggle,
+  unflags = false,
   important = false,
   onToggleImportant,
   onLongPress,
@@ -96,6 +99,7 @@ export function SwipeRow({
 }: {
   quiet: boolean;
   onToggle: () => void;
+  unflags?: boolean;
   important?: boolean;
   onToggleImportant?: (() => void) | undefined;
   onLongPress?: () => void;
@@ -291,11 +295,13 @@ export function SwipeRow({
   };
 
   const shown = leaving ?? offset;
-  const Icon = quiet ? Bell : BellOff;
-  const action = quiet ? "Bring back" : "Quiet";
+  const Icon = unflags ? FlagOff : quiet ? Bell : BellOff;
+  const action = unflags ? "Remove flag" : quiet ? "Bring back" : "Quiet";
   const toImportant = marksImportant(shown);
   const ShownIcon = toImportant ? (important ? FlagOff : Flag) : Icon;
-  const armedStyle = toImportant
+  // Flag swipes are amber.
+  const flagSwipe = toImportant || unflags;
+  const armedStyle = flagSwipe
     ? styles.importantArmed
     : quiet
       ? styles.back
@@ -310,7 +316,7 @@ export function SwipeRow({
           className={cx(
             styles.action,
             shown < 0 && styles.end,
-            toImportant && styles.important,
+            flagSwipe && styles.important,
             armed && armedStyle,
           )}
           aria-hidden="true"
