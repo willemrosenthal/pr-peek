@@ -41,8 +41,7 @@ export function ItemSection({
   const prefetch = usePrefetchPreview();
   const toggle = (prId: string) => () =>
     setQuiet.mutate({ prId, quiet: !quiet });
-  // Swipe and long press. Quiet rows show no flag, so they can't be marked important.
-  // Merged rows unflag on any swipe, instead of quieting.
+  // Swipe and long press. Merged rows unflag on any swipe, instead of quieting.
   const rowProps = (
     pr: ItemDto["pr"],
     item: ItemDto | null,
@@ -52,7 +51,7 @@ export function ItemSection({
     onToggle: merged ? () => toggleImportant(pr) : toggle(pr.id),
     unflags: merged,
     important: pr.important,
-    onToggleImportant: quiet || merged ? undefined : () => toggleImportant(pr),
+    onToggleImportant: merged ? undefined : () => toggleImportant(pr),
     onLongPress: () => onPreview({ pr, item, quiet, merged }),
     onPressStart: () => prefetch(pr.id, item?.id ?? null),
   });

@@ -503,6 +503,37 @@ describe("marking important", () => {
     expect(hasFlag(asked)).toBe(true);
   });
 
+  it("marks a quiet PR important when swiped right, and it stays quiet", async () => {
+    const hushed = item();
+    let marked = false;
+    const fetch = fakeApi(
+      listApi({
+        "GET /api/items": () =>
+          json(
+            groups({
+              quiet: {
+                items: [{ ...hushed, pr: { ...hushed.pr, important: marked } }],
+                idlePrs: [],
+              },
+            }),
+          ),
+        [`PUT /api/prs/${hushed.pr.id}/important`]: () => {
+          marked = true;
+          return noContent();
+        },
+      }),
+    );
+    renderApp("/");
+
+    await sectionButton(QUIET);
+    drag(rowOf(hushed), FAR_ENOUGH);
+    await waitFor(() => expect(hasFlag(hushed)).toBe(true));
+    expect(callsTo(fetch, `/api/prs/${hushed.pr.id}/important`)).toHaveLength(
+      1,
+    );
+    expect(await sectionButton(QUIET)).toBeTruthy();
+  });
+
   it("unflags a merged PR when swiped either way, which takes it off the list", async () => {
     const left = mergedPr();
     const right = mergedPr();

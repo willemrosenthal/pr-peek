@@ -162,21 +162,18 @@ function Sheet({
                 {quiet ? "Bring back" : "Quiet"}
               </button>
             )}
-            {/* Quiet rows show no flag. */}
-            {!quiet && (
-              <button
-                type="button"
-                className={styles.barButton}
-                onClick={onToggleImportant}
-              >
-                {pr.important ? (
-                  <FlagOff aria-hidden="true" />
-                ) : (
-                  <Flag aria-hidden="true" />
-                )}
-                {pr.important ? "Remove flag" : "Important"}
-              </button>
-            )}
+            <button
+              type="button"
+              className={styles.barButton}
+              onClick={onToggleImportant}
+            >
+              {pr.important ? (
+                <FlagOff aria-hidden="true" />
+              ) : (
+                <Flag aria-hidden="true" />
+              )}
+              {pr.important ? "Remove flag" : "Important"}
+            </button>
           </div>
           <a
             className={cx(styles.barButton, styles.open)}
