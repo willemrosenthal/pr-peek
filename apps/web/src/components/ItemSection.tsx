@@ -42,12 +42,18 @@ export function ItemSection({
   const toggle = (prId: string) => () =>
     setQuiet.mutate({ prId, quiet: !quiet });
   // Swipe and long press. Quiet rows show no flag, so they can't be marked important.
-  const rowProps = (pr: ItemDto["pr"], item: ItemDto | null) => ({
+  // Merged rows unflag on any swipe, instead of quieting.
+  const rowProps = (
+    pr: ItemDto["pr"],
+    item: ItemDto | null,
+    merged = false,
+  ) => ({
     quiet,
-    onToggle: toggle(pr.id),
+    onToggle: merged ? () => toggleImportant(pr) : toggle(pr.id),
+    unflags: merged,
     important: pr.important,
-    onToggleImportant: quiet ? undefined : () => toggleImportant(pr),
-    onLongPress: () => onPreview({ pr, item, quiet }),
+    onToggleImportant: quiet || merged ? undefined : () => toggleImportant(pr),
+    onLongPress: () => onPreview({ pr, item, quiet, merged }),
     onPressStart: () => prefetch(pr.id, item?.id ?? null),
   });
   return (
@@ -71,16 +77,7 @@ export function ItemSection({
           </SwipeRow>
         ))}
         {merged.map((pr) => (
-          <SwipeRow
-            key={pr.id}
-            quiet={false}
-            onToggle={() => toggleImportant(pr.pr)}
-            unflags
-            onLongPress={() =>
-              onPreview({ pr: pr.pr, item: null, quiet: false, merged: true })
-            }
-            onPressStart={() => prefetch(pr.pr.id, null)}
-          >
+          <SwipeRow key={pr.id} {...rowProps(pr.pr, null, true)}>
             <MergedPrRow pr={pr} showAuthor={showAuthors} />
           </SwipeRow>
         ))}

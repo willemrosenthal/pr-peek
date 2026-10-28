@@ -227,7 +227,7 @@ export async function idlePrs(
 // The section a PR with no open items shows in. With no item to go by, it goes by the PR:
 // the user's own, or one they're assigned to and not reviewing. Any other goes under
 // review.
-export function prGroup(
+function prGroup(
   pr: Pick<PullRequest, "authorLogin" | "snapshot">,
   viewerLogin: string,
 ): ItemGroup {
