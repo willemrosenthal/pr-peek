@@ -88,7 +88,8 @@ Each PR lands on `main` as one squashed commit, named after the PR title. So the
 | A bad Mac release                            | Users get offered it                           | Merge a `fix(desktop):` PR. The updater only moves forward                                                |
 | A Mac build fails and is never re-run        | Its draft stays. Nothing breaks                | The next release that changes `apps/desktop` includes its changes. Delete the old draft                   |
 | An old release run is re-run                 | Nothing moves backwards                        | `prod` refuses a push that goes back. "Latest" only moves to a higher version                             |
-| A workflow runs in someone's fork            | It stops at once                               | Every job checks `github.repository`                                                                      |
+| The deploy key is missing or revoked         | The version step fails. Nothing releases       | Make a new one (step 15.7), then "Re-run failed jobs"                                                     |
+| A workflow runs in someone's fork            | It stops at once                               | The `version` job checks `github.repository`                                                              |
 | Render ignores the workflow's push to `prod` | No deploy                                      | Shouldn't happen: Render hears every push. If it does, the deploy job calls a Render deploy hook instead  |
 | You need to deploy without a release         | Still possible                                 | `git push origin main:prod` from your machine. For emergencies only                                       |
 
@@ -132,7 +133,7 @@ Each PR lands on `main` as one squashed commit, named after the PR title. So the
 
 ### 15.5 Release workflow
 
-- [x] `release.yml`, on push to `main`. `concurrency: { group: release, cancel-in-progress: false }`. Every job has `if: github.repository == 'willemrosenthal/pr-peek'`.
+- [x] `release.yml`, on push to `main`. `concurrency: { group: release, cancel-in-progress: false }`. The `version` job has `if: github.repository == 'willemrosenthal/pr-peek'`, and everything that pushes or publishes needs it.
 - [x] Job `checks`: calls the reusable checks.
 - [x] Job `version`: check out with full history and the deploy key, run semantic-release, then output `version` from the `v*` tag on the commit (empty if none). Then output `desktop`: true if there's no published Mac release yet, or if this version is higher than the latest one and `git diff` shows changes in `apps/desktop` since it.
 - [x] Job `deploy`, if there's a version: check out with full history and the deploy key, then push the released commit to `prod`, with no force. Pushing a commit `prod` already has does nothing, so re-runs are safe.

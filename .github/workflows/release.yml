@@ -19,23 +19,21 @@ concurrency:
 jobs:
   # The checks PRs run, again on the commit that would be released.
   ci:
-    if: github.repository == 'willemrosenthal/pr-peek'
     uses: ./.github/workflows/ci.yml
   test-core:
-    if: github.repository == 'willemrosenthal/pr-peek'
     uses: ./.github/workflows/test-core.yml
   test-server:
-    if: github.repository == 'willemrosenthal/pr-peek'
     uses: ./.github/workflows/test-server.yml
   test-web:
-    if: github.repository == 'willemrosenthal/pr-peek'
     uses: ./.github/workflows/test-web.yml
   check-desktop:
-    if: github.repository == 'willemrosenthal/pr-peek'
     uses: ./.github/workflows/check-desktop.yml
 
+  # Everything from here pushes or publishes, so it never runs in a fork. The jobs after
+  # this one need it, so they skip too.
   version:
     needs: [ci, test-core, test-server, test-web, check-desktop]
+    if: github.repository == 'willemrosenthal/pr-peek'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -117,7 +115,8 @@ jobs:
 
   desktop:
     needs: version
-    if: needs.version.outputs.version != '' && needs.version.outputs.desktop == 'true'
+    # Only set when there's a version.
+    if: needs.version.outputs.desktop == 'true'
     permissions:
       contents: write
     uses: ./.github/workflows/desktop-release.yml
