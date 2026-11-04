@@ -169,6 +169,23 @@ describe("startDesktop", () => {
     stop();
   });
 
+  it("keeps the rounded dropdown after signing in, which loses ?shell=tray", () => {
+    stubTauri();
+    const root = document.documentElement;
+    // The app opens on the sign in page, which doesn't read the shell itself.
+    history.replaceState(null, "", "/signin?shell=tray");
+    startDesktop()();
+    // GitHub sends the user back to a fresh page, without it.
+    history.replaceState(null, "", "/onboarding");
+    const stop = startDesktop();
+    try {
+      expect(root.classList.contains("dropdown")).toBe(true);
+    } finally {
+      stop();
+      history.replaceState(null, "", "/");
+    }
+  });
+
   it("says when the Mac wakes from sleep", () => {
     stubTauri();
     vi.useFakeTimers();

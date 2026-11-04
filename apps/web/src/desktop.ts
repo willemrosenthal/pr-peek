@@ -1,6 +1,6 @@
 import type { PushPayload, SummaryResponse } from "@pr-peek/core";
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { inDropdown } from "./hooks/useIsTray";
+import { inDropdown, rememberShell } from "./hooks/useIsTray";
 import { localSetting } from "./localSetting";
 
 // The Mac menu bar app (apps/desktop). Everything here does nothing in a browser. The
@@ -153,6 +153,7 @@ export function startDesktop(): () => void {
   if (!isTauri()) return () => undefined;
   // Styles for the Mac app. The dropdown under the icon also gets rounded corners.
   const root = document.documentElement;
+  rememberShell();
   root.classList.add("desktop-app");
   root.classList.toggle("dropdown", inDropdown());
   // Marks the page while the window is hidden, so animations can pause.
