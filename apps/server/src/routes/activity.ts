@@ -1,11 +1,9 @@
+import { LOOKING_HEADER } from "@pr-peek/core";
 import express, { type Router } from "express";
 import type { Db } from "../db";
 import { STOP_REASONS } from "../github/tokens";
-import { SYNC_TIMING } from "../sync-timing";
+import { MINUTE_MS, SYNC_TIMING } from "../sync-timing";
 import { markActive } from "../users";
-import { DESKTOP_HEARTBEAT } from "./desktop";
-
-const MINUTE_MS = 60 * 1000;
 
 export interface ActivityDeps {
   db: Db;
@@ -23,20 +21,23 @@ export function activityRouter(deps: ActivityDeps): Router {
 
   router.use(async (req, _res, next) => {
     const userId = req.session.userId;
-    // The Mac app's heartbeat only means it's running, not that someone is looking.
-    if (!userId || req.path === DESKTOP_HEARTBEAT) return next();
+    // Only requests from a page someone can see. Not background refetches, the live
+    // stream, or the Mac app while its window is hidden, heartbeat included.
+    if (!userId || req.get(LOOKING_HEADER) !== "1") return next();
 
     const at = now();
     const saved = await markActive(deps.db, userId, at);
-    const stale =
-      !saved?.lastSyncedAt ||
-      at.getTime() - saved.lastSyncedAt.getTime() >
+    if (!saved) return next();
+
+    const fresh =
+      saved.lastSyncedAt !== null &&
+      at.getTime() - saved.lastSyncedAt.getTime() <=
         SYNC_TIMING.activeEveryMinutes * MINUTE_MS;
     // Leaves users alone who must sign in again, or whose syncs are backing off.
     const waiting =
-      STOP_REASONS.some((reason) => reason === saved?.syncError) ||
-      (saved?.syncRetryAt && saved.syncRetryAt > at);
-    if (saved && stale && !waiting) {
+      STOP_REASONS.some((reason) => reason === saved.syncError) ||
+      (saved.syncRetryAt !== null && saved.syncRetryAt > at);
+    if (!fresh && !waiting) {
       // A failed queue shouldn't fail the request. The next scheduled sync still runs.
       await deps.requestSync(userId).catch((err: unknown) => {
         req.log.warn({ err }, "sync on open failed to queue");

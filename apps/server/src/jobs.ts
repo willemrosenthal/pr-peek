@@ -22,8 +22,8 @@ const FREQUENT = { deleteAfterSeconds: 60 * 60 };
 // How often the worker checks each queue for jobs, in seconds. pg-boss's 2 seconds would
 // mean millions of queries a month with no users at all. Pushes wait up to 10 seconds.
 export const POLL_JOBS_SECONDS = 10;
-// Scheduled queues, like the sync dispatch. Work out timing with this in mind (see
-// sync-schedule.ts).
+// Scheduled queues, like the sync dispatch. Must stay under 45 seconds (see
+// DISPATCH_SLACK_MS in sync-schedule.ts).
 export const POLL_SCHEDULED_SECONDS = 30;
 
 // pg-boss, sharing the pool with Prisma to keep connection counts low.

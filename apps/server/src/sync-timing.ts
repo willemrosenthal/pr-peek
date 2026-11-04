@@ -23,3 +23,5 @@ export const SYNC_TIMING = {
   // right away, if the last sync is older than `activeEveryMinutes`.
   activeSaveEveryMinutes: 10,
 };
+
+export const MINUTE_MS = 60 * 1000;

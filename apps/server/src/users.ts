@@ -3,9 +3,7 @@ import type { User } from "./generated/prisma/client";
 import { encryptTokens } from "./github/tokens";
 import { defaultRuleSettings } from "./items";
 import type { GitHubTokens, GitHubUser } from "./github/oauth";
-import { SYNC_TIMING } from "./sync-timing";
-
-const MINUTE_MS = 60 * 1000;
+import { MINUTE_MS, SYNC_TIMING } from "./sync-timing";
 
 // Records that the user is using the app, at most every few minutes, so it isn't a write
 // on every request. Returns the user's sync state if it saved, or null if it was saved

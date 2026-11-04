@@ -1,3 +1,4 @@
+import { LOOKING_HEADER } from "@pr-peek/core";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { APP_URL, makeTestApp, signIn } from "../../test/app";
 import { createTestDb, resetDb } from "../../test/db";
@@ -26,9 +27,10 @@ async function makeApp() {
 
 const lastActiveAt = async () =>
   (await db.user.findFirstOrThrow()).lastActiveAt;
-// Any signed in request counts.
-const openApp = (agent: Awaited<ReturnType<typeof makeApp>>["agent"]) =>
-  agent.get("/api/sync/status");
+type Agent = Awaited<ReturnType<typeof makeApp>>["agent"];
+// Any signed in request from a page someone can see counts.
+const openApp = (agent: Agent) =>
+  agent.get("/api/sync/status").set(LOOKING_HEADER, "1");
 
 describe("activityRouter", () => {
   it("records when the user used the app, at most every 10 minutes", async () => {
@@ -43,10 +45,11 @@ describe("activityRouter", () => {
     expect(await lastActiveAt()).toEqual(NOW);
   });
 
-  it("doesn't count the Mac app's heartbeat", async () => {
+  it("doesn't count requests no one sees, like the hidden Mac app's", async () => {
     const { agent, requestSync } = await makeApp();
     await db.user.updateMany({ data: { lastActiveAt: minutes(-60) } });
 
+    await agent.get("/api/sync/status");
     await agent.post("/api/desktop/heartbeat").set("Origin", APP_URL);
     expect(await lastActiveAt()).toEqual(minutes(-60));
     expect(requestSync).not.toHaveBeenCalled();

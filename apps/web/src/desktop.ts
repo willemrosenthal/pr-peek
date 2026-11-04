@@ -148,6 +148,10 @@ function showNotification(event: Event) {
   call("notify", { alert: { title, body, url } });
 }
 
+// True while the Mac app's window is hidden. Its page still counts as visible then.
+export const isAppHidden = () =>
+  document.documentElement.classList.contains("app-hidden");
+
 // Run once at startup. Returns a function that stops it, for tests.
 export function startDesktop(): () => void {
   if (!isTauri()) return () => undefined;

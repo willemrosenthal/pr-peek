@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { LOOKING_HEADER } from "@pr-peek/core";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "./api";
 import { fakeApi, json, signedOut } from "./test/fake-api";
 
@@ -15,8 +16,35 @@ describe("api", () => {
       method: "POST",
       credentials: "same-origin",
       keepalive: false,
-      headers: { "Content-Type": "application/json" },
+      headers: { [LOOKING_HEADER]: "1", "Content-Type": "application/json" },
       body: '{"owner":"acme"}',
+    });
+  });
+
+  describe("says when someone can see the app", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+      document.documentElement.classList.remove("app-hidden");
+    });
+    const sentHeaders = async () => {
+      const fetch = fakeApi({ "GET /api/summary": () => json({}) });
+      await api("/summary");
+      const init = fetch.mock.calls[0]?.[1] as RequestInit;
+      return init.headers as Record<string, string>;
+    };
+
+    it("while the page is visible", async () => {
+      expect(await sentHeaders()).toEqual({ [LOOKING_HEADER]: "1" });
+    });
+
+    it("not from a hidden page, like a refetch in a background tab", async () => {
+      vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+      expect(await sentHeaders()).toEqual({});
+    });
+
+    it("not while the Mac app's window is hidden", async () => {
+      document.documentElement.classList.add("app-hidden");
+      expect(await sentHeaders()).toEqual({});
     });
   });
 

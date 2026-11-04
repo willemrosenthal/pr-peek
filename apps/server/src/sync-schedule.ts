@@ -7,16 +7,16 @@ import {
   NeedsReauthError,
   STOP_REASONS,
 } from "./github/tokens";
+import { POLL_SCHEDULED_SECONDS } from "./jobs";
 import { isDesktopOnline } from "./push";
 import { syncUser, type SyncDeps } from "./sync";
-import { SYNC_TIMING } from "./sync-timing";
+import { MINUTE_MS, SYNC_TIMING } from "./sync-timing";
 
-const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
-// Dispatch runs once a minute and can start up to 30 seconds late (see worker.ts), so a
-// sync this much short of its interval still counts as due. Under a minute, so it never
-// syncs a minute early.
-const DISPATCH_SLACK_MS = 45 * 1000;
+// Dispatch runs once a minute, but the worker can pick it up late, and the sync it queues
+// later still. So a sync this much short of its interval still counts as due. Stays under
+// a minute, so it never syncs a minute early.
+const DISPATCH_SLACK_MS = POLL_SCHEDULED_SECONDS * 1000 + 15 * 1000;
 const MAX_BACKOFF_MS = 30 * MINUTE_MS;
 // Below this many GraphQL points left, wait for GitHub's limit to reset.
 const LOW_POINTS = 500;

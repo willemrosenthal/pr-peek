@@ -270,6 +270,7 @@ describe("runSync", () => {
       syncError: null,
       syncFailures: 0,
       syncRetryAt: null,
+      syncStartedAt: null,
     });
   });
 
@@ -301,6 +302,7 @@ describe("runSync", () => {
       syncError: "reauth",
       syncFailures: 0,
       syncRetryAt: null,
+      syncStartedAt: null,
     });
   });
 
