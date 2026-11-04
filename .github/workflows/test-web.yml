@@ -1,0 +1,25 @@
+name: Test web
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # Prisma's config needs a value to generate the client on install.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: pnpm test:web
