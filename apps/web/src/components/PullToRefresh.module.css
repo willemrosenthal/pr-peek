@@ -1,51 +1,154 @@
-/* Hangs under the list's header, over the rows. Hides the circle until it comes down. */
-.zone {
-  position: absolute;
-  top: 100%;
+/* The page that comes down. Above the spinner, and solid, so it hides it at rest. */
+.page {
+  position: relative;
+  z-index: 1;
+  /* Springs back up when the finger lifts. */
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Follows the finger with no delay. */
+.dragging {
+  transition: none;
+}
+
+/* Behind the page, at the top of the screen. The page covers it until a pull opens a
+   gap above it. Its height comes from PullToRefresh.tsx. */
+.behind {
+  position: fixed;
+  top: 0;
   right: 0;
   left: 0;
-  height: 160px;
-  overflow: hidden;
+  z-index: 0;
+  display: flex;
+  /* The spinner stays its own height, so the pop scales it around its own middle. */
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: env(safe-area-inset-top);
   pointer-events: none;
 }
 
-/* Starts just above the zone, so it slides out from under the header. */
-.circle {
+/* Fills the gap once letting go would refresh. Its colors keep turning, like the
+   mascot's. */
+.rainbow {
   position: absolute;
-  top: -36px;
-  left: calc(50% - 18px);
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    #ff5f6d,
+    #ffb347,
+    #ffe156,
+    #47e891,
+    #3fa7ff,
+    #b06bff
+  );
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* Only animates while shown, so the hidden layer doesn't cost battery. */
+.shown {
+  opacity: 1;
+  animation: rainbow 3s linear infinite;
+}
+
+@keyframes rainbow {
+  from {
+    filter: hue-rotate(0deg);
+  }
+
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+
+.spinner {
+  --ring: 24px;
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-surface);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
-  color: var(--color-text-secondary);
-  /* Springs back with a small overshoot, like a swiped row. */
+  gap: var(--space-1);
+  /* Half the ring's height, so its middle sits in the middle of the gap. */
+  margin-top: calc(var(--ring) / -2);
   transition:
-    transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+    translate 0.35s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.2s,
-    color 0.15s;
+    scale 0.25s cubic-bezier(0.34, 1.8, 0.64, 1);
 }
 
-.circle svg {
-  width: 18px;
-  height: 18px;
+/* Follows the finger, but still pops when it gets far enough. */
+.spinner.dragging {
+  transition: scale 0.25s cubic-bezier(0.34, 1.8, 0.64, 1);
 }
 
-.dragging {
-  transition: color 0.15s;
-}
-
-/* Far enough that letting go refreshes, and while it does. */
+/* Far enough that letting go refreshes: a pop, in white over the rainbow. It shoots
+   past its size, then settles. */
 .armed {
-  color: var(--color-accent);
+  scale: 1.35;
+  animation: pop 0.45s ease-out;
 }
 
-.spin {
+@keyframes pop {
+  0% {
+    scale: 1;
+  }
+
+  35% {
+    scale: 1.8;
+  }
+
+  65% {
+    scale: 1.2;
+  }
+
+  100% {
+    scale: 1.35;
+  }
+}
+
+/* A ring that bursts out from the circle as it pops, and fades. */
+.armed::after {
+  position: absolute;
+  top: 0;
+  left: calc(50% - var(--ring) / 2);
+  width: var(--ring);
+  height: var(--ring);
+  border: 2px solid #fff;
+  border-radius: 999px;
+  content: "";
+  opacity: 0;
+  animation: ripple 0.2s ease-out;
+}
+
+@keyframes ripple {
+  from {
+    opacity: 0.9;
+    scale: 1;
+  }
+
+  to {
+    opacity: 0;
+    scale: 3;
+  }
+}
+
+.ring {
+  width: var(--ring);
+  height: var(--ring);
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 999px;
+}
+
+.armed .ring {
+  border-color: rgb(255 255 255 / 45%);
+  border-top-color: #fff;
+  /* Stands out over the yellow too. */
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 30%));
+}
+
+/* During a refresh. */
+.spinning {
   animation: spin 0.8s linear infinite;
 }
 
@@ -55,13 +158,34 @@
   }
 }
 
-/* No bounce, just a fade. */
+.label {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* No spring or pop, just quick slides, and still colors. */
 @media (prefers-reduced-motion: reduce) {
-  .circle {
-    transition: opacity 0.15s;
+  .page,
+  .spinner,
+  .spinner.dragging {
+    transition-duration: 0.15s;
+    transition-timing-function: ease-out;
   }
 
-  .spin {
+  .armed {
+    scale: 1;
+    animation: none;
+  }
+
+  .armed::after {
+    animation: none;
+  }
+
+  .shown {
+    animation: none;
+  }
+
+  .spinning {
     animation-duration: 3s;
   }
 }

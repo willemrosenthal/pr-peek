@@ -58,7 +58,12 @@ export function ListPage() {
 
   return (
     <main className={cx(styles.page, tray && styles.tray)}>
-      <div className={styles.panel}>
+      <PullToRefresh
+        className={styles.panel}
+        refreshing={sync.refreshing}
+        onRefresh={sync.refresh}
+        enabled={preview === null}
+      >
         <div className={styles.top}>
           <ListHeader
             lastSyncedAt={sync.status?.lastSyncedAt}
@@ -71,14 +76,9 @@ export function ListPage() {
               <Alert>{sync.refreshError.message}</Alert>
             </div>
           )}
-          <PullToRefresh
-            refreshing={sync.refreshing}
-            onRefresh={sync.refresh}
-            enabled={preview === null}
-          />
         </div>
         <ListBody onPreview={setPreview} />
-      </div>
+      </PullToRefresh>
       <PrPreview
         target={preview}
         // The row moves, like after a swipe, so the sheet closes.

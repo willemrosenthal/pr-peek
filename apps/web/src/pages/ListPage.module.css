@@ -19,8 +19,7 @@
   padding-bottom: var(--space-4);
 }
 
-/* Above the rows, so the header can stick over them, and the pull to refresh circle
-   can hang over them. */
+/* Above the rows, so the header can stick over them. */
 .top {
   position: relative;
   z-index: 1;
