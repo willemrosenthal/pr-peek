@@ -80,9 +80,55 @@
   transition: scale 0.25s cubic-bezier(0.34, 1.8, 0.64, 1);
 }
 
-/* Far enough that letting go refreshes: a little pop, in white over the rainbow. */
+/* Far enough that letting go refreshes: a pop, in white over the rainbow. It shoots
+   past its size, then settles. */
 .armed {
-  scale: 1.25;
+  scale: 1.35;
+  animation: pop 0.45s ease-out;
+}
+
+@keyframes pop {
+  0% {
+    scale: 1;
+  }
+
+  35% {
+    scale: 1.8;
+  }
+
+  65% {
+    scale: 1.2;
+  }
+
+  100% {
+    scale: 1.35;
+  }
+}
+
+/* A ring that bursts out from the circle as it pops, and fades. */
+.armed::after {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 12px);
+  width: 24px;
+  height: 24px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  content: "";
+  opacity: 0;
+  animation: ripple 0.55s ease-out;
+}
+
+@keyframes ripple {
+  from {
+    opacity: 0.9;
+    scale: 1;
+  }
+
+  to {
+    opacity: 0;
+    scale: 3;
+  }
 }
 
 .ring {
@@ -127,6 +173,11 @@
 
   .armed {
     scale: 1;
+    animation: none;
+  }
+
+  .armed::after {
+    animation: none;
   }
 
   .rainbow {
