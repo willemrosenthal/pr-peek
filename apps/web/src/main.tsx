@@ -19,7 +19,7 @@ applyScale();
 startDesktop();
 // iPhones ignore the viewport's user-scalable=no, so this stops pinch zoom there.
 // Touch screens only: a Mac's trackpad pinch sends this too, and keeps its zoom.
-if (matchMedia("(pointer: coarse)").matches) {
+if (window.matchMedia("(pointer: coarse)").matches) {
   document.addEventListener("gesturestart", (event) => event.preventDefault());
 }
 
