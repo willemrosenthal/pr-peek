@@ -1,3 +1,4 @@
+import { fillSnapshotColumns } from "./backfill";
 import { loadConfig } from "./config";
 import { createDb, createPool } from "./db";
 import { getOctokit } from "./github/client";
@@ -26,6 +27,9 @@ import { onShutdown } from "./shutdown";
 import { sendDueSummaries } from "./summary";
 import { dueUsers, isLagging, runSync } from "./sync-schedule";
 
+// The rules' code can only change with a deploy, which restarts the worker. Each user's
+// next sync after this runs the rules on every PR (see sync.ts).
+const startedAt = new Date();
 const config = loadConfig();
 const logger = createLogger(config);
 const pool = createPool(config);
@@ -41,6 +45,9 @@ boss.on("error", (err) => logger.error({ err }, "pg-boss error"));
 await boss.start();
 
 await createQueues(boss);
+
+const filled = await fillSnapshotColumns(db);
+if (filled > 0) logger.info({ filled }, "filled PR columns from snapshots");
 
 const scheduled = { pollingIntervalSeconds: POLL_SCHEDULED_SECONDS };
 const jobs = { pollingIntervalSeconds: POLL_JOBS_SECONDS };
@@ -76,6 +83,7 @@ await boss.work<{ userId: string }>(
       {
         db,
         logger,
+        rulesChangedAt: startedAt,
         github: (userId) =>
           getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY }, userId),
         notifyItems: async (itemIds) => {

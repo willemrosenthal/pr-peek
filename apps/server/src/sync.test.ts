@@ -22,7 +22,7 @@ import {
   teamQueries,
   type FakePrGitHub,
 } from "../test/pulls";
-import { ITEMS_CHANNEL, rerunRules } from "./items";
+import { ITEMS_CHANNEL } from "./items";
 import { syncUser } from "./sync";
 import { upsertGitHubUser } from "./users";
 
@@ -61,11 +61,19 @@ async function makeUser() {
   return user;
 }
 
-// Runs one sync against a fake GitHub, at `now`.
-async function sync(userId: string, fake: FakePrGitHub, now = NOW) {
+// Runs one sync against a fake GitHub, at `now`. `rulesChangedAt` is the worker's start.
+async function sync(
+  userId: string,
+  fake: FakePrGitHub,
+  now = NOW,
+  rulesChangedAt?: Date,
+) {
   const { octokit, requests } = fakeGraphQL(prGitHub(fake));
   const github = vi.fn(() => Promise.resolve(octokit));
-  const result = await syncUser({ db, github, now: () => now }, userId);
+  const result = await syncUser(
+    { db, github, now: () => now, ...(rulesChangedAt && { rulesChangedAt }) },
+    userId,
+  );
   return { result, requests, github };
 }
 
@@ -105,6 +113,10 @@ describe("syncUser", () => {
       checkState: "FAILURE",
       githubUpdatedAt: new Date("2026-10-21T10:00:00Z"),
       lastSeenAt: NOW,
+      // What the list needs, worked out from the details.
+      lastPushSha: "abc123",
+      listGroup: "review",
+      assignedState: "checks_failing",
     });
     expect((row.snapshot as PrSnapshot).reviews).toHaveLength(1);
     expect(await db.pullRequest.count()).toBe(1);
@@ -372,6 +384,7 @@ describe("syncUser", () => {
       deleted: 0,
       newEventItemIds: [],
       mergedImportantPrIds: [],
+      fullPass: false,
     });
   });
 });
@@ -825,44 +838,14 @@ describe("items", () => {
     });
   });
 
-  it("asks for the user's teams only when a team is asked to review", async () => {
+  it("doesn't ask for the user's teams with team requests off", async () => {
     const user = await makeUser();
+    await db.userSettings.update({
+      where: { userId: user.id },
+      data: { includeTeamRequests: false },
+    });
     const { requests } = await sync(user.id, asked());
-    expect(teamQueries(requests)).toBe(1);
-
-    const pr = githubPr();
-    pr.reviewRequests.nodes = [
-      { requestedReviewer: { __typename: "User", login: "octocat" } },
-    ];
-    const again = await sync(user.id, asked(pr, "2026-10-21T11:00:00Z"));
-    expect(teamQueries(again.requests)).toBe(0);
-  });
-
-  it("heals an item resolved by mistake on the next sync, without notifying", async () => {
-    const user = await makeUser();
-    await sync(user.id, asked());
-    // Like an old bug, or a deploy changeover, resolving it.
-    await db.item.updateMany({ data: { status: "resolved", resolvedAt: NOW } });
-
-    // The PR didn't change on GitHub, so its details aren't fetched again.
-    const { result, requests } = await sync(user.id, asked(), hours(1));
-    expect(detailIds(requests)).toEqual([]);
-    expect(await openItemCount()).toBe(ASKED_ITEMS);
-    expect(result.newEventItemIds).toEqual([]);
-  });
-
-  it("applies a rule turned back on to PRs that didn't change", async () => {
-    const user = await makeUser();
-    const where = {
-      userId_ruleId: { userId: user.id, ruleId: "mention" as const },
-    };
-    await db.ruleSetting.update({ where, data: { enabled: false } });
-    await sync(user.id, asked());
-    expect(await db.item.count({ where: { kind: "mention" } })).toBe(0);
-
-    await db.ruleSetting.update({ where, data: { enabled: true } });
-    await sync(user.id, asked(), hours(1));
-    expect((await itemOf("mention")).status).toBe("open");
+    expect(teamQueries(requests)).toBe(0);
   });
 
   it("writes nothing when nothing changed", async () => {
@@ -1025,28 +1008,62 @@ describe("quiet PRs", () => {
   });
 });
 
-describe("rerunRules", () => {
-  // Runs the rules again an hour after the sync, with a fake GitHub for the teams query.
-  async function rerun(userId: string, teams: string[] = []) {
-    const { octokit, requests } = fakeGraphQL(prGitHub({ teams }));
-    await rerunRules(db, userId, () => Promise.resolve(octokit), hours(1));
-    return requests;
-  }
+describe("full passes", () => {
+  // A setting that changes what the rules find was saved at `at`.
+  const settingChanged = (userId: string, at: Date) =>
+    db.user.update({ where: { id: userId }, data: { rulesStaleAt: at } });
 
-  it("applies a rule being turned off", async () => {
+  it("runs one on the first sync, then only fetches PRs that changed", async () => {
+    const user = await makeUser();
+    const first = await sync(user.id, asked());
+    expect(first.result.fullPass).toBe(true);
+    expect((await db.user.findFirstOrThrow()).rulesRunAt).toEqual(NOW);
+
+    const next = await sync(user.id, asked(), hours(1));
+    expect(next.result.fullPass).toBe(false);
+  });
+
+  it("runs one after a deploy, and heals an item without notifying", async () => {
     const user = await makeUser();
     await sync(user.id, asked());
-    await db.ruleSetting.update({
-      where: { userId_ruleId: { userId: user.id, ruleId: "reply" } },
-      data: { enabled: false },
-    });
+    // Like an old bug resolving it by mistake.
+    await db.item.updateMany({ data: { status: "resolved", resolvedAt: NOW } });
 
-    await rerun(user.id);
+    // A PR that didn't change keeps its items between full passes.
+    await sync(user.id, asked(), hours(1));
+    expect(await openItemCount()).toBe(0);
+
+    // The worker restarted at 1:30, with a deploy.
+    const { result, requests } = await sync(
+      user.id,
+      asked(),
+      hours(2),
+      hours(1.5),
+    );
+    expect(result.fullPass).toBe(true);
+    expect(detailIds(requests)).toEqual(["PR_1"]);
+    expect(await openItemCount()).toBe(ASKED_ITEMS);
+    expect(result.newEventItemIds).toEqual([]);
+  });
+
+  it("applies a rule being turned off, or back on", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    const where = { userId_ruleId: { userId: user.id, ruleId: "reply" } };
+
+    await db.ruleSetting.update({ where, data: { enabled: false } });
+    await settingChanged(user.id, hours(0.5));
+    await sync(user.id, asked(), hours(1));
     expect(await itemOf("reply")).toMatchObject({
       status: "resolved",
       resolvedAt: hours(1),
     });
     expect((await itemOf("review_requested")).status).toBe("open");
+
+    await db.ruleSetting.update({ where, data: { enabled: true } });
+    await settingChanged(user.id, hours(1.5));
+    await sync(user.id, asked(), hours(2));
+    expect((await itemOf("reply")).status).toBe("open");
   });
 
   it("applies hiding bots", async () => {
@@ -1056,10 +1073,73 @@ describe("rerunRules", () => {
       where: { userId: user.id },
       data: { hideBots: true },
     });
+    await settingChanged(user.id, hours(0.5));
 
-    await rerun(user.id);
+    await sync(user.id, asked(), hours(1));
     // The fixture's only reply is from a bot.
     expect((await itemOf("reply")).status).toBe("resolved");
+  });
+
+  it("still runs for a setting saved while a sync ran", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    await settingChanged(user.id, hours(1));
+
+    // Started before the setting was saved, so it ran on the old one.
+    await sync(user.id, asked(), hours(0.9));
+    const { result } = await sync(user.id, asked(), hours(2));
+    expect(result.fullPass).toBe(true);
+  });
+
+  it("runs one when the user's teams change", async () => {
+    const user = await makeUser();
+    // Only the team acme/frontend is asked to review.
+    const frontend = { __typename: "Team", combinedSlug: "acme/frontend" };
+    const pr = githubPr({
+      reviewRequests: { nodes: [{ requestedReviewer: frontend }] },
+    });
+    await sync(user.id, asked(pr));
+    expect(await db.item.count({ where: { kind: "review_requested" } })).toBe(
+      0,
+    );
+
+    // The user joined the team. The PR didn't change.
+    const later = { ...asked(pr), teams: ["acme/frontend"] };
+    const { result } = await sync(user.id, later, hours(1.5));
+    expect(result.fullPass).toBe(true);
+    expect((await itemOf("review_requested")).status).toBe("open");
+    expect((await db.user.findFirstOrThrow()).teams).toEqual(["acme/frontend"]);
+  });
+
+  it("keeps a team change for the next sync when this one fails", async () => {
+    const user = await makeUser();
+    const frontend = { __typename: "Team", combinedSlug: "acme/frontend" };
+    const pr = githubPr({
+      reviewRequests: { nodes: [{ requestedReviewer: frontend }] },
+    });
+    await sync(user.id, asked(pr));
+
+    // The user joined the team, but the searches fail after the teams are checked.
+    const joined = { ...asked(pr), teams: ["acme/frontend"] };
+    const answer = prGitHub(joined);
+    const { octokit } = fakeGraphQL((request) =>
+      request.query.includes("search(")
+        ? {
+            data: null,
+            errors: [{ type: "INTERNAL", message: "GitHub broke" }],
+          }
+        : answer(request),
+    );
+    await expect(
+      syncUser(
+        { db, github: () => Promise.resolve(octokit), now: () => hours(1.5) },
+        user.id,
+      ),
+    ).rejects.toThrow();
+
+    const { result } = await sync(user.id, joined, hours(1.6));
+    expect(result.fullPass).toBe(true);
+    expect((await itemOf("review_requested")).status).toBe("open");
   });
 
   it("leaves PRs that ended alone", async () => {
@@ -1067,37 +1147,9 @@ describe("rerunRules", () => {
     await sync(user.id, asked());
     // Gone from GitHub.
     await sync(user.id, {}, hours(1));
+    await settingChanged(user.id, hours(1.5));
 
-    await rerun(user.id);
+    await sync(user.id, {}, hours(2));
     expect(await openItemCount()).toBe(0);
-  });
-
-  // The fixture asks a team to review. Re-runs happen an hour after `NOW`.
-  it("uses the sync's team list within the hour", async () => {
-    const user = await makeUser();
-    await sync(user.id, asked(), hours(0.5));
-    expect(await rerun(user.id)).toEqual([]);
-  });
-
-  it("only asks GitHub for the user's teams, and only when needed", async () => {
-    const user = await makeUser();
-    // The team list from this sync is an hour old at the re-run.
-    await sync(user.id, asked());
-
-    const requests = await rerun(user.id);
-    expect(requests).toHaveLength(1);
-    expect(teamQueries(requests)).toBe(1);
-
-    await db.userSettings.update({
-      where: { userId: user.id },
-      data: { includeTeamRequests: false },
-    });
-    expect(await rerun(user.id)).toEqual([]);
-  });
-
-  it("does nothing before the first sync", async () => {
-    const user = await makeUser();
-    expect(await rerun(user.id)).toEqual([]);
-    expect(await db.item.count()).toBe(0);
   });
 });

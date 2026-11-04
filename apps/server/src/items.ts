@@ -1,6 +1,5 @@
 import {
   channels,
-  prSnapshot,
   ruleOptions,
   rules,
   type Channel,
@@ -11,10 +10,8 @@ import {
   type RuleOptions,
   type Severity,
 } from "@pr-peek/core";
-import type { Octokit } from "octokit";
 import type { Db } from "./db";
 import type { Item, Prisma } from "./generated/prisma/client";
-import { fetchViewerTeams } from "./github/teams";
 
 // Postgres NOTIFY channel. The payload is the user id. Plan 06 listens for SSE.
 export const ITEMS_CHANNEL = "user_items_changed";
@@ -91,60 +88,30 @@ export const detectItems = (
     .filter((s) => s.enabled)
     .flatMap((s) => s.rule.detect(snapshot, ctx));
 
-// How long a user's team list is kept. Joining a team takes up to this long to show.
-const TEAMS_KEPT_MS = 60 * 60 * 1000;
-const teamsByUser = new Map<string, { teams: string[]; fetchedAt: number }>();
-
-// The user's teams, fetched at most once an hour, since every sync checks every tracked PR.
-async function cachedTeams(
-  userId: string,
-  now: Date,
-  fetch: () => Promise<string[]>,
-): Promise<string[]> {
-  const kept = teamsByUser.get(userId);
-  if (kept && now.getTime() - kept.fetchedAt < TEAMS_KEPT_MS) return kept.teams;
-  const teams = await fetch();
-  teamsByUser.set(userId, { teams, fetchedAt: now.getTime() });
-  return teams;
+// Who the rules run for, as the sync reads them.
+export interface Viewer {
+  login: string;
+  // As "org/team-slug". Empty when team requests are off.
+  teams: string[];
+  includeTeamRequests: boolean;
+  hideBots: boolean;
 }
 
-// The user's enabled rules, ready to run on these PRs. Asks GitHub for the user's teams
-// only when a team is asked to review one of them.
+// The user's enabled rules, ready to run on PRs.
 export async function prepareRules(
   db: Db,
   userId: string,
-  snapshots: PrSnapshot[],
   now: Date,
-  github: () => Promise<Octokit>,
+  viewer: Viewer,
 ): Promise<(snapshot: PrSnapshot) => DetectedItem[]> {
-  const [user, settings, ruleSettings] = await Promise.all([
-    db.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { login: true },
-    }),
-    db.userSettings.findUnique({
-      where: { userId },
-      select: { includeTeamRequests: true, hideBots: true },
-    }),
-    loadRuleSettings(db, userId),
-  ]);
-  const includeTeamRequests = settings?.includeTeamRequests ?? true;
-  const hasTeamRequest = snapshots.some((snapshot) =>
-    snapshot.reviewRequests.some((reviewer) => reviewer.type === "team"),
-  );
-  const viewerTeams =
-    includeTeamRequests && hasTeamRequest
-      ? await cachedTeams(userId, now, async () =>
-          fetchViewerTeams(await github(), user.login),
-        )
-      : [];
+  const ruleSettings = await loadRuleSettings(db, userId);
   const ctx: RuleContext = {
-    viewerLogin: user.login,
-    viewerTeams,
+    viewerLogin: viewer.login,
+    viewerTeams: viewer.teams,
     now,
     settings: {
-      includeTeamRequests,
-      hideBots: settings?.hideBots ?? false,
+      includeTeamRequests: viewer.includeTeamRequests,
+      hideBots: viewer.hideBots,
       includeDrafts: includeDraftsFrom(ruleSettings),
     },
   };
@@ -282,46 +249,4 @@ export async function resolveItemsOf(
     data: { status: "resolved", resolvedAt: now },
   });
   return count;
-}
-
-// The PRs the sync tracks, from their stored snapshots. Ended ones already had their
-// items resolved.
-export async function trackedPrs(tx: Tx, userId: string): Promise<SavedPr[]> {
-  const rows = await tx.pullRequest.findMany({
-    where: { userId, state: "open" },
-    select: { id: true, snapshot: true },
-  });
-  return rows.flatMap((row): SavedPr[] => {
-    const parsed = prSnapshot.safeParse(row.snapshot);
-    return parsed.success ? [{ id: row.id, snapshot: parsed.data }] : [];
-  });
-}
-
-// Runs the rules again after the user changes a setting that affects them. Uses the
-// stored snapshots, so it only calls GitHub for the user's teams. Doesn't notify: a
-// settings change isn't something new on GitHub.
-export async function rerunRules(
-  db: Db,
-  userId: string,
-  github: () => Promise<Octokit>,
-  now = new Date(),
-): Promise<void> {
-  // Read first only to prepare the rules, so GitHub isn't called inside the transaction.
-  const before = await trackedPrs(db, userId);
-  if (before.length === 0) return;
-  const detect = await prepareRules(
-    db,
-    userId,
-    before.map((pr) => pr.snapshot),
-    now,
-    github,
-  );
-
-  await db.$transaction(async (tx) => {
-    await lockUserItems(tx, userId);
-    // Read again under the lock, in case a sync saved newer snapshots meanwhile.
-    const prs = await trackedPrs(tx, userId);
-    const { changed } = await saveItems(tx, userId, prs, detect, now);
-    if (changed) await publishItemsChanged(tx, userId);
-  }, ITEMS_TX);
 }

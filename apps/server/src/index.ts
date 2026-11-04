@@ -78,7 +78,7 @@ const app = createApp({
     // Before itemsRouter, whose sign in check covers all of /prs.
     previewRouter({ db, github }),
     itemsRouter({ db }),
-    settingsRouter({ db, github }),
+    settingsRouter({ db, requestSync }),
     syncRouter({ db, requestSync }),
     desktopRouter({ db }),
     streamRouter({ db, listener, signal: streams.signal }),

@@ -3,7 +3,7 @@ import {
   type RuleSettingDto,
   type SettingsResponse,
 } from "@pr-peek/core";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   APP_URL,
   bodyOf,
@@ -13,42 +13,24 @@ import {
 } from "../../test/app";
 import { createTestDb, resetDb } from "../../test/db";
 import { NOW } from "../../test/fakes";
-import { fakeGraphQL } from "../../test/github";
-import { githubPr, prGitHub, searchHit } from "../../test/pulls";
-import { syncUser } from "../sync";
 import { settingsRouter } from "./settings";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
-// GitHub with PR_1 asking octocat to review, plus a bot reply to octocat's comment.
-const github = () =>
-  Promise.resolve(
-    fakeGraphQL(
-      prGitHub({
-        reviewRequested: [searchHit("PR_1")],
-        prs: { PR_1: githubPr() },
-      }),
-    ).octokit,
-  );
-
-async function setup() {
+async function setup(requestSync = vi.fn(() => Promise.resolve(true))) {
   const { agent } = makeTestApp(db, {
-    routers: [settingsRouter({ db, github })],
+    routers: [settingsRouter({ db, requestSync, now: () => NOW })],
   });
   await signIn(agent);
   const user = await db.user.findFirstOrThrow();
-  return { agent, user };
+  return { agent, user, requestSync };
 }
 
-// Syncs the user once, so they have a PR and its items.
-async function synced(userId: string) {
-  await db.watchedRepo.create({
-    data: { userId, githubRepoId: 1, owner: "acme", name: "web-app" },
-  });
-  await syncUser({ db, github, now: () => NOW }, userId);
-}
+// When a setting last changed what the rules find.
+const rulesStaleAt = async () =>
+  (await db.user.findFirstOrThrow()).rulesStaleAt;
 
 const patchSettings = (agent: Agent, body: unknown) =>
   agent
@@ -63,7 +45,7 @@ const patchRule = (agent: Agent, ruleId: string, body: unknown) =>
 
 it("needs sign in for every settings endpoint", async () => {
   const { agent } = makeTestApp(db, {
-    routers: [settingsRouter({ db, github })],
+    routers: [settingsRouter({ db, requestSync: vi.fn() })],
   });
   expect((await agent.get("/api/settings")).status).toBe(401);
   expect((await patchSettings(agent, { hideBots: true })).status).toBe(401);
@@ -171,42 +153,36 @@ describe("PATCH /api/settings", () => {
     expect(both.status).toBe(200);
   });
 
-  it("re-runs the rules when hiding bots", async () => {
-    const { agent, user } = await setup();
-    await synced(user.id);
-    // The fixture's only reply is from a bot.
-    const reply = () => db.item.findFirstOrThrow({ where: { kind: "reply" } });
-    expect((await reply()).status).toBe("open");
+  it("has every PR checked again when hiding bots", async () => {
+    const { agent, user, requestSync } = await setup();
 
     await patchSettings(agent, { hideBots: true });
-    expect((await reply()).status).toBe("resolved");
+    expect(await rulesStaleAt()).toEqual(NOW);
+    expect(requestSync).toHaveBeenCalledExactlyOnceWith(user.id);
+  });
+
+  it("doesn't for a setting the rules don't use", async () => {
+    const { agent, requestSync } = await setup();
+
+    await patchSettings(agent, { staleWarnHours: 2 });
+    expect(await rulesStaleAt()).toBeNull();
+    expect(requestSync).not.toHaveBeenCalled();
   });
 });
 
-it("saves the setting even if re-running the rules fails", async () => {
-  const { agent } = makeTestApp(db, {
-    routers: [
-      settingsRouter({
-        db,
-        github: () => Promise.reject(new Error("GitHub is down")),
-      }),
-    ],
-  });
-  await signIn(agent);
-  const user = await db.user.findFirstOrThrow();
-  await synced(user.id);
-  await db.userSettings.update({
-    where: { userId: user.id },
-    data: { includeTeamRequests: false },
-  });
+it("saves the setting even if the sync can't be queued", async () => {
+  const { agent, user } = await setup(
+    vi.fn(() => Promise.reject(new Error("database is busy"))),
+  );
 
-  // The fixture asks a team to review, so turning team requests on needs GitHub.
-  const res = await patchSettings(agent, { includeTeamRequests: true });
+  const res = await patchSettings(agent, { includeTeamRequests: false });
   expect(res.status).toBe(200);
   const saved = await db.userSettings.findUniqueOrThrow({
     where: { userId: user.id },
   });
-  expect(saved.includeTeamRequests).toBe(true);
+  expect(saved.includeTeamRequests).toBe(false);
+  // The next scheduled sync still checks every PR.
+  expect(await rulesStaleAt()).toEqual(NOW);
 });
 
 describe("PATCH /api/rules/:ruleId", () => {
@@ -250,15 +226,12 @@ describe("PATCH /api/rules/:ruleId", () => {
     });
   });
 
-  it("re-runs the rules when one is turned off", async () => {
-    const { agent, user } = await setup();
-    await synced(user.id);
+  it("has every PR checked again when one is turned off", async () => {
+    const { agent, user, requestSync } = await setup();
 
     await patchRule(agent, "review_requested", { enabled: false });
-    const item = await db.item.findFirstOrThrow({
-      where: { kind: "review_requested" },
-    });
-    expect(item.status).toBe("resolved");
+    expect(await rulesStaleAt()).toEqual(NOW);
+    expect(requestSync).toHaveBeenCalledExactlyOnceWith(user.id);
   });
 
   it("only changes the signed in user's settings", async () => {

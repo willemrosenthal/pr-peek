@@ -46,7 +46,7 @@ The rules run on the fresh copies a sync fetches, and nothing else. When the sto
 No rule reads the clock, so items only change when the PR, the user's settings, their teams, or the rules code change. A full pass runs:
 
 - **After a deploy:** the worker remembers when it started. A user whose last full pass (`User.rulesRunAt`) is older gets one. New or fixed rules reach every PR.
-- **After a settings change** that affects the rules (the ones that call `rerunRules` today): the setting saves right away, `rulesRunAt` is cleared, and a sync is queued. Settings shows "Updating your list…" until the list updates through live updates, a few seconds later. If a sync is already running, the next one does the pass, within about 2 minutes.
+- **After a settings change** that affects the rules (the ones that called `rerunRules`): the setting saves right away, `User.rulesStaleAt` records when, and a sync is queued. A full pass runs when `rulesRunAt` is older than that. Not clearing `rulesRunAt`, as first planned: a full pass already running would set it again when it ends, and the change would wait for the next deploy. Settings shows "Updating your list…" until the list updates through live updates, a few seconds later. If a sync is already running, the next one does the pass, within about 2 minutes.
 - **When the user's teams change:** the sync checks teams at most once an hour (one small request) and keeps them on the user's row. A full pass runs only if they're different.
 
 **No hourly pass.** A pass over the same data can't find anything new. A bug that saved wrong items is fixed by a deploy, and the deploy runs a full pass.
@@ -118,10 +118,12 @@ GitHub's `involves:@me` matches PRs the user authored, is assigned to, is mentio
 2. **Sync less** (16.1, 16.2): `perf(server): sync less often when nobody is looking`.
 3. **Faster syncs** (16.3, 16.4): `perf(server): two GitHub searches instead of five`.
 4. **Alerts** (16.5): `feat(server): alert the admin when usage nears a limit`.
-5. **No snapshots** (16.6): `perf(server): stop storing PR snapshots`. Has a migration.
-6. **Drop the column** (16.7): `chore(server): drop the snapshot column`. Once PR 5 has been live for a release, so a server mid-deploy never reads a missing column.
+5. **No snapshots** (16.6), in two PRs, since it's big:
+   - 5a, the sync: `perf(server): run the rules only on PRs that changed`. The new columns, filled from the snapshots on start. Full passes, teams on the user row, quiet PRs by `lastPushSha`, settings by `rulesStaleAt`. Still writes snapshots, so the list and preview work as before. Has a migration.
+   - 5b, the readers: `perf(server): stop storing PR snapshots`. The list reads the new columns, the preview asks GitHub, Settings shows "Updating your list…", and snapshots stop being written.
+6. **Drop the column** (16.7): `chore(server): drop the snapshot column`. Once PR 5b has been live for a release, so a server mid-deploy never reads a missing column.
 
-PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by itself, and ships with the next release. Each is about 150 to 300 lines with tests. PR 2 is first: quick, no migration, and most of the savings that don't need PR 5.
+PRs 2 to 5b release a patch or minor version and deploy. PR 6 releases nothing by itself, and ships with the next release. Each is about 150 to 300 lines with tests. PR 2 is first: quick, no migration, and most of the savings that don't need PR 5.
 
 ## Steps
 
@@ -196,18 +198,25 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 
 ### 16.6 No snapshots
 
-- [ ] Migration: `snapshot` becomes optional. Add `User.rulesRunAt`, `User.teams String[]`, `User.teamsCheckedAt`, and `PullRequest.lastPushSha`, `listGroup`, `assignedState`.
-- [ ] Backfill: on start, the worker fills the three new PR columns from the stored snapshot for every row that has one and doesn't have them yet. Merged and ended PRs included.
-- [ ] The sync stops writing `snapshot`, and sets the three new PR columns from each fetched copy.
-- [ ] A normal sync runs the rules only on the PRs it fetched. A full pass fetches every tracked PR, runs the rules on all of them, and sets `rulesRunAt`. Full pass when `rulesRunAt` is null or older than the worker's start time, or when the teams changed.
-- [ ] Teams: fetched at most once an hour per user, only with team requests on. Kept on the user row, replacing the in-memory cache.
-- [ ] Settings changes: replace `rerunRules` with clearing `rulesRunAt` and queueing a sync.
+PR 5a, the sync:
+
+- [x] Migration: add `User.rulesRunAt`, `User.rulesStaleAt`, `User.teams String[]`, `User.teamsCheckedAt`, and `PullRequest.lastPushSha`, `listGroup`, `assignedState`.
+- [x] Backfill (`backfill.ts`): on start, the worker fills the three new PR columns from the stored snapshot for every row without them. Merged and ended PRs included.
+- [x] The sync sets the three new PR columns from each fetched copy.
+- [x] A normal sync runs the rules only on the PRs it fetched. A full pass fetches every open PR, runs the rules on all of them, and sets `rulesRunAt`. Full pass when `rulesRunAt` is null, or older than the worker's start or `rulesStaleAt`, or when the teams changed.
+- [x] Teams: checked at most once an hour per user, only with team requests on. Kept on the user row, replacing the in-memory cache. Saved only when the sync succeeds, so a failed sync never hides a team change.
+- [x] Settings changes: replace `rerunRules` with setting `rulesStaleAt` and queueing a sync.
+- [x] Quiet PRs: wake when a fetched own PR's last push differs from `lastPushSha`. Only quiet PRs the sync fetched are read.
+- [x] Add `fullPass: boolean` to `SyncResult`, so the "sync done" log shows it.
+- [x] Tests: a normal sync fetches and checks only changed PRs, and leaves other items alone. A full pass on the first sync, after a deploy, after a settings change (even one saved during a sync), and after a team change. The backfill fills merged PRs, and skips one it can't read. Quiet PRs wake on a push.
+
+PR 5b, the readers:
+
+- [ ] Migration: `snapshot` becomes optional. The sync stops writing it.
 - [ ] Web: after a rule setting saves, Settings shows "Updating your list…" until the next items update arrives, or 2 minutes pass.
-- [ ] Quiet PRs: wake when a fetched own PR's last push differs from `lastPushSha`.
 - [ ] Preview: add review requests and the head commit's failing checks to its GitHub request. `reviewersOf` takes those.
 - [ ] The list reads `listGroup` and `assignedState`, and selects only the fields it shows. `/items` loads the user's settings, rule settings, and repo colors once, not once per part.
-- [ ] Add `fullPass: boolean` to `SyncResult`, so the "sync done" log shows it.
-- [ ] Tests: a normal sync fetches and checks only changed PRs, and leaves other items alone. A full pass after the start time moves, after a settings change, and after a team change. The backfill fills merged PRs. Quiet PRs wake on a push. The preview shows reviewers and failing checks. The list is the same as before.
+- [ ] Tests: the preview shows reviewers and failing checks. The list is the same as before.
 
 ### 16.7 Drop the column
 
