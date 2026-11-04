@@ -26,12 +26,14 @@
 `release.yml` runs on every push to `main`. Its jobs, in order:
 
 1. **Checks:** calls the existing CI workflows (`ci.yml`, `test-*.yml`, `check-desktop.yml`) as reusable workflows. They drop their own `push: main` trigger, so nothing runs twice. Pull requests run them as before.
-2. **Version:** semantic-release decides whether to release. If so, it pushes the tag and nothing else: no commit back to `main`, no GitHub Release. It also says whether `apps/desktop` changed since the last Mac release.
+2. **Version:** semantic-release decides whether to release. If so, it pushes the tag and nothing else: no commit back to `main`, no GitHub Release. The job then reads the version from the `v*` tag on the commit, not from semantic-release's output, so a re-run finds a tag an earlier attempt made. It also says whether `apps/desktop` changed since the last Mac release.
 3. **Deploy web** and **Mac app**, side by side, only if there's a new version.
 
 Everything happens in one workflow because a tag pushed with the workflow's own token can't start another workflow.
 
-Runs never overlap (`concurrency: release`, not cancelled). If several merges land during a run, the next run covers all of them.
+Runs never overlap (`concurrency: release`, not cancelled). If several merges land during a run, the next run covers all of them. If one lands while semantic-release runs, semantic-release sees `main` moved and skips, and the next run releases both.
+
+**Not chosen, skip the checks on `main`:** PR checks run on the PR, and the squashed commit could differ if `main` moved since. Running them again before releasing is the one gate that doesn't depend on settings.
 
 ## Key decision: deploy by moving `prod` forward, never forcing it
 
@@ -61,8 +63,8 @@ If a build fails halfway, a half-empty release must never become "latest", or in
 
 1. Create the Release as a **draft**, with notes listing the PRs since the last Mac release (`gh release create --draft --generate-notes`).
 2. `tauri-action` builds and uploads into that draft (`releaseId`).
-3. Publish it and mark it latest (`gh release edit --draft=false --latest`).
-4. Download `releases/latest/download/latest.json` and check it has the new version. This is exactly what installed apps will see.
+3. Publish it. Mark it latest only if its version is higher than the current latest Mac release. A re-run of an older release must never take "latest" back, or the updater would point at an old version.
+4. Download `releases/latest/download/latest.json`. Check it has the new version, and entries for both chips (`darwin-aarch64` and `darwin-x86_64`). This is exactly what installed apps will see.
 
 ## Key decision: squash merge, and check the PR title
 
@@ -83,6 +85,8 @@ Each PR lands on `main` as one squashed commit, named after the PR title. So the
 | The deploy push fails (`prod` has moved) | No deploy                                      | Find out why `prod` moved, then "Re-run failed jobs"                                                      |
 | A bad release reached `prod`             | It's live                                      | Render dashboard, Rollback. Then merge a revert PR, which releases a patch. Migrations aren't rolled back |
 | A bad Mac release                        | Users get offered it                           | Merge a `fix(desktop):` PR. The updater only moves forward                                                |
+| A Mac build fails and is never re-run    | Its draft stays. Nothing breaks                | The next release that changes `apps/desktop` includes its changes. Delete the old draft                   |
+| An old release run is re-run             | Nothing moves backwards                        | `prod` refuses a push that goes back. "Latest" only moves to a higher version                             |
 | A workflow runs in someone's fork        | It stops at once                               | Every job checks `github.repository`                                                                      |
 | You need to deploy without a release     | Still possible                                 | `git push origin main:prod` from your machine. For emergencies only                                       |
 
@@ -95,11 +99,10 @@ Each PR lands on `main` as one squashed commit, named after the PR title. So the
 
 ### 15.1 Tools and config
 
-- [ ] Add `semantic-release`, `@semantic-release/exec`, `conventional-changelog-conventionalcommits`, `@commitlint/cli`, and `@commitlint/config-conventional` as root dev dependencies, so versions are pinned in the lockfile. commitlint checks PR titles, with the same rules semantic-release reads.
+- [ ] Add `semantic-release`, `conventional-changelog-conventionalcommits`, `@commitlint/cli`, and `@commitlint/config-conventional` as root dev dependencies, so versions are pinned in the lockfile. commitlint checks PR titles, with the same rules semantic-release reads.
 - [ ] `.releaserc.json`:
   - `branches: ["main"]`, `tagFormat: "v${version}"`.
-  - Plugins listed by hand, which drops the defaults that publish to npm and make GitHub Releases: `commit-analyzer` and `release-notes-generator` with the `conventionalcommits` preset, then `exec`.
-  - `exec`'s `successCmd` writes the new version to `$GITHUB_OUTPUT`.
+  - Plugins listed by hand, which drops the defaults that publish to npm and make GitHub Releases: only `commit-analyzer` and `release-notes-generator`, with the `conventionalcommits` preset.
   - Check the default rules give a patch for `perf`, and for a squashed GitHub revert (`Revert "feat: x" (#123)`, with "This reverts commit ..." in the body). Add `releaseRules` if not.
 - [ ] `commitlint.config.js`, extending `config-conventional`.
 - [ ] Run `pnpm exec semantic-release --dry-run --no-ci` locally. It should say 1.0.0 and list the `feat` and `fix` commits.
@@ -112,23 +115,25 @@ Each PR lands on `main` as one squashed commit, named after the PR title. So the
 ### 15.3 Reusable checks
 
 - [ ] Add `workflow_call` to `ci.yml`, `test-core.yml`, `test-server.yml`, `test-web.yml`, and `check-desktop.yml`. Remove their `push: main` triggers. Their `pull_request` triggers stay.
+- [ ] Add [actionlint](https://github.com/rhysd/actionlint) to `ci.yml`'s `check` job. A mistake in `release.yml` would otherwise only show up after merging, on `main`.
 - [ ] `pr-title.yml`, on pull requests (`opened`, `edited`, `synchronize`, `reopened`): runs commitlint on the PR title. Job name `pr-title`.
   - The title goes in through an environment variable, never pasted into the script. Anyone can open a PR on a public repo, and a title like `$(...)` must not run.
   - A failure says what's wrong and shows an example, like `fix(web): keep the list sorted`.
 
 ### 15.4 Mac release workflow
 
-- [ ] Rewrite `desktop-release.yml` as a reusable workflow, with one input: the tag. It can also be run by hand from the Actions tab (`workflow_dispatch`) to rebuild a tag.
-- [ ] Steps: check out the tag, set up Node, pnpm, and Rust, create or reuse the draft Release, build into it with `tauri-action`, publish it as latest, then check `latest.json` has the new version.
+- [ ] Rewrite `desktop-release.yml` as a reusable workflow, with one input: the tag. It can also be run by hand from the Actions tab (`workflow_dispatch`) to rebuild a tag. It stops unless the tag looks like `v1.2.3` and exists. The tag reaches scripts through an environment variable.
+- [ ] Steps: check out the tag, set up Node, pnpm, and Rust, create or reuse the Release (draft), build into it with `tauri-action`, publish it, mark it latest if it's the newest, then check `latest.json`.
 - [ ] The `--config` passes `version`, `createUpdaterArtifacts`, and the stand-in signature, all in one JSON.
 
 ### 15.5 Release workflow
 
 - [ ] `release.yml`, on push to `main`. `concurrency: { group: release, cancel-in-progress: false }`. Every job has `if: github.repository == 'willemrosenthal/pr-peek'`.
 - [ ] Job `checks`: calls the reusable checks.
-- [ ] Job `version` (`contents: write`): check out with full history, run semantic-release, output `version`. Then output `desktop`: true if there's no published Mac release yet, or `git diff` shows changes in `apps/desktop` since the latest one.
+- [ ] Job `version` (`contents: write`): check out with full history, run semantic-release, then output `version` from the `v*` tag on the commit (empty if none). Then output `desktop`: true if there's no published Mac release yet, or `git diff` shows changes in `apps/desktop` since the latest one.
 - [ ] Job `deploy` (`contents: write`), if there's a version: push the released commit to `prod`, with no force.
-- [ ] Job `desktop`, if there's a version and `desktop` is true: calls `desktop-release.yml` with the tag, passing the updater secrets.
+- [ ] Job `desktop`, if there's a version and `desktop` is true: calls `desktop-release.yml` with the tag. It grants `contents: write` and passes the two updater secrets by name, not `secrets: inherit`.
+- [ ] Job `checks` gets only `contents: read`.
 - [ ] Each job writes a line to the run's summary page: the version, "Deployed", "Mac app built" or "Mac app unchanged".
 
 ### 15.6 Docs
@@ -136,9 +141,10 @@ Each PR lands on `main` as one squashed commit, named after the PR title. So the
 - [ ] `CLAUDE.md`:
   - PR titles: `type(scope): what it does`, like `feat(desktop): auto updates`. Which types release, and to use `chore`, `docs`, `test`, `refactor`, or `ci` for changes that shouldn't deploy. Breaking changes (`!`) only when agreed.
   - Commits inside a PR still use the same format, out of habit, but only the title counts.
+  - A change that must ship but isn't a feature, like a security update to a dependency, is titled `fix(deps): ...`.
   - Branches: `prod` moves forward by itself. Push to it by hand only in an emergency.
   - The PR template's "What to do next": deploying is automatic, so it lists only what to try once it's live.
-- [ ] Plan 09: 9.8 now starts from this workflow, and its "Done when" update check uses a `fix(desktop):` PR instead of a tag.
+- [ ] Plan 09: 9.8 now starts from this workflow, and its "Done when" update check uses a `fix(desktop):` PR instead of a tag. Its Apple signing step must also pass the Apple secrets through `release.yml` to `desktop-release.yml`, since reusable workflows only get the secrets they're given.
 
 ### 15.7 GitHub settings (You)
 
@@ -146,6 +152,9 @@ Before PR 2 merges, so that it's squashed too. In GitHub, Settings, General, Pul
 
 - [ ] Turn on **Allow squash merging**, with **Default commit message** set to **Pull request title and commit details**. That keeps each commit's co-author line.
 - [ ] Turn off **Allow merge commits** and **Allow rebase merging**.
+- [ ] In Settings, General, Releases: leave **Immutable releases** off. It stops files being added to a release after it's made, which breaks the Mac upload.
+- [ ] In Render, for both services: keep **Auto-Deploy** on **On Commit**, not **After CI Checks Pass**. The release run is still building the Mac app when `prod` moves, so Render would wait for it, and skip the deploy if it failed.
+- [ ] In Render, Account Settings, Notifications: make sure failed deploys email you. The workflow can't see whether Render's deploy worked.
 
 After PR 2 merges, add rulesets in GitHub, Settings, Rules, Rulesets:
 
