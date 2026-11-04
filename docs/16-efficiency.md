@@ -137,7 +137,7 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
   where state = 'open';
   ```
   4 November 2026: 42 open PRs, 2 users, 4,509 bytes sent on average (32,078 at most), 2,118 stored, 49 MB database.
-- [ ] Where the 49 MB goes: the biggest tables.
+- [x] Where the 49 MB goes: the biggest tables.
   ```sql
   select n.nspname || '.' || c.relname as "table",
          pg_size_pretty(pg_total_relation_size(c.oid)) as size
@@ -148,6 +148,7 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
   order by pg_total_relation_size(c.oid) desc
   limit 10;
   ```
+  4 November 2026: `pgboss.job_common` is 36 MB, finished jobs kept 7 days. The app's own tables are about 1 MB together (`PullRequest` 560 kB, `Item` 168 kB, `NotificationLog` 136 kB). Postgres keeps the space freed by 16.2 for new rows, so the table stops growing rather than shrinking. `VACUUM FULL pgboss.job_common;` gives it back, if ever needed.
 - [ ] In Supabase, Usage: note the egress for the last 7 days.
 - [ ] In Render, the worker's logs: note a few `ms` values from "sync done" lines.
 
