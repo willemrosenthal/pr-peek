@@ -1,0 +1,62 @@
+name: Desktop release
+
+# Pushing a tag like desktop-v0.1.0 builds the Mac app and publishes a GitHub Release
+# with the .dmg, plus the signed update files and latest.json that installed apps check.
+on:
+  push:
+    tags: ["desktop-v*"]
+
+permissions:
+  # To create the release.
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      # Prisma's config needs a value to generate the client on install.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+
+      # The app's version comes from tauri.conf.json, so the tag has to match it.
+      - name: Check the tag matches the app's version
+        run: |
+          version=$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")
+          if [ "$GITHUB_REF_NAME" != "desktop-v$version" ]; then
+            echo "Tag $GITHUB_REF_NAME doesn't match version $version in tauri.conf.json."
+            exit 1
+          fi
+
+      - uses: ./.github/actions/setup
+
+      # Both Mac chips, for one universal app.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+
+      # createUpdaterArtifacts is on only here, so local builds don't need the key.
+      # signingIdentity "-" is a free stand-in signature until Apple signing is set up.
+      # Without any signature, Apple Silicon Macs call a downloaded app damaged.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop
+          tauriScript: pnpm tauri
+          args: >-
+            --target universal-apple-darwin
+            --config '{"bundle":{"createUpdaterArtifacts":true,"macOS":{"signingIdentity":"-"}}}'
+          tagName: ${{ github.ref_name }}
+          releaseName: Git Buddy for Mac __VERSION__
+          releaseBody: >-
+            Download the .dmg below, open it, and drag Git Buddy into Applications.
+            The first time, macOS may block it: open System Settings, Privacy & Security,
+            and choose Open Anyway.

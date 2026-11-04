@@ -8,6 +8,7 @@ import {
   USER_AGENTS,
 } from "../test/install";
 import { renderApp } from "../test/render";
+import { stubTauri } from "../test/tauri";
 
 const installButton = () =>
   screen.queryByRole("button", { name: "Install Git Buddy" });
@@ -94,4 +95,16 @@ it("says so when opened as the installed app", () => {
   stubDisplayMode({ standalone: true });
   renderApp("/install");
   expect(screen.getByText(INSTALLED)).toBeTruthy();
+});
+
+it("links to the Mac app's latest release", () => {
+  renderApp("/install");
+  const download = screen.getByRole("link", { name: "Download for Mac" });
+  expect(download.getAttribute("href")).toMatch(/\/releases\/latest$/);
+});
+
+it("doesn't offer the Mac app inside the Mac app", () => {
+  stubTauri();
+  renderApp("/install");
+  expect(screen.queryByRole("link", { name: "Download for Mac" })).toBe(null);
 });
