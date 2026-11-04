@@ -130,7 +130,7 @@ fn place_under_icon(window: &WebviewWindow) {
         .0
         .lock()
         .ok()
-        .and_then(|rect| rect.clone());
+        .and_then(|rect| *rect);
     let (Some(icon), Ok(size)) = (icon, window.outer_size()) else {
         let _ = window.move_window(Position::TopRight);
         return;

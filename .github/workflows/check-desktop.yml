@@ -1,0 +1,35 @@
+name: Check desktop
+
+# The Mac app's Rust code. Only runs when it changes, since macOS runners are slower,
+# and use up a private repo's Actions minutes 10 times as fast.
+on:
+  pull_request:
+    paths: ["apps/desktop/**", ".github/workflows/check-desktop.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/desktop/**", ".github/workflows/check-desktop.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-desktop:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/desktop/src-tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - run: cargo fmt --check
+      - run: cargo clippy -- -D warnings

@@ -130,19 +130,27 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 
 ### 9.8 Build and release pipeline
 
-- [ ] `.github/workflows/desktop-release.yml`, triggered by pushing a tag like `desktop-v0.1.0`:
+- [x] `.github/workflows/desktop-release.yml`, triggered by pushing a tag like `desktop-v0.1.0`:
   1. Run on `macos-latest`.
   2. Install Rust, pnpm, and Node.
   3. Use `tauri-apps/tauri-action` to build a universal (Apple Silicon and Intel) `.dmg`, sign the update files, and create a GitHub Release with `latest.json`.
      - Turn on `bundle.createUpdaterArtifacts` only in this workflow (for example with `--config`). In `tauri.conf.json` it would make every local `pnpm desktop:build` need the private key.
+  4. The workflow stops if the tag doesn't match `version` in `tauri.conf.json`, since that's the version `latest.json` gives.
+
+  The updater and the download link both use GitHub's "latest release". Only the Mac app should publish non-draft releases from this repo, or installed apps stop finding updates.
+
 - [ ] Apple signing and notarization (Apple's automated malware check, needed so other people's Macs open the app without warnings):
   - **(You)** Join the Apple Developer Program.
   - **(You)** Create a "Developer ID Application" certificate and an App Store Connect API key.
   - **(You)** Add them as GitHub secrets.
   - `tauri-action` uses these secrets automatically.
-- [ ] Until signing is set up, builds work for you. Right click, then Open the first time to get past the warning.
-- [ ] Add a "Download for Mac" link on the `/install` page that points at the latest release.
-- [ ] Check the Rust code in CI on PRs that change `apps/desktop`: `cargo fmt --check` and `cargo clippy -- -D warnings`. CI's Linux runner checks only the web and server code today.
+  - Then remove `"signingIdentity":"-"` from the workflow's `--config`.
+- [x] Until signing is set up, builds work for you. The first time, macOS blocks the app: open System Settings, Privacy & Security, and choose Open Anyway. The release notes say so. (Newer macOS dropped right click, Open.)
+  - Builds get a free stand-in signature (`signingIdentity` `-`). With no signature at all, Apple Silicon Macs call a downloaded app damaged.
+- [x] Add a "Download for Mac" link on the `/install` page that points at the latest release.
+  - It opens the release page, since the `.dmg` name has the version in it. Hidden inside the Mac app.
+- [x] Check the Rust code in CI on PRs that change `apps/desktop`: `cargo fmt --check` and `cargo clippy -- -D warnings`. CI's Linux runner checks only the web and server code today.
+  - `.github/workflows/check-desktop.yml`, on a macOS runner.
 
 ### 9.9 Dropdown polish
 
