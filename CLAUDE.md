@@ -65,6 +65,7 @@ In the last PR for a plan:
 
 - Use the `git-commit` skill to commit and the `git-create-pr` skill to push and open the PR.
 - Never commit to `main` or `prod` directly.
+- Give the PR a title like `type(scope): what it does`. See [Releases](#releases): the title decides whether merging it releases.
 
 ### 6. PR description
 
@@ -86,7 +87,7 @@ Use this template. Keep each part to a few bullets.
 ## What to do next
 
 1. Things you need to do by hand (accounts, secrets, settings). Say exactly where.
-2. Review and merge this PR.
+2. Review and merge this PR. Say whether merging releases it, and what to try once it's live.
 3. What comes next: the next plan or step.
 ```
 
@@ -107,5 +108,21 @@ After the PR is up, send a short message with:
 
 ## Branches
 
-- `main`: work lands here through PRs.
-- `prod`: what's live. Merging `main` into `prod` deploys to Render.
+- `main`: work lands here through PRs, squash merged.
+- `prod`: what's live. The release workflow moves it forward, and Render deploys it. Push to it by hand only in an emergency.
+
+## Releases
+
+Merging a PR can release it. PRs are squash merged, so the PR title becomes the commit on `main`, and its type decides. A `pr-title` check blocks PRs whose title doesn't follow the format. Details: [docs/15-auto-release.md](docs/15-auto-release.md).
+
+| Title starts with                                  | Merging it                                             |
+| -------------------------------------------------- | ------------------------------------------------------ |
+| `feat`                                             | Releases a minor version (1.2.0 to 1.3.0), and deploys |
+| `fix`, `perf`                                      | Releases a patch (1.2.0 to 1.2.1), and deploys         |
+| `chore`, `docs`, `test`, `refactor`, `ci`, `style` | Nothing. It ships with the next release                |
+
+- Scopes: `web`, `server`, `core`, `desktop`, `ci`, `deps`. Like `fix(desktop): keep the dropdown open`.
+- A change that must ship but isn't a feature, like a security update to a dependency, is `fix(deps): ...`.
+- A Mac app release happens only when `apps/desktop` changed.
+- Breaking changes (`feat!:`, or `BREAKING CHANGE:` in any commit message) release a major version. Only when the user agrees.
+- Commits inside a PR use the same format, out of habit, but only the title counts.

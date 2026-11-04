@@ -137,13 +137,15 @@ The Mac browser may also have a push subscription, so the same alert could arriv
      - Turn on `bundle.createUpdaterArtifacts` only in this workflow (for example with `--config`). In `tauri.conf.json` it would make every local `pnpm desktop:build` need the private key.
   4. The workflow stops if the tag doesn't match `version` in `tauri.conf.json`, since that's the version `latest.json` gives.
 
+  **Changed by [plan 15](15-auto-release.md):** `release.yml` now calls `desktop-release.yml` with a `v1.2.3` tag when a `feat` or `fix` lands and `apps/desktop` changed. The version comes from the tag at build time, and `tauri.conf.json` holds `0.0.0`. Step 4 is gone.
+
   The updater and the download link both use GitHub's "latest release". Only the Mac app should publish non-draft releases from this repo, or installed apps stop finding updates.
 
 - [ ] Apple signing and notarization (Apple's automated malware check, needed so other people's Macs open the app without warnings):
   - **(You)** Join the Apple Developer Program.
   - **(You)** Create a "Developer ID Application" certificate and an App Store Connect API key.
   - **(You)** Add them as GitHub secrets.
-  - `tauri-action` uses these secrets automatically.
+  - `tauri-action` reads them from its environment. Pass them by name from `release.yml` to `desktop-release.yml`, and into the `tauri-action` step's `env`, like the updater secrets.
   - Then remove `"signingIdentity":"-"` from the workflow's `--config`.
 - [x] Until signing is set up, builds work for you. The first time, macOS blocks the app: open System Settings, Privacy & Security, and choose Open Anyway. The release notes say so. (Newer macOS dropped right click, Open.)
   - Builds get a free stand-in signature (`signingIdentity` `-`). With no signature at all, Apple Silicon Macs call a downloaded app damaged.
@@ -182,4 +184,4 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 - [ ] Clicking opens the list under the icon. Clicking away hides it. The global shortcut works.
 - [ ] A GitHub event produces one native Mac alert (not two) while the app is running, and the phone still gets its push.
 - [ ] Launch at login works after a restart.
-- [ ] Tagging `desktop-v0.1.1` builds a release, and an installed `0.1.0` offers the update and installs it.
+- [ ] Merging a PR titled `fix(desktop): ...` builds a release, and an installed older version offers the update and installs it.

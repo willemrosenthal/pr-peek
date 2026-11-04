@@ -1,0 +1,127 @@
+name: Release
+
+# Every push to main: run the checks, then release if a feat, fix, or perf landed. A
+# release tags the version, deploys the web app by moving prod forward, and builds the
+# Mac app if apps/desktop changed. See docs/15-auto-release.md.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# One at a time, never cancelled. If more merges land meanwhile, the next run covers
+# them all.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # The checks PRs run, again on the commit that would be released.
+  ci:
+    uses: ./.github/workflows/ci.yml
+  test-core:
+    uses: ./.github/workflows/test-core.yml
+  test-server:
+    uses: ./.github/workflows/test-server.yml
+  test-web:
+    uses: ./.github/workflows/test-web.yml
+  check-desktop:
+    uses: ./.github/workflows/check-desktop.yml
+
+  # Everything from here pushes or publishes, so it never runs in a fork. The jobs after
+  # this one need it, so they skip too.
+  version:
+    needs: [ci, test-core, test-server, test-web, check-desktop]
+    if: github.repository == 'willemrosenthal/pr-peek'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      desktop: ${{ steps.desktop.outputs.desktop }}
+    env:
+      # Prisma's config needs a value to generate the client on install.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      # The deploy key pushes the tag. The workflow's own token can't push refs whose
+      # history changes workflow files.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+
+      - uses: ./.github/actions/setup
+
+      # Tags a new version if a feat, fix, or perf landed since the last one. Pushes the
+      # tag and nothing else. No token in env, so it pushes over SSH with the deploy key.
+      - run: pnpm exec semantic-release
+
+      # From the tag on this commit, not semantic-release's output, so a re-run finds a
+      # tag an earlier attempt made.
+      - name: Read the version
+        id: version
+        run: |
+          tag=$(git tag --points-at HEAD --list 'v*' | sort -V | tail -n 1)
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          if [ -n "$tag" ]; then
+            echo "Version ${tag#v}." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No feat, fix, or perf since the last release. Nothing released." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # A Mac build only when this is the newest version and apps/desktop changed since
+      # the last published Mac release, which is GitHub's latest release.
+      - name: Did the Mac app change?
+        id: desktop
+        if: steps.version.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          latest=$(gh release view --json tagName --jq .tagName 2> /dev/null || true)
+          newest=$(printf '%s\n%s\n' "${latest#v}" "$VERSION" | sort -V | tail -n 1)
+          if [ -z "$latest" ]; then
+            desktop=true
+          elif [ "$newest" != "$VERSION" ] || [ "${latest#v}" = "$VERSION" ]; then
+            desktop=false
+          elif git diff --quiet "$latest" HEAD -- apps/desktop; then
+            desktop=false
+          else
+            desktop=true
+          fi
+          echo "desktop=$desktop" >> "$GITHUB_OUTPUT"
+          if [ "$desktop" = true ]; then
+            echo "Mac app: building." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Mac app: unchanged since $latest." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # Render deploys prod, and runs database migrations first. A plain push: if prod has
+  # a commit main doesn't, it fails instead of losing it. Pushing a commit prod already
+  # has does nothing, so re-runs are safe.
+  deploy:
+    needs: version
+    if: needs.version.outputs.version != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+      - run: git push origin "$GITHUB_SHA:refs/heads/prod"
+      - run: echo "Deployed ${{ needs.version.outputs.version }} to prod." >> "$GITHUB_STEP_SUMMARY"
+
+  desktop:
+    needs: version
+    # Only set when there's a version.
+    if: needs.version.outputs.desktop == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/desktop-release.yml
+    with:
+      tag: v${{ needs.version.outputs.version }}
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}

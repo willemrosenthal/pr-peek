@@ -2,8 +2,8 @@ name: Test server
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  # release.yml runs it on main, before releasing.
+  workflow_call:
 
 permissions:
   contents: read
