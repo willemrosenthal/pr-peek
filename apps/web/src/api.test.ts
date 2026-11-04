@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { LOOKING_HEADER } from "@pr-peek/core";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "./api";
 import { fakeApi, json, signedOut } from "./test/fake-api";
 
@@ -15,8 +16,30 @@ describe("api", () => {
       method: "POST",
       credentials: "same-origin",
       keepalive: false,
-      headers: { "Content-Type": "application/json" },
+      headers: expect.objectContaining({
+        "Content-Type": "application/json",
+      }) as unknown,
       body: '{"owner":"acme"}',
+    });
+  });
+
+  describe("says when someone is using the app", () => {
+    afterEach(() => vi.restoreAllMocks());
+    const sentHeaders = async () => {
+      const fetch = fakeApi({ "GET /api/summary": () => json({}) });
+      await api("/summary");
+      const init = fetch.mock.calls[0]?.[1] as RequestInit;
+      return init.headers as Record<string, string>;
+    };
+
+    it("while the app has focus", async () => {
+      vi.spyOn(document, "hasFocus").mockReturnValue(true);
+      expect(await sentHeaders()).toEqual({ [LOOKING_HEADER]: "1" });
+    });
+
+    it("not without it, like a background tab or the hidden Mac app", async () => {
+      vi.spyOn(document, "hasFocus").mockReturnValue(false);
+      expect(await sentHeaders()).toEqual({});
     });
   });
 

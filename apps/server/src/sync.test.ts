@@ -2,7 +2,14 @@ import type { PrSnapshot } from "@pr-peek/core";
 import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, resetDb, TEST_DATABASE_URL } from "../test/db";
-import { githubTokens, githubUser, hours, NOW, TEST_KEY } from "../test/fakes";
+import {
+  githubTokens,
+  githubUser,
+  hours,
+  minutes,
+  NOW,
+  TEST_KEY,
+} from "../test/fakes";
 import { fakeGraphQL } from "../test/github";
 import {
   detailIds,
@@ -120,8 +127,23 @@ describe("syncUser", () => {
     expect(result).toMatchObject({ found: 1, fetched: 0 });
     expect(detailIds(requests)).toEqual([]);
     expect(searchQueries(requests)).toHaveLength(5);
-    const row = await db.pullRequest.findFirstOrThrow();
-    expect(row.lastSeenAt).toEqual(later);
+  });
+
+  it("moves a found PR's lastSeenAt forward at most once an hour", async () => {
+    const user = await makeUser();
+    const github = {
+      reviewRequested: [searchHit("PR_1", { repoId: WATCHED })],
+      prs,
+    };
+    await sync(user.id, github);
+    const lastSeenAt = async () =>
+      (await db.pullRequest.findFirstOrThrow()).lastSeenAt;
+
+    await sync(user.id, github, minutes(30));
+    expect(await lastSeenAt()).toEqual(NOW);
+
+    await sync(user.id, github, minutes(61));
+    expect(await lastSeenAt()).toEqual(minutes(61));
   });
 
   it("fetches PRs that changed", async () => {

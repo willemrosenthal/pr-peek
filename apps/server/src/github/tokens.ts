@@ -95,7 +95,10 @@ export async function markNeedsReauth(
     select: { patEnc: true },
   });
   const reason: StopReason = patEnc ? "token" : "reauth";
-  await db.user.update({ where: { id: userId }, data: { syncError: reason } });
+  await db.user.updateMany({
+    where: { id: userId },
+    data: { syncError: reason },
+  });
   return reason;
 }
 

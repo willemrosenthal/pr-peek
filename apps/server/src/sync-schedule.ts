@@ -1,3 +1,4 @@
+import { isQuiet, type QuietSettings } from "@pr-peek/core";
 import { RequestError, type Octokit } from "octokit";
 import type { Logger } from "pino";
 import type { Db } from "./db";
@@ -6,15 +7,18 @@ import {
   NeedsReauthError,
   STOP_REASONS,
 } from "./github/tokens";
+import { POLL_JOBS_SECONDS, POLL_SCHEDULED_SECONDS } from "./jobs";
+import { isDesktopOnline } from "./push";
 import { syncUser, type SyncDeps } from "./sync";
+import { MINUTE_MS, SYNC_TIMING } from "./sync-timing";
 
-const MINUTE_MS = 60 * 1000;
-const ACTIVE_INTERVAL_MS = MINUTE_MS;
-const IDLE_INTERVAL_MS = 15 * MINUTE_MS;
-// Users who haven't opened the app for this long sync less often.
-const IDLE_AFTER_MS = 14 * 24 * 60 * MINUTE_MS;
-// Dispatch runs once a minute, so a sync a few seconds short of its interval still counts as due.
-const DISPATCH_SLACK_MS = 15 * 1000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
+// Dispatch runs at the start of each minute, and counts from there. A sync starts up to
+// both polling intervals after that, so it can look up to 40 seconds short of a whole
+// number of minutes. This much slack covers that, and stays under a minute, so a sync is
+// never a minute early.
+const DISPATCH_SLACK_MS =
+  (POLL_SCHEDULED_SECONDS + POLL_JOBS_SECONDS + 5) * 1000;
 const MAX_BACKOFF_MS = 30 * MINUTE_MS;
 // Below this many GraphQL points left, wait for GitHub's limit to reset.
 const LOW_POINTS = 500;
@@ -32,10 +36,29 @@ export interface ScheduleDeps extends SyncDeps {
   notifyMerged?: (prIds: string[]) => Promise<void>;
 }
 
-const syncInterval = (lastActiveAt: Date, now: Date) =>
-  now.getTime() - lastActiveAt.getTime() > IDLE_AFTER_MS
-    ? IDLE_INTERVAL_MS
-    : ACTIVE_INTERVAL_MS;
+export interface ScheduleUser {
+  lastActiveAt: Date;
+  desktopSeenAt: Date | null;
+  // Null for a user with no settings row: no quiet hours.
+  settings: QuietSettings | null;
+}
+
+// How long between the user's syncs. The rules and numbers are in sync-timing.ts.
+export function syncIntervalMs(user: ScheduleUser, now: Date): number {
+  const t = SYNC_TIMING;
+  const sinceActive = now.getTime() - user.lastActiveAt.getTime();
+  const minutes =
+    sinceActive < t.activeForMinutes * MINUTE_MS
+      ? t.activeEveryMinutes
+      : user.settings && isQuiet(user.settings, now)
+        ? t.quietEveryMinutes
+        : isDesktopOnline(user.desktopSeenAt, now)
+          ? t.desktopEveryMinutes
+          : sinceActive > t.awayAfterDays * DAY_MS
+            ? t.awayEveryMinutes
+            : t.defaultEveryMinutes;
+  return minutes * MINUTE_MS;
+}
 
 // 2, 4, 8, 16, then 30 minutes.
 export const backoffMs = (failures: number) =>
@@ -51,14 +74,29 @@ export async function dueUserIds(db: Db, now: Date): Promise<string[]> {
       ],
       watchedRepos: { some: { enabled: true } },
     },
-    select: { id: true, lastSyncedAt: true, lastActiveAt: true },
+    select: {
+      id: true,
+      lastSyncedAt: true,
+      lastActiveAt: true,
+      desktopSeenAt: true,
+      settings: {
+        select: {
+          timezone: true,
+          quietStart: true,
+          quietEnd: true,
+          quietWeekends: true,
+        },
+      },
+    },
   });
+  // The start of the minute, not when the worker got to it, which varies.
+  const tick = Math.floor(now.getTime() / MINUTE_MS) * MINUTE_MS;
   return users
     .filter(
-      ({ lastSyncedAt, lastActiveAt }) =>
-        !lastSyncedAt ||
-        now.getTime() - lastSyncedAt.getTime() + DISPATCH_SLACK_MS >=
-          syncInterval(lastActiveAt, now),
+      (user) =>
+        !user.lastSyncedAt ||
+        tick - user.lastSyncedAt.getTime() + DISPATCH_SLACK_MS >=
+          syncIntervalMs(user, now),
     )
     .map((user) => user.id);
 }
@@ -93,14 +131,16 @@ export async function runSync(
 ): Promise<void> {
   const now = (deps.now ?? (() => new Date()))();
   const setStartedAt = (syncStartedAt: Date | null) =>
-    deps.db.user.update({ where: { id: userId }, data: { syncStartedAt } });
+    deps.db.user.updateMany({ where: { id: userId }, data: { syncStartedAt } });
 
-  // Shows the sync as running (see GET /api/sync/status).
+  // Shows the sync as running (see GET /api/sync/status). Saving the outcome clears it.
   await setStartedAt(now);
   try {
     await syncAndSchedule(deps, userId, now);
-  } finally {
+  } catch (err) {
+    // Saving the outcome failed, so clear it here.
     await setStartedAt(null);
+    throw err;
   }
 }
 
@@ -124,9 +164,16 @@ async function syncAndSchedule(
 
   try {
     const result = await syncUser({ ...deps, github, now: () => now }, userId);
-    await db.user.update({
+    // These updates don't ask for the row back, which would send the whole row,
+    // tokens included.
+    await db.user.updateMany({
       where: { id: userId },
-      data: { syncError: null, syncFailures: 0, syncRetryAt: limitResetAt() },
+      data: {
+        syncError: null,
+        syncFailures: 0,
+        syncRetryAt: limitResetAt(),
+        syncStartedAt: null,
+      },
     });
     // After the sync's transaction, so a notification never points at an unsaved item.
     if (result.newEventItemIds.length > 0) {
@@ -140,6 +187,10 @@ async function syncAndSchedule(
     // Dispatch skips these users until they sign in again or add a new token.
     if (needsReauth(err)) {
       const reason = await markNeedsReauth(db, userId);
+      await db.user.updateMany({
+        where: { id: userId },
+        data: { syncStartedAt: null },
+      });
       log.info({ reason }, "sync stopped until the user fixes their token");
       return;
     }
@@ -150,12 +201,13 @@ async function syncAndSchedule(
     const failures = syncFailures + 1;
     const backoffUntil = new Date(now.getTime() + backoffMs(failures));
     const resetAt = limitResetAt();
-    await db.user.update({
+    await db.user.updateMany({
       where: { id: userId },
       data: {
         syncError: "failed",
         syncFailures: failures,
         syncRetryAt: resetAt && resetAt > backoffUntil ? resetAt : backoffUntil,
+        syncStartedAt: null,
       },
     });
     log.warn({ err, failures, rateLimit }, "sync failed");

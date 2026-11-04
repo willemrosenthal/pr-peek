@@ -16,7 +16,7 @@ export function desktopRouter(deps: DesktopRouteDeps): Router {
   // Sent every minute while the app runs. Until a few minutes after the last one, the
   // user's notifications go to the app instead of the browsers on that Mac.
   router.post("/desktop/heartbeat", async (_req, res) => {
-    await deps.db.user.update({
+    await deps.db.user.updateMany({
       where: { id: currentUser(res).id },
       data: { desktopSeenAt: now() },
     });

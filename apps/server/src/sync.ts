@@ -22,6 +22,8 @@ import { quietPrs, wakeQuietPrs } from "./quiet";
 
 // PRs with no open items that no search has found for this long are deleted.
 const KEEP_UNSEEN_MS = 7 * 24 * 60 * 60 * 1000;
+// How often a found PR's `lastSeenAt` moves forward, at most.
+const LAST_SEEN_EVERY_MS = 60 * 60 * 1000;
 
 // Why a stored PR stopped being tracked. Its items are resolved.
 type EndedState = Exclude<PrState, "open">;
@@ -225,8 +227,13 @@ export async function syncUser(
   // PRs and their items save together, so a PR is never stored without its items.
   const changes = await db.$transaction(async (tx) => {
     await lockUserItems(tx, userId);
+    // Only once an hour, since it's checked against days. Saves rewriting every row.
     await tx.pullRequest.updateMany({
-      where: { userId, githubNodeId: { in: searchedIds } },
+      where: {
+        userId,
+        githubNodeId: { in: searchedIds },
+        lastSeenAt: { lt: new Date(now.getTime() - LAST_SEEN_EVERY_MS) },
+      },
       data: { lastSeenAt: now },
     });
     // Read before the upserts, to compare their old snapshots.
@@ -301,7 +308,7 @@ export async function syncUser(
       NOT: { importantAt: { not: null }, state: { in: ["open", "merged"] } },
     },
   });
-  await db.user.update({
+  await db.user.updateMany({
     where: { id: userId },
     data: { lastSyncedAt: now },
   });

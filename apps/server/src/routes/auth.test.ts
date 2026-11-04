@@ -154,23 +154,6 @@ describe("GET /api/me", () => {
     expect(me.body).toMatchObject({ needsReauth: true });
   });
 
-  it("records when the user last opened the app, at most hourly", async () => {
-    const { agent } = makeApp();
-    await signIn(agent);
-    const lastActiveAt = async () =>
-      (await db.user.findFirstOrThrow()).lastActiveAt;
-
-    const recent = new Date(Date.now() - 10 * 60 * 1000);
-    await db.user.updateMany({ data: { lastActiveAt: recent } });
-    await agent.get("/api/me");
-    expect(await lastActiveAt()).toEqual(recent);
-
-    const old = new Date(Date.now() - 2 * 60 * 60 * 1000);
-    await db.user.updateMany({ data: { lastActiveAt: old } });
-    await agent.get("/api/me");
-    expect((await lastActiveAt()).getTime()).toBeGreaterThan(old.getTime());
-  });
-
   it("returns 401 if the user was deleted", async () => {
     const { agent } = makeApp();
     await signIn(agent);
