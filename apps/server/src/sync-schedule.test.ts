@@ -73,6 +73,17 @@ describe("dueUserIds", () => {
     expect(await dueUserIds(db, NOW)).toHaveLength(1);
   });
 
+  it("counts from the start of the minute, however late the worker runs it", async () => {
+    // Started right at the last dispatch. 30 seconds late, this one isn't due yet.
+    await makeUser({ lastSyncedAt: minutes(-1) });
+    expect(await dueUserIds(db, minutes(0.5))).toEqual([]);
+
+    // Started 40 seconds after the dispatch before that. It's due, however late.
+    await db.user.updateMany({ data: { lastSyncedAt: minutes(-2 + 40 / 60) } });
+    expect(await dueUserIds(db, NOW)).toHaveLength(1);
+    expect(await dueUserIds(db, minutes(0.5))).toHaveLength(1);
+  });
+
   it("goes by the user's quiet hours and Mac app", async () => {
     const user = await makeUser({
       lastActiveAt: hours(-2),

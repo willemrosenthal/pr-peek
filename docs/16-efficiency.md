@@ -79,7 +79,7 @@ Rows keep their short preview of the latest comment (`alice: "looks good but..."
 The first row that matches wins. **All the numbers live in one file, `apps/server/src/sync-timing.ts`,** so they're easy to change later.
 
 - **It's per account, not per device.** One sync serves all of a user's devices: phone, Mac, and browser. Using the app on any of them counts, and a second device never adds syncs. The fastest row any device earns wins.
-- "Used the app" is `lastActiveAt`. It's saved at most once an hour today, so that becomes every 10 minutes. **Only requests from a page someone can see count.** The web app adds a header (`X-Pr-Peek-Looking`) while the page is visible and, in the Mac app, the window isn't hidden. Opening the Mac dropdown counts. Background refetches, the live stream, and the hidden Mac app's polling and heartbeat don't. The heartbeat only sets `desktopSeenAt`, which means the Mac app is running.
+- "Used the app" is `lastActiveAt`. It's saved at most once an hour today, so that becomes every 10 minutes. **Only requests from the app while it has focus count.** The web app adds a header (`X-Pr-Peek-Looking`) while `document.hasFocus()`. Focus, not visibility: the Mac app's page counts as visible while its window is hidden, even before it's first shown. Opening the Mac dropdown counts. Background refetches, the live stream, and the hidden Mac app's polling and heartbeat don't. The heartbeat only sets `desktopSeenAt`, which means the Mac app is running.
 - Using the app beats quiet hours. If you open it at night, it's fresh.
 - **Sync on open:** when someone comes back to the app (their first request in 10 minutes or more) and their last sync is older than 2 minutes, a sync is queued right away. Not for users who must sign in again, or whose syncs are backing off after failures. The list is fresh within seconds, not after the next scheduled sync.
 - **The cost:** a push can arrive up to 2 minutes after the event while you use the app or the Mac app runs, and up to 5 with neither. A high severity push that breaks quiet hours can be up to 15 minutes late. Pull to refresh and "Refresh now" still sync right away.
@@ -155,11 +155,11 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 
 - [x] `sync-timing.ts` holds every interval, with the rules written out next to them.
 - [x] `syncIntervalMs` takes `lastActiveAt`, `desktopSeenAt`, and the user's quiet hours, and returns the table's intervals. Quiet hours use `isQuiet` from `packages/core`. The Mac app check uses `isDesktopOnline`.
-- [x] `dueUserIds` selects the extra fields. Users with no settings row have no quiet hours. Dispatch counts a sync up to 45 seconds short of its interval as due (was 15), since the dispatch job can now start up to 30 seconds late.
+- [x] `dueUserIds` selects the extra fields. Users with no settings row have no quiet hours. Dispatch counts from the start of its minute, not when the worker got to it, and counts a sync up to 45 seconds short of its interval as due (was 15). A sync starts up to 40 seconds after its minute (both polling intervals), so this keeps a 2 minute interval at 2 minutes, never 1 or 3.
 - [x] `markActive` saves at most every 10 minutes instead of every hour.
 - [x] Activity moves out of `requireUser` into its own middleware, `routes/activity.ts`, mounted once before the other routers. It only counts requests with the looking header. That's simpler than passing a way to queue syncs into every router.
 - [x] Sync on open: when `markActive` saves and `lastSyncedAt` is older than the active interval, the middleware queues a sync. The queue already ignores a second sync for the same user.
-- [x] Tests for each row of the table: using the app during quiet hours, the Mac app during quiet hours, quiet hours that cross midnight. Requests without the header, like the hidden Mac app's, don't move `lastActiveAt`. The web app sends the header only while someone can see it. Opening the app after a while queues a sync.
+- [x] Tests for each row of the table: using the app during quiet hours, the Mac app during quiet hours, quiet hours that cross midnight. Requests without the header, like the hidden Mac app's, don't move `lastActiveAt`. The web app sends the header only while it has focus. Opening the app after a while queues a sync.
 
 ### 16.2 Quieter background work
 

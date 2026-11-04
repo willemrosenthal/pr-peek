@@ -1,5 +1,4 @@
 import { LOOKING_HEADER } from "@pr-peek/core";
-import { isAppHidden } from "./desktop";
 
 // An error answer from the API, `{ error: { code, message } }`.
 export class ApiError extends Error {
@@ -20,9 +19,9 @@ interface RequestOptions {
   keepalive?: boolean;
 }
 
-// True while someone can see the app.
-const isLooking = () =>
-  document.visibilityState === "visible" && !isAppHidden();
+// True while someone is using the app. Focus, not visibility: the Mac app's page counts
+// as visible while its window is hidden, even before it's first shown.
+const isLooking = () => document.hasFocus();
 
 // Calls `/api<path>` and returns the JSON answer. Throws ApiError for error answers.
 export async function api<T>(

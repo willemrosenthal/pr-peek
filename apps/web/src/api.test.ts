@@ -16,16 +16,15 @@ describe("api", () => {
       method: "POST",
       credentials: "same-origin",
       keepalive: false,
-      headers: { [LOOKING_HEADER]: "1", "Content-Type": "application/json" },
+      headers: expect.objectContaining({
+        "Content-Type": "application/json",
+      }) as unknown,
       body: '{"owner":"acme"}',
     });
   });
 
-  describe("says when someone can see the app", () => {
-    afterEach(() => {
-      vi.restoreAllMocks();
-      document.documentElement.classList.remove("app-hidden");
-    });
+  describe("says when someone is using the app", () => {
+    afterEach(() => vi.restoreAllMocks());
     const sentHeaders = async () => {
       const fetch = fakeApi({ "GET /api/summary": () => json({}) });
       await api("/summary");
@@ -33,17 +32,13 @@ describe("api", () => {
       return init.headers as Record<string, string>;
     };
 
-    it("while the page is visible", async () => {
+    it("while the app has focus", async () => {
+      vi.spyOn(document, "hasFocus").mockReturnValue(true);
       expect(await sentHeaders()).toEqual({ [LOOKING_HEADER]: "1" });
     });
 
-    it("not from a hidden page, like a refetch in a background tab", async () => {
-      vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
-      expect(await sentHeaders()).toEqual({});
-    });
-
-    it("not while the Mac app's window is hidden", async () => {
-      document.documentElement.classList.add("app-hidden");
+    it("not without it, like a background tab or the hidden Mac app", async () => {
+      vi.spyOn(document, "hasFocus").mockReturnValue(false);
       expect(await sentHeaders()).toEqual({});
     });
   });

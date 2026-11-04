@@ -28,7 +28,7 @@ async function makeApp() {
 const lastActiveAt = async () =>
   (await db.user.findFirstOrThrow()).lastActiveAt;
 type Agent = Awaited<ReturnType<typeof makeApp>>["agent"];
-// Any signed in request from a page someone can see counts.
+// Any signed in request from the app while it has focus counts.
 const openApp = (agent: Agent) =>
   agent.get("/api/sync/status").set(LOOKING_HEADER, "1");
 

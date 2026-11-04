@@ -21,7 +21,7 @@ export function activityRouter(deps: ActivityDeps): Router {
 
   router.use(async (req, _res, next) => {
     const userId = req.session.userId;
-    // Only requests from a page someone can see. Not background refetches, the live
+    // Only requests from the app while it has focus. Not background refetches, the live
     // stream, or the Mac app while its window is hidden, heartbeat included.
     if (!userId || req.get(LOOKING_HEADER) !== "1") return next();
 

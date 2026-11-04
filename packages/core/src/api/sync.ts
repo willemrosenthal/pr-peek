@@ -1,6 +1,6 @@
-// Sent by the web app on requests made while someone can see it. Only those count as
-// using the app, which speeds up the account's syncs. Background refetches, like after a
-// live update, don't send it.
+// Sent by the web app on requests made while the app has focus. Only those count as using
+// the app, which speeds up the account's syncs. Background refetches, like after a live
+// update, don't send it.
 export const LOOKING_HEADER = "X-Pr-Peek-Looking";
 
 export interface RequestSyncResponse {
