@@ -272,3 +272,10 @@ model NotificationLog {
   @@unique([itemId, eventId, channel])
   @@index([userId])
 }
+
+// When each alert to the admin last went out, so each goes at most once a day (see
+// health.ts).
+model AdminAlert {
+  kind   String   @id
+  sentAt DateTime
+}

@@ -43,6 +43,8 @@ const schema = z
         .string()
         .regex(/^(mailto:|https:)/, "Must start with mailto: or https:"),
     ),
+    // The GitHub login that gets a push when usage nears a limit (see health.ts).
+    ADMIN_LOGIN: optional(z.string()),
     // Set by Render on every deploy.
     RENDER_GIT_COMMIT: z.string().optional(),
   })

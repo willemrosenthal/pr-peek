@@ -2,6 +2,7 @@ import { isQuiet, type QuietSettings } from "@pr-peek/core";
 import { RequestError, type Octokit } from "octokit";
 import type { Logger } from "pino";
 import type { Db } from "./db";
+import type { Prisma } from "./generated/prisma/client";
 import {
   markNeedsReauth,
   NeedsReauthError,
@@ -74,15 +75,28 @@ export interface DueUser {
 
 export const isLagging = (user: DueUser) => user.lateMs > LAGGING_MS;
 
+// The user settings `isQuiet` needs.
+export const QUIET_SETTINGS = {
+  timezone: true,
+  quietStart: true,
+  quietEnd: true,
+  quietWeekends: true,
+} satisfies Prisma.UserSettingsSelect;
+
+// Users who sync: they watch a repo, and haven't been stopped until they sign in again.
+export const SYNCING_USERS = {
+  OR: [{ syncError: null }, { syncError: { notIn: STOP_REASONS } }],
+  watchedRepos: { some: { enabled: true } },
+} satisfies Prisma.UserWhereInput;
+
 // Users whose next sync is due.
 export async function dueUsers(db: Db, now: Date): Promise<DueUser[]> {
   const users = await db.user.findMany({
     where: {
       AND: [
-        { OR: [{ syncError: null }, { syncError: { notIn: STOP_REASONS } }] },
+        SYNCING_USERS,
         { OR: [{ syncRetryAt: null }, { syncRetryAt: { lte: now } }] },
       ],
-      watchedRepos: { some: { enabled: true } },
     },
     select: {
       id: true,
@@ -90,12 +104,7 @@ export async function dueUsers(db: Db, now: Date): Promise<DueUser[]> {
       lastActiveAt: true,
       desktopSeenAt: true,
       settings: {
-        select: {
-          timezone: true,
-          quietStart: true,
-          quietEnd: true,
-          quietWeekends: true,
-        },
+        select: QUIET_SETTINGS,
       },
     },
   });

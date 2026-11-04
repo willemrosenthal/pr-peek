@@ -2,9 +2,11 @@ import { loadConfig } from "./config";
 import { createDb, createPool } from "./db";
 import { getOctokit } from "./github/client";
 import { createGitHubOAuth } from "./github/oauth";
+import { checkHealth } from "./health";
 import {
   createBoss,
   createQueues,
+  HEALTH_CHECK,
   HEARTBEAT,
   NOTIFY_ITEMS,
   NOTIFY_MERGED,
@@ -117,6 +119,14 @@ await boss.schedule(REMINDER_DISPATCH, "*/5 * * * *");
 await boss.work(REMINDER_DISPATCH, scheduled, async () => {
   const sent = await sendDueReminders({ db, send, logger }, new Date());
   if (sent > 0) logger.info({ sent }, "reminders sent");
+});
+
+await boss.schedule(HEALTH_CHECK, "0 * * * *");
+await boss.work(HEALTH_CHECK, scheduled, async () => {
+  await checkHealth(
+    { db, send, logger, adminLogin: config.ADMIN_LOGIN },
+    new Date(),
+  );
 });
 
 logger.info("worker started");

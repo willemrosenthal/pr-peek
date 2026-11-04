@@ -105,11 +105,12 @@ GitHub's `involves:@me` matches PRs the user authored, is assigned to, is mentio
 - **Alerts:** a worker job, once an hour, sends a push to the admin (you) when:
   - the database passes 70% of the free plan's 500 MB,
   - users are 15 minutes or more past their sync interval,
-  - or more than a quarter of syncs failed in the last hour.
+  - or more than a quarter of the users who sync keep failing (3 failed syncs in a row or more).
 
-  Each alert sends at most once a day. The admin is set by GitHub login in an env var, `ADMIN_LOGIN`. With it unset, alerts are only logged.
+  Each alert sends at most once a day, and waits out the admin's quiet hours. A small `AdminAlert` table remembers when each last went out, so a restart or deploy doesn't send it again. The admin is set by GitHub login in an env var, `ADMIN_LOGIN`. With it unset, alerts are only logged.
 
 - **Egress can't be read from inside the database.** Check Supabase's Usage page once a week for the first month instead (You).
+- **A crashed worker can't alert.** The check runs in the worker. Render emails when a service fails, if its notifications are on (You: Render, Account settings, Notifications).
 
 ## PRs
 
@@ -187,10 +188,10 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 
 ### 16.5 Alerts
 
-- [ ] Config: `ADMIN_LOGIN`, optional. Add it to `.env.example`.
-- [ ] An hourly worker job checks the database size (`pg_database_size`), how many due users are 15 minutes or more past their interval, and the share of failed syncs in the last hour (`syncError = 'failed'` against users synced). It logs the numbers every time.
-- [ ] Past a limit, it sends a push to the admin's devices through `deliver`, with what's wrong and the number. Once a day per alert.
-- [ ] Tests: each limit alerts, quiet below it, once a day, and nothing sent without `ADMIN_LOGIN`.
+- [x] Config: `ADMIN_LOGIN`, optional. Add it to `.env.example`.
+- [x] An hourly worker job (`health.ts`) checks the database size (`pg_database_size`), how many due users are 15 minutes or more past their interval, and how many of the users who sync keep failing. It logs the numbers every time, as "health". The plan said "the share of failed syncs in the last hour", but we don't keep when a sync failed, so it counts users with 3 failed syncs in a row or more.
+- [x] Past a limit, it sends a push to the admin's devices through `deliver`, with what's wrong and the number. Once a day per alert, claimed in a new `AdminAlert` table before sending. Not during the admin's quiet hours: it sends once they end.
+- [x] Tests: each limit alerts, quiet below it, once a day, the admin's quiet hours, and nothing sent without `ADMIN_LOGIN`.
 - [ ] Set `ADMIN_LOGIN` to your GitHub login in Render's env group (You).
 
 ### 16.6 No snapshots
@@ -220,4 +221,4 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 - [ ] Opening the app after an hour away shows a fresh list within seconds (You).
 - [ ] Supabase egress drops by at least 10 times, compared to 16.0 (You).
 - [ ] The pg-boss job table stays near the number of users times 60 rows (You).
-- [ ] A test alert reaches your phone: set a limit low on a dev server and run the check (You).
+- [ ] A test alert reaches your phone: on a dev server with `ADMIN_LOGIN` set, mark the users as failing (`syncError = 'failed'`, `syncFailures = 3`, `syncRetryAt` a day on), and wait for the top of the hour (You).

@@ -9,6 +9,8 @@ export const NOTIFY_ITEMS = "notify-items";
 export const NOTIFY_MERGED = "notify-merged";
 export const SUMMARY_DISPATCH = "summary-dispatch";
 export const REMINDER_DISPATCH = "reminder-dispatch";
+// Checks usage once an hour, and alerts the admin (see health.ts).
+export const HEALTH_CHECK = "health-check";
 // Logs once a minute, to show the worker is alive.
 export const HEARTBEAT = "heartbeat";
 
@@ -68,6 +70,7 @@ export async function createQueues(boss: PgBoss): Promise<void> {
   await ensureQueue(boss, NOTIFY_MERGED);
   await ensureQueue(boss, SUMMARY_DISPATCH);
   await ensureQueue(boss, REMINDER_DISPATCH);
+  await ensureQueue(boss, HEALTH_CHECK);
   await ensureQueue(boss, HEARTBEAT, FREQUENT);
 }
 
