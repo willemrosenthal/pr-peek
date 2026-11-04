@@ -75,6 +75,14 @@ export interface DueUser {
 
 export const isLagging = (user: DueUser) => user.lateMs > LAGGING_MS;
 
+// The user settings `isQuiet` needs.
+export const QUIET_SETTINGS = {
+  timezone: true,
+  quietStart: true,
+  quietEnd: true,
+  quietWeekends: true,
+} satisfies Prisma.UserSettingsSelect;
+
 // Users who sync: they watch a repo, and haven't been stopped until they sign in again.
 export const SYNCING_USERS = {
   OR: [{ syncError: null }, { syncError: { notIn: STOP_REASONS } }],
@@ -96,12 +104,7 @@ export async function dueUsers(db: Db, now: Date): Promise<DueUser[]> {
       lastActiveAt: true,
       desktopSeenAt: true,
       settings: {
-        select: {
-          timezone: true,
-          quietStart: true,
-          quietEnd: true,
-          quietWeekends: true,
-        },
+        select: QUIET_SETTINGS,
       },
     },
   });

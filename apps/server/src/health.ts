@@ -2,11 +2,10 @@ import { isQuiet } from "@pr-peek/core";
 import type { Logger } from "pino";
 import type { Db } from "./db";
 import { deliver, NOTIFY_TTL_SECONDS, type SendPush } from "./push";
-import { dueUsers, SYNCING_USERS } from "./sync-schedule";
+import { dueUsers, QUIET_SETTINGS, SYNCING_USERS } from "./sync-schedule";
 import { MINUTE_MS } from "./sync-timing";
 
 const MB = 1024 * 1024;
-const users = (count: number) => (count === 1 ? "1 user" : `${count} users`);
 const DAY_MS = 24 * 60 * MINUTE_MS;
 // Supabase's free plan has 500 MB. Alerts at 70% of it.
 const DB_LIMIT_MB = 500;
@@ -17,6 +16,8 @@ const LATE_MS = 15 * MINUTE_MS;
 const FAILING_AFTER = 3;
 // Alerts when more than this share of the users who sync keep failing.
 const FAILING_SHARE = 0.25;
+
+const users = (count: number) => (count === 1 ? "1 user" : `${count} users`);
 
 export interface HealthDeps {
   db: Db;
@@ -124,12 +125,7 @@ export async function checkHealth(
       desktopSeenAt: true,
       pushSubscriptions: true,
       settings: {
-        select: {
-          timezone: true,
-          quietStart: true,
-          quietEnd: true,
-          quietWeekends: true,
-        },
+        select: QUIET_SETTINGS,
       },
     },
   });

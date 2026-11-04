@@ -110,6 +110,7 @@ GitHub's `involves:@me` matches PRs the user authored, is assigned to, is mentio
   Each alert sends at most once a day, and waits out the admin's quiet hours. A small `AdminAlert` table remembers when each last went out, so a restart or deploy doesn't send it again. The admin is set by GitHub login in an env var, `ADMIN_LOGIN`. With it unset, alerts are only logged.
 
 - **Egress can't be read from inside the database.** Check Supabase's Usage page once a week for the first month instead (You).
+- **A crashed worker can't alert.** The check runs in the worker. Render emails when a service fails, if its notifications are on (You: Render, Account settings, Notifications).
 
 ## PRs
 
@@ -220,4 +221,4 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 - [ ] Opening the app after an hour away shows a fresh list within seconds (You).
 - [ ] Supabase egress drops by at least 10 times, compared to 16.0 (You).
 - [ ] The pg-boss job table stays near the number of users times 60 rows (You).
-- [ ] A test alert reaches your phone: set a limit low on a dev server and run the check (You).
+- [ ] A test alert reaches your phone: on a dev server with `ADMIN_LOGIN` set, mark the users as failing (`syncError = 'failed'`, `syncFailures = 3`, `syncRetryAt` a day on), and wait for the top of the hour (You).

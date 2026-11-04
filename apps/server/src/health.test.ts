@@ -143,6 +143,15 @@ describe("checkHealth", () => {
     expect(send).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps the once a day apart for each kind of alert", async () => {
+    const { run } = await setup();
+    expect(await run()).toEqual(["failing"]);
+
+    // An hour on, a sync falls behind too. Only the new kind goes out.
+    await makeUser("late", { lastSyncedAt: minutes(-20) });
+    expect(await run(hours(1))).toEqual(["late"]);
+  });
+
   it("waits out the admin's quiet hours", async () => {
     const { admin, run } = await setup();
     await db.userSettings.update({
