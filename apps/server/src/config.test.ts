@@ -19,6 +19,7 @@ describe("loadConfig", () => {
       PORT: 3000,
       LOG_LEVEL: "info",
       DB_POOL_MAX: 5,
+      SYNC_CONCURRENCY: 6,
     });
   });
 

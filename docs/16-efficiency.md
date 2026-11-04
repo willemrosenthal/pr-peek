@@ -33,8 +33,8 @@ Estimates. Snapshot sizes are measured (step 16.0). The rest assumes 10 hours of
 | Per user                    | Syncs a day | GitHub requests a day | Database egress a month |
 | --------------------------- | ----------- | --------------------- | ----------------------- |
 | Today                       | 1,440       | ~8,600                | ~4.5 GB                 |
-| After this plan, phone/web  | ~260        | ~370                  | ~0.14 GB                |
-| After this plan, Mac app on | ~460        | ~650                  | ~0.23 GB                |
+| After this plan, phone/web  | ~260        | ~650                  | ~0.14 GB                |
+| After this plan, Mac app on | ~460        | ~1,150                | ~0.23 GB                |
 
 - **Free plan:** about 20 to 25 users fit in the 5 GB of egress, depending on how many use the Mac app. Today, about 1 does: 2 users plus pg-boss's polling come to around 10 GB a month.
 - **100 users:** about $39 a month ($25 Supabase Pro, $14 Render), well inside Pro's 250 GB. Today, about $57, and the worker couldn't keep up, so syncs and pushes would run late.
@@ -84,13 +84,14 @@ The first row that matches wins. **All the numbers live in one file, `apps/serve
 - **Sync on open:** when someone comes back to the app (their first request in 10 minutes or more) and their last sync is older than 2 minutes, a sync is queued right away. Not for users who must sign in again, or whose syncs are backing off after failures. The list is fresh within seconds, not after the next scheduled sync.
 - **The cost:** a push can arrive up to 2 minutes after the event while you use the app or the Mac app runs, and up to 5 with neither. A high severity push that breaks quiet hours can be up to 15 minutes late. Pull to refresh and "Refresh now" still sync right away.
 
-## Key decision: one GitHub request for all 5 searches
+## Key decision: two searches instead of five
 
-GraphQL lets one request run several searches, each under its own alias. The first page of all 5 comes back in one round trip. Only a search with more than 100 results asks for more pages.
+GitHub's `involves:@me` matches PRs the user authored, is assigned to, is mentioned in, or commented on. That's four of our five searches in one. The other is review requests.
 
-- Most syncs go from 5 requests in a row to 1.
-- About the same GitHub points.
+- Each sync goes from 5 search requests in a row to 2.
+- Measured on 4 November 2026: each search takes about 3 to 4 seconds. `involves:@me` took 3.7 seconds and found exactly the PRs the four searches did, which took 12.7 together. So the searches go from about 16 seconds to about 7.
 - Requests stay one at a time per user, as GitHub asks.
+- **Not chosen, all 5 searches in one request** (each under its own alias), the first plan: GitHub runs them one after another, and stops any request that runs over 10 seconds. It failed all 3 times we tried (502 and 504, after about 11 seconds). Two searches in one request would sit close to that limit too.
 
 ## Key decision: quieter background work
 
@@ -99,7 +100,8 @@ GraphQL lets one request run several searches, each under its own alias. The fir
 
 ## Key decision: raise the worker's limits now, and alert on trouble
 
-- **6 syncs at once** (up from 3), and a worker database pool of **10** (up from 5). A ceiling costs nothing while idle. Each sync holds a few MB, well inside Render Starter's 512 MB. 10 + 5 (web) + 1 (live updates) connections is well under Supabase's free limit.
+- **6 syncs at once** (up from 3). A ceiling costs nothing while idle. Each sync holds a few MB, well inside Render Starter's 512 MB.
+- **The database pool stays at 5.** Supabase's session pooler, which we connect through, allows about 15 connections in all on the free plan (Database settings, Connection pooling, Pool Size). Web 5 + live updates 1 + worker 5 is already 11, and Render briefly runs old and new copies side by side during a deploy. Syncs mostly wait on GitHub, and only hold a connection for short reads and their save, so 6 syncs share 5 connections fine. A save that finds none free waits for one (up to 10 seconds, `ITEMS_TX`).
 - **Alerts:** a worker job, once an hour, sends a push to the admin (you) when:
   - the database passes 70% of the free plan's 500 MB,
   - users are 15 minutes or more past their sync interval,
@@ -113,7 +115,7 @@ GraphQL lets one request run several searches, each under its own alias. The fir
 
 1. This plan.
 2. **Sync less** (16.1, 16.2): `perf(server): sync less often when nobody is looking`.
-3. **Faster syncs** (16.3, 16.4): `perf(server): one GitHub request for all searches`.
+3. **Faster syncs** (16.3, 16.4): `perf(server): two GitHub searches instead of five`.
 4. **Alerts** (16.5): `feat(server): alert the admin when usage nears a limit`.
 5. **No snapshots** (16.6): `perf(server): stop storing PR snapshots`. Has a migration.
 6. **Drop the column** (16.7): `chore(server): drop the snapshot column`. Once PR 5 has been live for a release, so a server mid-deploy never reads a missing column.
@@ -170,18 +172,18 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 - [x] User row updates in the sync, `markActive`, and the Mac heartbeat return nothing (`updateMany`). The end of a sync clears `syncStartedAt` in the same update that saves the result.
 - [x] Tests: `lastSeenAt` is left alone when recent, and moved when old. The queues are set up right, including ones made before.
 
-### 16.3 One search request
+### 16.3 Two searches
 
-- [ ] `findRelevantPrs` sends one query with the 5 searches as aliases (`review`, `authored`, `commented`, `mentioned`, `assigned`), 100 results each.
-- [ ] Any search with `hasNextPage` keeps paging on its own with today's query, up to 10 pages.
-- [ ] Tests: one request when every search fits in a page. Paging for the one that doesn't. `includeTeamRequests` still picks the right search.
+- [x] Try one request with all 5 searches against GitHub. It timed out, so: `findRelevantPrs` runs review requests, then `involves:@me`, one after another. Paging stays as it was, up to 10 pages per search.
+- [x] The test fake answers `involves:@me` with the PRs of the four searches it replaces, each once.
+- [x] Tests: two searches, merged by PR. `includeTeamRequests` still picks the right search. Up to 10 pages each.
 
 ### 16.4 Worker limits
 
-- [ ] `SYNC_CONCURRENCY` comes from config, default 6. Add it to `.env.example`.
-- [ ] `render.yaml`: the worker sets `DB_POOL_MAX` to 10. The web service keeps 5.
-- [ ] The dispatch log adds `lagging`: the due users more than 2 minutes past their interval.
-- [ ] Plan 10, step 10.4: its concurrency and sync lag item points here.
+- [x] `SYNC_CONCURRENCY` comes from config, default 6. Add it to `.env.example`.
+- [x] `DB_POOL_MAX` stays at 5 for both services. The plan said 10 for the worker, but the session pooler's limit is about 15 connections in all.
+- [x] The dispatch log adds `lagging`: the due users more than 2 minutes past their interval. `dueUserIds` becomes `dueUsers`, which says how late each one is.
+- [x] Plan 10, step 10.4: its concurrency and sync lag item points here.
 
 ### 16.5 Alerts
 
@@ -212,7 +214,7 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 
 ## Done when
 
-- [ ] A normal sync with nothing new reads no snapshots and makes one search request. Check with the "sync done" log (`fullPass: false`, `fetched: 0`).
+- [ ] A normal sync with nothing new reads no snapshots and makes two search requests. Check with the "sync done" log (`fullPass: false`, `fetched: 0`).
 - [ ] A settings change, like hiding bots, shows "Updating your list…", then the list changes within a few seconds.
 - [ ] With the app closed, a new review request pushes within 5 minutes. With the app open or the Mac app running, within 2 (You).
 - [ ] Opening the app after an hour away shows a fresh list within seconds (You).

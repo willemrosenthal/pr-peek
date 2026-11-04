@@ -104,10 +104,10 @@ export async function findRelevantPrs(
     options.includeTeamRequests
       ? "review-requested:@me"
       : "user-review-requested:@me",
-    "author:@me",
-    "commenter:@me -author:@me",
-    "mentions:@me -author:@me",
-    "assignee:@me -author:@me",
+    // PRs the user authored, is assigned to, is mentioned in, or commented on. One search
+    // for all four, since each takes a few seconds. Not one request for both searches
+    // either: GitHub stops a request that runs over 10 seconds.
+    "involves:@me",
   ];
 
   const prs = new Map<string, PrStatus>();

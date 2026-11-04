@@ -4,7 +4,7 @@ import { prGitHub, searchHit, searchQueries } from "../../test/pulls";
 import { fetchPrStatuses, findRelevantPrs } from "./pull-search";
 
 describe("findRelevantPrs", () => {
-  it("runs the five searches and merges the results by PR", async () => {
+  it("runs two searches, and merges the results by PR", async () => {
     const { octokit, requests } = fakeGraphQL(
       prGitHub({
         reviewRequested: [searchHit("PR_1"), {}, null],
@@ -22,10 +22,7 @@ describe("findRelevantPrs", () => {
 
     expect(searchQueries(requests)).toEqual([
       "is:pr is:open archived:false sort:updated-desc review-requested:@me",
-      "is:pr is:open archived:false sort:updated-desc author:@me",
-      "is:pr is:open archived:false sort:updated-desc commenter:@me -author:@me",
-      "is:pr is:open archived:false sort:updated-desc mentions:@me -author:@me",
-      "is:pr is:open archived:false sort:updated-desc assignee:@me -author:@me",
+      "is:pr is:open archived:false sort:updated-desc involves:@me",
     ]);
     expect([...prs.keys()]).toEqual(["PR_1", "PR_2", "PR_3", "PR_4", "PR_5"]);
     expect(prs.get("PR_2")).toEqual({
@@ -66,7 +63,7 @@ describe("findRelevantPrs", () => {
 
     await findRelevantPrs(octokit, { includeTeamRequests: true });
 
-    expect(requests).toHaveLength(50);
+    expect(requests).toHaveLength(20);
     expect(requests.slice(0, 2).map((r) => r.variables.cursor)).toEqual([
       null,
       "next",

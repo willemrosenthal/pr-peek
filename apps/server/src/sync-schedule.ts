@@ -20,6 +20,8 @@ const DAY_MS = 24 * 60 * MINUTE_MS;
 const DISPATCH_SLACK_MS =
   (POLL_SCHEDULED_SECONDS + POLL_JOBS_SECONDS + 5) * 1000;
 const MAX_BACKOFF_MS = 30 * MINUTE_MS;
+// A due sync this late means the worker is falling behind.
+const LAGGING_MS = 2 * MINUTE_MS;
 // Below this many GraphQL points left, wait for GitHub's limit to reset.
 const LOW_POINTS = 500;
 
@@ -64,8 +66,16 @@ export function syncIntervalMs(user: ScheduleUser, now: Date): number {
 export const backoffMs = (failures: number) =>
   Math.min(2 ** failures * MINUTE_MS, MAX_BACKOFF_MS);
 
+export interface DueUser {
+  id: string;
+  // How long past its interval the sync is. 0 for a user who never synced.
+  lateMs: number;
+}
+
+export const isLagging = (user: DueUser) => user.lateMs > LAGGING_MS;
+
 // Users whose next sync is due.
-export async function dueUserIds(db: Db, now: Date): Promise<string[]> {
+export async function dueUsers(db: Db, now: Date): Promise<DueUser[]> {
   const users = await db.user.findMany({
     where: {
       AND: [
@@ -91,14 +101,12 @@ export async function dueUserIds(db: Db, now: Date): Promise<string[]> {
   });
   // The start of the minute, not when the worker got to it, which varies.
   const tick = Math.floor(now.getTime() / MINUTE_MS) * MINUTE_MS;
-  return users
-    .filter(
-      (user) =>
-        !user.lastSyncedAt ||
-        tick - user.lastSyncedAt.getTime() + DISPATCH_SLACK_MS >=
-          syncIntervalMs(user, now),
-    )
-    .map((user) => user.id);
+  return users.flatMap((user) => {
+    const lateMs = user.lastSyncedAt
+      ? tick - user.lastSyncedAt.getTime() - syncIntervalMs(user, now)
+      : 0;
+    return lateMs + DISPATCH_SLACK_MS >= 0 ? [{ id: user.id, lateMs }] : [];
+  });
 }
 
 // Calls `onLimit` with GitHub's rate limit after each response.

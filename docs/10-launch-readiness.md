@@ -35,7 +35,7 @@
 ### 10.4 Limits and cost control
 
 - [ ] Caps per user: watched repos (50), devices (10), manual refreshes (once per 30 seconds).
-- [ ] A worker concurrency setting, and a log or metric for "sync queue lag" (how far behind schedule syncs are). If it grows, raise concurrency or upgrade the worker plan.
+- [x] A worker concurrency setting, and a log or metric for "sync queue lag" (how far behind schedule syncs are). If it grows, raise concurrency or upgrade the worker plan. Done in [plan 16](16-efficiency.md), step 16.4: `SYNC_CONCURRENCY`, and `lagging` in the "sync dispatch" log.
 - [ ] Optional invite codes or an allow list for a closed beta.
 
 ### 10.5 Monitoring

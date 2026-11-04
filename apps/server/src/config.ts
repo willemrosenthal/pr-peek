@@ -18,6 +18,9 @@ const schema = z
     DATABASE_URL: z.url(),
     // Max connections per pool. Kept small to stay under Supabase's free plan limit.
     DB_POOL_MAX: z.coerce.number().int().positive().default(5),
+    // Syncs the worker runs at once. They mostly wait on GitHub, and only hold a database
+    // connection for short reads and their save, so this can be above DB_POOL_MAX.
+    SYNC_CONCURRENCY: z.coerce.number().int().positive().default(6),
     // Signs the session cookie. Generate with: openssl rand -base64 32
     SESSION_SECRET: z.string().min(32),
     // Encrypts GitHub tokens. Generate with: openssl rand -base64 32

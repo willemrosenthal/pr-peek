@@ -126,7 +126,7 @@ describe("syncUser", () => {
 
     expect(result).toMatchObject({ found: 1, fetched: 0 });
     expect(detailIds(requests)).toEqual([]);
-    expect(searchQueries(requests)).toHaveLength(5);
+    expect(searchQueries(requests)).toHaveLength(2);
   });
 
   it("moves a found PR's lastSeenAt forward at most once an hour", async () => {
