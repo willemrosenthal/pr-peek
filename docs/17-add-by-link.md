@@ -31,11 +31,13 @@ Today the sync skips PRs in repos you don't watch, marks them `unwatched`, and t
 
 ### Unflag to stop tracking
 
-Unflagging an added PR clears `importantAt` and `addedAt`. If the searches haven't found it since it was added, and it has no open items, the row is deleted. Otherwise it stays, as a normal PR the searches found.
+Unflagging an added PR clears `importantAt` and `addedAt`. It leaves the list right away: the list only shows PRs with nothing to do if they're yours or flagged.
+
+The row isn't deleted on the spot. Unflagging also sets its `lastSeenAt` back 7 days and queues a sync, so the sync's usual cleanup decides. If the searches still find it, it stays as a normal PR. If not, and it has no open items, it's deleted. Deleting it on the spot could lose a PR the searches also track, and a new row would notify again about old events.
 
 ### Already on the list? Just flag it
 
-Adding a PR you already track flags it, closes the dialog, and scrolls to its row with a short highlight. Not an error.
+Adding a PR you already track flags it, closes the dialog, and scrolls to its row with a short highlight. Not an error. It doesn't set `addedAt`, since the searches found it on their own, so unflagging it later works as it does today.
 
 ### Cost
 
@@ -43,7 +45,7 @@ Each sync already checks tracked PRs the searches missed, by ID, up to 100 per G
 
 Adding one costs a lookup or two, once. The dialog looks the PR up only after the link parses, never per keystroke.
 
-A cap of **25 added PRs** per person keeps the worst case small.
+A cap of **25 added PRs** per person keeps the worst case small. Merged ones still on the list count.
 
 ### Clear errors
 
@@ -70,20 +72,22 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 ### 17.1 Track added PRs
 
 - [ ] Migration: `PullRequest.addedAt DateTime?`.
-- [ ] Sync: added PRs count as watched. They're checked by ID with the other missed PRs, never marked `unwatched`, and their details load when they change. A user with no watched repos still syncs their added PRs.
+- [ ] Sync: added PRs count as watched. They're checked by ID with the other missed PRs, never marked `unwatched` (at the start, or when a PR moved repos), and their details load when they change. A user with no watched repos still syncs their added PRs: today `fetchFromGitHub` returns early for them.
 - [ ] Clean up as today: merged ones stay until unflagged, closed ones leave after 7 days.
 - [ ] The list: added PRs show whatever their repo. Merged added PRs show too, though `mergedPrs` hides other merged PRs in repos you don't watch.
-- [ ] A new `watching` group in `packages/core`. The section a PR goes in, with no item to go by: yours, assigned, reviewing, or else Watching (was: Needs my review).
+- [ ] A new `watching` group in `packages/core`. `idleGroup` in `item-list.ts` picks the section for a PR with no item to go by: yours, assigned, reviewing, or else Watching (was: Needs my review). The sync saves it as `listGroup`.
+- [ ] Stored rows keep their old `listGroup` until refetched. The full pass after the deploy refetches open PRs. Merged rows aren't, so the migration clears `lastPushSha` on merged rows whose `listGroup` is `review`. The plan 16 backfill (`backfill.ts`) picks rows by an empty `lastPushSha`, and refills all three columns from their snapshot, with the new `idleGroup`. `lastPushSha` only matters for open PRs, so clearing it on merged ones is safe. This must ship before plan 16 step 16.7 drops the snapshots.
 - [ ] Tests: an added PR in an unwatched repo syncs, changes, and merges like any other. One sync with an added PR makes no extra status request when other PRs were missed too. A user with only added PRs syncs. The Watching section gets the right PRs.
 
 ### 17.2 The routes
 
 - [ ] `parsePrLink(text)` in `packages/core`, used by the server and the web app. Takes every shape above, and also finds a link inside longer text, like an Android share ("Check this out https://github.com/…").
 - [ ] `GET /api/prs/lookup?link=…`: looks the PR up with one GraphQL request (`repository { issueOrPullRequest(number) }`), so an issue can be told from a PR. Returns its title, repo, author, state, and whether you already track it.
-- [ ] `POST /api/prs` with `{ link }`: if you track it, flags it and returns its ID. If not, checks the cap, looks it up, saves it with `importantAt` and `addedAt`, and queues a sync for you, so its details and items fill in within seconds. Sends the usual live update.
-- [ ] `DELETE /prs/:id/important`: for an added PR, clears `addedAt` too, and deletes the row as in [Unflag to stop tracking](#unflag-to-stop-tracking).
+- [ ] `POST /api/prs` with `{ link }`: if you track it, flags it and returns its ID, with `alreadyFlagged` if it was. If not, checks the cap, looks it up, and saves it with `importantAt`, `addedAt`, and `listGroup: "watching"`. Sends the usual live update, and queues a sync for you.
+- [ ] That sync must fetch the new PR's details and run the rules on it. Since plan 16 PR 5a, a sync only does that for PRs whose `githubUpdatedAt` changed (`needsDetails`). So the route saves `githubUpdatedAt` as the epoch, and the sync sees it as changed.
+- [ ] `DELETE /prs/:id/important`: for an added PR, clears `addedAt` too, sets `lastSeenAt` back, and queues a sync, as in [Unflag to stop tracking](#unflag-to-stop-tracking).
 - [ ] Both new routes use `attemptLimiter`. Errors return a code the web app turns into the messages in [Clear errors](#clear-errors).
-- [ ] Tests: each link shape, each error, the cap, adding one you already track, and unflagging an added PR with and without open items.
+- [ ] Tests: each link shape, each error, the cap (merged ones count), adding one you already track, and that the next sync fills in a new one's items. Unflagging an added PR: deleted by the next sync when the searches don't find it, kept when they do, kept with open items.
 
 ### 17.3 The Watching section on screen
 
@@ -99,11 +103,11 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 
 ### 17.5 Paste and drop
 
-- [ ] A `paste` listener on the list page. Ignored when typing in a field. If the text is a PR link, add it right away and show a toast: "Added owner/repo#123", with Undo (unflags it). On an error, the toast shows the message instead.
+- [ ] A `paste` listener on the list page. Ignored when typing in a field. If the text is a PR link, add it right away and show a toast: "Added owner/repo#123", with Undo (unflags it). If it was already flagged, the toast says "Already on your list", with no Undo, so Undo never unflags something you flagged before. On an error, the toast shows the message instead.
 - [ ] A small `Toast` component. There isn't one yet.
 - [ ] Drop: the list page takes `dragover` and `drop`, reading `text/uri-list`, then `text/plain`. While a link is dragged over, the list shows an outline and "Drop to add". Then it works like paste.
 - [ ] Mac app: call `.disable_drag_drop_handler()` on the window in `lib.rs`. Without it, Tauri catches drops for its own file drop events, and the page never sees them. We don't use those events.
-- [ ] Tests: paste and drop add a PR, other text is ignored, and Undo unflags.
+- [ ] Tests: paste and drop add a PR, other text is ignored, Undo unflags, and an already flagged PR shows no Undo.
 
 ### 17.6 Share on Android
 
@@ -124,4 +128,4 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 - [ ] Unflagging it removes it from the list, and it's gone after a refresh.
 - [ ] Paste, drop on the Mac dropdown, and share on Android all add a PR (You).
 - [ ] Each error in [Clear errors](#clear-errors) shows its message.
-- [ ] A sync with 3 added PRs and nothing new makes the same number of GitHub requests as before. Check the "sync done" log.
+- [ ] A sync with 3 added PRs and nothing new makes at most one more GitHub request than before, and none when other PRs were missed too.
