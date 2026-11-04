@@ -11,6 +11,14 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDczNTcxQ0E4NDAzNkI1NTEKUldSUnRUWkFxQnhYYzI3cE9hS1QwQ1A4QzBKd2ZVS0hNQml4L3llUEY5UVdybDdSM0J0TEFRdGMK",
+      "endpoints": [
+        "https://github.com/willemrosenthal/pr-peek/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": ["app", "dmg"],

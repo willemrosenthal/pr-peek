@@ -9,6 +9,8 @@ fn main() {
             "launch_at_login",
             "set_launch_at_login",
             "pop_out",
+            "update_ready",
+            "restart_to_update",
         ]),
     ))
     .expect("tauri-build failed");

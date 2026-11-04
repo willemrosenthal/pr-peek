@@ -4,8 +4,8 @@ import { inDropdown } from "./hooks/useIsTray";
 import { localSetting } from "./localSetting";
 
 // The Mac menu bar app (apps/desktop). Everything here does nothing in a browser. The
-// native side fires `pr-peek:hidden`, `pr-peek:shown`, and `pr-peek:refresh` on
-// `window`. This module fires `pr-peek:wake`, and shows each `pr-peek:notify` from the
+// native side fires `pr-peek:hidden`, `pr-peek:shown`, `pr-peek:refresh`, and
+// `pr-peek:update-ready` on `window`. This module fires `pr-peek:wake`, and shows each `pr-peek:notify` from the
 // live stream.
 
 export const inDesktopApp = () => isTauri();
@@ -67,6 +67,14 @@ export const popOut = () => call("pop_out");
 export const launchAtLogin = () => invoke<boolean>("launch_at_login");
 export const setLaunchAtLogin = (on: boolean) =>
   invoke("set_launch_at_login", { on });
+
+// Whether a new version of the Mac app has installed and waits for a restart. Versions
+// from before updates don't know the command, so they answer no.
+export const updateReady = () =>
+  isTauri()
+    ? invoke<boolean>("update_ready").catch(() => false)
+    : Promise.resolve(false);
+export const restartToUpdate = () => call("restart_to_update");
 
 // Menu bar settings, kept on this Mac.
 export const countStyle = localSetting<CountStyle>(

@@ -9,14 +9,15 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::utils::config::BackgroundThrottlingPolicy;
 use tauri::window::Color;
 use tauri::{
-    AppHandle, LogicalSize, Manager, PhysicalPosition, Rect, Theme, Url, WebviewUrl,
-    WebviewWindow, WebviewWindowBuilder, WindowEvent, Wry,
+    AppHandle, LogicalSize, Manager, PhysicalPosition, Rect, Theme, Url, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder, WindowEvent, Wry,
 };
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_positioner::{Position, WindowExt};
+use tauri_plugin_updater::UpdaterExt;
 
 const WINDOW: &str = "main";
 const TRAY: &str = "main";
@@ -33,6 +34,7 @@ const DROPDOWN_SIZE: (f64, f64) = (420.0, HEIGHT);
 const WINDOW_SIZE: (f64, f64) = (480.0, HEIGHT);
 // Space between the menu bar and the top of the dropdown.
 const MENU_BAR_GAP: f64 = 12.0;
+const UPDATE_CHECK_EVERY: Duration = Duration::from_secs(6 * 60 * 60);
 
 const ICON_PLAIN: &[u8] = include_bytes!("../icons/tray.png");
 const ICON_STALE: &[u8] = include_bytes!("../icons/tray-stale.png");
@@ -402,7 +404,143 @@ fn replace_old_login_item(app: &AppHandle) {
     }
 }
 
-fn build_tray(app: &AppHandle) -> tauri::Result<CheckMenuItem<Wry>> {
+// Updates. A new version downloads and installs in the background, then waits for a
+// restart. Until then the app keeps running the old version.
+#[derive(Default)]
+struct Updates {
+    checking: AtomicBool,
+    ready: AtomicBool,
+}
+
+// The "Check for updates" menu item. It becomes "Restart to update" once one is ready.
+struct UpdateMenuItem(MenuItem<Wry>);
+
+fn update_is_ready(app: &AppHandle) -> bool {
+    app.state::<Updates>().ready.load(Ordering::Relaxed)
+}
+
+// What a check found.
+enum UpdateCheck {
+    Ready,
+    UpToDate,
+    Busy,
+}
+
+// Looks for a newer version and installs it. Releases come from this repo's GitHub
+// Releases (`plugins.updater` in tauri.conf.json), signed with our updater key.
+async fn install_update(app: &AppHandle) -> Result<UpdateCheck, String> {
+    if update_is_ready(app) {
+        return Ok(UpdateCheck::Ready);
+    }
+    let updates = app.state::<Updates>();
+    if updates.checking.swap(true, Ordering::Relaxed) {
+        return Ok(UpdateCheck::Busy);
+    }
+    let result = download_and_install(app).await;
+    updates.checking.store(false, Ordering::Relaxed);
+    if !result? {
+        return Ok(UpdateCheck::UpToDate);
+    }
+    updates.ready.store(true, Ordering::Relaxed);
+    if let Some(item) = app.try_state::<UpdateMenuItem>() {
+        let _ = item.0.set_text("Restart to update");
+    }
+    if let Some(window) = main_window(app) {
+        tell_page(&window, "update-ready");
+    }
+    Ok(UpdateCheck::Ready)
+}
+
+// True if there was an update to install.
+async fn download_and_install(app: &AppHandle) -> Result<bool, String> {
+    let updater = app.updater().map_err(|err| err.to_string())?;
+    let Some(update) = updater.check().await.map_err(|err| err.to_string())? else {
+        return Ok(false);
+    };
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|err| err.to_string())?;
+    Ok(true)
+}
+
+// Checks on launch and every few hours, until an update is ready. Dev builds don't, so
+// they never replace themselves with a release.
+fn check_for_updates_regularly(app: &AppHandle) {
+    if cfg!(debug_assertions) {
+        return;
+    }
+    let app = app.clone();
+    std::thread::spawn(move || loop {
+        match tauri::async_runtime::block_on(install_update(&app)) {
+            Ok(UpdateCheck::Ready) => return,
+            Err(err) => eprintln!("pr-peek: couldn't check for updates: {err}"),
+            _ => {}
+        }
+        std::thread::sleep(UPDATE_CHECK_EVERY);
+    });
+}
+
+// A notification that answers "Check for updates". Clicking it opens the dropdown.
+fn tell_user(app: &AppHandle, title: &str, body: &str) {
+    let _ = app.notification().builder().title(title).body(body).show();
+}
+
+// The menu item. Restarts if an update is ready, or checks now and says what it found.
+fn check_for_updates_now(app: &AppHandle) {
+    if update_is_ready(app) {
+        app.restart();
+    }
+    if cfg!(debug_assertions) {
+        tell_user(
+            app,
+            "Updates are off",
+            "Dev builds don't update themselves.",
+        );
+        return;
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        match tauri::async_runtime::block_on(install_update(&app)) {
+            // The menu item and the dropdown say so.
+            Ok(UpdateCheck::Ready) | Ok(UpdateCheck::Busy) => {}
+            Ok(UpdateCheck::UpToDate) => {
+                let version = app.package_info().version.to_string();
+                tell_user(
+                    &app,
+                    "Git Buddy is up to date",
+                    &format!("Version {version}"),
+                );
+            }
+            Err(err) => {
+                eprintln!("pr-peek: couldn't check for updates: {err}");
+                tell_user(&app, "Couldn't check for updates", "Try again later.");
+            }
+        }
+    });
+}
+
+#[tauri::command]
+fn update_ready(app: AppHandle) -> bool {
+    log_command("update_ready");
+    update_is_ready(&app)
+}
+
+// Opens the new version. Does nothing until one is ready.
+#[tauri::command]
+fn restart_to_update(app: AppHandle) {
+    log_command("restart_to_update");
+    if update_is_ready(&app) {
+        app.restart();
+    }
+}
+
+struct TrayMenuItems {
+    launch: CheckMenuItem<Wry>,
+    update: MenuItem<Wry>,
+}
+
+fn build_tray(app: &AppHandle) -> tauri::Result<TrayMenuItems> {
     let refresh = MenuItem::with_id(app, "refresh", "Refresh", true, None::<&str>)?;
     let open = MenuItem::with_id(app, "open", "Open in browser", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
@@ -414,11 +552,14 @@ fn build_tray(app: &AppHandle) -> tauri::Result<CheckMenuItem<Wry>> {
         launch_at_login_on(app),
         None::<&str>,
     )?;
+    let update = MenuItem::with_id(app, "update", "Check for updates", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Git Buddy", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
-        &[&refresh, &open, &settings, &launch, &separator, &quit],
+        &[
+            &refresh, &open, &settings, &launch, &update, &separator, &quit,
+        ],
     )?;
 
     TrayIconBuilder::with_id(TRAY)
@@ -448,6 +589,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<CheckMenuItem<Wry>> {
                 // Flips the real setting, whatever the checkbox shows.
                 let _ = apply_launch_at_login(app, !launch_at_login_on(app));
             }
+            "update" => check_for_updates_now(app),
             "quit" => app.exit(0),
             _ => {}
         })
@@ -467,7 +609,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<CheckMenuItem<Wry>> {
             }
         })
         .build(app)?;
-    Ok(launch)
+    Ok(TrayMenuItems { launch, update })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -486,6 +628,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app, shortcut, event| {
@@ -499,6 +642,7 @@ pub fn run() {
         .manage(IconRect::default())
         .manage(LinkOpenedAt::default())
         .manage(PoppedOut::default())
+        .manage(Updates::default())
         .invoke_handler(tauri::generate_handler![
             set_tray_state,
             open_external,
@@ -506,7 +650,9 @@ pub fn run() {
             notify,
             launch_at_login,
             set_launch_at_login,
-            pop_out
+            pop_out,
+            update_ready,
+            restart_to_update
         ])
         .setup(move |app| {
             // No Dock icon. The app lives in the menu bar.
@@ -550,9 +696,11 @@ pub fn run() {
                 _ => {}
             });
 
-            let launch = build_tray(app.handle())?;
-            app.manage(LaunchMenuItem(launch));
+            let items = build_tray(app.handle())?;
+            app.manage(LaunchMenuItem(items.launch));
+            app.manage(UpdateMenuItem(items.update));
             launch_at_login_by_default(app.handle());
+            check_for_updates_regularly(app.handle());
 
             let clicked = app.handle().clone();
             app.notification().on_action(move |action| {

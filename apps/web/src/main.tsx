@@ -3,6 +3,7 @@ import { LucideProvider } from "lucide-react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";
+import { AppUpdatePrompt } from "./components/AppUpdatePrompt";
 import { UpdatePrompt } from "./components/UpdatePrompt";
 import { startDesktop } from "./desktop";
 import { createRouter } from "./router";
@@ -24,6 +25,7 @@ createRoot(document.getElementById("root")!).render(
         <RouterProvider router={createRouter()} />
       </QueryClientProvider>
       <UpdatePrompt />
+      <AppUpdatePrompt />
     </LucideProvider>
   </StrictMode>,
 );
