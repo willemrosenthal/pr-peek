@@ -25,6 +25,8 @@ tauri-plugin-updater = "2"
 
 # Control-click on the menu bar icon opens the menu, like a right click. Our fix to
 # tray-icon, until it ships there: https://github.com/tauri-apps/tray-icon/pull/397
-# Remove this once Tauri uses a tray-icon release with it.
+# Remove this once Tauri uses a tray-icon release with it. If cargo warns that the
+# patch wasn't used, Tauri moved to a newer tray-icon without it: put the fix on a branch
+# of our fork for that version, and point rev at it.
 [patch.crates-io]
-tray-icon = { git = "https://github.com/willemrosenthal/tray-icon", rev = "fb4c7f54d366d379dfd0b4f4bda800a070a42921" }
+tray-icon = { git = "https://github.com/willemrosenthal/tray-icon", rev = "bc068e0f4fc1d76eaf37c9c8931968af992f4bcb" }

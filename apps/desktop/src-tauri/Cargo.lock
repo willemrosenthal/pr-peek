@@ -792,7 +792,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4593,7 +4593,7 @@ dependencies = [
 [[package]]
 name = "tray-icon"
 version = "0.25.1"
-source = "git+https://github.com/willemrosenthal/tray-icon?rev=fb4c7f54d366d379dfd0b4f4bda800a070a42921#fb4c7f54d366d379dfd0b4f4bda800a070a42921"
+source = "git+https://github.com/willemrosenthal/tray-icon?rev=bc068e0f4fc1d76eaf37c9c8931968af992f4bcb#bc068e0f4fc1d76eaf37c9c8931968af992f4bcb"
 dependencies = [
  "crossbeam-channel",
  "dirs 7.0.0",
@@ -5320,7 +5320,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d6f32a0ff4a9f6f01231eb2059cc85479330739333e0e58cadf03b6af2cca10"
 dependencies = [
  "cfg-if",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
