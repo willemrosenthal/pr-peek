@@ -88,33 +88,30 @@ export const detectItems = (
     .filter((s) => s.enabled)
     .flatMap((s) => s.rule.detect(snapshot, ctx));
 
-// The user's enabled rules, ready to run on PRs. `viewerTeams` are the user's teams, as
-// the sync keeps them on the user's row.
+// Who the rules run for, as the sync reads them.
+export interface Viewer {
+  login: string;
+  // As "org/team-slug". Empty when team requests are off.
+  teams: string[];
+  includeTeamRequests: boolean;
+  hideBots: boolean;
+}
+
+// The user's enabled rules, ready to run on PRs.
 export async function prepareRules(
   db: Db,
   userId: string,
   now: Date,
-  viewerTeams: string[],
+  viewer: Viewer,
 ): Promise<(snapshot: PrSnapshot) => DetectedItem[]> {
-  const [user, settings, ruleSettings] = await Promise.all([
-    db.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { login: true },
-    }),
-    db.userSettings.findUnique({
-      where: { userId },
-      select: { includeTeamRequests: true, hideBots: true },
-    }),
-    loadRuleSettings(db, userId),
-  ]);
-  const includeTeamRequests = settings?.includeTeamRequests ?? true;
+  const ruleSettings = await loadRuleSettings(db, userId);
   const ctx: RuleContext = {
-    viewerLogin: user.login,
-    viewerTeams: includeTeamRequests ? viewerTeams : [],
+    viewerLogin: viewer.login,
+    viewerTeams: viewer.teams,
     now,
     settings: {
-      includeTeamRequests,
-      hideBots: settings?.hideBots ?? false,
+      includeTeamRequests: viewer.includeTeamRequests,
+      hideBots: viewer.hideBots,
       includeDrafts: includeDraftsFrom(ruleSettings),
     },
   };

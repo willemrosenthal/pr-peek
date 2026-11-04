@@ -18,6 +18,7 @@ import {
   resolveItemsOf,
   saveItems,
   type SavedPr,
+  type Viewer,
 } from "./items";
 import { quietPrs, wakeQuietPrs } from "./quiet";
 
@@ -146,8 +147,7 @@ interface FromGitHub {
   open: PrStatus[];
   ended: Map<string, EndedState>;
   details: PrDetails;
-  viewerLogin: string;
-  viewerTeams: string[];
+  viewer: Viewer;
   fullPass: boolean;
 }
 
@@ -174,7 +174,7 @@ async function fetchFromGitHub(
     }),
     db.userSettings.findUnique({
       where: { userId },
-      select: { includeTeamRequests: true },
+      select: { includeTeamRequests: true, hideBots: true },
     }),
     db.watchedRepo.findMany({
       where: { userId, enabled: true },
@@ -205,6 +205,13 @@ async function fetchFromGitHub(
       .filter((pr) => !watchedIds.has(pr.githubRepoId))
       .map((pr) => [pr.githubNodeId, "unwatched"]),
   );
+  const includeTeamRequests = settings?.includeTeamRequests ?? true;
+  const viewer = {
+    login: user.login,
+    teams: [],
+    includeTeamRequests,
+    hideBots: settings?.hideBots ?? false,
+  };
   if (watched.length === 0) {
     const details = { snapshots: [], failed: [] };
     return {
@@ -212,14 +219,12 @@ async function fetchFromGitHub(
       open: [],
       ended,
       details,
-      viewerLogin: user.login,
-      viewerTeams: [],
+      viewer,
       fullPass: false,
     };
   }
 
   const octokit = await deps.github(userId);
-  const includeTeamRequests = settings?.includeTeamRequests ?? true;
   const teams = includeTeamRequests
     ? await currentTeams(db, octokit, user, now)
     : { teams: [], changed: false };
@@ -265,8 +270,7 @@ async function fetchFromGitHub(
     open,
     ended,
     details,
-    viewerLogin: user.login,
-    viewerTeams: teams.teams,
+    viewer: { ...viewer, teams: teams.teams },
     fullPass,
   };
 }
@@ -278,17 +282,11 @@ export async function syncUser(
 ): Promise<SyncResult> {
   const { db } = deps;
   const now = (deps.now ?? (() => new Date()))();
-  const {
-    searchedIds,
-    open,
-    ended,
-    details,
-    viewerLogin,
-    viewerTeams,
-    fullPass,
-  } = await fetchFromGitHub(deps, userId, now);
+  const { searchedIds, open, ended, details, viewer, fullPass } =
+    await fetchFromGitHub(deps, userId, now);
+  const viewerLogin = viewer.login;
   // The rules run only on the PRs just fetched. A PR that didn't change keeps its items.
-  const detect = await prepareRules(db, userId, now, viewerTeams);
+  const detect = await prepareRules(db, userId, now, viewer);
 
   const repoIdOf = new Map(open.map((pr) => [pr.id, pr.githubRepoId]));
   // PRs and their items save together, so a PR is never stored without its items.
@@ -303,7 +301,7 @@ export async function syncUser(
       },
       data: { lastSeenAt: now },
     });
-    // Read before the upserts, to compare their old snapshots.
+    // Read before the upserts, to compare their last push with the new one.
     const quiet = await quietPrs(
       tx,
       userId,
