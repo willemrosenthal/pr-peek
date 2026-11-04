@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { haptic } from "./haptics";
 
 describe("haptic", () => {
+  // jsdom has no vibrate, like iPhones.
   afterEach(() => {
-    vi.restoreAllMocks();
     Reflect.deleteProperty(navigator, "vibrate");
   });
 

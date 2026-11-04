@@ -878,36 +878,67 @@ describe("the header", () => {
     expect(refresh.getAttribute("aria-busy")).toBe("false");
   });
 
-  it("refreshes when the list is pulled down far enough", async () => {
-    const fetch = fakeApi(
-      listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),
-    );
-    renderApp("/");
-    const list = await screen.findByText("Nothing needs you right now");
+  describe("pull to refresh", () => {
+    // Gives a refresh that shouldn't have started time to call the API.
+    const settle = () =>
+      act(() => new Promise((resolve) => setTimeout(resolve, 10)));
 
-    pull(list, 100);
-    expect(callsTo(fetch, "/api/sync")).toHaveLength(0);
+    it("refreshes when the list is pulled down far enough", async () => {
+      const fetch = fakeApi(
+        listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),
+      );
+      renderApp("/");
+      const list = await screen.findByText("Nothing needs you right now");
 
-    pull(list, 200);
-    await waitFor(() => expect(callsTo(fetch, "/api/sync")).toHaveLength(1));
-    expect(
-      screen.getByRole("button", { name: "Refresh" }).getAttribute("aria-busy"),
-    ).toBe("true");
-  });
+      pull(list, 100);
+      await settle();
+      expect(callsTo(fetch, "/api/sync")).toHaveLength(0);
 
-  it("doesn't refresh on a sideways swipe, or once scrolled down", async () => {
-    const fetch = fakeApi(
-      listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),
-    );
-    renderApp("/");
-    const list = await screen.findByText("Nothing needs you right now");
+      pull(list, 200);
+      await waitFor(() => expect(callsTo(fetch, "/api/sync")).toHaveLength(1));
+      expect(
+        screen
+          .getByRole("button", { name: "Refresh" })
+          .getAttribute("aria-busy"),
+      ).toBe("true");
+    });
 
-    pull(list, 200, 250);
-    Object.assign(window, { scrollY: 50 });
-    pull(list, 200);
-    Object.assign(window, { scrollY: 0 });
-    await act(() => Promise.resolve());
-    expect(callsTo(fetch, "/api/sync")).toHaveLength(0);
+    it("doesn't refresh on a sideways swipe, or once scrolled down", async () => {
+      const fetch = fakeApi(
+        listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),
+      );
+      renderApp("/");
+      const list = await screen.findByText("Nothing needs you right now");
+
+      pull(list, 200, 250);
+      Object.assign(window, { scrollY: 50 });
+      pull(list, 200);
+      Object.assign(window, { scrollY: 0 });
+      await settle();
+      expect(callsTo(fetch, "/api/sync")).toHaveLength(0);
+    });
+
+    // Like a finger that opened the preview with a long press, then moves down. The
+    // sheet keeps its own touches, so those are left out.
+    it("doesn't refresh while a preview is open", async () => {
+      const asked = item();
+      const fetch = fakeApi(
+        listApi({
+          "GET /api/items": () => json(groups({ review: [asked] })),
+          ...previewApi(asked),
+          "POST /api/sync": () => json({ queued: true }, 202),
+        }),
+      );
+      renderApp("/");
+      await sectionButton(/Needs my review/);
+      const row = rowOf(asked);
+      fireEvent.contextMenu(row);
+      await screen.findByRole("dialog", { name: asked.pr.title });
+
+      pull(row, 200);
+      await settle();
+      expect(callsTo(fetch, "/api/sync")).toHaveLength(0);
+    });
   });
 
   it("shows why a refresh was refused", async () => {

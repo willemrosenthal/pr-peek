@@ -61,6 +61,8 @@ export function PullToRefresh({
     root.dataset.pullToRefresh = "";
 
     const onStart = (event: TouchEvent) => {
+      // A second finger ends a pull without refreshing.
+      end();
       const finger = event.touches[0];
       touch.current =
         finger && event.touches.length === 1 && canStart()
@@ -88,7 +90,7 @@ export function PullToRefresh({
         t.pulling = true;
         setDragging(true);
       }
-      // Older browsers ignore the CSS above, so this stops them scrolling too.
+      // Older browsers ignore the overscroll CSS, so this stops them scrolling too.
       if (event.cancelable) event.preventDefault();
       const at = Math.min(MAX_PX, Math.max(0, dy - START_PX) * RESISTANCE);
       // Buzzes as it gets far enough, where the phone can buzz mid-pull.
@@ -134,7 +136,7 @@ export function PullToRefresh({
         )}
         style={{
           transform: `translateY(${shown}px)`,
-          opacity: Math.min(1, shown / ARM_PX),
+          opacity: spinning ? 1 : Math.min(1, shown / ARM_PX),
         }}
       >
         <RotateCw
