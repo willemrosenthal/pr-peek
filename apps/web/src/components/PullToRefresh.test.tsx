@@ -1,45 +1,25 @@
 import { fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { holdPull, pull } from "../test/swipe";
-import {
-  PullToRefreshSpinner,
-  pullOffset,
-  usePullToRefresh,
-} from "./PullToRefresh";
+import { PullToRefresh, pullOffset } from "./PullToRefresh";
 import styles from "./PullToRefresh.module.css";
-
-function Page({
-  refreshing,
-  onRefresh,
-}: {
-  refreshing: boolean;
-  onRefresh: () => void;
-}) {
-  const pulled = usePullToRefresh({ refreshing, onRefresh, enabled: true });
-  return (
-    <>
-      <PullToRefreshSpinner
-        offset={pulled.offset}
-        dragging={pulled.dragging}
-        refreshing={refreshing}
-      />
-      <div data-testid="page" {...pulled.page} />
-    </>
-  );
-}
 
 function setup() {
   const onRefresh = vi.fn();
-  const view = render(<Page refreshing={false} onRefresh={onRefresh} />);
-  const rerender = (refreshing: boolean) =>
-    view.rerender(<Page refreshing={refreshing} onRefresh={onRefresh} />);
-  const page = view.getByTestId("page");
+  const page = (refreshing: boolean) => (
+    <PullToRefresh refreshing={refreshing} onRefresh={onRefresh} enabled>
+      <p>The list</p>
+    </PullToRefresh>
+  );
+  const view = render(page(false));
+  const rerender = (refreshing: boolean) => view.rerender(page(refreshing));
+  const pageEl = view.getByText("The list").parentElement!;
   const spinner = view.container.querySelector<HTMLElement>(
     `.${styles.spinner}`,
   )!;
   const rainbow = view.container.querySelector(`.${styles.rainbow}`)!;
   const rainbowShown = () => rainbow.classList.contains(styles.shown!);
-  return { onRefresh, rerender, page, spinner, rainbowShown, view };
+  return { onRefresh, rerender, page: pageEl, spinner, rainbowShown, view };
 }
 
 // How far down the page is, in pixels. 0 at rest.
@@ -126,6 +106,22 @@ describe("usePullToRefresh", () => {
     fireEvent.touchEnd(document.body, { touches: [] });
     expect(onRefresh).not.toHaveBeenCalled();
     expect(pageAt(page)).toBe(0);
+  });
+
+  it("doesn't redraw the list inside while a finger pulls", () => {
+    let renders = 0;
+    function List() {
+      renders++;
+      return <p>Rows</p>;
+    }
+    render(
+      <PullToRefresh refreshing={false} onRefresh={vi.fn()} enabled>
+        <List />
+      </PullToRefresh>,
+    );
+    expect(renders).toBe(1);
+    pull(document.body, 200);
+    expect(renders).toBe(1);
   });
 
   it("goes back up without refreshing when a second finger lands", () => {

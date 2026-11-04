@@ -1,5 +1,5 @@
 import {
-  type CSSProperties,
+  type ReactNode,
   useEffect,
   useEffectEvent,
   useRef,
@@ -21,20 +21,48 @@ const ARM_PX = 72;
 export const pullOffset = (distance: number) =>
   MAX_PX * (1 - 1 / (1 + Math.max(0, distance) / MAX_PX));
 
-// Pulling the list down from the top refreshes it, like on an iPhone. Touch only: a
-// mouse or trackpad has the Refresh button. The page comes down with the finger, over
-// a spinner. Far enough, the gap turns rainbow, and letting go refreshes. The page
-// springs back up either way. During a refresh, a pull just shows it's running. Off
-// while `enabled` is false, like while a preview is open.
-export function usePullToRefresh({
-  refreshing,
-  onRefresh,
-  enabled,
-}: {
+interface Options {
   refreshing: boolean;
   onRefresh: () => void;
   enabled: boolean;
-}) {
+}
+
+// Pulling the list down from the top refreshes it, like on an iPhone. Touch only: a
+// mouse or trackpad has the Refresh button. This is the page that comes down with the
+// finger, over a spinner. Far enough, the gap turns rainbow, and letting go refreshes.
+// The page springs back up either way. During a refresh, a pull just shows it's
+// running. Off while `enabled` is false, like while a preview is open.
+//
+// The pull lives here, not in the page using it, so moving a finger redraws only
+// this, not the list inside it.
+export function PullToRefresh({
+  className,
+  children,
+  ...options
+}: Options & { className?: string | undefined; children: ReactNode }) {
+  const { offset, dragging } = usePull(options);
+  return (
+    <>
+      <Behind
+        offset={offset}
+        dragging={dragging}
+        refreshing={options.refreshing}
+      />
+      <div
+        className={cx(className, styles.page, dragging && styles.dragging)}
+        // No transform at rest, so nothing else changes then.
+        style={{
+          transform: offset > 0 ? `translateY(${offset}px)` : undefined,
+        }}
+      >
+        {children}
+      </div>
+    </>
+  );
+}
+
+// How far the page is down, while a finger pulls it.
+function usePull({ refreshing, onRefresh, enabled }: Options) {
   // How far the page is down.
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -121,14 +149,7 @@ export function usePullToRefresh({
     };
   }, []);
 
-  // For the page that comes down. No transform at rest, so nothing else changes then.
-  const page = {
-    className: cx(styles.page, dragging && styles.dragging),
-    style: {
-      transform: offset > 0 ? `translateY(${offset}px)` : undefined,
-    } satisfies CSSProperties,
-  };
-  return { offset, dragging, page };
+  return { offset, dragging };
 }
 
 // How far the ring turns as the page comes down, before it's far enough.
@@ -137,7 +158,7 @@ const TURN_DEG_PER_PX = 3;
 // What's behind the page, in the gap a pull opens above it: a ring that turns with
 // the pull, and the rainbow once letting go would refresh. During a refresh, the ring
 // spins and says so instead.
-export function PullToRefreshSpinner({
+function Behind({
   offset,
   dragging,
   refreshing,
@@ -148,7 +169,12 @@ export function PullToRefreshSpinner({
 }) {
   const armed = !refreshing && offset >= ARM_PX;
   return (
-    <div className={styles.behind} aria-hidden="true">
+    <div
+      className={styles.behind}
+      // As tall as the furthest pull, below the notch.
+      style={{ height: `calc(env(safe-area-inset-top) + ${MAX_PX}px)` }}
+      aria-hidden="true"
+    >
       <div className={cx(styles.rainbow, armed && styles.shown)} />
       <div
         className={cx(

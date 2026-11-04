@@ -11,10 +11,7 @@ import {
   type OnPreview,
   type PreviewTarget,
 } from "../components/PrPreview";
-import {
-  PullToRefreshSpinner,
-  usePullToRefresh,
-} from "../components/PullToRefresh";
+import { PullToRefresh } from "../components/PullToRefresh";
 import { cx } from "../cx";
 import { useIsTray } from "../hooks/useIsTray";
 import { useMarkSeen } from "../hooks/useMarkSeen";
@@ -58,22 +55,14 @@ export function ListPage() {
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
   // Closes when the app hides, so it opens on the plain list, like other pages.
   useWhenHidden(useCallback(() => setPreview(null), []));
-  const pull = usePullToRefresh({
-    refreshing: sync.refreshing,
-    onRefresh: sync.refresh,
-    enabled: preview === null,
-  });
 
   return (
     <main className={cx(styles.page, tray && styles.tray)}>
-      <PullToRefreshSpinner
-        offset={pull.offset}
-        dragging={pull.dragging}
+      <PullToRefresh
+        className={styles.panel}
         refreshing={sync.refreshing}
-      />
-      <div
-        className={cx(styles.panel, pull.page.className)}
-        style={pull.page.style}
+        onRefresh={sync.refresh}
+        enabled={preview === null}
       >
         <div className={styles.top}>
           <ListHeader
@@ -89,7 +78,7 @@ export function ListPage() {
           )}
         </div>
         <ListBody onPreview={setPreview} />
-      </div>
+      </PullToRefresh>
       <PrPreview
         target={preview}
         // The row moves, like after a swipe, so the sheet closes.

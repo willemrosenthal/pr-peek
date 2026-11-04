@@ -11,8 +11,8 @@
   transition: none;
 }
 
-/* Behind the page, at the top of the screen, as tall as the furthest pull. The page
-   covers it until a pull opens a gap above it. */
+/* Behind the page, at the top of the screen. The page covers it until a pull opens a
+   gap above it. Its height comes from PullToRefresh.tsx. */
 .behind {
   position: fixed;
   top: 0;
@@ -23,7 +23,6 @@
   /* The spinner stays its own height, so the pop scales it around its own middle. */
   align-items: flex-start;
   justify-content: center;
-  height: calc(env(safe-area-inset-top) + 160px);
   padding-top: env(safe-area-inset-top);
   pointer-events: none;
 }
@@ -62,13 +61,14 @@
 }
 
 .spinner {
+  --ring: 24px;
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-1);
   /* Half the ring's height, so its middle sits in the middle of the gap. */
-  margin-top: -12px;
+  margin-top: calc(var(--ring) / -2);
   transition:
     translate 0.35s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.2s,
@@ -109,9 +109,9 @@
 .armed::after {
   position: absolute;
   top: 0;
-  left: calc(50% - 12px);
-  width: 24px;
-  height: 24px;
+  left: calc(50% - var(--ring) / 2);
+  width: var(--ring);
+  height: var(--ring);
   border: 2px solid #fff;
   border-radius: 999px;
   content: "";
@@ -132,8 +132,8 @@
 }
 
 .ring {
-  width: 24px;
-  height: 24px;
+  width: var(--ring);
+  height: var(--ring);
   border: 3px solid var(--color-border);
   border-top-color: var(--color-accent);
   border-radius: 999px;
