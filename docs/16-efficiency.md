@@ -204,7 +204,7 @@ PR 5a, the sync:
 - [x] Backfill (`backfill.ts`): on start, the worker fills the three new PR columns from the stored snapshot for every row without them. Merged and ended PRs included.
 - [x] The sync sets the three new PR columns from each fetched copy.
 - [x] A normal sync runs the rules only on the PRs it fetched. A full pass fetches every open PR, runs the rules on all of them, and sets `rulesRunAt`. Full pass when `rulesRunAt` is null, or older than the worker's start or `rulesStaleAt`, or when the teams changed.
-- [x] Teams: checked at most once an hour per user, only with team requests on. Kept on the user row, replacing the in-memory cache.
+- [x] Teams: checked at most once an hour per user, only with team requests on. Kept on the user row, replacing the in-memory cache. Saved only when the sync succeeds, so a failed sync never hides a team change.
 - [x] Settings changes: replace `rerunRules` with setting `rulesStaleAt` and queueing a sync.
 - [x] Quiet PRs: wake when a fetched own PR's last push differs from `lastPushSha`. Only quiet PRs the sync fetched are read.
 - [x] Add `fullPass: boolean` to `SyncResult`, so the "sync done" log shows it.
