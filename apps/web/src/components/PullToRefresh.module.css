@@ -43,11 +43,12 @@
   );
   opacity: 0;
   transition: opacity 0.2s;
-  animation: rainbow 3s linear infinite;
 }
 
+/* Only animates while shown, so the hidden layer doesn't cost battery. */
 .shown {
   opacity: 1;
+  animation: rainbow 3s linear infinite;
 }
 
 @keyframes rainbow {
@@ -180,7 +181,7 @@
     animation: none;
   }
 
-  .rainbow {
+  .shown {
     animation: none;
   }
 
