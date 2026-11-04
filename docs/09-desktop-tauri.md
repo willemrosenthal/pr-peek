@@ -116,7 +116,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
   - Show "Update ready. Restart?" in the dropdown rather than restarting on its own.
   - The Rust side checks, then downloads and installs in the background. The running app stays on the old version until it restarts. Checks stop once an update is ready.
   - The page asks `update_ready` on load, and the app fires `pr-peek:update-ready`. `AppUpdatePrompt` shows "Update ready." with a Restart button, which calls `restart_to_update`.
-  - The right click menu has "Check for updates". It turns into "Restart to update" once one is ready. A check that finds nothing, or fails, says so in a notification.
+  - The right click menu has "Check for updates". It's greyed out as "Checking for updates…" during any check, and turns into "Restart to update" once one is ready. A check that finds nothing, or fails, says so in a notification.
   - Dev builds never check, so they can't replace themselves with a release.
   - Copies of the app from before this change have no updater. Install a new copy once by hand.
 - [x] **Where updates are hosted:** release files on a **private** repo's GitHub Releases can't be downloaded by other people's apps. Pick one:

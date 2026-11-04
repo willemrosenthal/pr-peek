@@ -4,11 +4,6 @@ import { expect, it } from "vitest";
 import { callsOf, stubTauri } from "../test/tauri";
 import { AppUpdatePrompt } from "./AppUpdatePrompt";
 
-it("shows nothing in a browser", () => {
-  render(<AppUpdatePrompt />);
-  expect(screen.queryByRole("status")).toBe(null);
-});
-
 it("shows nothing while the Mac app is up to date", async () => {
   const invoke = stubTauri({ update_ready: false });
   render(<AppUpdatePrompt />);

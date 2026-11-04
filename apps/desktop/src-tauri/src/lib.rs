@@ -412,8 +412,16 @@ struct Updates {
     ready: AtomicBool,
 }
 
-// The "Check for updates" menu item. It becomes "Restart to update" once one is ready.
+// The "Check for updates" menu item. It's greyed out during a check, and becomes
+// "Restart to update" once an update is ready.
 struct UpdateMenuItem(MenuItem<Wry>);
+
+fn set_update_menu_item(app: &AppHandle, text: &str, enabled: bool) {
+    if let Some(item) = app.try_state::<UpdateMenuItem>() {
+        let _ = item.0.set_text(text);
+        let _ = item.0.set_enabled(enabled);
+    }
+}
 
 fn update_is_ready(app: &AppHandle) -> bool {
     app.state::<Updates>().ready.load(Ordering::Relaxed)
@@ -427,8 +435,9 @@ enum UpdateCheck {
 }
 
 // Looks for a newer version and installs it. Releases come from this repo's GitHub
-// Releases (`plugins.updater` in tauri.conf.json), signed with our updater key.
-async fn install_update(app: &AppHandle) -> Result<UpdateCheck, String> {
+// Releases (`plugins.updater` in tauri.conf.json), signed with our updater key. Blocks
+// until done, so it runs on its own thread.
+fn install_update(app: &AppHandle) -> Result<UpdateCheck, String> {
     if update_is_ready(app) {
         return Ok(UpdateCheck::Ready);
     }
@@ -436,19 +445,28 @@ async fn install_update(app: &AppHandle) -> Result<UpdateCheck, String> {
     if updates.checking.swap(true, Ordering::Relaxed) {
         return Ok(UpdateCheck::Busy);
     }
-    let result = download_and_install(app).await;
+    set_update_menu_item(app, "Checking for updates…", false);
+    let result = tauri::async_runtime::block_on(download_and_install(app));
     updates.checking.store(false, Ordering::Relaxed);
-    if !result? {
-        return Ok(UpdateCheck::UpToDate);
+    match result {
+        Ok(true) => {
+            updates.ready.store(true, Ordering::Relaxed);
+            set_update_menu_item(app, "Restart to update", true);
+            if let Some(window) = main_window(app) {
+                tell_page(&window, "update-ready");
+            }
+            Ok(UpdateCheck::Ready)
+        }
+        Ok(false) => {
+            set_update_menu_item(app, "Check for updates", true);
+            Ok(UpdateCheck::UpToDate)
+        }
+        Err(err) => {
+            eprintln!("pr-peek: couldn't check for updates: {err}");
+            set_update_menu_item(app, "Check for updates", true);
+            Err(err)
+        }
     }
-    updates.ready.store(true, Ordering::Relaxed);
-    if let Some(item) = app.try_state::<UpdateMenuItem>() {
-        let _ = item.0.set_text("Restart to update");
-    }
-    if let Some(window) = main_window(app) {
-        tell_page(&window, "update-ready");
-    }
-    Ok(UpdateCheck::Ready)
 }
 
 // True if there was an update to install.
@@ -464,20 +482,17 @@ async fn download_and_install(app: &AppHandle) -> Result<bool, String> {
     Ok(true)
 }
 
-// Checks on launch and every few hours, until an update is ready. Dev builds don't, so
+// Checks on launch and every 6 hours, until an update is ready. Dev builds don't, so
 // they never replace themselves with a release.
 fn check_for_updates_regularly(app: &AppHandle) {
     if cfg!(debug_assertions) {
         return;
     }
     let app = app.clone();
-    std::thread::spawn(move || loop {
-        match tauri::async_runtime::block_on(install_update(&app)) {
-            Ok(UpdateCheck::Ready) => return,
-            Err(err) => eprintln!("pr-peek: couldn't check for updates: {err}"),
-            _ => {}
+    std::thread::spawn(move || {
+        while !matches!(install_update(&app), Ok(UpdateCheck::Ready)) {
+            std::thread::sleep(UPDATE_CHECK_EVERY);
         }
-        std::thread::sleep(UPDATE_CHECK_EVERY);
     });
 }
 
@@ -500,23 +515,18 @@ fn check_for_updates_now(app: &AppHandle) {
         return;
     }
     let app = app.clone();
-    std::thread::spawn(move || {
-        match tauri::async_runtime::block_on(install_update(&app)) {
-            // The menu item and the dropdown say so.
-            Ok(UpdateCheck::Ready) | Ok(UpdateCheck::Busy) => {}
-            Ok(UpdateCheck::UpToDate) => {
-                let version = app.package_info().version.to_string();
-                tell_user(
-                    &app,
-                    "Git Buddy is up to date",
-                    &format!("Version {version}"),
-                );
-            }
-            Err(err) => {
-                eprintln!("pr-peek: couldn't check for updates: {err}");
-                tell_user(&app, "Couldn't check for updates", "Try again later.");
-            }
+    std::thread::spawn(move || match install_update(&app) {
+        // The menu item and the dropdown say so.
+        Ok(UpdateCheck::Ready) | Ok(UpdateCheck::Busy) => {}
+        Ok(UpdateCheck::UpToDate) => {
+            let version = app.package_info().version.to_string();
+            tell_user(
+                &app,
+                "Git Buddy is up to date",
+                &format!("Version {version}"),
+            );
         }
+        Err(_) => tell_user(&app, "Couldn't check for updates", "Try again later."),
     });
 }
 
