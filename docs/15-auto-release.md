@@ -17,6 +17,7 @@
 | `chore`, `docs`, `test`, `refactor`... | none           | No        |
 
 - One version for the whole repo, tagged `v1.2.3`. It starts at **1.0.0**.
+- **The type decides whether to release. The changed files decide what ships.** The scope, like `(web)` or `(desktop)`, is only a label for people: the workflow never reads it. The Mac app builds when `apps/desktop` changed, and Render rebuilds when anything outside `docs/` and `apps/desktop/` changed.
 - The biggest change since the last release wins. A `feat` PR and a `fix` PR merged during one run make one minor release.
 - `refactor` doesn't release. A refactor waits on `main` until the next `feat` or `fix` ships it.
 - **Not chosen, release-please:** it waits for you to merge a release PR. We want releases to happen on merge.
@@ -79,19 +80,20 @@ Each PR lands on `main` as one squashed commit, named after the PR title. So the
 
 ## Safety, and what to do when something fails
 
-| Problem                                      | What happens                                   | Fix                                                                                                       |
-| -------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| CI fails on `main`                           | Nothing releases                               | Fix forward with a `fix:` PR                                                                              |
-| The Mac build fails after the tag            | The web still deploys. The draft stays a draft | "Re-run failed jobs" on that run. Or run "Desktop release" by hand with the tag                           |
-| The deploy push fails (`prod` has moved)     | No deploy                                      | Find out why `prod` moved, then "Re-run failed jobs"                                                      |
-| A bad release reached `prod`                 | It's live                                      | Render dashboard, Rollback. Then merge a revert PR, which releases a patch. Migrations aren't rolled back |
-| A bad Mac release                            | Users get offered it                           | Merge a `fix(desktop):` PR. The updater only moves forward                                                |
-| A Mac build fails and is never re-run        | Its draft stays. Nothing breaks                | The next release that changes `apps/desktop` includes its changes. Delete the old draft                   |
-| An old release run is re-run                 | Nothing moves backwards                        | `prod` refuses a push that goes back. "Latest" only moves to a higher version                             |
-| The deploy key is missing or revoked         | The version step fails. Nothing releases       | Make a new one (step 15.7), then "Re-run failed jobs"                                                     |
-| A workflow runs in someone's fork            | It stops at once                               | The `version` job checks `github.repository`                                                              |
-| Render ignores the workflow's push to `prod` | No deploy                                      | Shouldn't happen: Render hears every push. If it does, the deploy job calls a Render deploy hook instead  |
-| You need to deploy without a release         | Still possible                                 | `git push origin main:prod` from your machine. For emergencies only                                       |
+| Problem                                           | What happens                                   | Fix                                                                                                       |
+| ------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| CI fails on `main`                                | Nothing releases                               | Fix forward with a `fix:` PR                                                                              |
+| The Mac build fails after the tag                 | The web still deploys. The draft stays a draft | "Re-run failed jobs" on that run. Or run "Desktop release" by hand with the tag                           |
+| The deploy push fails (`prod` has moved)          | No deploy                                      | Find out why `prod` moved, then "Re-run failed jobs"                                                      |
+| A bad release reached `prod`                      | It's live                                      | Render dashboard, Rollback. Then merge a revert PR, which releases a patch. Migrations aren't rolled back |
+| A bad Mac release                                 | Users get offered it                           | Merge a `fix` PR that changes `apps/desktop`. The updater only moves forward                              |
+| A Mac build fails and is never re-run             | Its draft stays. Nothing breaks                | The next release that changes `apps/desktop` includes its changes. Delete the old draft                   |
+| An old release run is re-run                      | Nothing moves backwards                        | `prod` refuses a push that goes back. "Latest" only moves to a higher version                             |
+| The deploy key is missing or revoked              | The version step fails. Nothing releases       | Make a new one (step 15.7), then "Re-run failed jobs"                                                     |
+| GitHub errors on a push ("Internal Server Error") | Nothing releases, or that job stops            | "Re-run failed jobs". It happened once, on 1.1.0's tag push                                               |
+| A workflow runs in someone's fork                 | It stops at once                               | The `version` job checks `github.repository`                                                              |
+| Render ignores the workflow's push to `prod`      | No deploy                                      | Shouldn't happen: Render hears every push. If it does, the deploy job calls a Render deploy hook instead  |
+| You need to deploy without a release              | Still possible                                 | `git push origin main:prod` from your machine. For emergencies only                                       |
 
 ## PRs
 
@@ -150,7 +152,7 @@ Each PR lands on `main` as one squashed commit, named after the PR title. So the
   - A change that must ship but isn't a feature, like a security update to a dependency, is titled `fix(deps): ...`.
   - Branches: `prod` moves forward by itself. Push to it by hand only in an emergency.
   - The PR template's "What to do next": deploying is automatic, so it lists only what to try once it's live.
-- [x] Plan 09: 9.8 now starts from this workflow, and its "Done when" update check uses a `fix(desktop):` PR instead of a tag. Its Apple signing step must also pass the Apple secrets through `release.yml` to `desktop-release.yml`, since reusable workflows only get the secrets they're given.
+- [x] Plan 09: 9.8 now starts from this workflow, and its "Done when" update check uses a `fix` PR that changes `apps/desktop`, instead of a tag. Its Apple signing step must also pass the Apple secrets through `release.yml` to `desktop-release.yml`, since reusable workflows only get the secrets they're given.
 
 ### 15.7 GitHub and Render settings (You)
 
@@ -178,8 +180,9 @@ After PR 2 merges, add rulesets in GitHub, Settings, Rules, Rulesets:
   - Done with #110, after #109's run failed in the release notes plugin. All 8 jobs passed, and `latest.json` links point at `v1.0.0`.
 - [x] A PR titled `docs: ...` merges, and nothing releases or deploys.
   - Done with #111 (`ci:`): the checks ran, no tag, no deploy, no Mac build.
-- [ ] A PR titled `fix(web): ...` merges. A patch version is tagged, `prod` moves to it, Render deploys, and no Mac release is made.
-- [ ] A PR titled `fix(desktop): ...` merges. A Mac release is published with the new version, and an installed Mac app offers the update and installs it.
+- [x] A `fix` PR that changes only web code merges. A patch version is tagged, `prod` moves to it, Render deploys, and no Mac release is made.
+  - Done with #112, a `feat` (1.1.0). Settings on the live site shows "Version 1.1.0", so Render's copy has the tags. The first try at the tag push got a 500 from GitHub, and "Re-run failed jobs" finished it.
+- [ ] A `fix` PR that changes `apps/desktop` merges. A Mac release is published with the new version, and an installed Mac app offers the update and installs it.
 - [x] A PR titled "Small fix" fails the `pr-title` check and can't merge. Renaming it to `fix(web): ...` passes.
   - Done with #112: "Show the version in Settings" failed `pr-title`, GitHub marked it blocked, and renaming it to `feat(web): ...` passed.
 - [ ] A GitHub revert PR passes `pr-title`, and releases a patch.
