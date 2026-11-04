@@ -136,6 +136,9 @@ The Mac browser may also have a push subscription, so the same alert could arriv
   3. Use `tauri-apps/tauri-action` to build a universal (Apple Silicon and Intel) `.dmg`, sign the update files, and create a GitHub Release with `latest.json`.
      - Turn on `bundle.createUpdaterArtifacts` only in this workflow (for example with `--config`). In `tauri.conf.json` it would make every local `pnpm desktop:build` need the private key.
   4. The workflow stops if the tag doesn't match `version` in `tauri.conf.json`, since that's the version `latest.json` gives.
+
+  The updater and the download link both use GitHub's "latest release". Only the Mac app should publish non-draft releases from this repo, or installed apps stop finding updates.
+
 - [ ] Apple signing and notarization (Apple's automated malware check, needed so other people's Macs open the app without warnings):
   - **(You)** Join the Apple Developer Program.
   - **(You)** Create a "Developer ID Application" certificate and an App Store Connect API key.
