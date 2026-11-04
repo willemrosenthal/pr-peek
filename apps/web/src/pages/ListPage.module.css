@@ -19,7 +19,8 @@
   padding-bottom: var(--space-4);
 }
 
-/* Above the rows, so the pull to refresh circle can hang over them. */
+/* Above the rows, so the header can stick over them, and the pull to refresh circle
+   can hang over them. */
 .top {
   position: relative;
   z-index: 1;
@@ -57,7 +58,6 @@
 .tray .top {
   position: sticky;
   top: 0;
-  z-index: 1;
 }
 
 /* Phone: the list fills the screen and the header stays on top. */
@@ -79,6 +79,5 @@
   .top {
     position: sticky;
     top: 0;
-    z-index: 1;
   }
 }

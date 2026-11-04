@@ -39,6 +39,10 @@ import { hideWindow, setVisibility } from "../test/visibility";
 
 beforeAll(stubPointerCapture);
 
+// Gives a request that shouldn't happen time to be sent.
+const settle = () =>
+  act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+
 const minutesAgo = (n: number) =>
   new Date(Date.now() - n * 60_000).toISOString();
 
@@ -639,7 +643,7 @@ describe("marking seen", () => {
     );
     renderApp("/", { strict: true });
     await sectionButton(/Needs my review/);
-    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    await settle();
     expect(seenRequests(fetch)).toEqual([]);
   });
 
@@ -878,44 +882,20 @@ describe("the header", () => {
     expect(refresh.getAttribute("aria-busy")).toBe("false");
   });
 
+  // How far a pull must go is tested in PullToRefresh.test.tsx.
   describe("pull to refresh", () => {
-    // Gives a refresh that shouldn't have started time to call the API.
-    const settle = () =>
-      act(() => new Promise((resolve) => setTimeout(resolve, 10)));
-
-    it("refreshes when the list is pulled down far enough", async () => {
+    it("refreshes when the list is pulled down", async () => {
       const fetch = fakeApi(
         listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),
       );
       renderApp("/");
-      const list = await screen.findByText("Nothing needs you right now");
-
-      pull(list, 100);
-      await settle();
-      expect(callsTo(fetch, "/api/sync")).toHaveLength(0);
-
-      pull(list, 200);
+      pull(await screen.findByText("Nothing needs you right now"), 200);
       await waitFor(() => expect(callsTo(fetch, "/api/sync")).toHaveLength(1));
       expect(
         screen
           .getByRole("button", { name: "Refresh" })
           .getAttribute("aria-busy"),
       ).toBe("true");
-    });
-
-    it("doesn't refresh on a sideways swipe, or once scrolled down", async () => {
-      const fetch = fakeApi(
-        listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),
-      );
-      renderApp("/");
-      const list = await screen.findByText("Nothing needs you right now");
-
-      pull(list, 200, 250);
-      Object.assign(window, { scrollY: 50 });
-      pull(list, 200);
-      Object.assign(window, { scrollY: 0 });
-      await settle();
-      expect(callsTo(fetch, "/api/sync")).toHaveLength(0);
     });
 
     // Like a finger that opened the preview with a long press, then moves down. The

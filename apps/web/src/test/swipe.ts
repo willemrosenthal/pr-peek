@@ -21,14 +21,19 @@ export function hold(el: Element, dx: number, dy = 0) {
   fireEvent.pointerMove(el, at(dx, dy, 1));
 }
 
-// A finger on `el` moves `dy` down and `dx` across, then lifts. For pull to refresh.
-export function pull(el: Element, dy: number, dx = 0) {
+// For pull to refresh: a finger on `el` moves `dy` down and `dx` across, and stays.
+export function holdPull(el: Element, dy: number, dx = 0) {
   const finger = (share: number) => ({
     touches: [{ clientX: 200 + dx * share, clientY: 100 + dy * share }],
   });
   fireEvent.touchStart(el, finger(0));
   fireEvent.touchMove(el, finger(0.5));
   fireEvent.touchMove(el, finger(1));
+}
+
+// The same, then the finger lifts.
+export function pull(el: Element, dy: number, dx = 0) {
+  holdPull(el, dy, dx);
   fireEvent.touchEnd(el, { touches: [] });
 }
 
