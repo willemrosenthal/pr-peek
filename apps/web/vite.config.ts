@@ -51,6 +51,8 @@ export default defineConfig({
         start_url: "/",
         scope: "/",
         display: "standalone",
+        // Upright only. Android follows this once the app is installed. iPhones don't.
+        orientation: "portrait",
         // --color-page in tokens.css.
         background_color: "#f2f2f5",
         theme_color: "#f2f2f5",
