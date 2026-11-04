@@ -5,8 +5,8 @@ import { api, ApiError } from "../api";
 import { queryKeys, REFETCH_MS, useSyncStatus } from "../queries";
 
 // How often to check while a refresh runs, and when to give up waiting.
-const POLL_MS = 2_000;
-const GIVE_UP_MS = 2 * 60_000;
+export const POLL_MS = 2_000;
+export const GIVE_UP_MS = 2 * 60_000;
 
 // The status when the refresh started.
 interface Started {

@@ -111,10 +111,16 @@ export interface SettingsResponse {
   rules: RuleSettingDto[];
 }
 
-export interface UpdateSettingsResponse {
+// Set when the save changes what the rules find. The next sync runs them on every PR, so
+// the list is updating until a sync that started at or after this time ends. ISO string.
+interface ListUpdate {
+  listUpdatingSince: string | null;
+}
+
+export interface UpdateSettingsResponse extends ListUpdate {
   settings: UserSettingsDto;
 }
 
-export interface UpdateRuleResponse {
+export interface UpdateRuleResponse extends ListUpdate {
   rule: RuleSettingDto;
 }

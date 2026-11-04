@@ -2,6 +2,8 @@ import {
   rules,
   type RuleSettingDto,
   type SettingsResponse,
+  type UpdateRuleResponse,
+  type UpdateSettingsResponse,
 } from "@pr-peek/core";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -156,16 +158,20 @@ describe("PATCH /api/settings", () => {
   it("has every PR checked again when hiding bots", async () => {
     const { agent, user, requestSync } = await setup();
 
-    await patchSettings(agent, { hideBots: true });
+    const res = await patchSettings(agent, { hideBots: true });
     expect(await rulesStaleAt()).toEqual(NOW);
     expect(requestSync).toHaveBeenCalledExactlyOnceWith(user.id);
+    expect(bodyOf<UpdateSettingsResponse>(res).listUpdatingSince).toBe(
+      NOW.toISOString(),
+    );
   });
 
   it("doesn't for a setting the rules don't use", async () => {
     const { agent, requestSync } = await setup();
 
-    await patchSettings(agent, { staleWarnHours: 2 });
+    const res = await patchSettings(agent, { staleWarnHours: 2 });
     expect(await rulesStaleAt()).toBeNull();
+    expect(bodyOf<UpdateSettingsResponse>(res).listUpdatingSince).toBeNull();
     expect(requestSync).not.toHaveBeenCalled();
   });
 });
@@ -190,13 +196,16 @@ describe("PATCH /api/rules/:ruleId", () => {
     (res.body as { rule: RuleSettingDto }).rule;
 
   it("saves the user's choices", async () => {
-    const { agent } = await setup();
+    const { agent, requestSync } = await setup();
     const res = await patchRule(agent, "commented", {
       severity: "high",
       channels: ["list", "push"],
     });
 
     expect(res.status).toBe(200);
+    // Severity and channels don't change what the rules find.
+    expect(bodyOf<UpdateRuleResponse>(res).listUpdatingSince).toBeNull();
+    expect(requestSync).not.toHaveBeenCalled();
     expect(ruleOf(res)).toMatchObject({
       id: "commented",
       enabled: true,
@@ -229,9 +238,12 @@ describe("PATCH /api/rules/:ruleId", () => {
   it("has every PR checked again when one is turned off", async () => {
     const { agent, user, requestSync } = await setup();
 
-    await patchRule(agent, "review_requested", { enabled: false });
+    const res = await patchRule(agent, "review_requested", { enabled: false });
     expect(await rulesStaleAt()).toEqual(NOW);
     expect(requestSync).toHaveBeenCalledExactlyOnceWith(user.id);
+    expect(bodyOf<UpdateRuleResponse>(res).listUpdatingSince).toBe(
+      NOW.toISOString(),
+    );
   });
 
   it("only changes the signed in user's settings", async () => {
