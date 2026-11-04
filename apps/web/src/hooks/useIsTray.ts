@@ -30,15 +30,17 @@ export function useIsTray(): boolean {
 export const useIsDropdown = () => useShell() === "tray";
 
 // The same as useIsDropdown, outside React, like at startup.
-export const inDropdown = () =>
-  shellOf(new URLSearchParams(location.search).get("shell")) === "tray";
+export const inDropdown = () => shellOf(shellInUrl()) === "tray";
 
 // Saves the shell from the page's own URL, before anything renders. Signing in starts on
 // a page that doesn't read it, and GitHub sends the user back without it.
 export function rememberShell() {
-  const fromUrl = new URLSearchParams(location.search).get("shell");
+  const fromUrl = shellInUrl();
   if (fromUrl !== null) storeShell(fromUrl);
 }
+
+// The shell in the page's own URL, outside React.
+const shellInUrl = () => new URLSearchParams(location.search).get("shell");
 
 function storeShell(shell: string) {
   try {
