@@ -27,6 +27,7 @@ tauri-plugin-updater = "2"
 # tray-icon, until it ships there: https://github.com/tauri-apps/tray-icon/pull/397
 # Remove this once Tauri uses a tray-icon release with it. If cargo warns that the
 # patch wasn't used, Tauri moved to a newer tray-icon without it: put the fix on a branch
-# of our fork for that version, and point rev at it.
+# of our fork for that version, and point rev at it. Keep the fork's
+# control-click-0.25.1 branch until then: GitHub can drop a commit no branch points at.
 [patch.crates-io]
 tray-icon = { git = "https://github.com/willemrosenthal/tray-icon", rev = "bc068e0f4fc1d76eaf37c9c8931968af992f4bcb" }
