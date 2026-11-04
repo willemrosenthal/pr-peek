@@ -23,7 +23,11 @@ Flagged PRs stay in their usual section today. An added PR you didn't write, are
 
 So a new **Watching** section holds PRs with nothing to do that fit no other section. It comes after My PRs by default, and can be reordered in settings like the others. If something happens on one, like a review request, it moves to that section, as any PR would.
 
-No "Added" tag on the row. The flag and the section say enough.
+No "Added" tag on the row. Every row in Watching is flagged, since only flagged PRs with nothing to do land there, so rows in it show no flag either.
+
+Swiping a Watching row says **Stop watching**, with a crossed-out eye, instead of "Remove flag". So does the preview's button, opened from Watching. The row leaves the list either way, and that's what the label says. Not "Untrack": a flagged PR the searches found can land in Watching too, and it stays tracked after.
+
+If a Watching PR moves to another section, it shows its flag there, and "Remove flag", as today.
 
 ### Added PRs ignore watched repos
 
@@ -92,7 +96,8 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 ### 17.3 The Watching section on screen
 
 - [ ] Add `{ group: "watching", title: "Watching" }` to `SECTIONS` in `sections.ts`. Saved section orders that don't name it put it at the end, which `orderSections` already does.
-- [ ] Tests: Watching shows, and can be reordered.
+- [ ] Rows in Watching hide the flag. Their swipe and the preview's button say "Stop watching" with `EyeOff`, in place of "Remove flag" with `FlagOff`. `ItemSection` knows its group and passes it down.
+- [ ] Tests: Watching shows, and can be reordered. Its rows show no flag, and their swipe and preview say "Stop watching". The same PR in another section shows its flag and "Remove flag".
 
 ### 17.4 The dialog
 
