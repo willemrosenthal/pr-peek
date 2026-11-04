@@ -120,10 +120,13 @@ GitHub's `involves:@me` matches PRs the user authored, is assigned to, is mentio
 4. **Alerts** (16.5): `feat(server): alert the admin when usage nears a limit`.
 5. **No snapshots** (16.6), in two PRs, since it's big:
    - 5a, the sync: `perf(server): run the rules only on PRs that changed`. The new columns, filled from the snapshots on start. Full passes, teams on the user row, quiet PRs by `lastPushSha`, settings by `rulesStaleAt`. Still writes snapshots, so the list and preview work as before. Has a migration.
-   - 5b, the readers: `perf(server): stop storing PR snapshots`. The list reads the new columns, the preview asks GitHub, Settings shows "Updating your list…", and snapshots stop being written.
+   - 5b, the readers. Over 900 lines once built, so three PRs, in order:
+     - 5b-1, the preview: `perf(server): get the preview's reviewers and checks from GitHub`.
+     - 5b-2, the list: `perf(server): stop storing PR snapshots`. The list reads the new columns, and snapshots stop being written. Needs 5b-1, so nothing reads them once they stop. Has a migration.
+     - 5b-3, Settings: `feat(web): show when the list is updating after a settings change`.
 6. **Drop the column** (16.7): `chore(server): drop the snapshot column`. Once PR 5b has been live for a release, so a server mid-deploy never reads a missing column.
 
-PRs 2 to 5b release a patch or minor version and deploy. PR 6 releases nothing by itself, and ships with the next release. Each is about 150 to 300 lines with tests. PR 2 is first: quick, no migration, and most of the savings that don't need PR 5.
+PRs 2 to 5b-3 release a patch or minor version and deploy. PR 6 releases nothing by itself, and ships with the next release. Each is about 150 to 300 lines with tests. PR 2 is first: quick, no migration, and most of the savings that don't need PR 5.
 
 ## Steps
 
@@ -210,13 +213,20 @@ PR 5a, the sync:
 - [x] Add `fullPass: boolean` to `SyncResult`, so the "sync done" log shows it.
 - [x] Tests: a normal sync fetches and checks only changed PRs, and leaves other items alone. A full pass on the first sync, after a deploy, after a settings change (even one saved during a sync), and after a team change. The backfill fills merged PRs, and skips one it can't read. Quiet PRs wake on a push.
 
-PR 5b, the readers:
+PR 5b-1, the preview:
+
+- [x] Preview: add the author, review requests, and the head commit's failing checks to its GitHub request. `reviewersOf` takes those. Check runs hidden from a fine-grained token are skipped, like in the sync.
+- [x] Tests: the preview shows reviewers and failing checks, without a snapshot.
+
+PR 5b-2, the list:
 
 - [ ] Migration: `snapshot` becomes optional. The sync stops writing it.
-- [ ] Web: after a rule setting saves, Settings shows "Updating your list…" until the next items update arrives, or 2 minutes pass.
-- [ ] Preview: add review requests and the head commit's failing checks to its GitHub request. `reviewersOf` takes those.
 - [ ] The list reads `listGroup` and `assignedState`, and selects only the fields it shows. `/items` loads the user's settings, rule settings, and repo colors once, not once per part.
-- [ ] Tests: the preview shows reviewers and failing checks. The list is the same as before.
+- [ ] Tests: the list is the same as before. The backfill still fills rows that have a snapshot.
+
+PR 5b-3, Settings:
+
+- [ ] After a setting that changes what the rules find saves, Settings shows "Updating your list…" until a sync that started after the save ends, or 2 minutes pass. The save's answer has `listUpdatingSince`, the server's time for it.
 
 ### 16.7 Drop the column
 

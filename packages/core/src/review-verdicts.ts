@@ -21,10 +21,12 @@ export function verdictOf(reviews: PrReview[]): ReviewVerdict {
 // Each person's reviews, oldest first, keyed by lowercase login, in order of their
 // latest. The author's own reviews are replies, and bots (like Copilot's AI reviewer)
 // aren't people to wait on, so both are left out.
-export function reviewsByPerson(snapshot: PrSnapshot): Map<string, PrReview[]> {
-  const author = snapshot.author.login.toLowerCase();
+export function reviewsByPerson(
+  pr: Pick<PrSnapshot, "author" | "reviews">,
+): Map<string, PrReview[]> {
+  const author = pr.author.login.toLowerCase();
   const byPerson = new Map<string, PrReview[]>();
-  const reviews = snapshot.reviews.toSorted((a, b) =>
+  const reviews = pr.reviews.toSorted((a, b) =>
     a.submittedAt.localeCompare(b.submittedAt),
   );
   for (const review of reviews) {

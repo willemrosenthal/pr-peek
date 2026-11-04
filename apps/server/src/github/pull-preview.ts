@@ -1,8 +1,24 @@
-import { prReview, type PrActor, type PrReview } from "@pr-peek/core";
+import {
+  prReview,
+  type PrActor,
+  type PrReview,
+  type PrSnapshot,
+} from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import { partialDataOrThrow } from "./errors";
-import { ACTOR, rawActor, toActor } from "./pull-details";
+import {
+  ACTOR,
+  CHECK_CONTEXTS,
+  failingChecks,
+  isHiddenCheckRun,
+  rawActor,
+  rawCheckContexts,
+  rawReviewer,
+  REVIEWER,
+  toActor,
+  toReviewer,
+} from "./pull-details";
 
 // Bodies come as GitHub's HTML, already rendered from Markdown and cleaned by GitHub.
 // The web app cleans them again before showing them.
@@ -12,7 +28,9 @@ const COMMENT = `id ${ACTOR} bodyHTML createdAt isMinimized`;
 const PREVIEW_QUERY = `query ($id: ID!) {
   node(id: $id) {
     ... on PullRequest {
-      bodyHTML createdAt
+      bodyHTML createdAt ${ACTOR}
+      reviewRequests(first: 50) { nodes { ${REVIEWER} } }
+      commits(last: 1) { nodes { commit { statusCheckRollup { ${CHECK_CONTEXTS} } } } }
       comments(last: 50) { nodes { ${COMMENT} } }
       reviews(last: 30) { nodes { id state submittedAt bodyHTML ${ACTOR} } }
       reviewThreads(last: 50) {
@@ -39,6 +57,15 @@ const nodesOf = <T extends z.ZodType>(item: T) =>
 const rawPreview = z.object({
   bodyHTML: z.string(),
   createdAt: z.string(),
+  author: rawActor.nullable(),
+  reviewRequests: nodesOf(z.object({ requestedReviewer: rawReviewer })),
+  commits: nodesOf(
+    z.object({
+      commit: z.object({
+        statusCheckRollup: z.object({ contexts: rawCheckContexts }).nullable(),
+      }),
+    }),
+  ),
   comments: nodesOf(rawComment),
   reviews: nodesOf(
     z.object({
@@ -70,9 +97,14 @@ export interface PreviewComment {
   reviewState: PrReview["state"] | null;
 }
 
-export interface PrPreview {
+// The fields `reviewersOf` needs, plus the failing checks on the latest commit.
+export interface PrPreview extends Pick<
+  PrSnapshot,
+  "author" | "reviewRequests" | "reviews"
+> {
   bodyHtml: string;
   createdAt: string;
+  failingChecks: string[];
   comments: PreviewComment[];
   focusId: string | null;
 }
@@ -95,14 +127,24 @@ function fileLine(thread: RawPreview["reviewThreads"]["nodes"][number]) {
   return line === null ? thread.path : `${thread.path}:${line}`;
 }
 
+// Submitted reviews. Pending ones are drafts only their author can see.
+const submitted = (raw: RawPreview) =>
+  raw.reviews.nodes.flatMap((review) =>
+    review.state === "PENDING" || !review.submittedAt
+      ? []
+      : {
+          ...review,
+          state: review.state,
+          submittedAt: review.submittedAt,
+        },
+  );
+
 // The whole conversation, oldest first: comments, reviews, and comments on files.
 // Approvals and change requests count even without text. Other reviews only with it,
 // since an empty one just holds comments on files, which are listed on their own.
 // Comments hidden on GitHub are left out.
 function conversation(raw: RawPreview): PreviewComment[] {
-  const reviews = raw.reviews.nodes.flatMap((review): PreviewComment[] => {
-    // Pending reviews are drafts only their author can see.
-    if (review.state === "PENDING" || !review.submittedAt) return [];
+  const reviews = submitted(raw).flatMap((review): PreviewComment[] => {
     const bodyHtml = review.bodyHTML.trim();
     const counts =
       review.state === "APPROVED" || review.state === "CHANGES_REQUESTED";
@@ -131,9 +173,9 @@ function conversation(raw: RawPreview): PreviewComment[] {
   ].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-// The PR's description and conversation. `focusId` is the comment or review an item
-// is about, kept when it's in the conversation. Null when the PR is gone from GitHub
-// or hidden from the user.
+// The PR's description, conversation, reviewers, and failing checks. `focusId` is the
+// comment or review an item is about, kept when it's in the conversation. Null when the
+// PR is gone from GitHub or hidden from the user.
 export async function fetchPrPreview(
   octokit: Octokit,
   nodeId: string,
@@ -141,14 +183,30 @@ export async function fetchPrPreview(
 ): Promise<PrPreview | null> {
   const data: unknown = await octokit
     .graphql(PREVIEW_QUERY, { id: nodeId })
-    .catch(partialDataOrThrow);
+    .catch((err: unknown) =>
+      partialDataOrThrow(err, ["NOT_FOUND"], isHiddenCheckRun),
+    );
   const { node } = z.object({ node: z.unknown() }).parse(data);
   if (!node) return null;
   const raw = rawPreview.parse(node);
   const comments = conversation(raw);
+  const head = raw.commits.nodes[0]?.commit;
   return {
     bodyHtml: raw.bodyHTML.trim(),
     createdAt: raw.createdAt,
+    author: toActor(raw.author),
+    reviewRequests: raw.reviewRequests.nodes.flatMap(
+      (r) => toReviewer(r.requestedReviewer) ?? [],
+    ),
+    reviews: submitted(raw).map((review): PrReview => ({
+      id: review.id,
+      author: toActor(review.author),
+      state: review.state,
+      submittedAt: review.submittedAt,
+    })),
+    failingChecks: failingChecks(head?.statusCheckRollup?.contexts).map(
+      (check) => check.name,
+    ),
     comments,
     focusId: comments.some((c) => c.id === focusId) ? focusId : null,
   };
