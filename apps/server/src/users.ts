@@ -3,22 +3,29 @@ import type { User } from "./generated/prisma/client";
 import { encryptTokens } from "./github/tokens";
 import { defaultRuleSettings } from "./items";
 import type { GitHubTokens, GitHubUser } from "./github/oauth";
+import { SYNC_TIMING } from "./sync-timing";
 
-// How often to save `lastActiveAt`, so it isn't a write on every request.
-const ACTIVE_SAVE_EVERY_MS = 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
 
-// Records that the user opened the app.
+// Records that the user is using the app, at most every few minutes, so it isn't a write
+// on every request. Returns the user's sync state if it saved, or null if it was saved
+// recently.
 export async function markActive(
   db: Db,
-  user: Pick<User, "id" | "lastActiveAt">,
+  userId: string,
   now = new Date(),
-): Promise<void> {
-  if (now.getTime() - user.lastActiveAt.getTime() < ACTIVE_SAVE_EVERY_MS) {
-    return;
-  }
-  await db.user.update({
-    where: { id: user.id },
+): Promise<Pick<User, "lastSyncedAt" | "syncError" | "syncRetryAt"> | null> {
+  const savedBefore = new Date(
+    now.getTime() - SYNC_TIMING.activeSaveEveryMinutes * MINUTE_MS,
+  );
+  const { count } = await db.user.updateMany({
+    where: { id: userId, lastActiveAt: { lt: savedBefore } },
     data: { lastActiveAt: now },
+  });
+  if (count === 0) return null;
+  return db.user.findUnique({
+    where: { id: userId },
+    select: { lastSyncedAt: true, syncError: true, syncRetryAt: true },
   });
 }
 

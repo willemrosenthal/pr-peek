@@ -73,15 +73,15 @@ Rows keep their short preview of the latest comment (`alice: "looks good but..."
 | Used the app in the last hour    | 2 minutes   |
 | In their quiet hours             | 15 minutes  |
 | Has the Mac app running          | 2 minutes   |
-| None of these                    | 5 minutes   |
 | Hasn't opened the app in 14 days | 30 minutes  |
+| None of these                    | 5 minutes   |
 
-The first row that matches wins.
+The first row that matches wins. **All the numbers live in one file, `apps/server/src/sync-timing.ts`,** so they're easy to change later.
 
 - **It's per account, not per device.** One sync serves all of a user's devices: phone, Mac, and browser. Using the app on any of them counts, and a second device never adds syncs. The fastest row any device earns wins.
 - "Used the app" is `lastActiveAt`. It's saved at most once an hour today, so that becomes every 10 minutes. Opening the Mac dropdown counts. **The Mac heartbeat doesn't:** it only sets `desktopSeenAt`, which means the Mac app is running.
 - Using the app beats quiet hours. If you open it at night, it's fresh.
-- **Sync on open:** when someone opens the app and their last sync is more than a minute old, a sync is queued right away. The list is fresh within seconds, not after the next scheduled sync.
+- **Sync on open:** when someone comes back to the app (their first request in 10 minutes or more) and their last sync is older than 2 minutes, a sync is queued right away. Not for users who must sign in again, or whose syncs are backing off after failures. The list is fresh within seconds, not after the next scheduled sync.
 - **The cost:** a push can arrive up to 2 minutes after the event while you use the app or the Mac app runs, and up to 5 with neither. A high severity push that breaks quiet hours can be up to 15 minutes late. Pull to refresh and "Refresh now" still sync right away.
 
 ## Key decision: one GitHub request for all 5 searches
@@ -135,20 +135,21 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 
 ### 16.1 Sync cadence
 
-- [ ] `syncInterval` takes `lastActiveAt`, `desktopSeenAt`, and the user's quiet hours, and returns the table's intervals. Quiet hours use `isQuiet` from `packages/core`. The Mac app check uses `isDesktopOnline`.
-- [ ] `dueUserIds` selects the extra fields. Users with no settings row have no quiet hours.
-- [ ] `markActive` saves at most every 10 minutes instead of every hour.
-- [ ] `requireUser` takes an option to skip `markActive`. The heartbeat route uses it.
-- [ ] Sync on open: `requireUser` gets a way to queue a sync. When `markActive` saves and `lastSyncedAt` is more than a minute old, it queues one. The queue already ignores a second sync for the same user.
-- [ ] Tests for each row of the table: using the app during quiet hours, the Mac app during quiet hours, quiet hours that cross midnight. The heartbeat doesn't move `lastActiveAt`. Opening the app after a while queues a sync.
+- [x] `sync-timing.ts` holds every interval, with the rules written out next to them.
+- [x] `syncIntervalMs` takes `lastActiveAt`, `desktopSeenAt`, and the user's quiet hours, and returns the table's intervals. Quiet hours use `isQuiet` from `packages/core`. The Mac app check uses `isDesktopOnline`.
+- [x] `dueUserIds` selects the extra fields. Users with no settings row have no quiet hours. Dispatch counts a sync up to 45 seconds short of its interval as due (was 15), since the dispatch job can now start up to 30 seconds late.
+- [x] `markActive` saves at most every 10 minutes instead of every hour.
+- [x] Activity moves out of `requireUser` into its own middleware, `routes/activity.ts`, mounted once before the other routers. It skips the Mac heartbeat. That's simpler than passing a way to queue syncs into every router.
+- [x] Sync on open: when `markActive` saves and `lastSyncedAt` is older than the active interval, the middleware queues a sync. The queue already ignores a second sync for the same user.
+- [x] Tests for each row of the table: using the app during quiet hours, the Mac app during quiet hours, quiet hours that cross midnight. The heartbeat doesn't move `lastActiveAt`. Opening the app after a while queues a sync.
 
 ### 16.2 Quieter background work
 
-- [ ] `lastSeenAt` updates only rows where it's older than an hour. It's only checked against 7 days.
-- [ ] Finished `sync-user`, `sync-dispatch`, and `heartbeat` jobs are deleted after an hour (`deleteAfterSeconds`). `createQueue` does nothing for a queue that already exists, so also call `updateQueue` with the same options.
-- [ ] `boss.work` polling: 10 seconds for `sync-user`, `notify-items`, and `notify-merged`. 30 seconds for the scheduled queues (`pollingIntervalSeconds`).
-- [ ] User row updates in the sync, and in `markActive`, return nothing (`updateMany`, or `select: { id: true }`). The end of a sync clears `syncStartedAt` in the same update that saves the result.
-- [ ] Tests: `lastSeenAt` is left alone when recent, and moved when old.
+- [x] `lastSeenAt` updates only rows where it's older than an hour. It's only checked against 7 days.
+- [x] Finished `sync-user`, `sync-dispatch`, and `heartbeat` jobs are deleted after an hour (`deleteAfterSeconds`). `createQueue` does nothing for a queue that already exists, so also call `updateQueue` with the same options. pg-boss refuses an empty update, so queues with no options skip it.
+- [x] `boss.work` polling: 10 seconds for `sync-user`, `notify-items`, and `notify-merged`. 30 seconds for the scheduled queues (`pollingIntervalSeconds`).
+- [x] User row updates in the sync, `markActive`, and the Mac heartbeat return nothing (`updateMany`). The end of a sync clears `syncStartedAt` in the same update that saves the result.
+- [x] Tests: `lastSeenAt` is left alone when recent, and moved when old. The queues are set up right, including ones made before.
 
 ### 16.3 One search request
 

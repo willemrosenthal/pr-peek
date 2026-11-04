@@ -5,8 +5,11 @@ import { createGitHubOAuth } from "./github/oauth";
 import {
   createBoss,
   createQueues,
+  HEARTBEAT,
   NOTIFY_ITEMS,
   NOTIFY_MERGED,
+  POLL_JOBS_SECONDS,
+  POLL_SCHEDULED_SECONDS,
   queueSync,
   REMINDER_DISPATCH,
   SUMMARY_DISPATCH,
@@ -39,17 +42,19 @@ boss.on("error", (err) => logger.error({ err }, "pg-boss error"));
 
 await boss.start();
 
-await boss.createQueue("heartbeat");
-await boss.schedule("heartbeat", "* * * * *");
-await boss.work("heartbeat", () => {
+await createQueues(boss);
+
+const scheduled = { pollingIntervalSeconds: POLL_SCHEDULED_SECONDS };
+const jobs = { pollingIntervalSeconds: POLL_JOBS_SECONDS };
+
+await boss.schedule(HEARTBEAT, "* * * * *");
+await boss.work(HEARTBEAT, scheduled, () => {
   logger.info("heartbeat");
   return Promise.resolve();
 });
 
-await createQueues(boss);
-
 await boss.schedule(SYNC_DISPATCH, "* * * * *");
-await boss.work(SYNC_DISPATCH, async () => {
+await boss.work(SYNC_DISPATCH, scheduled, async () => {
   const userIds = await dueUserIds(db, new Date());
   if (userIds.length === 0) return;
   const queued = await Promise.all(
@@ -63,7 +68,7 @@ await boss.work(SYNC_DISPATCH, async () => {
 
 await boss.work<{ userId: string }>(
   SYNC_USER,
-  { localConcurrency: SYNC_CONCURRENCY },
+  { ...jobs, localConcurrency: SYNC_CONCURRENCY },
   async ([job]) => {
     if (!job) return;
     await runSync(
@@ -86,7 +91,7 @@ await boss.work<{ userId: string }>(
 
 const vapid = vapidFrom(config);
 const send = vapid ? webPushSender(vapid) : null;
-await boss.work<{ itemIds: string[] }>(NOTIFY_ITEMS, async ([job]) => {
+await boss.work<{ itemIds: string[] }>(NOTIFY_ITEMS, jobs, async ([job]) => {
   if (!job) return;
   const { itemIds } = job.data;
   const outcomes = await notifyItems(
@@ -96,7 +101,7 @@ await boss.work<{ itemIds: string[] }>(NOTIFY_ITEMS, async ([job]) => {
   logger.info({ itemIds, outcomes }, "notify items");
 });
 
-await boss.work<{ prIds: string[] }>(NOTIFY_MERGED, async ([job]) => {
+await boss.work<{ prIds: string[] }>(NOTIFY_MERGED, jobs, async ([job]) => {
   if (!job) return;
   const { prIds } = job.data;
   const outcomes = await notifyMerged({ db, send, logger }, prIds);
@@ -104,13 +109,13 @@ await boss.work<{ prIds: string[] }>(NOTIFY_MERGED, async ([job]) => {
 });
 
 await boss.schedule(SUMMARY_DISPATCH, "*/15 * * * *");
-await boss.work(SUMMARY_DISPATCH, async () => {
+await boss.work(SUMMARY_DISPATCH, scheduled, async () => {
   const sent = await sendDueSummaries({ db, send, logger }, new Date());
   if (sent > 0) logger.info({ sent }, "morning summaries sent");
 });
 
 await boss.schedule(REMINDER_DISPATCH, "*/5 * * * *");
-await boss.work(REMINDER_DISPATCH, async () => {
+await boss.work(REMINDER_DISPATCH, scheduled, async () => {
   const sent = await sendDueReminders({ db, send, logger }, new Date());
   if (sent > 0) logger.info({ sent }, "reminders sent");
 });

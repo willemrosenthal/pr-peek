@@ -11,6 +11,7 @@ import { getOctokit } from "./github/client";
 import { listenForItemChanges } from "./items-listener";
 import { createBoss, createQueues, queueSync } from "./jobs";
 import { vapidFrom, webPushSender } from "./push";
+import { activityRouter } from "./routes/activity";
 import { authRouter } from "./routes/auth";
 import { desktopRouter } from "./routes/desktop";
 import { githubTokenRouter } from "./routes/github-token";
@@ -45,6 +46,7 @@ const boss = createBoss(pool, { worker: false });
 boss.on("error", (err) => logger.error({ err }, "pg-boss error"));
 await boss.start();
 await createQueues(boss);
+const requestSync = (userId: string) => queueSync(boss, userId);
 
 const listener = await listenForItemChanges({
   connectionString: config.DATABASE_URL,
@@ -63,6 +65,8 @@ const app = createApp({
     store: sessionStore,
   }),
   routers: [
+    // First, so it sees every signed in request.
+    activityRouter({ db, requestSync }),
     authRouter({
       db,
       oauth,
@@ -75,7 +79,7 @@ const app = createApp({
     previewRouter({ db, github }),
     itemsRouter({ db }),
     settingsRouter({ db, github }),
-    syncRouter({ db, requestSync: (userId) => queueSync(boss, userId) }),
+    syncRouter({ db, requestSync }),
     desktopRouter({ db }),
     streamRouter({ db, listener, signal: streams.signal }),
     pushRouter({

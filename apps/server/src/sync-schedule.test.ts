@@ -22,7 +22,13 @@ import {
   STOP_REASONS,
 } from "./github/tokens";
 import { createLogger } from "./logger";
-import { backoffMs, dueUserIds, runSync } from "./sync-schedule";
+import {
+  backoffMs,
+  dueUserIds,
+  runSync,
+  syncIntervalMs,
+  type ScheduleUser,
+} from "./sync-schedule";
 import { upsertGitHubUser } from "./users";
 
 const db = createTestDb();
@@ -58,21 +64,31 @@ describe("dueUserIds", () => {
     expect(await dueUserIds(db, NOW)).toEqual([user.id]);
   });
 
-  it("syncs active users about once a minute", async () => {
-    await makeUser({ lastSyncedAt: minutes(-0.5) });
+  it("syncs users using the app every 2 minutes", async () => {
+    await makeUser({ lastSyncedAt: minutes(-1) });
     expect(await dueUserIds(db, NOW)).toEqual([]);
 
     // A little early still counts, so the once a minute dispatch doesn't skip a turn.
-    await db.user.updateMany({ data: { lastSyncedAt: minutes(-0.9) } });
+    await db.user.updateMany({ data: { lastSyncedAt: minutes(-1.5) } });
     expect(await dueUserIds(db, NOW)).toHaveLength(1);
   });
 
-  it("syncs users idle for 14 days every 15 minutes", async () => {
-    await makeUser({ lastActiveAt: days(-15), lastSyncedAt: minutes(-5) });
+  it("goes by the user's quiet hours and Mac app", async () => {
+    const user = await makeUser({
+      lastActiveAt: hours(-2),
+      lastSyncedAt: minutes(-5),
+    });
+    await db.userSettings.update({
+      where: { userId: user.id },
+      data: { quietStart: "11:00", quietEnd: "13:00" },
+    });
+    // In quiet hours: every 15 minutes, even with the Mac app running.
+    await db.user.updateMany({ data: { desktopSeenAt: minutes(-1) } });
     expect(await dueUserIds(db, NOW)).toEqual([]);
 
-    await db.user.updateMany({ data: { lastSyncedAt: minutes(-15) } });
-    expect(await dueUserIds(db, NOW)).toHaveLength(1);
+    // Out of quiet hours, with the Mac app running: every 2 minutes.
+    await db.userSettings.updateMany({ data: { quietStart: null } });
+    expect(await dueUserIds(db, NOW)).toEqual([user.id]);
   });
 
   it.each(STOP_REASONS)(
@@ -93,6 +109,56 @@ describe("dueUserIds", () => {
     await makeUser();
     await db.watchedRepo.updateMany({ data: { enabled: false } });
     expect(await dueUserIds(db, NOW)).toEqual([]);
+  });
+});
+
+describe("syncIntervalMs", () => {
+  const quiet = {
+    timezone: "UTC",
+    // Crosses midnight. NOW is 12:00 UTC, so it's quiet.
+    quietStart: "22:00",
+    quietEnd: "13:00",
+    quietWeekends: false,
+  };
+  const user = (overrides: Partial<ScheduleUser>): ScheduleUser => ({
+    lastActiveAt: hours(-2),
+    desktopSeenAt: null,
+    settings: null,
+    ...overrides,
+  });
+  const everyMinutes = (u: ScheduleUser) => syncIntervalMs(u, NOW) / 60_000;
+
+  it.each([
+    ["used the app in the last hour", { lastActiveAt: minutes(-30) }, 2],
+    [
+      "used the app in the last hour, in quiet hours",
+      { lastActiveAt: minutes(-30), settings: quiet },
+      2,
+    ],
+    ["in quiet hours", { settings: quiet }, 15],
+    [
+      "in quiet hours, with the Mac app running",
+      { settings: quiet, desktopSeenAt: minutes(-1) },
+      15,
+    ],
+    ["with the Mac app running", { desktopSeenAt: minutes(-1) }, 2],
+    [
+      "away 14 days, with the Mac app running",
+      { lastActiveAt: days(-15), desktopSeenAt: minutes(-1) },
+      2,
+    ],
+    ["away 14 days", { lastActiveAt: days(-15) }, 30],
+    ["after quiet hours end", { settings: { ...quiet, quietEnd: "11:00" } }, 5],
+    ["anyone else", {}, 5],
+  ] satisfies [string, Partial<ScheduleUser>, number][])(
+    "syncs a user %s",
+    (_name, overrides, expected) => {
+      expect(everyMinutes(user(overrides))).toBe(expected);
+    },
+  );
+
+  it("treats a Mac app that stopped sending heartbeats as closed", () => {
+    expect(everyMinutes(user({ desktopSeenAt: minutes(-10) }))).toBe(5);
   });
 });
 

@@ -2,6 +2,9 @@ import express, { type Router } from "express";
 import type { Db } from "../db";
 import { currentUser, requireUser } from "./auth";
 
+// Not counted as using the app (see activity.ts): it only means the Mac app is running.
+export const DESKTOP_HEARTBEAT = "/desktop/heartbeat";
+
 export interface DesktopRouteDeps {
   db: Db;
   now?: () => Date;
@@ -15,8 +18,8 @@ export function desktopRouter(deps: DesktopRouteDeps): Router {
 
   // Sent every minute while the app runs. Until a few minutes after the last one, the
   // user's notifications go to the app instead of the browsers on that Mac.
-  router.post("/desktop/heartbeat", async (_req, res) => {
-    await deps.db.user.update({
+  router.post(DESKTOP_HEARTBEAT, async (_req, res) => {
+    await deps.db.user.updateMany({
       where: { id: currentUser(res).id },
       data: { desktopSeenAt: now() },
     });
