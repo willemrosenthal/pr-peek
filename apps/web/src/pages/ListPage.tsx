@@ -11,7 +11,10 @@ import {
   type OnPreview,
   type PreviewTarget,
 } from "../components/PrPreview";
-import { PullToRefresh } from "../components/PullToRefresh";
+import {
+  PullToRefreshSpinner,
+  usePullToRefresh,
+} from "../components/PullToRefresh";
 import { cx } from "../cx";
 import { useIsTray } from "../hooks/useIsTray";
 import { useMarkSeen } from "../hooks/useMarkSeen";
@@ -55,10 +58,19 @@ export function ListPage() {
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
   // Closes when the app hides, so it opens on the plain list, like other pages.
   useWhenHidden(useCallback(() => setPreview(null), []));
+  const pull = usePullToRefresh({
+    refreshing: sync.refreshing,
+    onRefresh: sync.refresh,
+    enabled: preview === null,
+  });
 
   return (
     <main className={cx(styles.page, tray && styles.tray)}>
-      <div className={styles.panel}>
+      <PullToRefreshSpinner offset={pull.offset} dragging={pull.dragging} />
+      <div
+        className={cx(styles.panel, pull.page.className)}
+        style={pull.page.style}
+      >
         <div className={styles.top}>
           <ListHeader
             lastSyncedAt={sync.status?.lastSyncedAt}
@@ -71,11 +83,6 @@ export function ListPage() {
               <Alert>{sync.refreshError.message}</Alert>
             </div>
           )}
-          <PullToRefresh
-            refreshing={sync.refreshing}
-            onRefresh={sync.refresh}
-            enabled={preview === null}
-          />
         </div>
         <ListBody onPreview={setPreview} />
       </div>

@@ -1,28 +1,74 @@
 import { fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { holdPull, pull } from "../test/swipe";
-import { PullToRefresh } from "./PullToRefresh";
-import styles from "./PullToRefresh.module.css";
+import {
+  PullToRefreshSpinner,
+  pullOffset,
+  usePullToRefresh,
+} from "./PullToRefresh";
+
+function Page({
+  refreshing,
+  onRefresh,
+}: {
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
+  const pulled = usePullToRefresh({ refreshing, onRefresh, enabled: true });
+  return (
+    <>
+      <PullToRefreshSpinner offset={pulled.offset} dragging={pulled.dragging} />
+      <div data-testid="page" {...pulled.page} />
+    </>
+  );
+}
 
 function setup() {
   const onRefresh = vi.fn();
-  const view = render(
-    <PullToRefresh refreshing={false} onRefresh={onRefresh} enabled />,
-  );
+  const view = render(<Page refreshing={false} onRefresh={onRefresh} />);
   const rerender = (refreshing: boolean) =>
-    view.rerender(
-      <PullToRefresh refreshing={refreshing} onRefresh={onRefresh} enabled />,
-    );
-  const circle = view.container.querySelector(`.${styles.circle}`)!;
-  return { onRefresh, rerender, circle };
+    view.rerender(<Page refreshing={refreshing} onRefresh={onRefresh} />);
+  const page = view.getByTestId("page");
+  const spinner = view.container.querySelector<HTMLElement>(
+    '[aria-hidden="true"] > div',
+  )!;
+  return { onRefresh, rerender, page, spinner };
 }
 
-// How far down the circle is.
-const shownAt = (circle: Element) => (circle as HTMLElement).style.transform;
+// How far down the page is, in pixels. 0 at rest.
+const pageAt = (page: HTMLElement) =>
+  Number(/translateY\(([\d.]+)px\)/.exec(page.style.transform)?.[1] ?? 0);
 
-describe("PullToRefresh", () => {
+describe("pullOffset", () => {
+  it("gets heavier the further it goes, and stops at a limit", () => {
+    const first = pullOffset(100);
+    const second = pullOffset(200) - first;
+    expect(first).toBeGreaterThan(0);
+    expect(first).toBeLessThan(100);
+    expect(second).toBeLessThan(first);
+    expect(pullOffset(10_000)).toBeLessThan(160);
+    expect(pullOffset(-50)).toBe(0);
+  });
+});
+
+describe("usePullToRefresh", () => {
   afterEach(() => {
     Object.assign(window, { scrollY: 0 });
+  });
+
+  it("brings the page down with the finger, over the spinner", () => {
+    const { page, spinner } = setup();
+    expect(pageAt(page)).toBe(0);
+    expect(spinner.style.opacity).toBe("0");
+
+    holdPull(document.body, 100);
+    const partWay = pageAt(page);
+    expect(partWay).toBeGreaterThan(0);
+    expect(Number(spinner.style.opacity)).toBeLessThan(1);
+
+    holdPull(document.body, 200);
+    expect(pageAt(page)).toBeGreaterThan(partWay);
+    expect(spinner.style.opacity).toBe("1");
   });
 
   it("refreshes only once pulled far enough", () => {
@@ -33,42 +79,33 @@ describe("PullToRefresh", () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it("turns blue once far enough", () => {
-    const { circle } = setup();
-    holdPull(document.body, 100);
-    expect(circle.className).not.toContain(styles.armed);
-    holdPull(document.body, 200);
-    expect(circle.className).toContain(styles.armed);
+  it("springs back up when the finger lifts, while the refresh runs", () => {
+    const { page, rerender } = setup();
+    pull(document.body, 200);
+    rerender(true);
+    expect(pageAt(page)).toBe(0);
+    expect(page.style.transform).toBe("");
   });
 
   it("ignores a sideways swipe, and a pull once scrolled down", () => {
-    const { onRefresh } = setup();
-    pull(document.body, 200, 250);
+    const { onRefresh, page } = setup();
+    holdPull(document.body, 200, 250);
+    expect(pageAt(page)).toBe(0);
+    fireEvent.touchEnd(document.body, { touches: [] });
     Object.assign(window, { scrollY: 50 });
     pull(document.body, 200);
     expect(onRefresh).not.toHaveBeenCalled();
   });
 
-  it("stays and spins until the refresh ends", () => {
-    const { rerender, circle } = setup();
+  it("doesn't start another pull while refreshing", () => {
+    const { onRefresh, rerender } = setup();
+    rerender(true);
     pull(document.body, 200);
-    rerender(true);
-    expect(shownAt(circle)).toBe("translateY(48px)");
-    expect(circle.querySelector(`.${styles.spin}`)).toBeTruthy();
-
-    rerender(false);
-    expect(shownAt(circle)).toBe("translateY(0px)");
-    expect(circle.querySelector(`.${styles.spin}`)).toBe(null);
-  });
-
-  it("stays hidden when the Refresh button refreshes", () => {
-    const { rerender, circle } = setup();
-    rerender(true);
-    expect(shownAt(circle)).toBe("translateY(0px)");
+    expect(onRefresh).not.toHaveBeenCalled();
   });
 
   it("goes back up without refreshing when a second finger lands", () => {
-    const { onRefresh, circle } = setup();
+    const { onRefresh, page } = setup();
     holdPull(document.body, 200);
     fireEvent.touchStart(document.body, {
       touches: [
@@ -78,6 +115,6 @@ describe("PullToRefresh", () => {
     });
     fireEvent.touchEnd(document.body, { touches: [] });
     expect(onRefresh).not.toHaveBeenCalled();
-    expect(shownAt(circle)).toBe("translateY(0px)");
+    expect(pageAt(page)).toBe(0);
   });
 });
