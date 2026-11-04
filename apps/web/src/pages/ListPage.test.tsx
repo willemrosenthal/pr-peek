@@ -33,11 +33,15 @@ import {
   syncStatus,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
-import { drag, FAR_ENOUGH, stubPointerCapture } from "../test/swipe";
+import { drag, FAR_ENOUGH, pull, stubPointerCapture } from "../test/swipe";
 import { callsOf, stubTauri } from "../test/tauri";
 import { hideWindow, setVisibility } from "../test/visibility";
 
 beforeAll(stubPointerCapture);
+
+// Gives a request that shouldn't happen time to be sent.
+const settle = () =>
+  act(() => new Promise((resolve) => setTimeout(resolve, 10)));
 
 const minutesAgo = (n: number) =>
   new Date(Date.now() - n * 60_000).toISOString();
@@ -639,7 +643,7 @@ describe("marking seen", () => {
     );
     renderApp("/", { strict: true });
     await sectionButton(/Needs my review/);
-    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    await settle();
     expect(seenRequests(fetch)).toEqual([]);
   });
 
@@ -876,6 +880,45 @@ describe("the header", () => {
       await screen.findByText("Updated just now", {}, { timeout: 4000 }),
     ).toBeTruthy();
     expect(refresh.getAttribute("aria-busy")).toBe("false");
+  });
+
+  // How far a pull must go is tested in PullToRefresh.test.tsx.
+  describe("pull to refresh", () => {
+    it("refreshes when the list is pulled down", async () => {
+      const fetch = fakeApi(
+        listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),
+      );
+      renderApp("/");
+      pull(await screen.findByText("Nothing needs you right now"), 200);
+      await waitFor(() => expect(callsTo(fetch, "/api/sync")).toHaveLength(1));
+      expect(
+        screen
+          .getByRole("button", { name: "Refresh" })
+          .getAttribute("aria-busy"),
+      ).toBe("true");
+    });
+
+    // Like a finger that opened the preview with a long press, then moves down. The
+    // sheet keeps its own touches, so those are left out.
+    it("doesn't refresh while a preview is open", async () => {
+      const asked = item();
+      const fetch = fakeApi(
+        listApi({
+          "GET /api/items": () => json(groups({ review: [asked] })),
+          ...previewApi(asked),
+          "POST /api/sync": () => json({ queued: true }, 202),
+        }),
+      );
+      renderApp("/");
+      await sectionButton(/Needs my review/);
+      const row = rowOf(asked);
+      fireEvent.contextMenu(row);
+      await screen.findByRole("dialog", { name: asked.pr.title });
+
+      pull(row, 200);
+      await settle();
+      expect(callsTo(fetch, "/api/sync")).toHaveLength(0);
+    });
   });
 
   it("shows why a refresh was refused", async () => {

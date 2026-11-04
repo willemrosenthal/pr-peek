@@ -66,6 +66,16 @@ textarea {
   -webkit-touch-callout: none;
 }
 
+/* The list has its own pull to refresh, so the browser's is off, and so is the
+   iPhone's bounce at the top. Touch screens only, so the Mac keeps its bounce. See
+   PullToRefresh.tsx. */
+@media (pointer: coarse) {
+  :root[data-pull-to-refresh],
+  :root[data-pull-to-refresh] body {
+    overscroll-behavior-y: none;
+  }
+}
+
 /* Mac app: no focus ring until a key is pressed. See desktop.ts. */
 .quiet-focus :focus-visible {
   outline: none;

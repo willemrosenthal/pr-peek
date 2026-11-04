@@ -11,6 +11,7 @@ import {
   type OnPreview,
   type PreviewTarget,
 } from "../components/PrPreview";
+import { PullToRefresh } from "../components/PullToRefresh";
 import { cx } from "../cx";
 import { useIsTray } from "../hooks/useIsTray";
 import { useMarkSeen } from "../hooks/useMarkSeen";
@@ -70,6 +71,11 @@ export function ListPage() {
               <Alert>{sync.refreshError.message}</Alert>
             </div>
           )}
+          <PullToRefresh
+            refreshing={sync.refreshing}
+            onRefresh={sync.refresh}
+            enabled={preview === null}
+          />
         </div>
         <ListBody onPreview={setPreview} />
       </div>
