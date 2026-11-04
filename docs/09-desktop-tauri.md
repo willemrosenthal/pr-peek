@@ -142,9 +142,8 @@ The Mac browser may also have a push subscription, so the same alert could arriv
   - **(You)** Add them as GitHub secrets.
   - `tauri-action` uses these secrets automatically.
   - Then remove `"signingIdentity":"-"` from the workflow's `--config`.
-- [x] Until signing is set up, builds work for you. Right click, then Open the first time to get past the warning.
+- [x] Until signing is set up, builds work for you. The first time, macOS blocks the app: open System Settings, Privacy & Security, and choose Open Anyway. The release notes say so. (Newer macOS dropped right click, Open.)
   - Builds get a free stand-in signature (`signingIdentity` `-`). With no signature at all, Apple Silicon Macs call a downloaded app damaged.
-  - Newer macOS dropped right click, Open. Instead: System Settings, Privacy & Security, Open Anyway. The release notes say so.
 - [x] Add a "Download for Mac" link on the `/install` page that points at the latest release.
   - It opens the release page, since the `.dmg` name has the version in it. Hidden inside the Mac app.
 - [x] Check the Rust code in CI on PRs that change `apps/desktop`: `cargo fmt --check` and `cargo clippy -- -D warnings`. CI's Linux runner checks only the web and server code today.

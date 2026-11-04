@@ -37,11 +37,12 @@ export function InstallPage() {
               Your list in the Mac menu bar, with a count next to the icon and
               native alerts.
             </p>
+            {/* Keeps the button its own width, not the column's. */}
             <div>
               <ButtonLink
                 href={MAC_APP_DOWNLOAD}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
               >
                 Download for Mac
               </ButtonLink>

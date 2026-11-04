@@ -1,7 +1,7 @@
 name: Check desktop
 
-# The Mac app's Rust code. Only runs when it changes, since macOS runners are slow to
-# start.
+# The Mac app's Rust code. Only runs when it changes, since macOS runners are slower,
+# and use up a private repo's Actions minutes 10 times as fast.
 on:
   pull_request:
     paths: ["apps/desktop/**", ".github/workflows/check-desktop.yml"]
