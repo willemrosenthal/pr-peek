@@ -114,30 +114,33 @@ function toRow(
 }
 
 interface TeamsUser {
-  id: string;
   login: string;
   teams: string[];
   teamsCheckedAt: Date | null;
 }
 
-// The user's teams, checked with GitHub at most once an hour and kept on their row.
-// `changed` when they differ from the kept ones.
+interface Teams {
+  teams: string[];
+  // Differ from the ones kept on the user's row.
+  changed: boolean;
+  // Asked GitHub, so the sync saves them when it ends. Not before: if the sync failed
+  // after saving them, the next one wouldn't see the change.
+  checked: boolean;
+}
+
+// The user's teams, checked with GitHub at most once an hour.
 async function currentTeams(
-  db: Db,
   octokit: Octokit,
   user: TeamsUser,
   now: Date,
-): Promise<{ teams: string[]; changed: boolean }> {
+): Promise<Teams> {
   const checkedAt = user.teamsCheckedAt?.getTime();
   if (checkedAt !== undefined && now.getTime() - checkedAt < TEAMS_KEPT_MS) {
-    return { teams: user.teams, changed: false };
+    return { teams: user.teams, changed: false, checked: false };
   }
   const teams = (await fetchViewerTeams(octokit, user.login)).toSorted();
-  await db.user.updateMany({
-    where: { id: user.id },
-    data: { teams, teamsCheckedAt: now },
-  });
-  return { teams, changed: teams.join(" ") !== user.teams.join(" ") };
+  const changed = teams.join(" ") !== user.teams.join(" ");
+  return { teams, changed, checked: true };
 }
 
 interface FromGitHub {
@@ -148,6 +151,8 @@ interface FromGitHub {
   ended: Map<string, EndedState>;
   details: PrDetails;
   viewer: Viewer;
+  // Teams just checked with GitHub, to save when the sync ends. Null if not checked.
+  checkedTeams: string[] | null;
   fullPass: boolean;
 }
 
@@ -164,7 +169,6 @@ async function fetchFromGitHub(
     db.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
-        id: true,
         login: true,
         rulesRunAt: true,
         rulesStaleAt: true,
@@ -206,7 +210,7 @@ async function fetchFromGitHub(
       .map((pr) => [pr.githubNodeId, "unwatched"]),
   );
   const includeTeamRequests = settings?.includeTeamRequests ?? true;
-  const viewer = {
+  const viewer: Viewer = {
     login: user.login,
     teams: [],
     includeTeamRequests,
@@ -220,14 +224,15 @@ async function fetchFromGitHub(
       ended,
       details,
       viewer,
+      checkedTeams: null,
       fullPass: false,
     };
   }
 
   const octokit = await deps.github(userId);
   const teams = includeTeamRequests
-    ? await currentTeams(db, octokit, user, now)
-    : { teams: [], changed: false };
+    ? await currentTeams(octokit, user, now)
+    : { teams: [], changed: false, checked: false };
   // The rules give the same items for a PR that didn't change, unless their code, the
   // user's settings, or their teams did.
   const staleAfter = Math.max(
@@ -271,6 +276,7 @@ async function fetchFromGitHub(
     ended,
     details,
     viewer: { ...viewer, teams: teams.teams },
+    checkedTeams: teams.checked ? teams.teams : null,
     fullPass,
   };
 }
@@ -282,7 +288,7 @@ export async function syncUser(
 ): Promise<SyncResult> {
   const { db } = deps;
   const now = (deps.now ?? (() => new Date()))();
-  const { searchedIds, open, ended, details, viewer, fullPass } =
+  const { searchedIds, open, ended, details, viewer, checkedTeams, fullPass } =
     await fetchFromGitHub(deps, userId, now);
   const viewerLogin = viewer.login;
   // The rules run only on the PRs just fetched. A PR that didn't change keeps its items.
@@ -373,7 +379,11 @@ export async function syncUser(
   });
   await db.user.updateMany({
     where: { id: userId },
-    data: { lastSyncedAt: now, ...(fullPass && { rulesRunAt: now }) },
+    data: {
+      lastSyncedAt: now,
+      ...(fullPass && { rulesRunAt: now }),
+      ...(checkedTeams && { teams: checkedTeams, teamsCheckedAt: now }),
+    },
   });
 
   return {

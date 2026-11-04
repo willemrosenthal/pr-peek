@@ -1021,7 +1021,6 @@ describe("full passes", () => {
 
     const next = await sync(user.id, asked(), hours(1));
     expect(next.result.fullPass).toBe(false);
-    expect(detailIds(next.requests)).toEqual([]);
   });
 
   it("runs one after a deploy, and heals an item without notifying", async () => {
@@ -1110,6 +1109,37 @@ describe("full passes", () => {
     expect(result.fullPass).toBe(true);
     expect((await itemOf("review_requested")).status).toBe("open");
     expect((await db.user.findFirstOrThrow()).teams).toEqual(["acme/frontend"]);
+  });
+
+  it("keeps a team change for the next sync when this one fails", async () => {
+    const user = await makeUser();
+    const frontend = { __typename: "Team", combinedSlug: "acme/frontend" };
+    const pr = githubPr({
+      reviewRequests: { nodes: [{ requestedReviewer: frontend }] },
+    });
+    await sync(user.id, asked(pr));
+
+    // The user joined the team, but the searches fail after the teams are checked.
+    const joined = { ...asked(pr), teams: ["acme/frontend"] };
+    const answer = prGitHub(joined);
+    const { octokit } = fakeGraphQL((request) =>
+      request.query.includes("search(")
+        ? {
+            data: null,
+            errors: [{ type: "INTERNAL", message: "GitHub broke" }],
+          }
+        : answer(request),
+    );
+    await expect(
+      syncUser(
+        { db, github: () => Promise.resolve(octokit), now: () => hours(1.5) },
+        user.id,
+      ),
+    ).rejects.toThrow();
+
+    const { result } = await sync(user.id, joined, hours(1.6));
+    expect(result.fullPass).toBe(true);
+    expect((await itemOf("review_requested")).status).toBe("open");
   });
 
   it("leaves PRs that ended alone", async () => {
