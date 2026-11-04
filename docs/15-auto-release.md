@@ -105,7 +105,8 @@ Each PR lands on `main` as one squashed commit, named after the PR title. So the
 - [x] Add `semantic-release`, `conventional-changelog-conventionalcommits`, `@commitlint/cli`, and `@commitlint/config-conventional` as root dev dependencies, so versions are pinned in the lockfile. commitlint checks PR titles, with the same rules semantic-release reads.
 - [x] `.releaserc.json`:
   - `branches: ["main"]`, `tagFormat: "v${version}"`.
-  - Plugins listed by hand, which drops the defaults that publish to npm and make GitHub Releases: only `commit-analyzer` and `release-notes-generator`, with the `conventionalcommits` preset.
+  - Plugins listed by hand, which drops the defaults that publish to npm and make GitHub Releases: only `commit-analyzer`, with the `conventionalcommits` preset.
+  - No `release-notes-generator`: nothing reads its notes, since Mac releases use GitHub's own. It also broke the first release: the preset needs a newer notes writer than semantic-release ships.
   - Check the default rules give a patch for `perf`, and for a squashed GitHub revert (`Revert "feat: x" (#123)`, with "This reverts commit ..." in the body). Add `releaseRules` if not.
 - [x] `commitlint.config.js`, extending `config-conventional`.
 - [x] Run `pnpm exec semantic-release --dry-run --no-ci --branches <this branch>` locally (it only runs on its release branch otherwise). It should say 1.0.0.
