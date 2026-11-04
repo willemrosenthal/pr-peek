@@ -33,10 +33,10 @@ Estimates. They assume 30 PRs per user, 10 hours of quiet hours a night, and the
 | Per user                    | Syncs a day | GitHub requests a day | Database egress a month |
 | --------------------------- | ----------- | --------------------- | ----------------------- |
 | Today                       | 1,440       | ~8,600                | ~15 GB                  |
-| After this plan, phone/web  | ~350        | ~500                  | ~0.18 GB                |
-| After this plan, Mac app on | ~550        | ~750                  | ~0.27 GB                |
+| After this plan, phone/web  | ~260        | ~370                  | ~0.14 GB                |
+| After this plan, Mac app on | ~460        | ~650                  | ~0.23 GB                |
 
-- **Free plan:** about 17 to 21 users fit in the 5 GB of egress, depending on how many use the Mac app. Today, few or none do.
+- **Free plan:** about 20 to 25 users fit in the 5 GB of egress, depending on how many use the Mac app. Today, few or none do.
 - **100 users:** about $39 a month ($25 Supabase Pro, $14 Render), well inside Pro's 250 GB. Today, about $150, and the worker couldn't keep up.
 
 ## Key decision: no stored snapshots
@@ -46,7 +46,7 @@ The rules run on the fresh copies a sync fetches, and nothing else. When the sto
 No rule reads the clock, so items only change when the PR, the user's settings, their teams, or the rules code change. A full pass runs:
 
 - **After a deploy:** the worker remembers when it started. A user whose last full pass (`User.rulesRunAt`) is older gets one. New or fixed rules reach every PR.
-- **After a settings change** that affects the rules (the ones that call `rerunRules` today): the setting saves right away, `rulesRunAt` is cleared, and a sync is queued. Settings shows "Updating your list…" until the list updates through live updates, a few seconds later. If a sync is already running, the next one does the pass, within about a minute.
+- **After a settings change** that affects the rules (the ones that call `rerunRules` today): the setting saves right away, `rulesRunAt` is cleared, and a sync is queued. Settings shows "Updating your list…" until the list updates through live updates, a few seconds later. If a sync is already running, the next one does the pass, within about 2 minutes.
 - **When the user's teams change:** the sync checks teams at most once an hour (one small request) and keeps them on the user's row. A full pass runs only if they're different.
 
 **No hourly pass.** A pass over the same data can't find anything new. A bug that saved wrong items is fixed by a deploy, and the deploy runs a full pass.
@@ -70,7 +70,7 @@ Rows keep their short preview of the latest comment (`alice: "looks good but..."
 
 | The user                         | Syncs every |
 | -------------------------------- | ----------- |
-| Used the app in the last hour    | 1 minute    |
+| Used the app in the last hour    | 2 minutes   |
 | In their quiet hours             | 15 minutes  |
 | Has the Mac app running          | 2 minutes   |
 | None of these                    | 5 minutes   |
@@ -78,10 +78,11 @@ Rows keep their short preview of the latest comment (`alice: "looks good but..."
 
 The first row that matches wins.
 
+- **It's per account, not per device.** One sync serves all of a user's devices: phone, Mac, and browser. Using the app on any of them counts, and a second device never adds syncs. The fastest row any device earns wins.
 - "Used the app" is `lastActiveAt`. It's saved at most once an hour today, so that becomes every 10 minutes. Opening the Mac dropdown counts. **The Mac heartbeat doesn't:** it only sets `desktopSeenAt`, which means the Mac app is running.
 - Using the app beats quiet hours. If you open it at night, it's fresh.
 - **Sync on open:** when someone opens the app and their last sync is more than a minute old, a sync is queued right away. The list is fresh within seconds, not after the next scheduled sync.
-- **The cost:** with the app closed, a push can arrive up to 5 minutes after the event, or 2 with the Mac app running. A high severity push that breaks quiet hours can be up to 15 minutes late. Pull to refresh and "Refresh now" still sync right away.
+- **The cost:** a push can arrive up to 2 minutes after the event while you use the app or the Mac app runs, and up to 5 with neither. A high severity push that breaks quiet hours can be up to 15 minutes late. Pull to refresh and "Refresh now" still sync right away.
 
 ## Key decision: one GitHub request for all 5 searches
 
@@ -178,7 +179,7 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 - [ ] A normal sync runs the rules only on the PRs it fetched. A full pass fetches every tracked PR, runs the rules on all of them, and sets `rulesRunAt`. Full pass when `rulesRunAt` is null or older than the worker's start time, or when the teams changed.
 - [ ] Teams: fetched at most once an hour per user, only with team requests on. Kept on the user row, replacing the in-memory cache.
 - [ ] Settings changes: replace `rerunRules` with clearing `rulesRunAt` and queueing a sync.
-- [ ] Web: after a rule setting saves, Settings shows "Updating your list…" until the next items update arrives, or a minute passes.
+- [ ] Web: after a rule setting saves, Settings shows "Updating your list…" until the next items update arrives, or 2 minutes pass.
 - [ ] Quiet PRs: wake when a fetched own PR's last push differs from `lastPushSha`.
 - [ ] Preview: add review requests and the head commit's failing checks to its GitHub request. `reviewersOf` takes those.
 - [ ] The list reads `listGroup` and `assignedState`, and selects only the fields it shows. `/items` loads the user's settings, rule settings, and repo colors once, not once per part.
@@ -193,7 +194,7 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 
 - [ ] A normal sync with nothing new reads no snapshots and makes one search request. Check with the "sync done" log (`fullPass: false`, `fetched: 0`).
 - [ ] A settings change, like hiding bots, shows "Updating your list…", then the list changes within a few seconds.
-- [ ] With the app closed, a new review request pushes within 5 minutes. With the Mac app running, within 2. With the app open, within a minute (You).
+- [ ] With the app closed, a new review request pushes within 5 minutes. With the app open or the Mac app running, within 2 (You).
 - [ ] Opening the app after an hour away shows a fresh list within seconds (You).
 - [ ] Supabase egress drops by at least 20 times, compared to 16.0 (You).
 - [ ] The pg-boss job table stays near the number of users times 60 rows (You).
