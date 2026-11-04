@@ -121,8 +121,8 @@ Merging a PR can release it. PRs are squash merged, so the PR title becomes the 
 | `fix`, `perf`                                      | Releases a patch (1.2.0 to 1.2.1), and deploys         |
 | `chore`, `docs`, `test`, `refactor`, `ci`, `style` | Nothing. It ships with the next release                |
 
-- Scopes: `web`, `server`, `core`, `desktop`, `ci`, `deps`. Like `fix(desktop): keep the dropdown open`.
+- Scopes: `web`, `server`, `core`, `desktop`, `ci`, `deps`. Like `fix(desktop): keep the dropdown open`. The scope is only a label: the changed files decide what ships.
 - A change that must ship but isn't a feature, like a security update to a dependency, is `fix(deps): ...`.
-- A Mac app release happens only when `apps/desktop` changed.
+- A release deploys the web app, and builds the Mac app only when `apps/desktop` changed since the last Mac release.
 - Breaking changes (`feat!:`, or `BREAKING CHANGE:` in any commit message) release a major version. Only when the user agrees.
 - Commits inside a PR use the same format, out of habit, but only the title counts.
