@@ -6,6 +6,7 @@ import {
   pullOffset,
   usePullToRefresh,
 } from "./PullToRefresh";
+import styles from "./PullToRefresh.module.css";
 
 function Page({
   refreshing,
@@ -17,7 +18,11 @@ function Page({
   const pulled = usePullToRefresh({ refreshing, onRefresh, enabled: true });
   return (
     <>
-      <PullToRefreshSpinner offset={pulled.offset} dragging={pulled.dragging} />
+      <PullToRefreshSpinner
+        offset={pulled.offset}
+        dragging={pulled.dragging}
+        refreshing={refreshing}
+      />
       <div data-testid="page" {...pulled.page} />
     </>
   );
@@ -30,9 +35,11 @@ function setup() {
     view.rerender(<Page refreshing={refreshing} onRefresh={onRefresh} />);
   const page = view.getByTestId("page");
   const spinner = view.container.querySelector<HTMLElement>(
-    '[aria-hidden="true"] > div',
+    `.${styles.spinner}`,
   )!;
-  return { onRefresh, rerender, page, spinner };
+  const rainbow = view.container.querySelector(`.${styles.rainbow}`)!;
+  const rainbowShown = () => rainbow.classList.contains(styles.shown!);
+  return { onRefresh, rerender, page, spinner, rainbowShown, view };
 }
 
 // How far down the page is, in pixels. 0 at rest.
@@ -71,6 +78,16 @@ describe("usePullToRefresh", () => {
     expect(spinner.style.opacity).toBe("1");
   });
 
+  it("turns the gap rainbow once letting go would refresh", () => {
+    const { rainbowShown } = setup();
+    holdPull(document.body, 100);
+    expect(rainbowShown()).toBe(false);
+    holdPull(document.body, 200);
+    expect(rainbowShown()).toBe(true);
+    fireEvent.touchEnd(document.body, { touches: [] });
+    expect(rainbowShown()).toBe(false);
+  });
+
   it("refreshes only once pulled far enough", () => {
     const { onRefresh } = setup();
     pull(document.body, 100);
@@ -97,11 +114,18 @@ describe("usePullToRefresh", () => {
     expect(onRefresh).not.toHaveBeenCalled();
   });
 
-  it("doesn't start another pull while refreshing", () => {
-    const { onRefresh, rerender } = setup();
+  it("shows a running refresh when pulled, without starting another", () => {
+    const { onRefresh, rerender, page, spinner, rainbowShown, view } = setup();
     rerender(true);
-    pull(document.body, 200);
+    expect(view.queryByText("Refreshing…")).toBeTruthy();
+    holdPull(document.body, 100);
+    expect(pageAt(page)).toBeGreaterThan(0);
+    expect(spinner.style.opacity).toBe("1");
+    holdPull(document.body, 200);
+    expect(rainbowShown()).toBe(false);
+    fireEvent.touchEnd(document.body, { touches: [] });
     expect(onRefresh).not.toHaveBeenCalled();
+    expect(pageAt(page)).toBe(0);
   });
 
   it("goes back up without refreshing when a second finger lands", () => {

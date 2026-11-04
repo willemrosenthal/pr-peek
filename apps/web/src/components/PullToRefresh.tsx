@@ -8,7 +8,6 @@ import {
 import { cx } from "../cx";
 import { canVibrate, haptic } from "../haptics";
 import styles from "./PullToRefresh.module.css";
-import { Spinner } from "./Spinner";
 
 // How far a finger moves before it counts as a pull, not a tap or a swipe.
 const START_PX = 8;
@@ -24,8 +23,9 @@ export const pullOffset = (distance: number) =>
 
 // Pulling the list down from the top refreshes it, like on an iPhone. Touch only: a
 // mouse or trackpad has the Refresh button. The page comes down with the finger, over
-// a spinner. Letting go far enough refreshes, and the page springs back up either way.
-// Off while `enabled` is false, like while a preview is open.
+// a spinner. Far enough, the gap turns rainbow, and letting go refreshes. The page
+// springs back up either way. During a refresh, a pull just shows it's running. Off
+// while `enabled` is false, like while a preview is open.
 export function usePullToRefresh({
   refreshing,
   onRefresh,
@@ -46,10 +46,9 @@ export function usePullToRefresh({
     at: number;
   }>(undefined);
 
-  const canStart = useEffectEvent(
-    () => enabled && !refreshing && window.scrollY <= 0,
-  );
+  const canStart = useEffectEvent(() => enabled && window.scrollY <= 0);
   const isEnabled = useEffectEvent(() => enabled);
+  const isRefreshing = useEffectEvent(() => refreshing);
   const refresh = useEffectEvent(() => onRefresh());
 
   useEffect(() => {
@@ -91,7 +90,8 @@ export function usePullToRefresh({
       if (event.cancelable) event.preventDefault();
       const at = pullOffset(dy - START_PX);
       // Buzzes as it gets far enough, where the phone can buzz mid-pull.
-      if (at >= ARM_PX && t.at < ARM_PX && canVibrate()) haptic();
+      const arming = at >= ARM_PX && t.at < ARM_PX && !isRefreshing();
+      if (arming && canVibrate()) haptic();
       t.at = at;
       setOffset(at);
     };
@@ -102,7 +102,7 @@ export function usePullToRefresh({
       if (!t?.pulling) return;
       setDragging(false);
       setOffset(0);
-      if (event?.type !== "touchend" || t.at < ARM_PX) return;
+      if (event?.type !== "touchend" || t.at < ARM_PX || isRefreshing()) return;
       // iPhones can only tick as the finger lifts.
       if (!canVibrate()) haptic();
       refresh();
@@ -131,26 +131,45 @@ export function usePullToRefresh({
   return { offset, dragging, page };
 }
 
-// The spinner behind the page, in the gap the pull opens above it.
+// How far the ring turns as the page comes down, before it's far enough.
+const TURN_DEG_PER_PX = 3;
+
+// What's behind the page, in the gap a pull opens above it: a ring that turns with
+// the pull, and the rainbow once letting go would refresh. During a refresh, the ring
+// spins and says so instead.
 export function PullToRefreshSpinner({
   offset,
   dragging,
+  refreshing,
 }: {
   offset: number;
   dragging: boolean;
+  refreshing: boolean;
 }) {
+  const armed = !refreshing && offset >= ARM_PX;
   return (
     <div className={styles.behind} aria-hidden="true">
+      <div className={cx(styles.rainbow, armed && styles.shown)} />
       <div
-        className={cx(styles.spinner, dragging && styles.dragging)}
+        className={cx(
+          styles.spinner,
+          dragging && styles.dragging,
+          armed && styles.armed,
+        )}
         style={{
           // Centered in the gap, so it stays in view as the gap opens. Fully shown once
-          // far enough to refresh.
+          // far enough to refresh, or right away during a refresh.
           transform: `translateY(${offset / 2}px)`,
-          opacity: Math.min(1, offset / ARM_PX),
+          opacity: refreshing && offset > 0 ? 1 : Math.min(1, offset / ARM_PX),
         }}
       >
-        <Spinner />
+        <span
+          className={cx(styles.ring, refreshing && styles.spinning)}
+          style={{
+            rotate: refreshing ? undefined : `${offset * TURN_DEG_PER_PX}deg`,
+          }}
+        />
+        {refreshing && <span className={styles.label}>Refreshing…</span>}
       </div>
     </div>
   );

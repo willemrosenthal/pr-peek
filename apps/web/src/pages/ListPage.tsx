@@ -66,7 +66,11 @@ export function ListPage() {
 
   return (
     <main className={cx(styles.page, tray && styles.tray)}>
-      <PullToRefreshSpinner offset={pull.offset} dragging={pull.dragging} />
+      <PullToRefreshSpinner
+        offset={pull.offset}
+        dragging={pull.dragging}
+        refreshing={sync.refreshing}
+      />
       <div
         className={cx(styles.panel, pull.page.className)}
         style={pull.page.style}

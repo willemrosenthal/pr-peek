@@ -11,38 +11,127 @@
   transition: none;
 }
 
-/* Behind the page, at the top of the screen. The page covers it until a pull opens a
-   gap above it. */
+/* Behind the page, at the top of the screen, as tall as the furthest pull. The page
+   covers it until a pull opens a gap above it. */
 .behind {
   position: fixed;
-  top: env(safe-area-inset-top);
+  top: 0;
   right: 0;
   left: 0;
   z-index: 0;
   display: flex;
   justify-content: center;
+  height: calc(env(safe-area-inset-top) + 160px);
+  padding-top: env(safe-area-inset-top);
   pointer-events: none;
 }
 
+/* Fills the gap once letting go would refresh. Its colors keep turning, like the
+   mascot's. */
+.rainbow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    #ff5f6d,
+    #ffb347,
+    #ffe156,
+    #47e891,
+    #3fa7ff,
+    #b06bff
+  );
+  opacity: 0;
+  transition: opacity 0.2s;
+  animation: rainbow 3s linear infinite;
+}
+
+.shown {
+  opacity: 1;
+}
+
+@keyframes rainbow {
+  from {
+    filter: hue-rotate(0deg);
+  }
+
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+
 .spinner {
-  /* Half the spinner's height, so its middle sits in the middle of the gap. */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  /* Half the ring's height, so its middle sits in the middle of the gap. */
   margin-top: -12px;
   transition:
     transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.2s;
+    opacity 0.2s,
+    scale 0.25s cubic-bezier(0.34, 1.8, 0.64, 1);
 }
 
-.spinner > span {
+/* Follows the finger, but still pops when it gets far enough. */
+.spinner.dragging {
+  transition: scale 0.25s cubic-bezier(0.34, 1.8, 0.64, 1);
+}
+
+/* Far enough that letting go refreshes: a little pop, in white over the rainbow. */
+.armed {
+  scale: 1.25;
+}
+
+.ring {
   width: 24px;
   height: 24px;
-  border-width: 3px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 999px;
 }
 
-/* No spring, just a quick slide. */
+.armed .ring {
+  border-color: rgb(255 255 255 / 45%);
+  border-top-color: #fff;
+  /* Stands out over the yellow too. */
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 30%));
+}
+
+/* During a refresh. */
+.spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.label {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* No spring or pop, just quick slides, and still colors. */
 @media (prefers-reduced-motion: reduce) {
   .page,
-  .spinner {
+  .spinner,
+  .spinner.dragging {
     transition-duration: 0.15s;
     transition-timing-function: ease-out;
+  }
+
+  .armed {
+    scale: 1;
+  }
+
+  .rainbow {
+    animation: none;
+  }
+
+  .spinning {
+    animation-duration: 3s;
   }
 }
