@@ -1,0 +1,9 @@
+.version {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.version a {
+  color: inherit;
+}

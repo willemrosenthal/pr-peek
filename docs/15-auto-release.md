@@ -168,15 +168,16 @@ Then, so that PR 2 is squashed too, in GitHub, Settings, General, Pull Requests:
 
 After PR 2 merges, add rulesets in GitHub, Settings, Rules, Rulesets:
 
-- [ ] **`main`:** require a pull request, with 0 approvals (you can't approve your own PRs), and require these checks to pass: `check`, `test-core`, `test-server`, `test-web`, `pr-title`. Not `check-desktop`, since it only runs when `apps/desktop` changes, and a check that didn't run would block the merge. Block force pushes.
-- [ ] **`prod`:** block force pushes and deletion. Don't require a pull request, or the workflow couldn't move it forward.
-- [ ] **Tags `v*`:** block deletion and updates, so a release tag can't be moved. Leave creation open for the workflow.
+- [x] **`main`:** require a pull request, with 0 approvals (you can't approve your own PRs), and require these checks to pass: `check`, `test-core`, `test-server`, `test-web`, `pr-title`. Not `check-desktop`, since it only runs when `apps/desktop` changes, and a check that didn't run would block the merge. Block force pushes.
+- [x] **`prod`:** block force pushes and deletion. Don't require a pull request, or the workflow couldn't move it forward.
+- [x] **Tags `v*`:** block deletion and updates, so a release tag can't be moved. Leave creation open for the workflow.
 
 ## Done when
 
 - [x] Merging PR 2 makes 1.0.0. `prod` deploys, and Mac app 1.0.0 is the latest release, with both chips in `latest.json`.
   - Done with #110, after #109's run failed in the release notes plugin. All 8 jobs passed, and `latest.json` links point at `v1.0.0`.
-- [ ] A PR titled `docs: ...` merges, and nothing releases or deploys.
+- [x] A PR titled `docs: ...` merges, and nothing releases or deploys.
+  - Done with #111 (`ci:`): the checks ran, no tag, no deploy, no Mac build.
 - [ ] A PR titled `fix(web): ...` merges. A patch version is tagged, `prod` moves to it, Render deploys, and no Mac release is made.
 - [ ] A PR titled `fix(desktop): ...` merges. A Mac release is published with the new version, and an installed Mac app offers the update and installs it.
 - [ ] A PR titled "Small fix" fails the `pr-title` check and can't merge. Renaming it to `fix(web): ...` passes.

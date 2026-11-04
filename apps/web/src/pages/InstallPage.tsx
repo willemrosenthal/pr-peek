@@ -1,3 +1,4 @@
+import { REPO_URL } from "../build";
 import { BackToList } from "../components/BackToList";
 import { ButtonLink } from "../components/Button";
 import { InstallHere, OtherDevices } from "../components/InstallSteps";
@@ -6,8 +7,7 @@ import { useReturnToList } from "../hooks/useReturnToList";
 import styles from "./InstallPage.module.css";
 
 // Built by .github/workflows/desktop-release.yml.
-const MAC_APP_DOWNLOAD =
-  "https://github.com/willemrosenthal/pr-peek/releases/latest";
+const MAC_APP_DOWNLOAD = `${REPO_URL}/releases/latest`;
 
 // How to install the app. Open to everyone, so it can be shared before signing in.
 export function InstallPage() {
