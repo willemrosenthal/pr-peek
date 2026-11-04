@@ -36,7 +36,7 @@ jobs:
       # Prisma's config needs a value to generate the client.
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - run: pnpm format:check
       - run: pnpm lint
@@ -52,7 +52,7 @@ jobs:
         env:
           E2E_DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_e2e
       # Open with `pnpm --filter @pr-peek/web exec playwright show-trace <file>`.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-traces

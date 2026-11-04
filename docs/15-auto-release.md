@@ -174,7 +174,8 @@ After PR 2 merges, add rulesets in GitHub, Settings, Rules, Rulesets:
 
 ## Done when
 
-- [ ] Merging PR 2 makes 1.0.0. `prod` deploys, and Mac app 1.0.0 is the latest release, with both chips in `latest.json`.
+- [x] Merging PR 2 makes 1.0.0. `prod` deploys, and Mac app 1.0.0 is the latest release, with both chips in `latest.json`.
+  - Done with #110, after #109's run failed in the release notes plugin. All 8 jobs passed, and `latest.json` links point at `v1.0.0`.
 - [ ] A PR titled `docs: ...` merges, and nothing releases or deploys.
 - [ ] A PR titled `fix(web): ...` merges. A patch version is tagged, `prod` moves to it, Render deploys, and no Mac release is made.
 - [ ] A PR titled `fix(desktop): ...` merges. A Mac release is published with the new version, and an installed Mac app offers the update and installs it.
