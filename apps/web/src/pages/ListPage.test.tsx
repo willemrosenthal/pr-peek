@@ -33,7 +33,7 @@ import {
   syncStatus,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
-import { drag, FAR_ENOUGH, stubPointerCapture } from "../test/swipe";
+import { drag, FAR_ENOUGH, pull, stubPointerCapture } from "../test/swipe";
 import { callsOf, stubTauri } from "../test/tauri";
 import { hideWindow, setVisibility } from "../test/visibility";
 
@@ -876,6 +876,38 @@ describe("the header", () => {
       await screen.findByText("Updated just now", {}, { timeout: 4000 }),
     ).toBeTruthy();
     expect(refresh.getAttribute("aria-busy")).toBe("false");
+  });
+
+  it("refreshes when the list is pulled down far enough", async () => {
+    const fetch = fakeApi(
+      listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),
+    );
+    renderApp("/");
+    const list = await screen.findByText("Nothing needs you right now");
+
+    pull(list, 100);
+    expect(callsTo(fetch, "/api/sync")).toHaveLength(0);
+
+    pull(list, 200);
+    await waitFor(() => expect(callsTo(fetch, "/api/sync")).toHaveLength(1));
+    expect(
+      screen.getByRole("button", { name: "Refresh" }).getAttribute("aria-busy"),
+    ).toBe("true");
+  });
+
+  it("doesn't refresh on a sideways swipe, or once scrolled down", async () => {
+    const fetch = fakeApi(
+      listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),
+    );
+    renderApp("/");
+    const list = await screen.findByText("Nothing needs you right now");
+
+    pull(list, 200, 250);
+    Object.assign(window, { scrollY: 50 });
+    pull(list, 200);
+    Object.assign(window, { scrollY: 0 });
+    await act(() => Promise.resolve());
+    expect(callsTo(fetch, "/api/sync")).toHaveLength(0);
   });
 
   it("shows why a refresh was refused", async () => {
