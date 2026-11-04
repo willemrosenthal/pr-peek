@@ -551,6 +551,16 @@ struct TrayMenuItems {
 }
 
 fn build_tray(app: &AppHandle) -> tauri::Result<TrayMenuItems> {
+    // Greyed out, just to show which version is running. Release builds get it from the
+    // tag (docs/15-auto-release.md). Dev builds say 0.0.0.
+    let version = MenuItem::with_id(
+        app,
+        "version",
+        format!("Git Buddy {}", app.package_info().version),
+        false,
+        None::<&str>,
+    )?;
+    let version_separator = PredefinedMenuItem::separator(app)?;
     let refresh = MenuItem::with_id(app, "refresh", "Refresh", true, None::<&str>)?;
     let open = MenuItem::with_id(app, "open", "Open in browser", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
@@ -568,7 +578,15 @@ fn build_tray(app: &AppHandle) -> tauri::Result<TrayMenuItems> {
     let menu = Menu::with_items(
         app,
         &[
-            &refresh, &open, &settings, &launch, &update, &separator, &quit,
+            &version,
+            &version_separator,
+            &refresh,
+            &open,
+            &settings,
+            &launch,
+            &update,
+            &separator,
+            &quit,
         ],
     )?;
 
