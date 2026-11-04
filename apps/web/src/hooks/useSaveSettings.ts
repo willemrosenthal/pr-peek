@@ -14,11 +14,17 @@ import {
 } from "@tanstack/react-query";
 import { api } from "../api";
 import { queryKeys } from "../queries";
+import { startListUpdate } from "./useListUpdate";
 
-// Settings can change what's on the list, so it and its counts reload.
-function reloadList(queryClient: QueryClient) {
+// Settings can change what's on the list, so it and its counts reload. A change to what
+// the rules find takes a sync, so the list reloads again once it's done.
+function reloadList(
+  queryClient: QueryClient,
+  listUpdatingSince: string | null,
+) {
   void queryClient.invalidateQueries({ queryKey: queryKeys.items });
   void queryClient.invalidateQueries({ queryKey: queryKeys.summary });
+  if (listUpdatingSince) startListUpdate(queryClient, listUpdatingSince);
 }
 
 // Saves some of the user's settings.
@@ -30,7 +36,7 @@ export function useSaveSettings() {
         method: "PATCH",
         body: changes,
       }),
-    onSuccess: ({ settings }, changes) => {
+    onSuccess: ({ settings, listUpdatingSince }, changes) => {
       // Takes only the fields this save sent, so a slower answer to an earlier save
       // can't undo a later one.
       const sent = pick(settings, changes);
@@ -38,7 +44,7 @@ export function useSaveSettings() {
         queryKeys.settings,
         (old) => old && { ...old, settings: { ...old.settings, ...sent } },
       );
-      reloadList(queryClient);
+      reloadList(queryClient, listUpdatingSince);
     },
   });
 }
@@ -69,7 +75,7 @@ export function useSaveRule(ruleId: ItemKind) {
         method: "PATCH",
         body: changes,
       }),
-    onSuccess: ({ rule }) => {
+    onSuccess: ({ rule, listUpdatingSince }) => {
       queryClient.setQueryData<SettingsResponse>(
         queryKeys.settings,
         (old) =>
@@ -78,7 +84,7 @@ export function useSaveRule(ruleId: ItemKind) {
             rules: old.rules.map((r) => (r.id === rule.id ? rule : r)),
           },
       );
-      reloadList(queryClient);
+      reloadList(queryClient, listUpdatingSince);
     },
   });
 }

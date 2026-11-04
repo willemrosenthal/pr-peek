@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { NavLink, Outlet } from "react-router";
 import { BackToList } from "../../components/BackToList";
 import { cx } from "../../cx";
+import { useListUpdating } from "../../hooks/useListUpdate";
 import { useReturnToList } from "../../hooks/useReturnToList";
 import styles from "./Settings.module.css";
 
@@ -17,12 +18,16 @@ const SETTINGS_TABS = [
 // The settings page: a tab bar above the open tab.
 export function SettingsLayout() {
   useReturnToList();
+  const updating = useListUpdating();
   return (
     <main className={styles.page}>
       <div className={styles.panel}>
         <header className={styles.header}>
           <BackToList />
           <h1 className={styles.title}>Settings</h1>
+          <p role="status" className={styles.updating}>
+            {updating && "Updating your list…"}
+          </p>
         </header>
         <div className={styles.body}>
           <nav className={styles.tabs} aria-label="Settings">

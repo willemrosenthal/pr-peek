@@ -226,7 +226,8 @@ PR 5b-2, the list:
 
 PR 5b-3, Settings:
 
-- [ ] After a setting that changes what the rules find saves, Settings shows "Updating your list…" until a sync that started after the save ends, or 2 minutes pass. The save's answer has `listUpdatingSince`, the server's time for it.
+- [x] After a setting that changes what the rules find saves, Settings shows "Updating your list…" until a sync that started after the save ends, or 2 minutes pass. The save's answer has `listUpdatingSince`, the server's time for it. Then the list reloads. Not "until the next items update", as first planned: a change that finds the same items sends no update.
+- [x] Tests: the saves return `listUpdatingSince` only for changes the rules use. The notice stays through a sync that started before the save, and ends after one that started after it, or after 2 minutes.
 
 ### 16.7 Drop the column
 

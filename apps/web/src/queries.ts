@@ -39,6 +39,8 @@ export const queryKeys = {
   devices: ["devices"],
   thisDevice: ["this-device"],
   launchAtLogin: ["launch-at-login"],
+  // Kept on this device only, by useListUpdate.
+  listUpdate: ["list-update"],
 } as const;
 
 // Ages and stale colors change with time, so lists refetch this often.
@@ -244,10 +246,12 @@ export function useSyncStatus(
   refetchInterval: (query: {
     state: { data: SyncStatusResponse | undefined; dataUpdatedAt: number };
   }) => number,
+  enabled = true,
 ) {
   return useQuery({
     queryKey: queryKeys.syncStatus,
     queryFn: () => api<SyncStatusResponse>("/sync/status"),
     refetchInterval,
+    enabled,
   });
 }

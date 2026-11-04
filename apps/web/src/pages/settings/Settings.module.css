@@ -23,6 +23,13 @@
   font-weight: 600;
 }
 
+/* "Updating your list…", at the end of the header. */
+.updating {
+  margin-left: auto;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
 .body {
   display: flex;
   flex-direction: column;

@@ -1,15 +1,19 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { GIVE_UP_MS, POLL_MS } from "../../hooks/useSync";
 import {
+  callsTo,
   fakeApi,
   json,
   listApi,
   me,
   noContent,
   searchResults,
+  settingsResponse,
   signedInApi,
   signedOut,
+  syncStatus,
 } from "../../test/fake-api";
 import { stubDisplayMode } from "../../test/install";
 import { renderApp } from "../../test/render";
@@ -88,4 +92,52 @@ it("signs out and goes to sign in", async () => {
   );
   await screen.findByRole("link", { name: "Sign in with GitHub" });
   expect(router.state.location.pathname).toBe("/signin");
+});
+
+describe("after a change to what the rules find", () => {
+  const SAVED_AT = "2026-11-05T12:00:00.000Z";
+  const updating = () => screen.queryByText("Updating your list…") !== null;
+
+  // Real time still passes, so the page can load.
+  afterEach(() => vi.useRealTimers());
+
+  async function hideBots(lastSyncedAt: () => string) {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const fetch = fakeApi(
+      signedInApi({
+        "PATCH /api/settings": () =>
+          json({
+            settings: settingsResponse({ hideBots: true }).settings,
+            listUpdatingSince: SAVED_AT,
+          }),
+        "GET /api/sync/status": () =>
+          json(syncStatus({ lastSyncedAt: lastSyncedAt() })),
+      }),
+    );
+    renderApp("/settings/general");
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(await screen.findByRole("switch", { name: "Hide bots" }));
+    await waitFor(() => expect(updating()).toBe(true));
+    return fetch;
+  }
+
+  it("shows that the list is updating, until a sync after the save ends", async () => {
+    // A sync that started before the save doesn't count.
+    let lastSyncedAt = "2026-11-05T11:59:00.000Z";
+    await hideBots(() => lastSyncedAt);
+    await act(() => vi.advanceTimersByTimeAsync(POLL_MS));
+    expect(updating()).toBe(true);
+
+    lastSyncedAt = SAVED_AT;
+    await act(() => vi.advanceTimersByTimeAsync(POLL_MS));
+    await waitFor(() => expect(updating()).toBe(false));
+  });
+
+  it("stops after 2 minutes, and reloads the list", async () => {
+    const fetch = await hideBots(() => "2026-11-05T11:59:00.000Z");
+    const reloads = callsTo(fetch, "/api/summary").length;
+    await act(() => vi.advanceTimersByTimeAsync(GIVE_UP_MS + POLL_MS));
+    await waitFor(() => expect(updating()).toBe(false));
+    expect(callsTo(fetch, "/api/summary").length).toBeGreaterThan(reloads);
+  });
 });

@@ -64,15 +64,18 @@ export function settingsRouter(deps: SettingsDeps): Router {
 
   // Brings the user's items in line with a setting that changes what rules find: the next
   // sync runs them on every PR again (see sync.ts). Queued now, so the list updates in
-  // seconds. If queueing fails, the next scheduled sync still does it.
-  async function refreshItems(req: Request, userId: string) {
+  // seconds. If queueing fails, the next scheduled sync still does it. Returns when, for
+  // `listUpdatingSince`.
+  async function refreshItems(req: Request, userId: string): Promise<string> {
+    const at = now();
     await db.user.updateMany({
       where: { id: userId },
-      data: { rulesStaleAt: now() },
+      data: { rulesStaleAt: at },
     });
     await deps.requestSync(userId).catch((err: unknown) => {
       req.log.warn({ err }, "queueing a sync after a setting failed");
     });
+    return at.toISOString();
   }
 
   router.get("/settings", async (_req, res) => {
@@ -113,8 +116,10 @@ export function settingsRouter(deps: SettingsDeps): Router {
     const affectsRules =
       updated.hideBots !== current.hideBots ||
       updated.includeTeamRequests !== current.includeTeamRequests;
-    if (affectsRules) await refreshItems(req, userId);
-    const body: UpdateSettingsResponse = { settings: toSettingsDto(updated) };
+    const body: UpdateSettingsResponse = {
+      settings: toSettingsDto(updated),
+      listUpdatingSince: affectsRules ? await refreshItems(req, userId) : null,
+    };
     res.json(body);
   });
 
@@ -144,14 +149,18 @@ export function settingsRouter(deps: SettingsDeps): Router {
       update: sent,
     });
 
-    if (changes.enabled !== undefined || changes.options) {
-      await refreshItems(req, userId);
-    }
+    const affectsRules = changes.enabled !== undefined || changes.options;
+    const listUpdatingSince = affectsRules
+      ? await refreshItems(req, userId)
+      : null;
     // Every rule is in the list, so this always finds it.
     const saved = (await loadRuleSettings(db, userId)).find(
       (s) => s.rule.id === rule.id,
     )!;
-    const body: UpdateRuleResponse = { rule: toRuleDto(saved) };
+    const body: UpdateRuleResponse = {
+      rule: toRuleDto(saved),
+      listUpdatingSince,
+    };
     res.json(body);
   });
 
