@@ -18,7 +18,7 @@ Today, every user who opened the app in the last 14 days syncs once a minute, al
 
 Also, with no users at all, pg-boss checks each of its 7 queues every 2 seconds. That's about 9 million small queries a month, maybe 1 to 2 GB of egress.
 
-Step 3 is the cost. A user with 30 PRs can pull around 15 GB a month out of Supabase. The free plan allows 5 GB of egress (data sent out of the database). Saving and storing snapshots is cheap. Reading them all back every minute is not.
+Step 3 is the cost. Measured on 4 November 2026: about 21 open PRs per user, and 4.5 KB per snapshot as sent. That's about 95 KB per sync, or around 4.5 GB a month per user out of Supabase. The free plan allows 5 GB of egress (data sent out of the database). Saving and storing snapshots is cheap. Reading them all back every minute is not.
 
 ### What a snapshot is
 
@@ -28,16 +28,16 @@ But the stored copy is only needed to work out items **without asking GitHub**. 
 
 ## Expected cost
 
-Estimates. They assume 30 PRs per user, 10 hours of quiet hours a night, and the app opened about 3 times a day. Step 16.0 measures the real numbers.
+Estimates. Snapshot sizes are measured (step 16.0). The rest assumes 10 hours of quiet hours a night, and the app opened about 3 times a day. After this plan, the numbers don't depend on snapshot size.
 
 | Per user                    | Syncs a day | GitHub requests a day | Database egress a month |
 | --------------------------- | ----------- | --------------------- | ----------------------- |
-| Today                       | 1,440       | ~8,600                | ~15 GB                  |
+| Today                       | 1,440       | ~8,600                | ~4.5 GB                 |
 | After this plan, phone/web  | ~260        | ~370                  | ~0.14 GB                |
 | After this plan, Mac app on | ~460        | ~650                  | ~0.23 GB                |
 
-- **Free plan:** about 20 to 25 users fit in the 5 GB of egress, depending on how many use the Mac app. Today, few or none do.
-- **100 users:** about $39 a month ($25 Supabase Pro, $14 Render), well inside Pro's 250 GB. Today, about $150, and the worker couldn't keep up.
+- **Free plan:** about 20 to 25 users fit in the 5 GB of egress, depending on how many use the Mac app. Today, about 1 does: 2 users plus pg-boss's polling come to around 10 GB a month.
+- **100 users:** about $39 a month ($25 Supabase Pro, $14 Render), well inside Pro's 250 GB. Today, about $57, and the worker couldn't keep up, so syncs and pushes would run late.
 
 ## Key decision: no stored snapshots
 
@@ -124,11 +124,29 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 
 ### 16.0 Measure first (You)
 
-- [ ] In the Supabase SQL editor, run this and note the numbers:
+- [x] In the Supabase SQL editor, run this. The editor only shows the last statement's result, so it's one query. `bytes_sent` is what counts for egress: snapshots are stored compressed, but sent in full.
   ```sql
-  select count(*), avg(pg_column_size(snapshot)), max(pg_column_size(snapshot))
-  from "PullRequest" where state = 'open';
-  select pg_size_pretty(pg_database_size(current_database()));
+  select
+    count(*) as open_prs,
+    count(distinct "userId") as users,
+    avg(octet_length(snapshot::text))::int as avg_bytes_sent,
+    max(octet_length(snapshot::text)) as max_bytes_sent,
+    avg(pg_column_size(snapshot))::int as avg_bytes_stored,
+    pg_size_pretty(pg_database_size(current_database())) as db_size
+  from "PullRequest"
+  where state = 'open';
+  ```
+  4 November 2026: 42 open PRs, 2 users, 4,509 bytes sent on average (32,078 at most), 2,118 stored, 49 MB database.
+- [ ] Where the 49 MB goes: the biggest tables.
+  ```sql
+  select n.nspname || '.' || c.relname as "table",
+         pg_size_pretty(pg_total_relation_size(c.oid)) as size
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where c.relkind in ('r', 'p')
+    and n.nspname not in ('pg_catalog', 'information_schema')
+  order by pg_total_relation_size(c.oid) desc
+  limit 10;
   ```
 - [ ] In Supabase, Usage: note the egress for the last 7 days.
 - [ ] In Render, the worker's logs: note a few `ms` values from "sync done" lines.
@@ -197,6 +215,6 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 - [ ] A settings change, like hiding bots, shows "Updating your list…", then the list changes within a few seconds.
 - [ ] With the app closed, a new review request pushes within 5 minutes. With the app open or the Mac app running, within 2 (You).
 - [ ] Opening the app after an hour away shows a fresh list within seconds (You).
-- [ ] Supabase egress drops by at least 20 times, compared to 16.0 (You).
+- [ ] Supabase egress drops by at least 10 times, compared to 16.0 (You).
 - [ ] The pg-boss job table stays near the number of users times 60 rows (You).
 - [ ] A test alert reaches your phone: set a limit low on a dev server and run the check (You).
