@@ -1,6 +1,6 @@
 # 15. Automatic releases
 
-**Goal:** merging a PR with a `feat` or `fix` commit releases it by itself. Once CI passes on `main`, a workflow picks the next version, tags it, deploys the web app by moving `prod` forward, and builds the Mac app if its code changed. A PR with only `chore`, `docs`, `test`, `refactor`, `ci`, or `style` commits releases nothing.
+**Goal:** merging a PR titled `feat: ...` or `fix: ...` releases it by itself. Once CI passes on `main`, a workflow picks the next version, tags it, deploys the web app by moving `prod` forward, and builds the Mac app if its code changed. A PR titled `chore`, `docs`, `test`, `refactor`, `ci`, or `style` releases nothing.
 
 **Needs:** plan 09 PR 5 (#107), the release pipeline. Replaces its tag-triggered start: tags now come from this workflow.
 
@@ -17,9 +17,8 @@
 | `chore`, `docs`, `test`, `refactor`... | none           | No        |
 
 - One version for the whole repo, tagged `v1.2.3`. It starts at **1.0.0**.
-- The biggest change in a run wins. A PR with a `feat` and three `fix` commits is one minor release.
+- The biggest change since the last release wins. A `feat` PR and a `fix` PR merged during one run make one minor release.
 - `refactor` doesn't release. A refactor waits on `main` until the next `feat` or `fix` ships it.
-- Merge commits ("Merge pull request #...") are skipped. The commits inside the PR decide.
 - **Not chosen, release-please:** it waits for you to merge a release PR. We want releases to happen on merge.
 
 ## Key decision: one workflow, in order, only after CI passes
@@ -65,9 +64,15 @@ If a build fails halfway, a half-empty release must never become "latest", or in
 3. Publish it and mark it latest (`gh release edit --draft=false --latest`).
 4. Download `releases/latest/download/latest.json` and check it has the new version. This is exactly what installed apps will see.
 
-## Key decision: check commit messages on every PR
+## Key decision: squash merge, and check the PR title
 
-A commit like "small fix" doesn't match any type, so it would never release, and nobody would notice. A `commitlint` check on each PR fails on commits that don't follow the format. GitHub's own merge and revert commits are allowed.
+Each PR lands on `main` as one squashed commit, named after the PR title. So the title decides the release, and you can see what a PR will release before merging it. Commits inside a PR can say anything.
+
+- A `pr-title` check fails any PR whose title doesn't follow the format, like "Small fix", which would otherwise never release. It blocks the merge until the title is fixed, and runs again when the title is edited.
+- GitHub's "Revert" PRs, titled `Revert "..."`, are allowed. They release a patch.
+- GitHub adds ` (#123)` to the end of each squashed title. That's fine.
+- The squashed commit's body lists the PR's commits. semantic-release reads a `BREAKING CHANGE:` line anywhere in it, so commits must not say that unless a major version is agreed.
+- **Not chosen, merge commits:** the PR title would only go in the merge commit's body, which semantic-release doesn't read. Every commit inside the PR would need checking instead.
 
 ## Safety, and what to do when something fails
 
@@ -84,18 +89,18 @@ A commit like "small fix" doesn't match any type, so it would never release, and
 ## PRs
 
 1. This plan.
-2. All of the steps below, in one PR (about 300 lines). When it merges, its own `feat` commit makes the first release, 1.0.0. That deploys the 12 commits waiting on `main` (none add database migrations) and builds Mac app 1.0.0.
+2. All of the steps below, in one PR (about 300 lines). Titled `feat(ci): automatic releases`, so merging it makes the first release, 1.0.0. That deploys the 12 commits waiting on `main` (none add database migrations) and builds Mac app 1.0.0.
 
 ## Steps
 
 ### 15.1 Tools and config
 
-- [ ] Add `semantic-release`, `@semantic-release/exec`, `conventional-changelog-conventionalcommits`, `@commitlint/cli`, and `@commitlint/config-conventional` as root dev dependencies, so versions are pinned in the lockfile.
+- [ ] Add `semantic-release`, `@semantic-release/exec`, `conventional-changelog-conventionalcommits`, `@commitlint/cli`, and `@commitlint/config-conventional` as root dev dependencies, so versions are pinned in the lockfile. commitlint checks PR titles, with the same rules semantic-release reads.
 - [ ] `.releaserc.json`:
   - `branches: ["main"]`, `tagFormat: "v${version}"`.
   - Plugins listed by hand, which drops the defaults that publish to npm and make GitHub Releases: `commit-analyzer` and `release-notes-generator` with the `conventionalcommits` preset, then `exec`.
   - `exec`'s `successCmd` writes the new version to `$GITHUB_OUTPUT`.
-  - Check the default rules give a patch for `perf` and for GitHub's `Revert "..."` commits. Add `releaseRules` if not.
+  - Check the default rules give a patch for `perf`, and for a squashed GitHub revert (`Revert "feat: x" (#123)`, with "This reverts commit ..." in the body). Add `releaseRules` if not.
 - [ ] `commitlint.config.js`, extending `config-conventional`.
 - [ ] Run `pnpm exec semantic-release --dry-run --no-ci` locally. It should say 1.0.0 and list the `feat` and `fix` commits.
 
@@ -107,7 +112,9 @@ A commit like "small fix" doesn't match any type, so it would never release, and
 ### 15.3 Reusable checks
 
 - [ ] Add `workflow_call` to `ci.yml`, `test-core.yml`, `test-server.yml`, `test-web.yml`, and `check-desktop.yml`. Remove their `push: main` triggers. Their `pull_request` triggers stay.
-- [ ] `commitlint.yml`, on pull requests: checks every commit from the PR's base to its head.
+- [ ] `pr-title.yml`, on pull requests (`opened`, `edited`, `synchronize`, `reopened`): runs commitlint on the PR title. Job name `pr-title`.
+  - The title goes in through an environment variable, never pasted into the script. Anyone can open a PR on a public repo, and a title like `$(...)` must not run.
+  - A failure says what's wrong and shows an example, like `fix(web): keep the list sorted`.
 
 ### 15.4 Mac release workflow
 
@@ -127,23 +134,29 @@ A commit like "small fix" doesn't match any type, so it would never release, and
 ### 15.6 Docs
 
 - [ ] `CLAUDE.md`:
-  - Commit types: which ones release, and to use `chore`, `docs`, `test`, `refactor`, or `ci` for changes that shouldn't deploy. Breaking changes (`!`) only when agreed.
+  - PR titles: `type(scope): what it does`, like `feat(desktop): auto updates`. Which types release, and to use `chore`, `docs`, `test`, `refactor`, or `ci` for changes that shouldn't deploy. Breaking changes (`!`) only when agreed.
+  - Commits inside a PR still use the same format, out of habit, but only the title counts.
   - Branches: `prod` moves forward by itself. Push to it by hand only in an emergency.
   - The PR template's "What to do next": deploying is automatic, so it lists only what to try once it's live.
 - [ ] Plan 09: 9.8 now starts from this workflow, and its "Done when" update check uses a `fix(desktop):` PR instead of a tag.
 
 ### 15.7 GitHub settings (You)
 
-After the PR merges, add rulesets in GitHub, Settings, Rules, Rulesets:
+Before PR 2 merges, so that it's squashed too. In GitHub, Settings, General, Pull Requests:
 
-- [ ] **`main`:** require a pull request, and require these checks to pass: `check`, `test-core`, `test-server`, `test-web`, `commitlint`. Not `check-desktop`, since it only runs when `apps/desktop` changes, and a check that didn't run would block the merge. Block force pushes.
+- [ ] Turn on **Allow squash merging**, with **Default commit message** set to **Pull request title and commit details**. That keeps each commit's co-author line.
+- [ ] Turn off **Allow merge commits** and **Allow rebase merging**.
+
+After PR 2 merges, add rulesets in GitHub, Settings, Rules, Rulesets:
+
+- [ ] **`main`:** require a pull request, and require these checks to pass: `check`, `test-core`, `test-server`, `test-web`, `pr-title`. Not `check-desktop`, since it only runs when `apps/desktop` changes, and a check that didn't run would block the merge. Block force pushes.
 - [ ] **`prod`:** block force pushes and deletion. Don't require a pull request, or the workflow couldn't move it forward.
 - [ ] **Tags `v*`:** block deletion and updates, so a release tag can't be moved. Leave creation open for the workflow.
 
 ## Done when
 
-- [ ] A PR with only a `docs:` commit merges, and nothing releases or deploys.
-- [ ] A PR with a `fix(web):` commit merges. A patch version is tagged, `prod` moves to it, Render deploys, and no Mac release is made.
-- [ ] A PR with a `fix(desktop):` commit merges. A Mac release is published with the new version, and an installed Mac app offers the update and installs it.
-- [ ] A PR with a commit like "small fix" fails the `commitlint` check.
+- [ ] A PR titled `docs: ...` merges, and nothing releases or deploys.
+- [ ] A PR titled `fix(web): ...` merges. A patch version is tagged, `prod` moves to it, Render deploys, and no Mac release is made.
+- [ ] A PR titled `fix(desktop): ...` merges. A Mac release is published with the new version, and an installed Mac app offers the update and installs it.
+- [ ] A PR titled "Small fix" fails the `pr-title` check and can't merge. Renaming it to `fix(web): ...` passes.
 - [ ] A Mac build that fails leaves a draft, not a broken latest release, and "Re-run failed jobs" finishes it.
