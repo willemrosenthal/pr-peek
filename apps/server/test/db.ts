@@ -12,5 +12,5 @@ export function createTestDb(): Db {
 
 // Empties every table. Deleting users cascades to everything that belongs to them.
 export async function resetDb(db: Db): Promise<void> {
-  await db.$executeRaw`TRUNCATE "User", "session" CASCADE`;
+  await db.$executeRaw`TRUNCATE "User", "session", "AdminAlert" CASCADE`;
 }
