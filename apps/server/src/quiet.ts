@@ -1,4 +1,4 @@
-import { prSnapshot, wakesOnPush, type PrSnapshot } from "@pr-peek/core";
+import { wakesOnPush } from "@pr-peek/core";
 import type { Prisma } from "./generated/prisma/client";
 import type { SavedPr } from "./items";
 
@@ -6,20 +6,26 @@ type Tx = Prisma.TransactionClient;
 
 export interface QuietPr {
   id: string;
-  // Null if the stored snapshot doesn't parse.
-  snapshot: PrSnapshot | null;
+  // From before this sync. Null if it isn't known yet.
+  lastPushSha: string | null;
 }
 
-// The user's quiet PRs, with their snapshots from before this sync.
-export async function quietPrs(tx: Tx, userId: string): Promise<QuietPr[]> {
-  const rows = await tx.pullRequest.findMany({
-    where: { userId, quietAt: { not: null } },
-    select: { id: true, snapshot: true },
+// The user's quiet PRs among the ones with these GitHub ids, as they were before this
+// sync. Only a PR the sync fetched can wake on a push.
+export async function quietPrs(
+  tx: Tx,
+  userId: string,
+  githubNodeIds: string[],
+): Promise<QuietPr[]> {
+  if (githubNodeIds.length === 0) return [];
+  return tx.pullRequest.findMany({
+    where: {
+      userId,
+      quietAt: { not: null },
+      githubNodeId: { in: githubNodeIds },
+    },
+    select: { id: true, lastPushSha: true },
   });
-  return rows.map((row) => ({
-    id: row.id,
-    snapshot: prSnapshot.safeParse(row.snapshot).data ?? null,
-  }));
 }
 
 // Brings quiet PRs back when something new happened on them: an item with a new event,
@@ -43,11 +49,7 @@ export async function wakeQuietPrs(
   const after = new Map(fetched.map((pr) => [pr.id, pr.snapshot]));
   for (const pr of quiet) {
     const latest = after.get(pr.id);
-    if (
-      pr.snapshot &&
-      latest &&
-      wakesOnPush(pr.snapshot, latest, viewerLogin)
-    ) {
+    if (latest && wakesOnPush(pr.lastPushSha, latest, viewerLogin)) {
       woke.add(pr.id);
     }
   }

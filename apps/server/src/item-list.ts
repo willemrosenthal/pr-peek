@@ -13,6 +13,7 @@ import {
   type ItemGroups,
   type ItemKind,
   type MergedPrDto,
+  type PrSnapshot,
   type SummaryResponse,
 } from "@pr-peek/core";
 import type { Db } from "./db";
@@ -227,16 +228,13 @@ export async function idlePrs(
 // The section a PR with no open items shows in. With no item to go by, it goes by the PR:
 // the user's own, or one they're assigned to and not reviewing. Any other goes under
 // review.
-function prGroup(
-  pr: Pick<PullRequest, "authorLogin" | "snapshot">,
+export function idleGroup(
+  snapshot: PrSnapshot,
   viewerLogin: string,
 ): ItemGroup {
   const isViewer = (login: string) =>
     login.toLowerCase() === viewerLogin.toLowerCase();
-  if (isViewer(pr.authorLogin)) return "mine";
-  const parsed = prSnapshot.safeParse(pr.snapshot);
-  if (!parsed.success) return "review";
-  const snapshot = parsed.data;
+  if (isViewer(snapshot.author.login)) return "mine";
   const reviewing =
     snapshot.reviews.some((review) => isViewer(review.author.login)) ||
     snapshot.reviewRequests.some(
@@ -244,6 +242,15 @@ function prGroup(
     );
   const assigned = snapshot.assignees?.some(isViewer) ?? false;
   return assigned && !reviewing ? "assigned" : "review";
+}
+
+function prGroup(
+  pr: Pick<PullRequest, "authorLogin" | "snapshot">,
+  viewerLogin: string,
+): ItemGroup {
+  if (pr.authorLogin.toLowerCase() === viewerLogin.toLowerCase()) return "mine";
+  const parsed = prSnapshot.safeParse(pr.snapshot);
+  return parsed.success ? idleGroup(parsed.data, viewerLogin) : "review";
 }
 
 // The user's important PRs that merged, newest merge first. Only those in repos the user

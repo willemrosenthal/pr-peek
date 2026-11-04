@@ -10,21 +10,17 @@ import {
   type UserSettingsDto,
 } from "@pr-peek/core";
 import express, { type Request, type Router } from "express";
-import type { Octokit } from "octokit";
 import type { Db } from "../db";
 import type { UserSettings } from "../generated/prisma/client";
 import { HttpError, parseInput, sentFields } from "../http-error";
-import {
-  loadRuleSettings,
-  rerunRules,
-  type EffectiveRuleSetting,
-} from "../items";
+import { loadRuleSettings, type EffectiveRuleSetting } from "../items";
 import { currentUser, requireUser } from "./auth";
 
 export interface SettingsDeps {
   db: Db;
-  // A GitHub client acting as the user (see github/client.ts).
-  github: (userId: string) => Promise<Octokit>;
+  // Queues a sync for the user. False if one was already queued or running.
+  requestSync: (userId: string) => Promise<boolean>;
+  now?: () => Date;
 }
 
 function toSettingsDto(row: UserSettings): UserSettingsDto {
@@ -63,14 +59,20 @@ function toRuleDto(setting: EffectiveRuleSetting): RuleSettingDto {
 export function settingsRouter(deps: SettingsDeps): Router {
   const router = express.Router();
   const { db } = deps;
+  const now = () => (deps.now ?? (() => new Date()))();
   router.use(["/settings", "/rules"], requireUser(db));
 
-  // Brings the user's items in line with a setting that changes what rules find. If it
-  // fails, the setting is still saved and each PR catches up on its next change.
-  async function rerun(req: Request, userId: string) {
-    await rerunRules(db, userId, () => deps.github(userId)).catch(
-      (err: unknown) => req.log.warn({ err }, "re-running rules failed"),
-    );
+  // Brings the user's items in line with a setting that changes what rules find: the next
+  // sync runs them on every PR again (see sync.ts). Queued now, so the list updates in
+  // seconds. If queueing fails, the next scheduled sync still does it.
+  async function refreshItems(req: Request, userId: string) {
+    await db.user.updateMany({
+      where: { id: userId },
+      data: { rulesStaleAt: now() },
+    });
+    await deps.requestSync(userId).catch((err: unknown) => {
+      req.log.warn({ err }, "queueing a sync after a setting failed");
+    });
   }
 
   router.get("/settings", async (_req, res) => {
@@ -111,7 +113,7 @@ export function settingsRouter(deps: SettingsDeps): Router {
     const affectsRules =
       updated.hideBots !== current.hideBots ||
       updated.includeTeamRequests !== current.includeTeamRequests;
-    if (affectsRules) await rerun(req, userId);
+    if (affectsRules) await refreshItems(req, userId);
     const body: UpdateSettingsResponse = { settings: toSettingsDto(updated) };
     res.json(body);
   });
@@ -143,7 +145,7 @@ export function settingsRouter(deps: SettingsDeps): Router {
     });
 
     if (changes.enabled !== undefined || changes.options) {
-      await rerun(req, userId);
+      await refreshItems(req, userId);
     }
     // Every rule is in the list, so this always finds it.
     const saved = (await loadRuleSettings(db, userId)).find(

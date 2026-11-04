@@ -1,4 +1,4 @@
-import type { PrSnapshot } from "@pr-peek/core";
+import { assignedState, lastPushSha, type PrSnapshot } from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import type { Db } from "./db";
 import type { PrState } from "./generated/prisma/client";
@@ -8,6 +8,8 @@ import {
   findRelevantPrs,
   type PrStatus,
 } from "./github/pull-search";
+import { fetchViewerTeams } from "./github/teams";
+import { idleGroup } from "./item-list";
 import {
   ITEMS_TX,
   lockUserItems,
@@ -15,7 +17,6 @@ import {
   publishItemsChanged,
   resolveItemsOf,
   saveItems,
-  trackedPrs,
   type SavedPr,
 } from "./items";
 import { quietPrs, wakeQuietPrs } from "./quiet";
@@ -24,6 +25,8 @@ import { quietPrs, wakeQuietPrs } from "./quiet";
 const KEEP_UNSEEN_MS = 7 * 24 * 60 * 60 * 1000;
 // How often a found PR's `lastSeenAt` moves forward, at most.
 const LAST_SEEN_EVERY_MS = 60 * 60 * 1000;
+// How long the user's team list is kept. Joining a team takes up to this long to show.
+const TEAMS_KEPT_MS = 60 * 60 * 1000;
 
 // Why a stored PR stopped being tracked. Its items are resolved.
 type EndedState = Exclude<PrState, "open">;
@@ -33,6 +36,9 @@ export interface SyncDeps {
   // A GitHub client acting as the user (see github/client.ts).
   github: (userId: string) => Promise<Octokit>;
   now?: () => Date;
+  // When the rules' code last changed: the worker's start. A user whose last full pass is
+  // older gets one, so new or fixed rules reach every PR.
+  rulesChangedAt?: Date;
 }
 
 export interface SyncResult {
@@ -47,6 +53,8 @@ export interface SyncResult {
   newEventItemIds: string[];
   // Important PRs that just merged, to notify about.
   mergedImportantPrIds: string[];
+  // Fetched every open PR and ran the rules on all of them.
+  fullPass: boolean;
 }
 
 interface StoredPr {
@@ -74,7 +82,18 @@ function needsDetails(
   return (isOwn || isAssigned) && stored.checkState !== pr.checkState;
 }
 
-function toRow(snapshot: PrSnapshot, githubRepoId: number) {
+// What the list needs from a PR's details, kept on its row.
+export const snapshotColumns = (snapshot: PrSnapshot, viewerLogin: string) => ({
+  lastPushSha: lastPushSha(snapshot),
+  listGroup: idleGroup(snapshot, viewerLogin),
+  assignedState: assignedState(snapshot),
+});
+
+function toRow(
+  snapshot: PrSnapshot,
+  githubRepoId: number,
+  viewerLogin: string,
+) {
   return {
     githubRepoId,
     repoOwner: snapshot.repo.owner,
@@ -89,7 +108,35 @@ function toRow(snapshot: PrSnapshot, githubRepoId: number) {
     checkState: snapshot.checks.state,
     githubUpdatedAt: new Date(snapshot.updatedAt),
     snapshot,
+    ...snapshotColumns(snapshot, viewerLogin),
   };
+}
+
+interface TeamsUser {
+  id: string;
+  login: string;
+  teams: string[];
+  teamsCheckedAt: Date | null;
+}
+
+// The user's teams, checked with GitHub at most once an hour and kept on their row.
+// `changed` when they differ from the kept ones.
+async function currentTeams(
+  db: Db,
+  octokit: Octokit,
+  user: TeamsUser,
+  now: Date,
+): Promise<{ teams: string[]; changed: boolean }> {
+  const checkedAt = user.teamsCheckedAt?.getTime();
+  if (checkedAt !== undefined && now.getTime() - checkedAt < TEAMS_KEPT_MS) {
+    return { teams: user.teams, changed: false };
+  }
+  const teams = (await fetchViewerTeams(octokit, user.login)).toSorted();
+  await db.user.updateMany({
+    where: { id: user.id },
+    data: { teams, teamsCheckedAt: now },
+  });
+  return { teams, changed: teams.join(" ") !== user.teams.join(" ") };
 }
 
 interface FromGitHub {
@@ -99,22 +146,31 @@ interface FromGitHub {
   open: PrStatus[];
   ended: Map<string, EndedState>;
   details: PrDetails;
-  // The client used, if GitHub was called.
-  octokit: Octokit | null;
   viewerLogin: string;
+  viewerTeams: string[];
+  fullPass: boolean;
 }
 
 // Searches find new PRs. Tracked PRs the searches missed are checked by id, since the
 // search index lags, so a missed PR only ends when it's really merged, closed, or gone.
+// Fetches the details of PRs that changed, or of every open PR on a full pass.
 async function fetchFromGitHub(
   deps: SyncDeps,
   userId: string,
+  now: Date,
 ): Promise<FromGitHub> {
   const { db } = deps;
   const [user, settings, watched, stored] = await Promise.all([
     db.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { login: true },
+      select: {
+        id: true,
+        login: true,
+        rulesRunAt: true,
+        rulesStaleAt: true,
+        teams: true,
+        teamsCheckedAt: true,
+      },
     }),
     db.userSettings.findUnique({
       where: { userId },
@@ -156,13 +212,25 @@ async function fetchFromGitHub(
       open: [],
       ended,
       details,
-      octokit: null,
       viewerLogin: user.login,
+      viewerTeams: [],
+      fullPass: false,
     };
   }
 
   const octokit = await deps.github(userId);
   const includeTeamRequests = settings?.includeTeamRequests ?? true;
+  const teams = includeTeamRequests
+    ? await currentTeams(db, octokit, user, now)
+    : { teams: [], changed: false };
+  // The rules give the same items for a PR that didn't change, unless their code, the
+  // user's settings, or their teams did.
+  const staleAfter = Math.max(
+    deps.rulesChangedAt?.getTime() ?? 0,
+    user.rulesStaleAt?.getTime() ?? 0,
+  );
+  const fullPass =
+    !user.rulesRunAt || user.rulesRunAt.getTime() < staleAfter || teams.changed;
   const all = await findRelevantPrs(octokit, { includeTeamRequests });
   const found = [...all.values()].filter((pr) =>
     watchedIds.has(pr.githubRepoId),
@@ -186,17 +254,20 @@ async function fetchFromGitHub(
   }
 
   const storedById = new Map(stored.map((pr) => [pr.githubNodeId, pr]));
-  const changedIds = open
-    .filter((pr) => needsDetails(pr, storedById.get(pr.id), user.login))
+  const fetchIds = open
+    .filter(
+      (pr) => fullPass || needsDetails(pr, storedById.get(pr.id), user.login),
+    )
     .map((pr) => pr.id);
-  const details = await fetchPrDetails(octokit, changedIds);
+  const details = await fetchPrDetails(octokit, fetchIds);
   return {
     searchedIds,
     open,
     ended,
     details,
-    octokit,
     viewerLogin: user.login,
+    viewerTeams: teams.teams,
+    fullPass,
   };
 }
 
@@ -207,21 +278,17 @@ export async function syncUser(
 ): Promise<SyncResult> {
   const { db } = deps;
   const now = (deps.now ?? (() => new Date()))();
-  const { searchedIds, open, ended, details, octokit, viewerLogin } =
-    await fetchFromGitHub(deps, userId);
-  // The rules run on every tracked PR, not just the ones that changed, so a wrong item
-  // heals on the next sync and a new rule reaches PRs that haven't changed.
-  const fetchedIds = new Set(details.snapshots.map((snapshot) => snapshot.id));
-  const unchanged = (await trackedPrs(db, userId)).filter(
-    (pr) => !fetchedIds.has(pr.snapshot.id) && !ended.has(pr.snapshot.id),
-  );
-  const detect = await prepareRules(
-    db,
-    userId,
-    [...details.snapshots, ...unchanged.map((pr) => pr.snapshot)],
-    now,
-    () => (octokit ? Promise.resolve(octokit) : deps.github(userId)),
-  );
+  const {
+    searchedIds,
+    open,
+    ended,
+    details,
+    viewerLogin,
+    viewerTeams,
+    fullPass,
+  } = await fetchFromGitHub(deps, userId, now);
+  // The rules run only on the PRs just fetched. A PR that didn't change keeps its items.
+  const detect = await prepareRules(db, userId, now, viewerTeams);
 
   const repoIdOf = new Map(open.map((pr) => [pr.id, pr.githubRepoId]));
   // PRs and their items save together, so a PR is never stored without its items.
@@ -237,11 +304,15 @@ export async function syncUser(
       data: { lastSeenAt: now },
     });
     // Read before the upserts, to compare their old snapshots.
-    const quiet = await quietPrs(tx, userId);
+    const quiet = await quietPrs(
+      tx,
+      userId,
+      details.snapshots.map((snapshot) => snapshot.id),
+    );
     const saved: SavedPr[] = [];
     for (const snapshot of details.snapshots) {
       // Details are only fetched for PRs in `open`.
-      const row = toRow(snapshot, repoIdOf.get(snapshot.id)!);
+      const row = toRow(snapshot, repoIdOf.get(snapshot.id)!, viewerLogin);
       const { id } = await tx.pullRequest.upsert({
         where: { userId_githubNodeId: { userId, githubNodeId: snapshot.id } },
         // New PRs come from the searches.
@@ -251,13 +322,7 @@ export async function syncUser(
       });
       saved.push({ id, snapshot });
     }
-    const items = await saveItems(
-      tx,
-      userId,
-      [...saved, ...unchanged],
-      detect,
-      now,
-    );
+    const items = await saveItems(tx, userId, saved, detect, now);
     const woke = await wakeQuietPrs(
       tx,
       quiet,
@@ -310,7 +375,7 @@ export async function syncUser(
   });
   await db.user.updateMany({
     where: { id: userId },
-    data: { lastSyncedAt: now },
+    data: { lastSyncedAt: now, ...(fullPass && { rulesRunAt: now }) },
   });
 
   return {
@@ -320,5 +385,6 @@ export async function syncUser(
     ended: ended.size,
     deleted,
     ...changes,
+    fullPass,
   };
 }

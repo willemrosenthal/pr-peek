@@ -98,6 +98,14 @@ model User {
   syncRetryAt           DateTime?
   // When the running sync started. Null when none is running.
   syncStartedAt         DateTime?
+  // The start of the last sync that ran the rules on every PR (a full pass). One runs
+  // when this is null, or older than `rulesStaleAt` or the worker's start.
+  rulesRunAt            DateTime?
+  // When a setting changed what the rules find.
+  rulesStaleAt          DateTime?
+  // The user's GitHub teams as "org/team-slug", and when they were last checked.
+  teams                 String[]   @default([])
+  teamsCheckedAt        DateTime?
   // The last time the user opened the app. Idle users sync less often.
   lastActiveAt          DateTime   @default(now())
   // The Mac menu bar app's last heartbeat. Recent means it's running, so it gets
@@ -184,6 +192,13 @@ model PullRequest {
   // When the push saying an important PR merged went out, so it goes once.
   mergeNotifiedAt DateTime?
   snapshot        Json
+  // Worked out from the PR's details when a sync saves them (see sync.ts).
+  // The latest real push, so a quiet PR wakes on new commits.
+  lastPushSha     String?
+  // The list section it shows in with no open items: "mine", "assigned", or "review".
+  listGroup       String?
+  // What an assigned PR needs next (`AssignedState`).
+  assignedState   String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
