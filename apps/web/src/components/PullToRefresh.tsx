@@ -158,8 +158,9 @@ export function PullToRefreshSpinner({
         )}
         style={{
           // Centered in the gap, so it stays in view as the gap opens. Fully shown once
-          // far enough to refresh, or right away during a refresh.
-          transform: `translateY(${offset / 2}px)`,
+          // far enough to refresh, or right away during a refresh. `translate`, not
+          // `transform`, so the pop's scale doesn't stretch it off center.
+          translate: `0 ${offset / 2}px`,
           opacity: refreshing && offset > 0 ? 1 : Math.min(1, offset / ARM_PX),
         }}
       >
