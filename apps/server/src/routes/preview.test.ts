@@ -10,7 +10,7 @@ import {
   TEST_KEY,
 } from "../../test/fakes";
 import { fakeGraphQL, type GraphQLRequest } from "../../test/github";
-import { itemRows, storedSnapshot } from "../../test/items";
+import { itemRows } from "../../test/items";
 import { upsertGitHubUser } from "../users";
 import { previewRouter } from "./preview";
 
@@ -20,24 +20,15 @@ beforeEach(() => resetDb(db));
 
 const { makePr, makeItem } = itemRows(db);
 
-// A stored snapshot with two failing checks.
-const snapshot = storedSnapshot({
-  // The signed in user (octocat, in other capitals), someone else, and a team.
-  reviewRequests: [
-    { type: "user", login: "OctoCat" },
-    { type: "user", login: "dev-sam" },
-    { type: "team", slug: "acme/web" },
-  ],
-  checks: {
-    state: "FAILURE",
-    failing: [
-      { name: "lint", url: null },
-      { name: "e2e", url: null },
-    ],
-  },
+const person = (login: string) => ({ __typename: "User", login });
+const failed = (name: string) => ({
+  __typename: "CheckRun",
+  name,
+  conclusion: "FAILURE",
 });
 
-// GitHub with one PR, PR_7, that has one comment.
+// GitHub with one PR, PR_7, that has one comment, three people asked to review, and two
+// failing checks.
 function github(request: GraphQLRequest) {
   if (request.variables.id !== "PR_7") {
     return { data: { node: null }, errors: [{ type: "NOT_FOUND" }] };
@@ -47,11 +38,36 @@ function github(request: GraphQLRequest) {
       node: {
         bodyHTML: "<p>Adds login.</p>",
         createdAt: hours(-48).toISOString(),
+        author: person("sam"),
+        // The signed in user (octocat, in other capitals), someone else, and a team.
+        reviewRequests: {
+          nodes: [
+            { requestedReviewer: person("OctoCat") },
+            { requestedReviewer: person("dev-sam") },
+            {
+              requestedReviewer: {
+                __typename: "Team",
+                combinedSlug: "acme/web",
+              },
+            },
+          ],
+        },
+        commits: {
+          nodes: [
+            {
+              commit: {
+                statusCheckRollup: {
+                  contexts: { nodes: [failed("lint"), failed("e2e")] },
+                },
+              },
+            },
+          ],
+        },
         comments: {
           nodes: [
             {
               id: "C_1",
-              author: { __typename: "User", login: "jordan" },
+              author: person("jordan"),
               bodyHTML: "<p>Can you check the migration?</p>",
               createdAt: hours(-3).toISOString(),
               isMinimized: false,
@@ -90,7 +106,7 @@ it("needs sign in", async () => {
 
 it("answers with the description, checks, reviewers, and comments, marking the item's", async () => {
   const { agent, user } = await setup();
-  const pr = await makePr(user.id, 7, { snapshot });
+  const pr = await makePr(user.id, 7);
   const item = await makeItem(user.id, pr.id, "commented", {
     latestEventId: "C_1",
   });
@@ -121,14 +137,12 @@ it("answers with the description, checks, reviewers, and comments, marking the i
   });
 });
 
-it("still has the comments without an item, and no checks or reviewers without a snapshot", async () => {
+it("marks no comment without an item", async () => {
   const { agent, user } = await setup();
   const pr = await makePr(user.id, 7);
 
   const res = await agent.get(`/api/prs/${pr.id}/preview`);
   const body = bodyOf<PrPreviewResponse>(res);
-  expect(body.failingChecks).toEqual([]);
-  expect(body.reviewers).toEqual([]);
   expect(body.comments).toHaveLength(1);
   expect(body.focusId).toBeNull();
 });

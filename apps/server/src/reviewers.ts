@@ -11,7 +11,7 @@ import {
 // after reviewing is waiting. The author's own reviews are replies, so they're left out,
 // and so are bots' reviews. `viewerLogin` is the signed in user's, to mark them.
 export function reviewersOf(
-  snapshot: PrSnapshot,
+  pr: Pick<PrSnapshot, "author" | "reviews" | "reviewRequests">,
   viewerLogin: string,
 ): ReviewerDto[] {
   // GitHub logins don't depend on case.
@@ -23,7 +23,7 @@ export function reviewersOf(
     status,
   });
 
-  const waiting: ReviewerDto[] = snapshot.reviewRequests.map((request) =>
+  const waiting: ReviewerDto[] = pr.reviewRequests.map((request) =>
     request.type === "team"
       ? { name: request.slug, isTeam: true, isYou: false, status: "requested" }
       : person(request.login, "requested"),
@@ -32,7 +32,7 @@ export function reviewersOf(
     waiting.filter((r) => !r.isTeam).map((r) => key(r.name)),
   );
 
-  const reviewed = [...reviewsByPerson(snapshot)]
+  const reviewed = [...reviewsByPerson(pr)]
     .filter(([login]) => !asked.has(login))
     .map(([, theirs]) => person(theirs[0]!.author.login, verdictOf(theirs)));
   return [...waiting, ...reviewed];

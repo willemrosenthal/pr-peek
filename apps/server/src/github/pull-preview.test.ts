@@ -36,6 +36,9 @@ function prNode(overrides: object = {}) {
   return {
     bodyHTML: "  <h2>Why</h2><p>Adds login.</p>  ",
     createdAt: "2026-10-19T12:00:00Z",
+    author: user("sam"),
+    reviewRequests: { nodes: [] },
+    commits: { nodes: [{ commit: { statusCheckRollup: null } }] },
     comments: { nodes: [] },
     reviews: { nodes: [] },
     reviewThreads: { nodes: [] },
@@ -43,10 +46,14 @@ function prNode(overrides: object = {}) {
   };
 }
 
-async function preview(node: object | null, focusId: string | null = null) {
+async function preview(
+  node: object | null,
+  focusId: string | null = null,
+  errors?: object[],
+) {
   const fake = fakeGraphQL(() =>
     node
-      ? { data: { node } }
+      ? { data: { node }, ...(errors && { errors }) }
       : { data: { node: null }, errors: [{ type: "NOT_FOUND" }] },
   );
   const result = await fetchPrPreview(fake.octokit, "PR_7", focusId);
@@ -63,6 +70,87 @@ it("asks for the PR by its node id, and trims the description's HTML", async () 
 
 it("is null when the PR is gone from GitHub", async () => {
   expect((await preview(null)).result).toBeNull();
+});
+
+describe("reviewers and checks", () => {
+  const checks = (...contexts: (object | null)[]) => ({
+    nodes: [
+      { commit: { statusCheckRollup: { contexts: { nodes: contexts } } } },
+    ],
+  });
+
+  it("has who was asked, the submitted reviews, and the failing checks", async () => {
+    const { result } = await preview(
+      prNode({
+        reviewRequests: {
+          nodes: [
+            { requestedReviewer: user("dev-sam") },
+            {
+              requestedReviewer: {
+                __typename: "Team",
+                combinedSlug: "acme/web",
+              },
+            },
+          ],
+        },
+        reviews: {
+          nodes: [review("R_1", "APPROVED", 1), review("R_2", "PENDING", 2)],
+        },
+        commits: checks(
+          { __typename: "CheckRun", name: "lint", conclusion: "FAILURE" },
+          { __typename: "CheckRun", name: "test", conclusion: "SUCCESS" },
+          { __typename: "StatusContext", context: "deploy", state: "ERROR" },
+        ),
+      }),
+    );
+    expect(result).toMatchObject({
+      author: { login: "sam", isBot: false },
+      reviewRequests: [
+        { type: "user", login: "dev-sam" },
+        { type: "team", slug: "acme/web" },
+      ],
+      reviews: [
+        {
+          id: "R_1",
+          author: { login: "jules", isBot: false },
+          state: "APPROVED",
+          submittedAt: time(1),
+        },
+      ],
+      failingChecks: ["lint", "deploy"],
+    });
+  });
+
+  it("still answers when check runs are hidden from a fine-grained token", async () => {
+    const { result } = await preview(
+      prNode({
+        commits: checks(null, {
+          __typename: "StatusContext",
+          context: "deploy",
+          state: "FAILURE",
+        }),
+      }),
+      null,
+      [
+        {
+          type: "FORBIDDEN",
+          path: [
+            "node",
+            "commits",
+            "nodes",
+            0,
+            "commit",
+            "statusCheckRollup",
+            "contexts",
+            "nodes",
+            0,
+          ],
+          message: "Resource not accessible by personal access token",
+        },
+      ],
+    );
+    expect(result?.failingChecks).toEqual(["deploy"]);
+  });
 });
 
 describe("the conversation", () => {

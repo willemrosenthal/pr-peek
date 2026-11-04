@@ -1,9 +1,4 @@
-import {
-  formatAge,
-  prSnapshot,
-  previewQuery,
-  type PrPreviewResponse,
-} from "@pr-peek/core";
+import { formatAge, previewQuery, type PrPreviewResponse } from "@pr-peek/core";
 import express, { type Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import type { Octokit } from "octokit";
@@ -48,7 +43,6 @@ export function previewRouter(deps: PreviewDeps): Router {
       where: { id: req.params.id, userId: user.id },
       select: {
         githubNodeId: true,
-        snapshot: true,
         // No item id matches "".
         items: { where: { id: item ?? "" }, select: { latestEventId: true } },
       },
@@ -64,14 +58,11 @@ export function previewRouter(deps: PreviewDeps): Router {
     if (!preview) throw notFound();
 
     const at = now();
-    // What the last sync saved. Missing for a PR saved before snapshots were.
-    const parsed = prSnapshot.safeParse(pr.snapshot);
-    const stored = parsed.success ? parsed.data : null;
     const body: PrPreviewResponse = {
       bodyHtml: preview.bodyHtml,
       openedAge: formatAge(preview.createdAt, at),
-      failingChecks: stored?.checks.failing.map((check) => check.name) ?? [],
-      reviewers: stored ? reviewersOf(stored, user.login) : [],
+      failingChecks: preview.failingChecks,
+      reviewers: reviewersOf(preview, user.login),
       comments: preview.comments.map((comment) => ({
         ...comment,
         author: comment.author.login,

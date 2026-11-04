@@ -16,7 +16,7 @@ const DETAILS_BATCH_SIZE = 10;
 const PREVIEW_LENGTH = 200;
 
 export const ACTOR = `author { __typename login }`;
-const REVIEWER = `requestedReviewer {
+export const REVIEWER = `requestedReviewer {
   __typename
   ... on User { login }
   ... on Bot { login }
@@ -31,6 +31,14 @@ const ASSIGNEE = `assignee {
   ... on Mannequin { login }
 }`;
 const ASSIGN_ACTOR = `actor { __typename login }`;
+// Each check run and commit status on a commit.
+export const CHECK_CONTEXTS = `contexts(first: 100) {
+  nodes {
+    __typename
+    ... on CheckRun { name conclusion detailsUrl }
+    ... on StatusContext { context state targetUrl }
+  }
+}`;
 
 const DETAILS_QUERY = `query ($ids: [ID!]!) {
   nodes(ids: $ids) {
@@ -78,13 +86,7 @@ const DETAILS_QUERY = `query ($ids: [ID!]!) {
             oid committedDate
             statusCheckRollup {
               state
-              contexts(first: 100) {
-                nodes {
-                  __typename
-                  ... on CheckRun { name conclusion detailsUrl }
-                  ... on StatusContext { context state targetUrl }
-                }
-              }
+              ${CHECK_CONTEXTS}
             }
           }
         }
@@ -98,7 +100,7 @@ export const rawActor = z.object({
   login: z.string(),
 });
 
-const rawReviewer = z
+export const rawReviewer = z
   .object({
     __typename: z.string(),
     login: z.string().optional(),
@@ -116,13 +118,28 @@ const rawComment = z.object({
 
 // Fine-grained tokens can't have the Checks permission, so GitHub hides each check run
 // from them (path ends in `contexts.nodes.<index>`). Commit statuses still come through.
-const isHiddenCheckRun = ({ type, path }: GraphQLErrorItem) =>
+export const isHiddenCheckRun = ({ type, path }: GraphQLErrorItem) =>
   type === "FORBIDDEN" &&
   path?.at(-2) === "nodes" &&
   path.at(-3) === "contexts";
 
 const nodesOf = <T extends z.ZodType>(item: T) =>
   z.object({ nodes: z.array(item) });
+
+export const rawCheckContexts = nodesOf(
+  z
+    .object({
+      __typename: z.string(),
+      name: z.string().optional(),
+      conclusion: z.string().nullable().optional(),
+      detailsUrl: z.string().nullable().optional(),
+      context: z.string().optional(),
+      state: z.string().optional(),
+      targetUrl: z.string().nullable().optional(),
+    })
+    // A check run hidden from a fine-grained token.
+    .nullable(),
+);
 
 const stateCount = z.object({ state: z.string(), count: z.number() });
 
@@ -207,20 +224,7 @@ const rawPr = z.object({
             statusCheckRollup: z
               .object({
                 state: checkState,
-                contexts: nodesOf(
-                  z
-                    .object({
-                      __typename: z.string(),
-                      name: z.string().optional(),
-                      conclusion: z.string().nullable().optional(),
-                      detailsUrl: z.string().nullable().optional(),
-                      context: z.string().optional(),
-                      state: z.string().optional(),
-                      targetUrl: z.string().nullable().optional(),
-                    })
-                    // A check run hidden from a fine-grained token.
-                    .nullable(),
-                ),
+                contexts: rawCheckContexts,
               })
               .nullable(),
           }),
@@ -252,12 +256,33 @@ function checksFailed(rollup: z.infer<typeof checkCounts> | null): boolean {
   );
 }
 
+// The check runs and statuses that failed.
+export function failingChecks(
+  contexts: z.infer<typeof rawCheckContexts> | undefined,
+): PrSnapshot["checks"]["failing"] {
+  return (contexts?.nodes ?? []).flatMap((c) => {
+    if (c?.__typename === "CheckRun" && c.name) {
+      return FAILED_CONCLUSIONS.has(c.conclusion ?? "")
+        ? { name: c.name, url: c.detailsUrl ?? null }
+        : [];
+    }
+    if (c?.__typename === "StatusContext" && c.context) {
+      return FAILED_STATES.has(c.state ?? "")
+        ? { name: c.context, url: c.targetUrl ?? null }
+        : [];
+    }
+    return [];
+  });
+}
+
 export const toActor = (actor: z.infer<typeof rawActor> | null): PrActor =>
   actor
     ? { login: actor.login, isBot: actor.__typename === "Bot" }
     : { login: "ghost", isBot: false };
 
-function toReviewer(raw: z.infer<typeof rawReviewer>): PrReviewer | null {
+export function toReviewer(
+  raw: z.infer<typeof rawReviewer>,
+): PrReviewer | null {
   if (raw?.combinedSlug) return { type: "team", slug: raw.combinedSlug };
   if (raw?.login) return { type: "user", login: raw.login };
   return null;
@@ -289,9 +314,6 @@ const toComment = (raw: z.infer<typeof rawComment>): PrComment => ({
 function toSnapshot(raw: RawPr): PrSnapshot {
   // The schema requires at least one commit.
   const head = raw.commits.nodes[0]!.commit;
-  const contexts = (head.statusCheckRollup?.contexts.nodes ?? []).filter(
-    (c) => c !== null,
-  );
   // A merge commit has two parents.
   const push = raw.recentCommits.nodes
     .map((node) => node.commit)
@@ -368,19 +390,7 @@ function toSnapshot(raw: RawPr): PrSnapshot {
     comments: raw.comments.nodes.map(toComment),
     checks: {
       state: head.statusCheckRollup?.state ?? null,
-      failing: contexts.flatMap((c) => {
-        if (c.__typename === "CheckRun" && c.name) {
-          return FAILED_CONCLUSIONS.has(c.conclusion ?? "")
-            ? { name: c.name, url: c.detailsUrl ?? null }
-            : [];
-        }
-        if (c.__typename === "StatusContext" && c.context) {
-          return FAILED_STATES.has(c.state ?? "")
-            ? { name: c.context, url: c.targetUrl ?? null }
-            : [];
-        }
-        return [];
-      }),
+      failing: failingChecks(head.statusCheckRollup?.contexts),
     },
     ...(push && {
       lastPush: {
