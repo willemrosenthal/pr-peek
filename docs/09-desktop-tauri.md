@@ -184,4 +184,4 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 - [ ] Clicking opens the list under the icon. Clicking away hides it. The global shortcut works.
 - [ ] A GitHub event produces one native Mac alert (not two) while the app is running, and the phone still gets its push.
 - [ ] Launch at login works after a restart.
-- [ ] Merging a PR titled `fix(desktop): ...` builds a release, and an installed older version offers the update and installs it.
+- [ ] Merging a `feat` or `fix` PR that changes `apps/desktop` builds a release, and an installed older version offers the update and installs it.
