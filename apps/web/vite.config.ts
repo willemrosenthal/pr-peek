@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import react from "@vitejs/plugin-react";
 import { loadEnv } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -6,7 +7,32 @@ import { defineConfig } from "vitest/config";
 // The API server's port, from the root .env.
 const apiPort = loadEnv("development", "../..", "").PORT || "3000";
 
+// Runs git, or gives "" if it fails.
+function git(...args: string[]) {
+  try {
+    return execFileSync("git", args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return "";
+  }
+}
+
+// What's being built, for Settings. Render gives the commit. The version comes from the
+// release tag on it, when this copy of the repo has the tag (docs/15-auto-release.md).
+function buildInfo() {
+  const commit = process.env.RENDER_GIT_COMMIT || git("rev-parse", "HEAD");
+  const tag = commit
+    ? git("describe", "--tags", "--exact-match", "--match", "v*", commit)
+    : "";
+  return { version: tag.replace(/^v/, ""), commit };
+}
+
 export default defineConfig({
+  define: {
+    __BUILD__: JSON.stringify(buildInfo()),
+  },
   plugins: [
     react(),
     VitePWA({

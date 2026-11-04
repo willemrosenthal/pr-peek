@@ -9,6 +9,7 @@ import { useNavigate } from "react-router";
 import { api } from "../../api";
 import { setBadge } from "../../badge";
 import { Alert } from "../../components/Alert";
+import { AppVersion } from "../../components/AppVersion";
 import { Button } from "../../components/Button";
 import { Card, CardRow } from "../../components/Card";
 import { Select } from "../../components/Field";
@@ -88,6 +89,7 @@ export function GeneralTab() {
           Sign out
         </Button>
       </div>
+      <AppVersion />
     </>
   );
 }
