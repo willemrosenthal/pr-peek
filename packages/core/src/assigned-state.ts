@@ -2,14 +2,16 @@ import type { PrSnapshot } from "./pr-snapshot";
 import { reviewsByPerson, verdictOf } from "./review-verdicts";
 
 // What an assigned PR needs next. The list shows it on the row.
-export type AssignedState =
-  | "draft"
-  | "conflicts"
-  | "checks_failing"
-  | "changes_requested"
-  | "ready_to_merge"
-  | "checks_running"
-  | "waiting_on_review";
+export const ASSIGNED_STATES = [
+  "draft",
+  "conflicts",
+  "checks_failing",
+  "changes_requested",
+  "ready_to_merge",
+  "checks_running",
+  "waiting_on_review",
+] as const;
+export type AssignedState = (typeof ASSIGNED_STATES)[number];
 
 // GitHub's review verdict. Repos that don't require reviews have none, so it comes from
 // each reviewer's latest verdict instead: any change request, else any approval.

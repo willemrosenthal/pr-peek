@@ -50,7 +50,6 @@ try {
       state: "open",
       headSha: "abc123",
       githubUpdatedAt: new Date(now - HOUR_MS),
-      snapshot: {},
     },
   });
   await db.item.create({

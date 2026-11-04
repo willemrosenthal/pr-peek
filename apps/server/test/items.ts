@@ -43,6 +43,8 @@ export function itemRows(db: Db) {
         | "importantAt"
         | "mergedAt"
         | "snapshot"
+        | "listGroup"
+        | "assignedState"
       >
     > = {},
   ) {
@@ -61,7 +63,6 @@ export function itemRows(db: Db) {
         state: "open",
         headSha: "abc123",
         githubUpdatedAt: NOW,
-        snapshot: {},
         ...fields,
       },
     });

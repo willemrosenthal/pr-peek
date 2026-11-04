@@ -220,9 +220,9 @@ PR 5b-1, the preview:
 
 PR 5b-2, the list:
 
-- [ ] Migration: `snapshot` becomes optional. The sync stops writing it.
-- [ ] The list reads `listGroup` and `assignedState`, and selects only the fields it shows. `/items` loads the user's settings, rule settings, and repo colors once, not once per part.
-- [ ] Tests: the list is the same as before. The backfill still fills rows that have a snapshot.
+- [x] Migration: `snapshot` becomes optional. The sync stops writing it. Rows keep the snapshot they have until 16.7, so the backfill can still fill them.
+- [x] The list reads `listGroup` and `assignedState`, and selects only the fields it shows. `/items` loads the user's settings, rule settings, and repo colors once, not once per part. A row with no `listGroup` goes by its author. Pushes read only the PR fields they show, not the whole row.
+- [x] Tests: the list shows the stored section and state, and falls back for unknown ones. `idleGroup` has its own test. The backfill still fills rows that have a snapshot.
 
 PR 5b-3, Settings:
 

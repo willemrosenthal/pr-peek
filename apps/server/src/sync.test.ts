@@ -1,4 +1,3 @@
-import type { PrSnapshot } from "@pr-peek/core";
 import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, resetDb, TEST_DATABASE_URL } from "../test/db";
@@ -117,8 +116,8 @@ describe("syncUser", () => {
       lastPushSha: "abc123",
       listGroup: "review",
       assignedState: "checks_failing",
+      snapshot: null,
     });
-    expect((row.snapshot as PrSnapshot).reviews).toHaveLength(1);
     expect(await db.pullRequest.count()).toBe(1);
 
     const saved = await db.user.findUniqueOrThrow({ where: { id: user.id } });

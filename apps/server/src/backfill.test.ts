@@ -1,55 +1,42 @@
-import { afterAll, beforeEach, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, expect, it } from "vitest";
 import { createTestDb, resetDb } from "../test/db";
-import { githubTokens, githubUser, NOW, TEST_KEY } from "../test/fakes";
-import { fakeGraphQL } from "../test/github";
-import { githubPr, prGitHub, searchHit } from "../test/pulls";
+import { githubTokens, githubUser, TEST_KEY } from "../test/fakes";
+import { itemRows, storedSnapshot } from "../test/items";
 import { fillSnapshotColumns } from "./backfill";
-import { syncUser } from "./sync";
 import { upsertGitHubUser } from "./users";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
-// A user with PR_1 and PR_2 saved by a sync, as rows from before the columns existed.
-async function setup() {
+const { makePr } = itemRows(db);
+
+// PRs from before the columns existed: assigned to the user, with failing checks.
+const snapshot = storedSnapshot({
+  assignees: ["octocat"],
+  checks: { state: "FAILURE", failing: [] },
+});
+
+async function makeUser() {
   const { user } = await upsertGitHubUser(
     db,
     githubUser(),
     githubTokens(),
     TEST_KEY,
   );
-  await db.watchedRepo.create({
-    data: { userId: user.id, githubRepoId: 1, owner: "acme", name: "web-app" },
-  });
-  const { octokit } = fakeGraphQL(
-    prGitHub({
-      reviewRequested: [searchHit("PR_1"), searchHit("PR_2")],
-      prs: {
-        PR_1: githubPr(),
-        PR_2: { ...githubPr(), id: "PR_2", number: 8 },
-      },
-    }),
-  );
-  const github = vi.fn(() => Promise.resolve(octokit));
-  await syncUser({ db, github, now: () => NOW }, user.id);
-  await db.pullRequest.updateMany({
-    data: { lastPushSha: null, listGroup: null, assignedState: null },
-  });
+  return user;
 }
 
 it("fills the columns from each PR's snapshot, merged ones too", async () => {
-  await setup();
-  await db.pullRequest.updateMany({
-    where: { githubNodeId: "PR_2" },
-    data: { state: "merged" },
-  });
+  const user = await makeUser();
+  await makePr(user.id, 7, { snapshot });
+  await makePr(user.id, 8, { snapshot, state: "merged" });
 
   expect(await fillSnapshotColumns(db)).toBe(2);
   for (const row of await db.pullRequest.findMany()) {
     expect(row).toMatchObject({
       lastPushSha: "abc123",
-      listGroup: "review",
+      listGroup: "assigned",
       assignedState: "checks_failing",
     });
   }
@@ -57,16 +44,16 @@ it("fills the columns from each PR's snapshot, merged ones too", async () => {
   expect(await fillSnapshotColumns(db)).toBe(0);
 });
 
-it("skips a snapshot it can't read, and fills the rest", async () => {
-  await setup();
-  await db.pullRequest.updateMany({
-    where: { githubNodeId: "PR_1" },
-    data: { snapshot: { not: "a snapshot" } },
-  });
+it("skips a PR without a snapshot it can read, and fills the rest", async () => {
+  const user = await makeUser();
+  await makePr(user.id, 7, { snapshot: { not: "a snapshot" } });
+  // Saved after snapshots stopped, so the sync filled it already. Or never had one.
+  await makePr(user.id, 8);
+  await makePr(user.id, 9, { snapshot });
 
   expect(await fillSnapshotColumns(db)).toBe(1);
-  const broken = await db.pullRequest.findFirstOrThrow({
-    where: { githubNodeId: "PR_1" },
+  const filled = await db.pullRequest.findMany({
+    where: { lastPushSha: { not: null } },
   });
-  expect(broken.lastPushSha).toBeNull();
+  expect(filled.map((row) => row.number)).toEqual([9]);
 });

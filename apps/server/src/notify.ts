@@ -130,6 +130,15 @@ export async function notifyItems(
   return outcomes;
 }
 
+// What a push says about its PR. Not the whole row, which can hold a large snapshot.
+const PUSH_PR_FIELDS = {
+  githubRepoId: true,
+  title: true,
+  repoName: true,
+  number: true,
+  url: true,
+} as const;
+
 async function decide(
   db: Db,
   now: Date,
@@ -138,7 +147,7 @@ async function decide(
   const item = await db.item.findUnique({
     where: { id: itemId },
     include: {
-      pullRequest: true,
+      pullRequest: { select: PUSH_PR_FIELDS },
       user: { include: { settings: true, pushSubscriptions: true } },
     },
   });
@@ -237,7 +246,14 @@ async function notifyOneMerged(
   const { db, send, logger } = deps;
   const pr = await db.pullRequest.findUnique({
     where: { id: prId },
-    include: { user: { include: { settings: true, pushSubscriptions: true } } },
+    select: {
+      ...PUSH_PR_FIELDS,
+      id: true,
+      userId: true,
+      state: true,
+      importantAt: true,
+      user: { include: { settings: true, pushSubscriptions: true } },
+    },
   });
   if (!pr || pr.state !== "merged" || !pr.importantAt) return "not_important";
   const devices = await reach(db, now, pr.user, pr.githubRepoId, "high");
