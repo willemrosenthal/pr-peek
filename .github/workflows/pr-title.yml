@@ -1,0 +1,36 @@
+name: PR title
+
+# PRs are squash merged, so the title becomes the commit on main, and its type decides
+# the release (docs/15-auto-release.md). A title that doesn't follow the format would
+# never release, so it can't merge.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-title-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # Prisma's config needs a value to generate the client on install.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      # The title comes in through env, never pasted into the script, since anyone can
+      # open a PR on a public repo.
+      - name: Check the PR title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if ! printf '%s' "$TITLE" | pnpm exec commitlint; then
+            echo "::error::PR titles look like 'type(scope): what it does', like 'fix(web): keep the list sorted'. feat, fix, and perf release. chore, docs, test, refactor, ci, and style don't."
+            exit 1
+          fi

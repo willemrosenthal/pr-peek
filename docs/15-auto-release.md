@@ -41,6 +41,7 @@ The deploy job runs `git push origin <released commit>:prod`. Render deploys `pr
 
 - A plain push, no force. If `prod` has a commit `main` doesn't, the push fails loudly instead of losing it.
 - Render skips the deploy by itself if only `docs/` or `apps/desktop/` changed (`buildFilter`).
+- The tag and `prod` are pushed with a **deploy key**: an SSH key that can write to this repo only, kept as the secret `RELEASE_DEPLOY_KEY`. The workflow's own token can't, because GitHub refuses it any push whose history changes a workflow file. The first release is one, since it adds `release.yml`.
 - **What changes for you:** no more merging `main` into `prod` by hand. "Try it once it's live" checks happen after the automatic deploy.
 
 ## Key decision: a Mac release only when the Mac app changed
@@ -100,64 +101,68 @@ Each PR lands on `main` as one squashed commit, named after the PR title. So the
 
 ### 15.1 Tools and config
 
-- [ ] Add `semantic-release`, `conventional-changelog-conventionalcommits`, `@commitlint/cli`, and `@commitlint/config-conventional` as root dev dependencies, so versions are pinned in the lockfile. commitlint checks PR titles, with the same rules semantic-release reads.
-- [ ] `.releaserc.json`:
+- [x] Add `semantic-release`, `conventional-changelog-conventionalcommits`, `@commitlint/cli`, and `@commitlint/config-conventional` as root dev dependencies, so versions are pinned in the lockfile. commitlint checks PR titles, with the same rules semantic-release reads.
+- [x] `.releaserc.json`:
   - `branches: ["main"]`, `tagFormat: "v${version}"`.
   - Plugins listed by hand, which drops the defaults that publish to npm and make GitHub Releases: only `commit-analyzer` and `release-notes-generator`, with the `conventionalcommits` preset.
   - Check the default rules give a patch for `perf`, and for a squashed GitHub revert (`Revert "feat: x" (#123)`, with "This reverts commit ..." in the body). Add `releaseRules` if not.
-- [ ] `commitlint.config.js`, extending `config-conventional`.
-- [ ] Run `pnpm exec semantic-release --dry-run --no-ci --branches <this branch>` locally (it only runs on its release branch otherwise). It should say 1.0.0.
-- [ ] Check commitlint passes `fix(web): x`, GitHub's `Revert "fix(web): x"`, and fails `Small fix`.
+- [x] `commitlint.config.js`, extending `config-conventional`.
+- [x] Run `pnpm exec semantic-release --dry-run --no-ci --branches <this branch>` locally (it only runs on its release branch otherwise). It should say 1.0.0.
+- [x] Check commitlint passes `fix(web): x`, GitHub's `Revert "fix(web): x"`, and fails `Small fix`.
 
 ### 15.2 Version placeholders
 
-- [ ] Set `version` to `0.0.0` in `tauri.conf.json` and `Cargo.toml` (and `Cargo.lock`).
-- [ ] Check that `pnpm desktop:build --config '{"version":"9.9.9"}'` makes an app whose `Info.plist` says 9.9.9.
+- [x] Set `version` to `0.0.0` in `tauri.conf.json` and `Cargo.toml` (and `Cargo.lock`).
+- [x] Check that `pnpm desktop:build --config '{"version":"9.9.9"}'` makes an app whose `Info.plist` says 9.9.9.
 
 ### 15.3 Reusable checks
 
-- [ ] Add `workflow_call` to `ci.yml`, `test-core.yml`, `test-server.yml`, `test-web.yml`, and `check-desktop.yml`. Remove their `push: main` triggers. Their `pull_request` triggers stay.
-- [ ] Add [actionlint](https://github.com/rhysd/actionlint) to `ci.yml`'s `check` job. A mistake in `release.yml` would otherwise only show up after merging, on `main`.
-- [ ] `pr-title.yml`, on pull requests (`opened`, `edited`, `synchronize`, `reopened`): runs commitlint on the PR title. Job name `pr-title`.
+- [x] Add `workflow_call` to `ci.yml`, `test-core.yml`, `test-server.yml`, `test-web.yml`, and `check-desktop.yml`. Remove their `push: main` triggers. Their `pull_request` triggers stay.
+- [x] Add [actionlint](https://github.com/rhysd/actionlint) to `ci.yml`'s `check` job. A mistake in `release.yml` would otherwise only show up after merging, on `main`.
+- [x] `pr-title.yml`, on pull requests (`opened`, `edited`, `synchronize`, `reopened`): runs commitlint on the PR title. Job name `pr-title`.
   - The title goes in through an environment variable, never pasted into the script. Anyone can open a PR on a public repo, and a title like `$(...)` must not run.
   - A failure says what's wrong and shows an example, like `fix(web): keep the list sorted`.
 
 ### 15.4 Mac release workflow
 
-- [ ] Rewrite `desktop-release.yml` as a reusable workflow, with one input: the tag. It can also be run by hand from the Actions tab (`workflow_dispatch`) to rebuild a tag. It stops unless the tag looks like `v1.2.3` and exists. The tag reaches scripts through an environment variable.
-- [ ] `concurrency` per tag, so a hand run and a release run never build the same tag at once.
-- [ ] Steps: check out the tag, set up Node, pnpm, and Rust, create or reuse the Release (draft), build into it with `tauri-action`, publish it, mark it latest if it's the newest, then check `latest.json`.
-- [ ] The `--config` passes `version`, `createUpdaterArtifacts`, and the stand-in signature, all in one JSON.
+- [x] Rewrite `desktop-release.yml` as a reusable workflow, with one input: the tag. It can also be run by hand from the Actions tab (`workflow_dispatch`) to rebuild a tag. It stops unless the tag looks like `v1.2.3` and exists. The tag reaches scripts through an environment variable.
+- [x] `concurrency` per tag, so a hand run and a release run never build the same tag at once.
+- [x] Steps: check out the tag, set up Node, pnpm, and Rust, create or reuse the Release (draft), build into it with `tauri-action`, publish it, mark it latest if it's the newest, then check `latest.json`.
+- [x] The `--config` passes `version`, `createUpdaterArtifacts`, and the stand-in signature, all in one JSON.
 
 ### 15.5 Release workflow
 
-- [ ] `release.yml`, on push to `main`. `concurrency: { group: release, cancel-in-progress: false }`. Every job has `if: github.repository == 'willemrosenthal/pr-peek'`.
-- [ ] Job `checks`: calls the reusable checks.
-- [ ] Job `version` (`contents: write`): check out with full history, run semantic-release, then output `version` from the `v*` tag on the commit (empty if none). Then output `desktop`: true if there's no published Mac release yet, or if this version is higher than the latest one and `git diff` shows changes in `apps/desktop` since it.
-- [ ] Job `deploy` (`contents: write`), if there's a version: check out with full history, then push the released commit to `prod`, with no force. Pushing a commit `prod` already has does nothing, so re-runs are safe.
-- [ ] Job `desktop`, if there's a version and `desktop` is true: calls `desktop-release.yml` with the tag. It grants `contents: write` and passes the two updater secrets by name, not `secrets: inherit`.
-- [ ] Job `checks` gets only `contents: read`.
-- [ ] Each job writes a line to the run's summary page: the version, "Deployed", "Mac app built" or "Mac app unchanged".
+- [x] `release.yml`, on push to `main`. `concurrency: { group: release, cancel-in-progress: false }`. Every job has `if: github.repository == 'willemrosenthal/pr-peek'`.
+- [x] Job `checks`: calls the reusable checks.
+- [x] Job `version`: check out with full history and the deploy key, run semantic-release, then output `version` from the `v*` tag on the commit (empty if none). Then output `desktop`: true if there's no published Mac release yet, or if this version is higher than the latest one and `git diff` shows changes in `apps/desktop` since it.
+- [x] Job `deploy`, if there's a version: check out with full history and the deploy key, then push the released commit to `prod`, with no force. Pushing a commit `prod` already has does nothing, so re-runs are safe.
+- [x] Job `desktop`, if there's a version and `desktop` is true: calls `desktop-release.yml` with the tag. It grants `contents: write` and passes the two updater secrets by name, not `secrets: inherit`.
+- [x] Job `checks` gets only `contents: read`.
+- [x] Each job writes a line to the run's summary page: the version, "Deployed", "Mac app built" or "Mac app unchanged".
 
 ### 15.6 Docs
 
-- [ ] `CLAUDE.md`:
+- [x] `CLAUDE.md`:
   - PR titles: `type(scope): what it does`, like `feat(desktop): auto updates`. Which types release, and to use `chore`, `docs`, `test`, `refactor`, or `ci` for changes that shouldn't deploy. Breaking changes (`!`) only when agreed.
   - Commits inside a PR still use the same format, out of habit, but only the title counts.
   - A change that must ship but isn't a feature, like a security update to a dependency, is titled `fix(deps): ...`.
   - Branches: `prod` moves forward by itself. Push to it by hand only in an emergency.
   - The PR template's "What to do next": deploying is automatic, so it lists only what to try once it's live.
-- [ ] Plan 09: 9.8 now starts from this workflow, and its "Done when" update check uses a `fix(desktop):` PR instead of a tag. Its Apple signing step must also pass the Apple secrets through `release.yml` to `desktop-release.yml`, since reusable workflows only get the secrets they're given.
+- [x] Plan 09: 9.8 now starts from this workflow, and its "Done when" update check uses a `fix(desktop):` PR instead of a tag. Its Apple signing step must also pass the Apple secrets through `release.yml` to `desktop-release.yml`, since reusable workflows only get the secrets they're given.
 
 ### 15.7 GitHub and Render settings (You)
 
-Before PR 2 merges, so that it's squashed too. In GitHub, Settings, General, Pull Requests:
+Before PR 2 merges. First the deploy key (see "deploy by moving `prod` forward"):
 
-- [ ] Turn on **Allow squash merging**, with **Default commit message** set to **Pull request title and commit details**. That keeps each commit's co-author line.
-- [ ] Turn off **Allow merge commits** and **Allow rebase merging**.
-- [ ] In Settings, General, Releases: leave **Immutable releases** off. It stops files being added to a release after it's made, which breaks the Mac upload.
-- [ ] In Render, for both services: keep **Auto-Deploy** on **On Commit**, not **After CI Checks Pass**. The release run is still building the Mac app when `prod` moves, so Render would wait for it, and skip the deploy if it failed.
-- [ ] In Render, Account Settings, Notifications: make sure failed deploys email you. The workflow can't see whether Render's deploy worked.
+- [ ] Make an SSH key with no passphrase. Add its public half in GitHub, Settings, Deploy keys, with **Allow write access**. Add its private half as the Actions secret `RELEASE_DEPLOY_KEY`. Then delete both files.
+
+Then, so that PR 2 is squashed too, in GitHub, Settings, General, Pull Requests:
+
+- [x] Turn on **Allow squash merging**, with **Default commit message** set to **Pull request title and commit details**. That keeps each commit's co-author line.
+- [x] Turn off **Allow merge commits** and **Allow rebase merging**.
+- [x] In Settings, General, Releases: leave **Immutable releases** off. It stops files being added to a release after it's made, which breaks the Mac upload.
+- [x] In Render, for both services: keep **Auto-Deploy** on **On Commit**, not **After CI Checks Pass**. The release run is still building the Mac app when `prod` moves, so Render would wait for it, and skip the deploy if it failed.
+- [x] In Render, Account Settings, Notifications: make sure failed deploys email you. The workflow can't see whether Render's deploy worked.
 
 After PR 2 merges, add rulesets in GitHub, Settings, Rules, Rulesets:
 

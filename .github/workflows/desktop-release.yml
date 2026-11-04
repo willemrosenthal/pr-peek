@@ -1,33 +1,62 @@
 name: Desktop release
 
-# Pushing a tag like desktop-v0.1.0 builds the Mac app and publishes a GitHub Release
-# with the .dmg, plus the signed update files and latest.json that installed apps check.
+# Builds the Mac app for a release tag, and publishes it as a GitHub Release with the
+# .dmg, the signed update files, and latest.json, which installed apps check.
+# release.yml calls it when apps/desktop changed. Run it by hand from the Actions tab
+# to rebuild a tag. See docs/15-auto-release.md.
 on:
-  push:
-    tags: ["desktop-v*"]
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag, like v1.2.3
+        type: string
+        required: true
 
 permissions:
-  # To create the release.
-  contents: write
+  contents: read
+
+# A hand run and a release run never build the same tag at once.
+concurrency:
+  group: desktop-release-${{ inputs.tag }}
+  cancel-in-progress: false
 
 jobs:
-  release:
+  build:
+    if: github.repository == 'willemrosenthal/pr-peek'
     runs-on: macos-latest
     timeout-minutes: 60
+    permissions:
+      # To create and publish the release.
+      contents: write
     env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
       # Prisma's config needs a value to generate the client on install.
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
     steps:
-      - uses: actions/checkout@v4
-
-      # The app's version comes from tauri.conf.json, so the tag has to match it.
-      - name: Check the tag matches the app's version
+      - name: Check the tag
         run: |
-          version=$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")
-          if [ "$GITHUB_REF_NAME" != "desktop-v$version" ]; then
-            echo "Tag $GITHUB_REF_NAME doesn't match version $version in tauri.conf.json."
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$TAG' isn't a release tag, like v1.2.3."
             exit 1
           fi
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
+      # Fails if the tag doesn't exist.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - uses: ./.github/actions/setup
 
@@ -40,23 +69,72 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri
 
-      # createUpdaterArtifacts is on only here, so local builds don't need the key.
-      # signingIdentity "-" is a free stand-in signature until Apple signing is set up.
-      # Without any signature, Apple Silicon Macs call a downloaded app damaged.
+      # A draft until it's complete, so a failed build never becomes the release that
+      # installed apps read. A re-run reuses the draft. The notes list the PRs since the
+      # last Mac release.
+      - name: Create the draft release
+        id: draft
+        run: |
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            notes=(--generate-notes)
+            previous=$(gh release view --json tagName --jq .tagName 2> /dev/null || true)
+            if [ -n "$previous" ]; then
+              notes+=(--notes-start-tag "$previous")
+            fi
+            gh release create "$TAG" --draft --verify-tag \
+              --title "Git Buddy for Mac $VERSION" \
+              --notes "Download the .dmg below, open it, and drag Git Buddy into Applications. The first time, macOS may block it: open System Settings, Privacy & Security, and choose Open Anyway." \
+              "${notes[@]}"
+          fi
+          echo "id=$(gh release view "$TAG" --json databaseId --jq .databaseId)" >> "$GITHUB_OUTPUT"
+
+      # The version comes from the tag. createUpdaterArtifacts is on only here, so local
+      # builds don't need the key. signingIdentity "-" is a free stand-in signature until
+      # Apple signing is set up. Without any, Apple Silicon Macs call the app damaged.
       - uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: apps/desktop
           tauriScript: pnpm tauri
+          releaseId: ${{ steps.draft.outputs.id }}
           args: >-
             --target universal-apple-darwin
-            --config '{"bundle":{"createUpdaterArtifacts":true,"macOS":{"signingIdentity":"-"}}}'
-          tagName: ${{ github.ref_name }}
-          releaseName: Git Buddy for Mac __VERSION__
-          releaseBody: >-
-            Download the .dmg below, open it, and drag Git Buddy into Applications.
-            The first time, macOS may block it: open System Settings, Privacy & Security,
-            and choose Open Anyway.
+            --config '{"version":"${{ env.VERSION }}","bundle":{"createUpdaterArtifacts":true,"macOS":{"signingIdentity":"-"}}}'
+
+      # Only the newest version becomes latest. GitHub would otherwise mark any newly
+      # published release latest, and a re-run of an old one would send the updater back.
+      - name: Publish the release
+        id: publish
+        run: |
+          latest=$(gh release view --json tagName --jq .tagName 2> /dev/null || true)
+          newest=$(printf '%s\n%s\n' "${latest#v}" "$VERSION" | sort -V | tail -n 1)
+          if [ -z "$latest" ] || [ "$newest" = "$VERSION" ]; then
+            make_latest=true
+          else
+            make_latest=false
+          fi
+          gh release edit "$TAG" --draft=false --latest="$make_latest"
+          echo "latest=$make_latest" >> "$GITHUB_OUTPUT"
+          echo "Mac app $VERSION published. Latest: $make_latest." >> "$GITHUB_STEP_SUMMARY"
+
+      # What installed apps will see. GitHub can take a moment to serve the new file.
+      - name: Check latest.json
+        if: steps.publish.outputs.latest == 'true'
+        run: |
+          url="https://github.com/$GH_REPO/releases/latest/download/latest.json"
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsSL "$url" -o latest.json &&
+              jq -e --arg v "$VERSION" '(.version | ltrimstr("v")) == $v
+                and .platforms["darwin-aarch64"] != null
+                and .platforms["darwin-x86_64"] != null' latest.json > /dev/null; then
+              echo "latest.json offers $VERSION to both Mac chips."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::latest.json doesn't offer $VERSION to both Mac chips."
+          cat latest.json || true
+          exit 1
