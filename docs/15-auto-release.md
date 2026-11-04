@@ -155,7 +155,7 @@ Each PR lands on `main` as one squashed commit, named after the PR title. So the
 
 Before PR 2 merges. First the deploy key (see "deploy by moving `prod` forward"):
 
-- [ ] Make an SSH key with no passphrase. Add its public half in GitHub, Settings, Deploy keys, with **Allow write access**. Add its private half as the Actions secret `RELEASE_DEPLOY_KEY`. Then delete both files.
+- [x] Make an SSH key with no passphrase. Add its public half in GitHub, Settings, Deploy keys, with **Allow write access**. Add its private half as the Actions secret `RELEASE_DEPLOY_KEY`. Then delete both files.
 
 Then, so that PR 2 is squashed too, in GitHub, Settings, General, Pull Requests:
 
