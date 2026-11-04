@@ -24,7 +24,8 @@ import {
 import { createLogger } from "./logger";
 import {
   backoffMs,
-  dueUserIds,
+  dueUsers,
+  isLagging,
   runSync,
   syncIntervalMs,
   type ScheduleUser,
@@ -57,31 +58,44 @@ async function makeUser(
 }
 
 const reload = (id: string) => db.user.findUniqueOrThrow({ where: { id } });
+const dueIds = async (at: Date) =>
+  (await dueUsers(db, at)).map((user) => user.id);
 
-describe("dueUserIds", () => {
+describe("dueUsers", () => {
   it("includes users who never synced", async () => {
     const user = await makeUser();
-    expect(await dueUserIds(db, NOW)).toEqual([user.id]);
+    expect(await dueIds(NOW)).toEqual([user.id]);
   });
 
   it("syncs users using the app every 2 minutes", async () => {
     await makeUser({ lastSyncedAt: minutes(-1) });
-    expect(await dueUserIds(db, NOW)).toEqual([]);
+    expect(await dueIds(NOW)).toEqual([]);
 
     // A little early still counts, so the once a minute dispatch doesn't skip a turn.
     await db.user.updateMany({ data: { lastSyncedAt: minutes(-1.5) } });
-    expect(await dueUserIds(db, NOW)).toHaveLength(1);
+    expect(await dueIds(NOW)).toHaveLength(1);
   });
 
   it("counts from the start of the minute, however late the worker runs it", async () => {
     // Started right at the last dispatch. 30 seconds late, this one isn't due yet.
     await makeUser({ lastSyncedAt: minutes(-1) });
-    expect(await dueUserIds(db, minutes(0.5))).toEqual([]);
+    expect(await dueIds(minutes(0.5))).toEqual([]);
 
     // Started 40 seconds after the dispatch before that. It's due, however late.
     await db.user.updateMany({ data: { lastSyncedAt: minutes(-2 + 40 / 60) } });
-    expect(await dueUserIds(db, NOW)).toHaveLength(1);
-    expect(await dueUserIds(db, minutes(0.5))).toHaveLength(1);
+    expect(await dueIds(NOW)).toHaveLength(1);
+    expect(await dueIds(minutes(0.5))).toHaveLength(1);
+  });
+
+  it("says how late each sync is, to spot a worker falling behind", async () => {
+    await makeUser({ lastSyncedAt: minutes(-3) });
+    const [onTime] = await dueUsers(db, NOW);
+    expect(onTime).toMatchObject({ lateMs: 60_000 });
+    expect(isLagging(onTime!)).toBe(false);
+
+    await db.user.updateMany({ data: { lastSyncedAt: minutes(-5) } });
+    const [late] = await dueUsers(db, NOW);
+    expect(isLagging(late!)).toBe(true);
   });
 
   it("goes by the user's quiet hours and Mac app", async () => {
@@ -95,31 +109,31 @@ describe("dueUserIds", () => {
     });
     // In quiet hours: every 15 minutes, even with the Mac app running.
     await db.user.updateMany({ data: { desktopSeenAt: minutes(-1) } });
-    expect(await dueUserIds(db, NOW)).toEqual([]);
+    expect(await dueIds(NOW)).toEqual([]);
 
     // Out of quiet hours, with the Mac app running: every 2 minutes.
     await db.userSettings.updateMany({ data: { quietStart: null } });
-    expect(await dueUserIds(db, NOW)).toEqual([user.id]);
+    expect(await dueIds(NOW)).toEqual([user.id]);
   });
 
   it.each(STOP_REASONS)(
     "skips users stopped with %s until they fix it",
     async (syncError) => {
       await makeUser({ syncError });
-      expect(await dueUserIds(db, NOW)).toEqual([]);
+      expect(await dueIds(NOW)).toEqual([]);
     },
   );
 
   it("waits until a failed user's retry time", async () => {
     await makeUser({ syncError: "failed", syncRetryAt: minutes(1) });
-    expect(await dueUserIds(db, NOW)).toEqual([]);
-    expect(await dueUserIds(db, minutes(1))).toHaveLength(1);
+    expect(await dueIds(NOW)).toEqual([]);
+    expect(await dueIds(minutes(1))).toHaveLength(1);
   });
 
   it("skips users with no enabled watched repos", async () => {
     await makeUser();
     await db.watchedRepo.updateMany({ data: { enabled: false } });
-    expect(await dueUserIds(db, NOW)).toEqual([]);
+    expect(await dueIds(NOW)).toEqual([]);
   });
 });
 

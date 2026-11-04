@@ -227,7 +227,8 @@ export function searchHit(
 }
 
 export interface FakePrGitHub {
-  // Search results by which search ran. Each is one page.
+  // Search results, by why the PR involves the user. One page each. `involves:@me`
+  // answers with the last four together.
   reviewRequested?: unknown[];
   authored?: unknown[];
   commented?: unknown[];
@@ -255,16 +256,18 @@ export function prGitHub(fake: FakePrGitHub) {
     }
     if (request.query.includes("search(")) {
       const q = String(request.variables.q);
-      // Each search's own qualifier, since they all also have `-author:@me` or `author:@me`.
+      // `involves:@me` is all four of the others, each PR once.
+      const involved = new Map(
+        [
+          ...(fake.authored ?? []),
+          ...(fake.commented ?? []),
+          ...(fake.mentioned ?? []),
+          ...(fake.assigned ?? []),
+        ].map((node) => [(node as { id?: string } | null)?.id ?? node, node]),
+      );
       const nodes = q.includes("review-requested:@me")
         ? fake.reviewRequested
-        : q.includes("commenter:@me")
-          ? fake.commented
-          : q.includes("mentions:@me")
-            ? fake.mentioned
-            : q.includes("assignee:@me")
-              ? fake.assigned
-              : fake.authored;
+        : [...involved.values()];
       return {
         data: {
           search: {

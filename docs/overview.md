@@ -47,7 +47,7 @@ This file describes **what** we are building and **how the pieces fit**. The ste
                  |  GitHub (REST + GraphQL API)  |
                  +---------------+---------------+
                                  ^
-                                 | every 1-2 min per user
+                                 | every 2-15 min per user (sync-timing.ts)
 +--------------------------------+--------------------------------+
 | Render                                                          |
 |                                                                 |

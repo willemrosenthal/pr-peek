@@ -22,11 +22,7 @@ import { vapidFrom, webPushSender } from "./push";
 import { sendDueReminders } from "./reminders";
 import { onShutdown } from "./shutdown";
 import { sendDueSummaries } from "./summary";
-import { dueUserIds, runSync } from "./sync-schedule";
-
-// Syncs running at once, so one slow user doesn't hold up everyone. Each holds a database
-// connection during its save, so keep this below DB_POOL_MAX to leave room for pg-boss.
-const SYNC_CONCURRENCY = 3;
+import { dueUsers, isLagging, runSync } from "./sync-schedule";
 
 const config = loadConfig();
 const logger = createLogger(config);
@@ -55,20 +51,23 @@ await boss.work(HEARTBEAT, scheduled, () => {
 
 await boss.schedule(SYNC_DISPATCH, "* * * * *");
 await boss.work(SYNC_DISPATCH, scheduled, async () => {
-  const userIds = await dueUserIds(db, new Date());
-  if (userIds.length === 0) return;
-  const queued = await Promise.all(
-    userIds.map((userId) => queueSync(boss, userId)),
-  );
+  const due = await dueUsers(db, new Date());
+  if (due.length === 0) return;
+  const queued = await Promise.all(due.map(({ id }) => queueSync(boss, id)));
   logger.info(
-    { due: userIds.length, queued: queued.filter(Boolean).length },
+    {
+      due: due.length,
+      queued: queued.filter(Boolean).length,
+      // Above 0 for a while means the worker can't keep up: raise SYNC_CONCURRENCY.
+      lagging: due.filter(isLagging).length,
+    },
     "sync dispatch",
   );
 });
 
 await boss.work<{ userId: string }>(
   SYNC_USER,
-  { ...jobs, localConcurrency: SYNC_CONCURRENCY },
+  { ...jobs, localConcurrency: config.SYNC_CONCURRENCY },
   async ([job]) => {
     if (!job) return;
     await runSync(
