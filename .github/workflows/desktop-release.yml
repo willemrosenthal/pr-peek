@@ -100,6 +100,9 @@ jobs:
           projectPath: apps/desktop
           tauriScript: pnpm tauri
           releaseId: ${{ steps.draft.outputs.id }}
+          # Links in latest.json point at this tag. Without it, a draft's links point at
+          # whichever release is latest.
+          tagName: ${{ inputs.tag }}
           args: >-
             --target universal-apple-darwin
             --config '{"version":"${{ env.VERSION }}","bundle":{"createUpdaterArtifacts":true,"macOS":{"signingIdentity":"-"}}}'
