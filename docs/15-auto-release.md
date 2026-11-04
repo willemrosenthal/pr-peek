@@ -180,6 +180,7 @@ After PR 2 merges, add rulesets in GitHub, Settings, Rules, Rulesets:
   - Done with #111 (`ci:`): the checks ran, no tag, no deploy, no Mac build.
 - [ ] A PR titled `fix(web): ...` merges. A patch version is tagged, `prod` moves to it, Render deploys, and no Mac release is made.
 - [ ] A PR titled `fix(desktop): ...` merges. A Mac release is published with the new version, and an installed Mac app offers the update and installs it.
-- [ ] A PR titled "Small fix" fails the `pr-title` check and can't merge. Renaming it to `fix(web): ...` passes.
+- [x] A PR titled "Small fix" fails the `pr-title` check and can't merge. Renaming it to `fix(web): ...` passes.
+  - Done with #112: "Show the version in Settings" failed `pr-title`, GitHub marked it blocked, and renaming it to `feat(web): ...` passed.
 - [ ] A GitHub revert PR passes `pr-title`, and releases a patch.
 - [ ] A Mac build that fails leaves a draft, not a broken latest release, and "Re-run failed jobs" finishes it.
