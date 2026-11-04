@@ -101,7 +101,7 @@ GitHub's `involves:@me` matches PRs the user authored, is assigned to, is mentio
 ## Key decision: raise the worker's limits now, and alert on trouble
 
 - **6 syncs at once** (up from 3). A ceiling costs nothing while idle. Each sync holds a few MB, well inside Render Starter's 512 MB.
-- **The database pool stays at 5.** Supabase's session pooler, which we connect through, allows about 15 connections in all on the free plan (Database settings, Connection pooling, Pool Size). Web 5 + live updates 1 + worker 5 is already 11, and Render briefly runs old and new copies side by side during a deploy. Syncs mostly wait on GitHub, and only hold a connection for short reads and their save, so 6 syncs share 5 connections fine. A save that finds none free waits for one (up to 10 seconds, `ITEMS_TX`).
+- **The database pool stays at 5.** Supabase's session pooler, which we connect through, allows 15 connections in all on the free plan (Database settings, Connection pooling, Pool Size: checked, 15). Web 5 + live updates 1 + worker 5 is already 11, and Render briefly runs old and new copies side by side during a deploy. Syncs mostly wait on GitHub, and only hold a connection for short reads and their save, so 6 syncs share 5 connections fine. A save that finds none free waits for one (up to 10 seconds, `ITEMS_TX`).
 - **Alerts:** a worker job, once an hour, sends a push to the admin (you) when:
   - the database passes 70% of the free plan's 500 MB,
   - users are 15 minutes or more past their sync interval,
@@ -181,7 +181,7 @@ PRs 2 to 5 release a patch or minor version and deploy. PR 6 releases nothing by
 ### 16.4 Worker limits
 
 - [x] `SYNC_CONCURRENCY` comes from config, default 6. Add it to `.env.example`.
-- [x] `DB_POOL_MAX` stays at 5 for both services. The plan said 10 for the worker, but the session pooler's limit is about 15 connections in all.
+- [x] `DB_POOL_MAX` stays at 5 for both services. The plan said 10 for the worker, but the session pooler's limit is 15 connections in all.
 - [x] The dispatch log adds `lagging`: the due users more than 2 minutes past their interval. `dueUserIds` becomes `dueUsers`, which says how late each one is.
 - [x] Plan 10, step 10.4: its concurrency and sync lag item points here.
 
