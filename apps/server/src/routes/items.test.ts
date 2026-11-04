@@ -15,7 +15,7 @@ import {
   NOW,
   TEST_KEY,
 } from "../../test/fakes";
-import { itemRows, storedSnapshot } from "../../test/items";
+import { itemRows } from "../../test/items";
 import { upsertGitHubUser } from "../users";
 import { itemsRouter } from "./items";
 
@@ -170,27 +170,29 @@ describe("GET /api/items", () => {
   });
 
   describe("assigned PRs", () => {
-    it("shows what the PR needs next, from its snapshot", async () => {
+    it("shows what the PR needs next, as the sync stored it", async () => {
       const { agent, user } = await setup();
       const ready = await makePr(user.id, 7, {
-        snapshot: storedSnapshot({ reviewDecision: "APPROVED" }),
+        assignedState: "ready_to_merge",
       });
       const failing = await makePr(user.id, 8, {
-        snapshot: storedSnapshot({ checks: { state: "FAILURE", failing: [] } }),
+        assignedState: "checks_failing",
       });
-      // Stored before snapshots were checked, so it can't be read.
-      const unreadable = await makePr(user.id, 9);
-      for (const pr of [ready, failing, unreadable]) {
+      // Never filled, or a state that no longer exists.
+      const unknown = await makePr(user.id, 9);
+      const old = await makePr(user.id, 10, { assignedState: "stuck" });
+      for (const pr of [ready, failing, unknown, old]) {
         await makeItem(user.id, pr.id, "assigned");
       }
 
       const body = bodyOf<ItemsResponse>(await agent.get("/api/items"));
       const stateOf = (prId: string) =>
         body.assigned.find((row) => row.pr.id === prId)?.assignedState;
-      expect(body.assigned).toHaveLength(3);
+      expect(body.assigned).toHaveLength(4);
       expect(stateOf(ready.id)).toBe("ready_to_merge");
       expect(stateOf(failing.id)).toBe("checks_failing");
-      expect(stateOf(unreadable.id)).toBe("waiting_on_review");
+      expect(stateOf(unknown.id)).toBe("waiting_on_review");
+      expect(stateOf(old.id)).toBe("waiting_on_review");
       expect(body.assigned.every((row) => row.assigned)).toBe(true);
     });
 
@@ -494,12 +496,12 @@ describe("important PRs", () => {
     const asked = await makePr(user.id, 7, {
       ...important,
       githubUpdatedAt: hours(-1),
-      snapshot: storedSnapshot(),
+      listGroup: "review",
     });
     const assigned = await makePr(user.id, 8, {
       ...important,
       githubUpdatedAt: hours(-2),
-      snapshot: storedSnapshot({ assignees: ["octocat"] }),
+      listGroup: "assigned",
     });
     // Left out: has an open item, so it's a row already, or isn't important.
     const busy = await makePr(user.id, 9, important);
@@ -514,7 +516,7 @@ describe("important PRs", () => {
     expect(body.replies.map((row) => row.pr.id)).toEqual([busy.id]);
   });
 
-  it("lists merged ones in watched repos, newest first, each in its section", async () => {
+  it("lists merged ones in watched repos, newest first, each in its stored section", async () => {
     const { agent, user } = await setup();
     await db.watchedRepo.createMany({
       data: [
@@ -529,40 +531,24 @@ describe("important PRs", () => {
       ],
     });
     const merged = { state: "merged" as const, importantAt: hours(-9) };
+    // Never filled, so they go by their author.
     const mine = await makePr(user.id, 7, {
       ...merged,
       mergedAt: hours(-3),
       authorLogin: "Octocat",
     });
+    const other = await makePr(user.id, 9, { ...merged, mergedAt: hours(-2) });
     const assigned = await makePr(user.id, 8, {
       ...merged,
       mergedAt: hours(-1),
-      snapshot: storedSnapshot({ assignees: ["octocat"] }),
-    });
-    const reviewed = await makePr(user.id, 9, {
-      ...merged,
-      mergedAt: hours(-2),
-      snapshot: storedSnapshot({
-        assignees: ["octocat"],
-        reviews: [
-          {
-            id: "R_1",
-            author: { login: "octocat", isBot: false },
-            state: "APPROVED",
-            submittedAt: hours(-4).toISOString(),
-          },
-        ],
-      }),
+      listGroup: "assigned",
     });
     // Quiet, but a merge is something new.
-    const asked = await makePr(user.id, 12, {
+    const quiet = await makePr(user.id, 12, {
       ...merged,
       quietAt: hours(-5),
       mergedAt: hours(-4),
-      snapshot: storedSnapshot({
-        assignees: ["octocat"],
-        reviewRequests: [{ type: "user", login: "octocat" }],
-      }),
+      listGroup: "review",
     });
     // Left out: not important, closed, in a paused repo, or one not watched.
     await makePr(user.id, 10, { state: "merged" });
@@ -575,9 +561,9 @@ describe("important PRs", () => {
       body.merged.map(({ id, group, age }) => ({ id, group, age })),
     ).toEqual([
       { id: assigned.id, group: "assigned", age: "1h" },
-      { id: reviewed.id, group: "review", age: "2h" },
+      { id: other.id, group: "review", age: "2h" },
       { id: mine.id, group: "mine", age: "3h" },
-      { id: asked.id, group: "review", age: "4h" },
+      { id: quiet.id, group: "review", age: "4h" },
     ]);
     expect(body.merged[0]?.pr.important).toBe(true);
     expect(body.idlePrs).toEqual([]);

@@ -5,6 +5,7 @@ import { HttpError, parseInput } from "../http-error";
 import {
   groupItems,
   idlePrs,
+  loadListContext,
   mergedPrs,
   onePerPr,
   openItems,
@@ -25,12 +26,14 @@ export function itemsRouter(deps: ItemDeps): Router {
 
   router.get("/items", async (_req, res) => {
     const user = currentUser(res);
+    const at = now();
+    const ctx = await loadListContext(deps.db, user.id);
     const [items, idle, merged, quietItems, quietIdle] = await Promise.all([
-      openItems(deps.db, user.id, now()),
-      idlePrs(deps.db, user, now()),
-      mergedPrs(deps.db, user, now()),
-      openItems(deps.db, user.id, now(), true),
-      idlePrs(deps.db, user, now(), true),
+      openItems(deps.db, user.id, at, { ctx }),
+      idlePrs(deps.db, user, at, ctx),
+      mergedPrs(deps.db, user, at, ctx),
+      openItems(deps.db, user.id, at, { quiet: true, ctx }),
+      idlePrs(deps.db, user, at, ctx, true),
     ]);
     const body: ItemsResponse = {
       ...groupItems(items),

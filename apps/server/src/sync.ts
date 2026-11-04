@@ -108,7 +108,6 @@ function toRow(
     headSha: snapshot.headSha,
     checkState: snapshot.checks.state,
     githubUpdatedAt: new Date(snapshot.updatedAt),
-    snapshot,
     ...snapshotColumns(snapshot, viewerLogin),
   };
 }

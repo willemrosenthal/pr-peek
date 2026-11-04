@@ -1,10 +1,9 @@
 import {
-  assignedState,
+  ASSIGNED_STATES,
   byUrgency,
   formatAge,
   ITEM_GROUPS,
   itemStaleLevel,
-  prSnapshot,
   SEVERITY_RANK,
   type AssignedState,
   type IdlePrDto,
@@ -14,14 +13,22 @@ import {
   type ItemKind,
   type MergedPrDto,
   type PrSnapshot,
+  type Severity,
   type SummaryResponse,
 } from "@pr-peek/core";
 import type { Db } from "./db";
-import type { PullRequest } from "./generated/prisma/client";
+import type { PullRequest, UserSettings } from "./generated/prisma/client";
 import { loadRuleSettings } from "./items";
 
 const isItemKind = (kind: string): kind is ItemKind =>
   Object.hasOwn(ITEM_GROUPS, kind);
+
+const isAssignedState = (state: string | null): state is AssignedState =>
+  (ASSIGNED_STATES as readonly (string | null)[]).includes(state);
+
+const LIST_GROUPS = new Set<string | null>(Object.values(ITEM_GROUPS));
+const isItemGroup = (group: string | null): group is ItemGroup =>
+  LIST_GROUPS.has(group);
 
 const PR_FIELDS = {
   id: true,
@@ -37,16 +44,42 @@ const PR_FIELDS = {
 
 type PrRow = Pick<PullRequest, keyof typeof PR_FIELDS>;
 
-// Each watched repo's color, by GitHub repo id. Repos with color off are left out.
-async function repoColors(
+// What every part of the list needs from the user, loaded once per list.
+export interface ListContext {
+  settings: Pick<
+    UserSettings,
+    "timezone" | "workHoursOnly" | "staleWarnHours" | "staleLateHours"
+  >;
+  severityOf: Map<string, Severity>;
+  // Each watched repo's color, by GitHub repo id. Repos with color off are left out.
+  colors: Map<number, string>;
+}
+
+export async function loadListContext(
   db: Db,
   userId: string,
-): Promise<Map<number, string>> {
-  const repos = await db.watchedRepo.findMany({
-    where: { userId, colorOn: true, color: { not: null } },
-    select: { githubRepoId: true, color: true },
-  });
-  return new Map(repos.map((repo) => [repo.githubRepoId, repo.color!]));
+): Promise<ListContext> {
+  const [settings, ruleSettings, repos] = await Promise.all([
+    db.userSettings.findUniqueOrThrow({
+      where: { userId },
+      select: {
+        timezone: true,
+        workHoursOnly: true,
+        staleWarnHours: true,
+        staleLateHours: true,
+      },
+    }),
+    loadRuleSettings(db, userId),
+    db.watchedRepo.findMany({
+      where: { userId, colorOn: true, color: { not: null } },
+      select: { githubRepoId: true, color: true },
+    }),
+  ]);
+  return {
+    settings,
+    severityOf: new Map(ruleSettings.map((s) => [s.rule.id, s.severity])),
+    colors: new Map(repos.map((repo) => [repo.githubRepoId, repo.color!])),
+  };
 }
 
 const toPrDto = (pr: PrRow, colors: Map<number, string>): ItemDto["pr"] => ({
@@ -61,61 +94,39 @@ const toPrDto = (pr: PrRow, colors: Map<number, string>): ItemDto["pr"] => ({
   important: pr.importantAt !== null,
 });
 
-// What each PR needs next, by PR id, from the stored snapshots. Read separately, and
-// only for assigned items, since snapshots are large.
-async function assignedStates(
-  db: Db,
-  prIds: string[],
-): Promise<Map<string, AssignedState>> {
-  if (prIds.length === 0) return new Map();
-  const rows = await db.pullRequest.findMany({
-    where: { id: { in: prIds } },
-    select: { id: true, snapshot: true },
-  });
-  return new Map(
-    rows.flatMap((row): [string, AssignedState][] => {
-      const parsed = prSnapshot.safeParse(row.snapshot);
-      return parsed.success ? [[row.id, assignedState(parsed.data)]] : [];
-    }),
-  );
-}
-
 // Matches PRs the user quieted, or the rest.
 const quietWhere = (quiet: boolean) => ({
   quietAt: quiet ? { not: null } : null,
 });
 
-// The user's open items, most urgent first. Only those on quiet PRs when `quiet`.
+interface OpenItemsOptions {
+  // Only items on quiet PRs.
+  quiet?: boolean;
+  // Loaded here if not passed.
+  ctx?: ListContext;
+}
+
+// The user's open items, most urgent first.
 export async function openItems(
   db: Db,
   userId: string,
   now: Date,
-  quiet = false,
+  { quiet = false, ctx }: OpenItemsOptions = {},
 ): Promise<ItemDto[]> {
-  const [items, settings, ruleSettings, colors] = await Promise.all([
+  const [items, { settings, severityOf, colors }] = await Promise.all([
     db.item.findMany({
       where: { userId, status: "open", pullRequest: quietWhere(quiet) },
-      include: { pullRequest: { select: PR_FIELDS } },
-    }),
-    db.userSettings.findUniqueOrThrow({
-      where: { userId },
-      select: {
-        timezone: true,
-        workHoursOnly: true,
-        staleWarnHours: true,
-        staleLateHours: true,
+      include: {
+        pullRequest: { select: { ...PR_FIELDS, assignedState: true } },
       },
     }),
-    loadRuleSettings(db, userId),
-    repoColors(db, userId),
+    ctx ?? loadListContext(db, userId),
   ]);
-  const severityOf = new Map(ruleSettings.map((s) => [s.rule.id, s.severity]));
   const assignedPrIds = new Set(
     items
       .filter((item) => item.kind === "assigned")
       .map((item) => item.pullRequestId),
   );
-  const states = await assignedStates(db, [...assignedPrIds]);
 
   return items
     .flatMap((item): ItemDto[] => {
@@ -139,7 +150,9 @@ export async function openItems(
           ),
           assignedState:
             item.kind === "assigned"
-              ? (states.get(item.pullRequestId) ?? "waiting_on_review")
+              ? isAssignedState(item.pullRequest.assignedState)
+                ? item.pullRequest.assignedState
+                : "waiting_on_review"
               : null,
           assigned: assignedPrIds.has(item.pullRequestId),
           severity: severityOf.get(item.kind) ?? "normal",
@@ -198,30 +211,34 @@ export async function idlePrs(
   db: Db,
   user: { id: string; login: string },
   now: Date,
+  ctx: ListContext,
   quiet = false,
 ): Promise<IdlePrDto[]> {
-  const [rows, colors] = await Promise.all([
-    db.pullRequest.findMany({
-      where: {
-        userId: user.id,
-        state: "open",
-        ...quietWhere(quiet),
-        OR: [
-          { authorLogin: { equals: user.login, mode: "insensitive" } },
-          { importantAt: { not: null } },
-        ],
-        items: { none: { status: "open" } },
-      },
-      orderBy: { githubUpdatedAt: "desc" },
-    }),
-    repoColors(db, user.id),
-  ]);
+  const rows = await db.pullRequest.findMany({
+    where: {
+      userId: user.id,
+      state: "open",
+      ...quietWhere(quiet),
+      OR: [
+        { authorLogin: { equals: user.login, mode: "insensitive" } },
+        { importantAt: { not: null } },
+      ],
+      items: { none: { status: "open" } },
+    },
+    orderBy: { githubUpdatedAt: "desc" },
+    select: {
+      ...PR_FIELDS,
+      listGroup: true,
+      isDraft: true,
+      githubUpdatedAt: true,
+    },
+  });
   return rows.map((row) => ({
     id: row.id,
     group: prGroup(row, user.login),
     isDraft: row.isDraft,
     age: formatAge(row.githubUpdatedAt, now),
-    pr: toPrDto(row, colors),
+    pr: toPrDto(row, ctx.colors),
   }));
 }
 
@@ -244,13 +261,15 @@ export function idleGroup(
   return assigned && !reviewing ? "assigned" : "review";
 }
 
+// The section the sync stored. A row the backfill couldn't fill goes by its author.
 function prGroup(
-  pr: Pick<PullRequest, "authorLogin" | "snapshot">,
+  pr: Pick<PullRequest, "authorLogin" | "listGroup">,
   viewerLogin: string,
 ): ItemGroup {
-  if (pr.authorLogin.toLowerCase() === viewerLogin.toLowerCase()) return "mine";
-  const parsed = prSnapshot.safeParse(pr.snapshot);
-  return parsed.success ? idleGroup(parsed.data, viewerLogin) : "review";
+  if (isItemGroup(pr.listGroup)) return pr.listGroup;
+  return pr.authorLogin.toLowerCase() === viewerLogin.toLowerCase()
+    ? "mine"
+    : "review";
 }
 
 // The user's important PRs that merged, newest merge first. Only those in repos the user
@@ -259,13 +278,19 @@ export async function mergedPrs(
   db: Db,
   user: { id: string; login: string },
   now: Date,
+  ctx: ListContext,
 ): Promise<MergedPrDto[]> {
-  const [rows, colors, watched] = await Promise.all([
+  const [rows, watched] = await Promise.all([
     db.pullRequest.findMany({
       where: { userId: user.id, state: "merged", importantAt: { not: null } },
       orderBy: { mergedAt: "desc" },
+      select: {
+        ...PR_FIELDS,
+        listGroup: true,
+        mergedAt: true,
+        githubUpdatedAt: true,
+      },
     }),
-    repoColors(db, user.id),
     db.watchedRepo.findMany({
       where: { userId: user.id, enabled: true },
       select: { githubRepoId: true },
@@ -279,7 +304,7 @@ export async function mergedPrs(
       group: prGroup(row, user.login),
       // Merged before we kept the time. The last change on GitHub is close.
       age: formatAge(row.mergedAt ?? row.githubUpdatedAt, now),
-      pr: toPrDto(row, colors),
+      pr: toPrDto(row, ctx.colors),
     }));
 }
 
