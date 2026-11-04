@@ -4,6 +4,7 @@ import {
   startDesktop,
   trayIcon,
   trayTitle,
+  updateReady,
   type CountStyle,
 } from "./desktop";
 import { summary } from "./test/fake-api";
@@ -45,6 +46,14 @@ describe("the menu bar", () => {
     expect(callsOf(invoke, "set_tray_state")).toEqual([
       { state: { title: "3 · 1 · 3", icon: "plain" } },
     ]);
+  });
+});
+
+describe("updateReady", () => {
+  it("says no in a browser, and in app versions from before updates", async () => {
+    expect(await updateReady()).toBe(false);
+    stubTauri({ update_ready: new Error("unknown command") });
+    expect(await updateReady()).toBe(false);
   });
 });
 

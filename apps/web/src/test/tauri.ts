@@ -1,11 +1,15 @@
 import { vi } from "vitest";
 
 // Makes the page look like it's inside the Mac menu bar app. `answers` gives what each
-// command returns. Returns the fake `invoke` that receives command calls.
+// command returns. An Error answer fails, like a command the app doesn't know. Returns
+// the fake `invoke` that receives command calls.
 export function stubTauri(answers: Record<string, unknown> = {}) {
-  const invoke = vi.fn((command: string, _args?: unknown) =>
-    Promise.resolve(answers[command] ?? null),
-  );
+  const invoke = vi.fn((command: string, _args?: unknown) => {
+    const answer = answers[command];
+    return answer instanceof Error
+      ? Promise.reject(answer)
+      : Promise.resolve(answer ?? null);
+  });
   vi.stubGlobal("isTauri", true);
   vi.stubGlobal("__TAURI_INTERNALS__", { invoke });
   return invoke;

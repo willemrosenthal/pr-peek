@@ -109,11 +109,17 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 
 ### 9.7 Auto updates
 
-- [ ] Generate an updater signing key pair with `pnpm tauri signer generate`. The public key goes in `tauri.conf.json`. **(You)** Save the private key and password as GitHub Actions secrets.
-- [ ] Updater plugin settings:
+- [x] Generate an updater signing key pair with `pnpm tauri signer generate`. The public key goes in `tauri.conf.json`. **(You)** Save the private key and password as GitHub Actions secrets.
+  - Key made, and the private key and password are in your password manager. Still to do: the secrets, named `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Needed by 9.8.
+- [x] Updater plugin settings:
   - Check on launch and every 6 hours.
   - Show "Update ready. Restart?" in the dropdown rather than restarting on its own.
-- [ ] **Where updates are hosted:** release files on a **private** repo's GitHub Releases can't be downloaded by other people's apps. Pick one:
+  - The Rust side checks, then downloads and installs in the background. The running app stays on the old version until it restarts. Checks stop once an update is ready.
+  - The page asks `update_ready` on load, and the app fires `pr-peek:update-ready`. `AppUpdatePrompt` shows "Update ready." with a Restart button, which calls `restart_to_update`.
+  - The right click menu has "Check for updates". It's greyed out as "Checking for updates…" during any check, and turns into "Restart to update" once one is ready. A check that finds nothing, or fails, says so in a notification.
+  - Dev builds never check, so they can't replace themselves with a release.
+  - Copies of the app from before this change have no updater. Install a new copy once by hand.
+- [x] **Where updates are hosted:** release files on a **private** repo's GitHub Releases can't be downloaded by other people's apps. Pick one:
   - Make the repo public, or
   - Publish releases to a separate public `pr-peek-releases` repo, or
   - Serve `latest.json` from our server (`/api/desktop/latest.json`), pointing at the release files.
@@ -128,6 +134,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
   1. Run on `macos-latest`.
   2. Install Rust, pnpm, and Node.
   3. Use `tauri-apps/tauri-action` to build a universal (Apple Silicon and Intel) `.dmg`, sign the update files, and create a GitHub Release with `latest.json`.
+     - Turn on `bundle.createUpdaterArtifacts` only in this workflow (for example with `--config`). In `tauri.conf.json` it would make every local `pnpm desktop:build` need the private key.
 - [ ] Apple signing and notarization (Apple's automated malware check, needed so other people's Macs open the app without warnings):
   - **(You)** Join the Apple Developer Program.
   - **(You)** Create a "Developer ID Application" certificate and an App Store Connect API key.

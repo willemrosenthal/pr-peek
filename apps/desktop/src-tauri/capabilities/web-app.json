@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "web-app",
-  "description": "Lets the hosted web app, and only it, update the tray, open links, and hide or quit the app.",
+  "description": "Lets the hosted web app, and only it, update the tray, open links, hide the app, and restart it into an update.",
   "windows": ["main"],
   "local": false,
   "remote": {
@@ -14,6 +14,8 @@
     "allow-notify",
     "allow-launch-at-login",
     "allow-set-launch-at-login",
-    "allow-pop-out"
+    "allow-pop-out",
+    "allow-update-ready",
+    "allow-restart-to-update"
   ]
 }
