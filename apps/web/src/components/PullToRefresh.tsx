@@ -233,8 +233,9 @@ function Splotches() {
 
 // What's behind the page, in the gap a pull opens above it: a ring that turns with
 // the pull, and grainy splotches of color once letting go would refresh, a new mix
-// each time (`arms`). During a refresh, the ring spins and says so instead. Once a
-// pull has let go and refreshed (`fired`), the ring stays hidden as the page goes up.
+// each time (`arms`). A pull during a refresh shows the colors with "Refreshing…"
+// instead of the ring. Once a pull has let go and refreshed (`fired`), the ring stays
+// hidden as the page goes up.
 function Behind({
   offset,
   dragging,
@@ -249,6 +250,8 @@ function Behind({
   fired: boolean;
 }) {
   const armed = !refreshing && offset >= ARM_PX;
+  // A pull during a refresh shows the colors right away, to say it's running.
+  const colorful = armed || (refreshing && offset > 0);
   return (
     <div
       className={styles.behind}
@@ -256,7 +259,7 @@ function Behind({
       style={{ height: `calc(env(safe-area-inset-top) + ${MAX_PX}px)` }}
       aria-hidden="true"
     >
-      <div className={cx(styles.rainbow, armed && styles.shown)}>
+      <div className={cx(styles.rainbow, colorful && styles.shown)}>
         <Splotches key={arms} />
       </div>
       <div
@@ -274,13 +277,14 @@ function Behind({
           opacity: refreshing && offset > 0 ? 1 : Math.min(1, offset / ARM_PX),
         }}
       >
-        <span
-          className={cx(styles.ring, refreshing && styles.spinning)}
-          style={{
-            rotate: refreshing ? undefined : `${offset * TURN_DEG_PER_PX}deg`,
-          }}
-        />
-        {refreshing && <span className={styles.label}>Refreshing…</span>}
+        {refreshing ? (
+          <span className={styles.label}>Refreshing…</span>
+        ) : (
+          <span
+            className={styles.ring}
+            style={{ rotate: `${offset * TURN_DEG_PER_PX}deg` }}
+          />
+        )}
       </div>
     </div>
   );
