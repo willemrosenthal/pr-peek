@@ -136,3 +136,14 @@ textarea {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* A row the list just scrolled to, like a PR just added. Set from ListPage. */
+[data-flash] {
+  animation: flash 1.6s ease-out;
+}
+
+@keyframes flash {
+  from {
+    background: var(--color-warning-bg);
+  }
+}

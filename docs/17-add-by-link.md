@@ -69,7 +69,9 @@ Fine-grained tokens limited to some repos are the usual cause of "can't see", so
 2. **The server** (17.1 to 17.3), in two PRs, since it's over 400 lines:
    - 2a (17.1, 17.3): `feat(web): a Watching section, and tracking added PRs`. The column, the sync and list changes, and the Watching section on screen, together, so no PR is ever in a section the web app doesn't show. Has a migration.
    - 2b (17.2): `feat(server): add a PR by link`. The routes.
-3. **The web and Mac app** (17.4 to 17.7): `feat(web): add a PR by link, paste, or drop`. The dialog, paste, drop, the Android share target, and the Mac window change.
+3. **The web and Mac app** (17.4 to 17.7), in two PRs, since it's over 400 lines:
+   - 3a (17.4, 17.6): `feat(web): add a PR by link`. The dialog, and the Android share target, which opens it.
+   - 3b (17.5): `feat(web): add a PR by paste or drop`. Paste, drop, a toast, and the Mac window change. Only 3b changes `apps/desktop`, so only it builds the Mac app.
 
 Both release a minor version and deploy. PR 3 also builds the Mac app, since it changes `apps/desktop`. Each is about 250 to 350 lines with tests.
 
@@ -104,10 +106,11 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 
 ### 17.4 The dialog
 
-- [ ] An "Add a PR by link" row at the end of the list, and on the empty screen. It opens `AddPrDialog`.
-- [ ] The dialog parses as you type, then looks the PR up (with a short wait after typing stops). It shows the title, repo, and author, or the error. The button says **Add as important**, or **Flag it** when you already track it.
-- [ ] After adding: the dialog closes, and the list scrolls to the row with a short highlight. Rows need a `data-pr-id` to find them.
-- [ ] Tests: each state, and adding one you already track.
+- [x] An "Add a PR by link" row at the end of the list, and on the empty screen. It opens `AddPrDialog`.
+- [x] The dialog parses as you type, then looks the PR up (with a short wait after typing stops). It shows the title, repo, and author, or the error. The button says **Add as important**, or **Flag it** when you already track it, or **Show it** when it's flagged too. Every shape of a link shares one lookup (`prUrl`).
+- [x] After adding: the dialog closes, and the list scrolls to the row with a short highlight. Rows have a `data-pr-id` to find them. A row in a closed section isn't found, so it doesn't scroll.
+- [x] The dialog's link lives in the address as `?add=`, so a share can open it.
+- [x] Tests: each state, adding one you already track, and an error from adding.
 
 ### 17.5 Paste and drop
 
@@ -119,9 +122,9 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 
 ### 17.6 Share on Android
 
-- [ ] Add a `share_target` to the manifest in `vite.config.ts`: `GET /add` with `title`, `text`, and `url`.
-- [ ] A `/add` route: finds a PR link in those, goes to the list, and opens the dialog filled in. Nothing found: the dialog opens empty, with the error.
-- [ ] Tests: a share with the link in `text`, and one in `url`.
+- [x] Add a `share_target` to the manifest in `vite.config.ts`: `GET /add` with `title`, `text`, and `url`.
+- [x] A `/add` route (`SharePage`): finds a PR link in those, goes to the list, and opens the dialog filled in. Nothing found: the dialog opens on the shared text, and says it isn't a PR link.
+- [x] Tests: a share with the link in `text`, one in `url`, and one with no link.
 
 ### 17.7 Try it (You)
 

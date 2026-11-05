@@ -56,6 +56,12 @@ export default defineConfig({
         // --color-page in tokens.css.
         background_color: "#f2f2f5",
         theme_color: "#f2f2f5",
+        // "Share to Git Buddy" on Android, for a PR link (SharePage).
+        share_target: {
+          action: "/add",
+          method: "GET",
+          params: { title: "title", text: "text", url: "url" },
+        },
         icons: [
           { src: "pwa-64x64.png", sizes: "64x64", type: "image/png" },
           { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },

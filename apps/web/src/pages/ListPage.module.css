@@ -35,6 +35,33 @@
   color: var(--color-text-secondary);
 }
 
+/* "Add a PR by link", after the last section. Design B in the plan 17 mockups. */
+.addRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: var(--space-3) 14px;
+  border: 0;
+  border-top: 1px solid var(--color-divider);
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addRow svg {
+  width: 15px;
+  height: 15px;
+}
+
+.addRow:hover {
+  background: var(--color-hover);
+}
+
 .emptyTitle {
   font-weight: 600;
   color: var(--color-text);

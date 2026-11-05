@@ -28,3 +28,7 @@ export function parsePrLink(text: string): PrRef | null {
   const [, owner, repo, number] = match;
   return { owner: owner!, repo: repo!, number: Number(number) };
 }
+
+// The PR's page on GitHub, in one shape whatever link named it.
+export const prUrl = ({ owner, repo, number }: PrRef) =>
+  `https://github.com/${owner}/${repo}/pull/${number}`;

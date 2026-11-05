@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { parsePrLink } from "./pr-link";
+import { parsePrLink, prUrl } from "./pr-link";
 
 const pr7 = { owner: "acme", repo: "web-app", number: 7 };
 
@@ -37,4 +37,10 @@ it.each([
   "see https://example.com/acme/web-app#7",
 ])("finds no PR in %j", (text) => {
   expect(parsePrLink(text)).toBeNull();
+});
+
+it("writes every shape of a PR's link the same way", () => {
+  expect(prUrl(parsePrLink("acme/web-app#7")!)).toBe(
+    "https://github.com/acme/web-app/pull/7",
+  );
 });
