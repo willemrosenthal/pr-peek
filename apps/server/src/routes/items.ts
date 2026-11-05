@@ -12,10 +12,13 @@ import {
   summarize,
 } from "../item-list";
 import { publishItemsChanged } from "../items";
+import { KEEP_UNSEEN_MS } from "../sync";
 import { currentUser, requireUser } from "./auth";
 
 export interface ItemDeps {
   db: Db;
+  // Queues a sync for the user. False if one was already queued or running.
+  requestSync: (userId: string) => Promise<boolean>;
   now?: () => Date;
 }
 
@@ -82,10 +85,29 @@ export function itemsRouter(deps: ItemDeps): Router {
     res.sendStatus(204);
   });
 
+  // A PR added by its link stops being tracked too. It's marked as unseen for a week,
+  // and a sync's cleanup decides: kept if the searches still find it or it has open
+  // items, else deleted. Deleting it here could lose a PR the searches track too.
   router.delete("/prs/:id/important", async (req, res) => {
-    await updatePr(deps.db, currentUser(res).id, req.params.id, {
-      importantAt: null,
+    const userId = currentUser(res).id;
+    const pr = await deps.db.pullRequest.findFirst({
+      where: { id: req.params.id, userId },
+      select: { addedAt: true },
     });
+    if (!pr) throw new HttpError(404, "not_found", "PR not found");
+    const at = now();
+    await updatePr(deps.db, userId, req.params.id, {
+      importantAt: null,
+      ...(pr.addedAt && {
+        addedAt: null,
+        lastSeenAt: new Date(at.getTime() - KEEP_UNSEEN_MS),
+      }),
+    });
+    if (pr.addedAt) {
+      await deps.requestSync(userId).catch((err: unknown) => {
+        req.log.warn({ err }, "queueing a sync after unflagging failed");
+      });
+    }
     res.sendStatus(204);
   });
 
@@ -93,11 +115,16 @@ export function itemsRouter(deps: ItemDeps): Router {
 }
 
 // Changes the user's PR. Tells the user's other devices.
-async function updatePr(
+export async function updatePr(
   db: Db,
   userId: string,
   prId: string,
-  data: { quietAt?: Date | null; importantAt?: Date | null },
+  data: {
+    quietAt?: Date | null;
+    importantAt?: Date | null;
+    addedAt?: null;
+    lastSeenAt?: Date;
+  },
 ): Promise<void> {
   await db.$transaction(async (tx) => {
     const { count } = await tx.pullRequest.updateMany({

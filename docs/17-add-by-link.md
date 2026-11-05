@@ -87,14 +87,14 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 
 ### 17.2 The routes
 
-- [ ] `parsePrLink(text)` in `packages/core`, used by the server and the web app. Takes every shape above, and also finds a link inside longer text, like an Android share ("Check this out https://github.com/…").
-- [ ] `GET /api/prs/lookup?link=…`: looks the PR up with one GraphQL request (`repository { issueOrPullRequest(number) }`), so an issue can be told from a PR. Returns its title, repo, author, state, and whether you already track it.
-- [ ] `POST /api/prs` with `{ link }`: if you track it, flags it and returns its ID, with `alreadyFlagged` if it was. If not, checks the cap, looks it up, and saves it with `importantAt`, `addedAt`, and `listGroup: "watching"`. Sends the usual live update, and queues a sync for you.
-- [ ] That first sync must not push about the PR's old comments, mentions, or reviews. Every item on a newly saved PR counts as new today, which is right for one a search just found, but not for one you added with weeks of history. Save its first items as seen, and send nothing.
-- [ ] That sync must fetch the new PR's details and run the rules on it. Since plan 16 PR 5a, a sync only does that for PRs whose `githubUpdatedAt` changed (`needsDetails`). So the route saves `githubUpdatedAt` as the epoch, and the sync sees it as changed.
-- [ ] `DELETE /prs/:id/important`: for an added PR, clears `addedAt` too, sets `lastSeenAt` back, and queues a sync, as in [Unflag to stop tracking](#unflag-to-stop-tracking).
-- [ ] Both new routes use `attemptLimiter`. Errors return a code the web app turns into the messages in [Clear errors](#clear-errors).
-- [ ] Tests: each link shape, each error, the cap (merged ones count), adding one you already track, and that the next sync fills in a new one's items. Unflagging an added PR: deleted by the next sync when the searches don't find it, kept when they do, kept with open items.
+- [x] `parsePrLink(text)` in `packages/core`, used by the server and the web app. Takes every shape above, and also finds a link inside longer text, like an Android share ("Check this out https://github.com/…").
+- [x] `GET /api/prs/lookup?link=…`: looks the PR up with one GraphQL request (`repository { issueOrPullRequest(number) }`), so an issue can be told from a PR. Returns its title, repo, author, state, and whether you already track it.
+- [x] `POST /api/prs` with `{ link }`: if you track it, flags it and returns its ID, with `alreadyFlagged` if it was. If not, checks the cap, looks it up, and saves it with `importantAt`, `addedAt`, and `listGroup: "watching"`. Sends the usual live update, and queues a sync for you. It looks the PR up first, then checks whether you track it, since the PR's ID comes from GitHub. A merged or closed PR is saved as it is.
+- [x] That first sync must not push about the PR's old comments, mentions, or reviews. Every item on a newly saved PR counts as new today, which is right for one a search just found, but not for one you added with weeks of history. Save its first items as seen, and send nothing. The sync knows a first sync by `addedAt` with `githubUpdatedAt` at `NEVER_SYNCED`.
+- [x] That sync must fetch the new PR's details and run the rules on it. Since plan 16 PR 5a, a sync only does that for PRs whose `githubUpdatedAt` changed (`needsDetails`). So the route saves `githubUpdatedAt` as the epoch, and the sync sees it as changed.
+- [x] `DELETE /prs/:id/important`: for an added PR, clears `addedAt` too, sets `lastSeenAt` back, and queues a sync, as in [Unflag to stop tracking](#unflag-to-stop-tracking).
+- [x] Both new routes use `attemptLimiter`, on each route: `router.use` on `/prs` would limit every PR route, like quiet and flag. Errors return a code the web app turns into the messages in [Clear errors](#clear-errors).
+- [x] Tests: each link shape, each error, the cap (merged ones count), adding one you already track, and that the next sync fills in a new one's items. Unflagging an added PR: deleted by the next sync when the searches don't find it, kept when they do, kept with open items.
 
 ### 17.3 The Watching section on screen
 
