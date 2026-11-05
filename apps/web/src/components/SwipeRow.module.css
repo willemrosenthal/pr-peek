@@ -42,12 +42,14 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0 var(--space-5);
+  padding: 0 var(--edge);
   background: var(--color-surface-muted);
   font-size: var(--text-sm);
   font-weight: 700;
+  /* How far the circle sits from the edge. See CIRCLE_SHOWN_PX in SwipeRow.tsx. */
+  --edge: calc(var(--space-5) - 5px);
   /* The circle's middle, where the fill grows from. */
-  --x: calc(var(--space-5) + 16px);
+  --x: calc(var(--edge) + 16px);
   /* A spring: overshoots a bit, then settles. */
   --spring: linear(
     0,
@@ -75,7 +77,7 @@
 
 .end {
   flex-direction: row-reverse;
-  --x: calc(100% - var(--space-5) - 16px);
+  --x: calc(100% - var(--edge) - 16px);
 }
 
 /* Each action's color, and the color on top of it. */

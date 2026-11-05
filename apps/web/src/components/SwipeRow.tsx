@@ -20,7 +20,7 @@ const SWIPE_SHARE = 0.45;
 const SWIPE_MIN_PX = 140;
 // The row covers the action's circle until it has moved this far: the strip's padding
 // plus the circle (SwipeRow.module.css).
-const CIRCLE_SHOWN_PX = 56;
+const CIRCLE_SHOWN_PX = 51;
 // Past that, the circle stretches after the row. It gives less the further it goes, and
 // never stretches more than this.
 const STRETCH_MAX_PX = 80;
