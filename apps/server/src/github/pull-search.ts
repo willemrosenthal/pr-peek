@@ -1,6 +1,6 @@
-import { checkState, type CheckState } from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import { z } from "zod";
+import { CHECK_COUNTS, checksFingerprint, rawCheckCounts } from "./checks";
 import { partialDataOrThrow } from "./errors";
 
 // One PR with just enough to tell if it's open and if it changed.
@@ -9,8 +9,9 @@ export interface PrStatus {
   githubRepoId: number;
   state: "OPEN" | "CLOSED" | "MERGED";
   updatedAt: Date;
-  // The latest commit's checks. They can change without `updatedAt` changing.
-  checkState: CheckState | null;
+  // The latest commit's runs counted by state (`checksFingerprint`). Checks can change
+  // without `updatedAt` changing.
+  checkFingerprint: string | null;
 }
 
 const PAGE_SIZE = 100;
@@ -26,7 +27,7 @@ const STATUS_FIELDS = `
   state
   updatedAt
   repository { databaseId }
-  commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+  commits(last: 1) { nodes { commit { statusCheckRollup { ${CHECK_COUNTS} } } } }
 `;
 
 const statusNode = z.object({
@@ -38,7 +39,7 @@ const statusNode = z.object({
     nodes: z.array(
       z.object({
         commit: z.object({
-          statusCheckRollup: z.object({ state: checkState }).nullable(),
+          statusCheckRollup: z.object({ contexts: rawCheckCounts }).nullable(),
         }),
       }),
     ),
@@ -52,7 +53,9 @@ const toStatus = (node: StatusNode): PrStatus => ({
   githubRepoId: node.repository.databaseId,
   state: node.state,
   updatedAt: new Date(node.updatedAt),
-  checkState: node.commits.nodes[0]?.commit.statusCheckRollup?.state ?? null,
+  checkFingerprint: checksFingerprint(
+    node.commits.nodes[0]?.commit.statusCheckRollup?.contexts ?? null,
+  ),
 });
 
 const searchPage = z.object({

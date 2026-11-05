@@ -30,9 +30,9 @@ describe("findRelevantPrs", () => {
       githubRepoId: 2,
       state: "OPEN",
       updatedAt: new Date("2026-10-21T10:00:00Z"),
-      checkState: "FAILURE",
+      checkFingerprint: "runs: FAILURE 1; statuses: none",
     });
-    expect(prs.get("PR_3")?.checkState).toBeNull();
+    expect(prs.get("PR_3")?.checkFingerprint).toBeNull();
   });
 
   it("skips PRs the search index still lists after they merge", async () => {

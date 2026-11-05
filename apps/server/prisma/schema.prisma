@@ -179,7 +179,9 @@ model PullRequest {
   isDraft         Boolean
   state           PrState
   headSha         String
-  checkState      String?
+  // The latest commit's runs counted by state (`checksFingerprint`), to notice when its
+  // checks change. The column kept its old name.
+  checkFingerprint String? @map("checkState")
   githubUpdatedAt DateTime
   // The last sync whose searches found this PR. Deleted after 7 days with no open items.
   lastSeenAt      DateTime  @default(now())

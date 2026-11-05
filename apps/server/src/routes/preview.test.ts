@@ -11,6 +11,7 @@ import {
 } from "../../test/fakes";
 import { fakeGraphQL, type GraphQLRequest } from "../../test/github";
 import { itemRows } from "../../test/items";
+import { checkContexts } from "../../test/pulls";
 import { upsertGitHubUser } from "../users";
 import { previewRouter } from "./preview";
 
@@ -57,7 +58,7 @@ function github(request: GraphQLRequest) {
             {
               commit: {
                 statusCheckRollup: {
-                  contexts: { nodes: [failed("lint"), failed("e2e")] },
+                  contexts: checkContexts([failed("lint"), failed("e2e")]),
                 },
               },
             },

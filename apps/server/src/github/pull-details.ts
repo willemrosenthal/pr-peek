@@ -1,5 +1,4 @@
 import {
-  checkState,
   type PrActor,
   type PrComment,
   prReview,
@@ -9,7 +8,16 @@ import {
 } from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import { z } from "zod";
-import { type GraphQLErrorItem, partialDataOrThrow } from "./errors";
+import {
+  CHECK_CONTEXTS,
+  CHECK_COUNTS,
+  countsFailed,
+  isHiddenCheckRun,
+  rawCheckCounts,
+  rawChecks,
+  readChecks,
+} from "./checks";
+import { partialDataOrThrow } from "./errors";
 
 // PRs per request. Keeps each query well under GitHub's cost limits.
 const DETAILS_BATCH_SIZE = 10;
@@ -31,14 +39,6 @@ const ASSIGNEE = `assignee {
   ... on Mannequin { login }
 }`;
 const ASSIGN_ACTOR = `actor { __typename login }`;
-// Each check run and commit status on a commit.
-export const CHECK_CONTEXTS = `contexts(first: 100) {
-  nodes {
-    __typename
-    ... on CheckRun { name conclusion detailsUrl }
-    ... on StatusContext { context state targetUrl }
-  }
-}`;
 
 const DETAILS_QUERY = `query ($ids: [ID!]!) {
   nodes(ids: $ids) {
@@ -71,12 +71,7 @@ const DETAILS_QUERY = `query ($ids: [ID!]!) {
         nodes {
           commit {
             oid committedDate parents { totalCount }
-            statusCheckRollup {
-              contexts {
-                checkRunCountsByState { state count }
-                statusContextCountsByState { state count }
-              }
-            }
+            statusCheckRollup { ${CHECK_COUNTS} }
           }
         }
       }
@@ -84,10 +79,7 @@ const DETAILS_QUERY = `query ($ids: [ID!]!) {
         nodes {
           commit {
             oid committedDate
-            statusCheckRollup {
-              state
-              ${CHECK_CONTEXTS}
-            }
+            statusCheckRollup { ${CHECK_CONTEXTS} }
           }
         }
       }
@@ -116,40 +108,8 @@ const rawComment = z.object({
   replyTo: z.object({ id: z.string() }).nullable().optional(),
 });
 
-// Fine-grained tokens can't have the Checks permission, so GitHub hides each check run
-// from them (path ends in `contexts.nodes.<index>`). Commit statuses still come through.
-export const isHiddenCheckRun = ({ type, path }: GraphQLErrorItem) =>
-  type === "FORBIDDEN" &&
-  path?.at(-2) === "nodes" &&
-  path.at(-3) === "contexts";
-
 const nodesOf = <T extends z.ZodType>(item: T) =>
   z.object({ nodes: z.array(item) });
-
-export const rawCheckContexts = nodesOf(
-  z
-    .object({
-      __typename: z.string(),
-      name: z.string().optional(),
-      conclusion: z.string().nullable().optional(),
-      detailsUrl: z.string().nullable().optional(),
-      context: z.string().optional(),
-      state: z.string().optional(),
-      targetUrl: z.string().nullable().optional(),
-    })
-    // A check run hidden from a fine-grained token.
-    .nullable(),
-);
-
-const stateCount = z.object({ state: z.string(), count: z.number() });
-
-// How many check runs and statuses ended each way.
-const checkCounts = z.object({
-  contexts: z.object({
-    checkRunCountsByState: z.array(stateCount),
-    statusContextCountsByState: z.array(stateCount),
-  }),
-});
 
 const rawPr = z.object({
   id: z.string(),
@@ -210,7 +170,7 @@ const rawPr = z.object({
         oid: z.string(),
         committedDate: z.string(),
         parents: z.object({ totalCount: z.number() }),
-        statusCheckRollup: checkCounts.nullable(),
+        statusCheckRollup: z.object({ contexts: rawCheckCounts }).nullable(),
       }),
     }),
   ),
@@ -221,12 +181,7 @@ const rawPr = z.object({
           commit: z.object({
             oid: z.string(),
             committedDate: z.string(),
-            statusCheckRollup: z
-              .object({
-                state: checkState,
-                contexts: rawCheckContexts,
-              })
-              .nullable(),
+            statusCheckRollup: z.object({ contexts: rawChecks }).nullable(),
           }),
         }),
       )
@@ -235,45 +190,6 @@ const rawPr = z.object({
 });
 
 type RawPr = z.infer<typeof rawPr>;
-
-const FAILED_CONCLUSIONS = new Set([
-  "FAILURE",
-  "TIMED_OUT",
-  "STARTUP_FAILURE",
-  "ACTION_REQUIRED",
-]);
-const FAILED_STATES = new Set(["FAILURE", "ERROR"]);
-
-// True if a check run or status failed. GitHub's overall state can't tell: it counts
-// cancelled runs, like ones a newer commit stopped, as failures.
-function checksFailed(rollup: z.infer<typeof checkCounts> | null): boolean {
-  if (!rollup) return false;
-  const any = (counts: z.infer<typeof stateCount>[], failed: Set<string>) =>
-    counts.some((c) => failed.has(c.state) && c.count > 0);
-  return (
-    any(rollup.contexts.checkRunCountsByState, FAILED_CONCLUSIONS) ||
-    any(rollup.contexts.statusContextCountsByState, FAILED_STATES)
-  );
-}
-
-// The check runs and statuses that failed.
-export function failingChecks(
-  contexts: z.infer<typeof rawCheckContexts> | undefined,
-): PrSnapshot["checks"]["failing"] {
-  return (contexts?.nodes ?? []).flatMap((c) => {
-    if (c?.__typename === "CheckRun" && c.name) {
-      return FAILED_CONCLUSIONS.has(c.conclusion ?? "")
-        ? { name: c.name, url: c.detailsUrl ?? null }
-        : [];
-    }
-    if (c?.__typename === "StatusContext" && c.context) {
-      return FAILED_STATES.has(c.state ?? "")
-        ? { name: c.context, url: c.targetUrl ?? null }
-        : [];
-    }
-    return [];
-  });
-}
 
 export const toActor = (actor: z.infer<typeof rawActor> | null): PrActor =>
   actor
@@ -388,15 +304,12 @@ function toSnapshot(raw: RawPr): PrSnapshot {
       comments: thread.comments.nodes.map(toComment),
     })),
     comments: raw.comments.nodes.map(toComment),
-    checks: {
-      state: head.statusCheckRollup?.state ?? null,
-      failing: failingChecks(head.statusCheckRollup?.contexts),
-    },
+    checks: readChecks(head.statusCheckRollup),
     ...(push && {
       lastPush: {
         sha: push.oid,
         committedAt: push.committedDate,
-        checksFailed: checksFailed(push.statusCheckRollup),
+        checksFailed: countsFailed(push.statusCheckRollup?.contexts ?? null),
       },
     }),
   };

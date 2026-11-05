@@ -4,6 +4,17 @@ const user = (login: string) => ({ __typename: "User", login });
 const bot = (login: string) => ({ __typename: "Bot", login });
 const team = (combinedSlug: string) => ({ __typename: "Team", combinedSlug });
 
+type Counts = Record<string, number>;
+
+const byState = (counts: Counts) =>
+  Object.entries(counts).map(([state, count]) => ({ state, count }));
+
+// How many check runs and statuses on a commit ended each way, as GitHub counts them.
+export const checkCounts = (runs: Counts, statuses: Counts = {}) => ({
+  checkRunCountsByState: byState(runs),
+  statusContextCountsByState: byState(statuses),
+});
+
 // One of a PR's recent commits, with one check run that ended `checkRun`, or no checks.
 // A merge has two parents.
 export const recentCommit = (
@@ -17,16 +28,49 @@ export const recentCommit = (
     committedDate,
     parents: { totalCount: parents },
     statusCheckRollup: checkRun
-      ? {
-          contexts: {
-            checkRunCountsByState: [
-              { state: checkRun, count: 1 },
-              { state: "SUCCESS", count: 0 },
-            ],
-            statusContextCountsByState: [{ state: "FAILURE", count: 0 }],
-          },
-        }
+      ? { contexts: checkCounts({ [checkRun]: 1, SUCCESS: 0 }, { FAILURE: 0 }) }
       : null,
+  },
+});
+
+interface CheckNode {
+  __typename: string;
+  conclusion?: string | null;
+  state?: string;
+}
+
+// A commit's check runs and statuses, as `CHECK_CONTEXTS` asks for them, with counts to
+// match. Hidden runs (null) can't be counted, so tests with them pass their own counts.
+export function checkContexts(nodes: unknown[]) {
+  const runs: Counts = {};
+  const statuses: Counts = {};
+  for (const node of nodes as (CheckNode | null)[]) {
+    if (node?.__typename === "CheckRun") {
+      const state = node.conclusion ?? "IN_PROGRESS";
+      runs[state] = (runs[state] ?? 0) + 1;
+    } else if (node?.__typename === "StatusContext" && node.state) {
+      statuses[node.state] = (statuses[node.state] ?? 0) + 1;
+    }
+  }
+  return {
+    ...checkCounts(runs, statuses),
+    pageInfo: { hasNextPage: false },
+    nodes,
+  };
+}
+
+// A PR's head commit, with these checks.
+export const withHeadChecks = (statusCheckRollup: unknown) => ({
+  commits: {
+    nodes: [
+      {
+        commit: {
+          oid: "abc123",
+          committedDate: "2026-10-21T07:00:00Z",
+          statusCheckRollup,
+        },
+      },
+    ],
   },
 });
 
@@ -151,48 +195,35 @@ export function githubPr(overrides: Record<string, unknown> = {}) {
     recentCommits: {
       nodes: [recentCommit("abc123", "2026-10-21T07:00:00Z", "FAILURE")],
     },
-    commits: {
-      nodes: [
+    ...withHeadChecks({
+      contexts: checkContexts([
         {
-          commit: {
-            oid: "abc123",
-            committedDate: "2026-10-21T07:00:00Z",
-            statusCheckRollup: {
-              state: "FAILURE",
-              contexts: {
-                nodes: [
-                  {
-                    __typename: "CheckRun",
-                    name: "lint",
-                    conclusion: "FAILURE",
-                    detailsUrl: "https://ci.example/lint",
-                  },
-                  {
-                    __typename: "CheckRun",
-                    name: "unit",
-                    conclusion: "SUCCESS",
-                    detailsUrl: "https://ci.example/unit",
-                  },
-                  // Still running.
-                  {
-                    __typename: "CheckRun",
-                    name: "deploy",
-                    conclusion: null,
-                    detailsUrl: null,
-                  },
-                  {
-                    __typename: "StatusContext",
-                    context: "e2e",
-                    state: "ERROR",
-                    targetUrl: null,
-                  },
-                ],
-              },
-            },
-          },
+          __typename: "CheckRun",
+          name: "lint",
+          conclusion: "FAILURE",
+          detailsUrl: "https://ci.example/lint",
         },
-      ],
-    },
+        {
+          __typename: "CheckRun",
+          name: "unit",
+          conclusion: "SUCCESS",
+          detailsUrl: "https://ci.example/unit",
+        },
+        // Still running.
+        {
+          __typename: "CheckRun",
+          name: "deploy",
+          conclusion: null,
+          detailsUrl: null,
+        },
+        {
+          __typename: "StatusContext",
+          context: "e2e",
+          state: "ERROR",
+          targetUrl: null,
+        },
+      ]),
+    }),
     ...overrides,
   };
 }
@@ -204,9 +235,14 @@ export function searchHit(
     repoId?: number;
     state?: "OPEN" | "CLOSED" | "MERGED";
     updatedAt?: string;
+    // One run in this state. Or `checkRuns`, the runs by state.
     checkState?: string;
+    checkRuns?: Record<string, number>;
   } = {},
 ) {
+  const runs =
+    options.checkRuns ??
+    (options.checkState ? { [options.checkState]: 1 } : null);
   return {
     id,
     state: options.state ?? "OPEN",
@@ -216,9 +252,7 @@ export function searchHit(
       nodes: [
         {
           commit: {
-            statusCheckRollup: options.checkState
-              ? { state: options.checkState }
-              : null,
+            statusCheckRollup: runs ? { contexts: checkCounts(runs) } : null,
           },
         },
       ],

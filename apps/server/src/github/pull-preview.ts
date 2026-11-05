@@ -8,12 +8,14 @@ import type { Octokit } from "octokit";
 import { z } from "zod";
 import { partialDataOrThrow } from "./errors";
 import {
-  ACTOR,
   CHECK_CONTEXTS,
   failingChecks,
   isHiddenCheckRun,
+  rawChecks,
+} from "./checks";
+import {
+  ACTOR,
   rawActor,
-  rawCheckContexts,
   rawReviewer,
   REVIEWER,
   toActor,
@@ -62,7 +64,7 @@ const rawPreview = z.object({
   commits: nodesOf(
     z.object({
       commit: z.object({
-        statusCheckRollup: z.object({ contexts: rawCheckContexts }).nullable(),
+        statusCheckRollup: z.object({ contexts: rawChecks }).nullable(),
       }),
     }),
   ),
