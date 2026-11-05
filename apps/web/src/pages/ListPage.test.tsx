@@ -966,7 +966,7 @@ describe("the header", () => {
     });
   });
 
-  it("shows why a refresh was refused", async () => {
+  it("shows why a refresh was refused in a toast", async () => {
     fakeApi(
       listApi({
         "POST /api/sync": () =>
@@ -977,9 +977,12 @@ describe("the header", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Refresh" }),
     );
-    expect((await screen.findByRole("alert")).textContent).toBe(
-      "Wait a moment and try again",
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toBe(
+        "Wait a moment and try again",
+      ),
     );
+    expect(screen.queryByRole("alert")).toBe(null);
     expect(
       screen.getByRole("button", { name: "Refresh" }).getAttribute("aria-busy"),
     ).toBe("false");
@@ -1008,6 +1011,7 @@ describe("the header", () => {
       await screen.findByRole("button", { name: "Refresh" }),
     );
     expect(await screen.findByText("Add a new token")).toBeTruthy();
-    expect(screen.queryByRole("alert")).toBe(null);
+    // The banner says it, so no toast too.
+    expect(screen.queryByText("Your GitHub token stopped")).toBe(null);
   });
 });
