@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { TOAST_MS } from "../components/Toast";
+import { ACTION_TOAST_MS } from "../components/Toast";
 import {
   apiError,
   callsTo,
@@ -100,7 +100,7 @@ describe("pasting a PR link", () => {
       await setup();
       paste(LINK);
       await screen.findByText("Added other/lib#9");
-      await act(() => vi.advanceTimersByTimeAsync(TOAST_MS));
+      await act(() => vi.advanceTimersByTimeAsync(ACTION_TOAST_MS));
       expect(screen.queryByText("Added other/lib#9")).toBeNull();
     } finally {
       vi.useRealTimers();

@@ -24,6 +24,28 @@
   box-shadow: var(--shadow-panel);
   font-size: var(--text-sm);
   pointer-events: auto;
+  /* Springs up from below, with a small overshoot. */
+  animation: toast-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+    scale: 0.96;
+  }
+}
+
+/* Its last moment: slides back down and fades. See LEAVE_MS in Toast.tsx. */
+.leaving {
+  animation: toast-out 0.2s ease-in forwards;
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    translate: 0 12px;
+  }
 }
 
 .text {
@@ -50,5 +72,28 @@
 @media (hover: hover) {
   .action:hover {
     opacity: 1;
+  }
+}
+
+/* Fades in and out, without moving. */
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation-name: fade-in;
+  }
+
+  .leaving {
+    animation-name: fade-out;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
   }
 }
