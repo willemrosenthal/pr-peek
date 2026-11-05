@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent,
   type ReactNode,
@@ -16,6 +17,12 @@ import styles from "./SwipeRow.module.css";
 // `SWIPE_MIN_PX`.
 const SWIPE_SHARE = 0.45;
 const SWIPE_MIN_PX = 140;
+// The row covers the action's circle until it has moved this far: the strip's padding
+// plus the circle (SwipeRow.module.css).
+const CIRCLE_SHOWN_PX = 56;
+// Past that, the circle stretches after the row. It gives less the further it goes, and
+// never stretches more than this.
+const STRETCH_MAX_PX = 80;
 // How far a press moves before it counts as a swipe, not a click.
 const START_PX = 8;
 // A trackpad swipe ends when its scroll events stop for this long.
@@ -307,12 +314,14 @@ export function SwipeRow({
   const toImportant = marksImportant(shown);
   const ShownIcon = toImportant ? (important ? UnflagIcon : Flag) : Icon;
   // Flag swipes are amber.
-  const flagSwipe = toImportant || unflags;
-  const armedStyle = flagSwipe
-    ? styles.importantArmed
-    : quiet
-      ? styles.back
-      : styles.armed;
+  const tone =
+    toImportant || unflags
+      ? styles.important
+      : quiet
+        ? styles.back
+        : styles.quiet;
+  const pulled = Math.max(0, Math.abs(offset) - CIRCLE_SHOWN_PX);
+  const stretch = (pulled * STRETCH_MAX_PX) / (pulled + STRETCH_MAX_PX);
   return (
     <div
       ref={rowRef}
@@ -324,13 +333,19 @@ export function SwipeRow({
           className={cx(
             styles.action,
             shown < 0 && styles.end,
-            flagSwipe && styles.important,
-            armed && armedStyle,
+            tone,
+            armed && styles.armed,
           )}
+          style={{ "--stretch": `${stretch}px` } as CSSProperties}
           aria-hidden="true"
         >
-          <ShownIcon />
-          {toImportant ? (important ? unflag : "Important") : action}
+          <span className={styles.fill} />
+          <span className={styles.circle}>
+            <ShownIcon />
+          </span>
+          <span className={styles.label}>
+            {toImportant ? (important ? unflag : "Important") : action}
+          </span>
         </div>
       )}
       <div

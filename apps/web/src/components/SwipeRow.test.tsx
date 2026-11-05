@@ -35,8 +35,9 @@ function setup(quiet = false) {
 // Waits longer than a row takes to slide out.
 const settle = () => new Promise((done) => setTimeout(done, 300));
 
-// The strip behind the row, while it shows.
-const strip = () => screen.queryByText("Quiet");
+// The strip behind the row that says `label`, while it shows.
+const strip = (label = "Quiet") =>
+  screen.queryByText(label)?.parentElement ?? null;
 
 describe("SwipeRow", () => {
   it.each([-FAR_ENOUGH, FAR_ENOUGH])(
@@ -174,16 +175,13 @@ describe("SwipeRow right swipe", () => {
     expect(onToggleImportant).not.toHaveBeenCalled();
   });
 
-  it("says Important in amber, brighter once far enough", () => {
+  it("says Important in amber, filled once far enough", () => {
     const { link } = setupImportant();
     hold(link, 100);
-    const strip = screen.getByText("Important");
-    expect(strip.className).toContain(styles.important);
-    expect(strip.className).not.toContain(styles.importantArmed);
+    expect(strip("Important")!.className).toContain(styles.important);
+    expect(strip("Important")!.className).not.toContain(styles.armed);
     hold(link, FAR_ENOUGH);
-    expect(screen.getByText("Important").className).toContain(
-      styles.importantArmed,
-    );
+    expect(strip("Important")!.className).toContain(styles.armed);
   });
 
   it("says Remove flag when it's marked", () => {
@@ -206,9 +204,7 @@ describe("SwipeRow that unflags", () => {
       </SwipeRow>,
     );
     hold(screen.getByRole("link", { name: "Add login" }), dx);
-    expect(screen.getByText("Remove flag").className).toContain(
-      styles.important,
-    );
+    expect(strip("Remove flag")!.className).toContain(styles.important);
     expect(strip()).toBe(null);
   });
 });
