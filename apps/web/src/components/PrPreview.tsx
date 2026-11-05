@@ -16,6 +16,7 @@ import {
   Clock,
   ExternalLink,
   Flag,
+  EyeOff,
   FlagOff,
   MessageCircle,
   Users,
@@ -29,12 +30,13 @@ import { avatarUrl } from "./ItemRow";
 import styles from "./PrPreview.module.css";
 
 // What a preview is opened on: a row's PR, its item if it has one, whether it's in the
-// Quiet section, and whether it merged.
+// Quiet section, whether it merged, and whether it's in Watching.
 export interface PreviewTarget {
   pr: ItemDto["pr"];
   item: ItemDto | null;
   quiet: boolean;
   merged?: boolean;
+  watching?: boolean;
 }
 
 // Opens the preview on a row. The list passes it down to its rows.
@@ -135,7 +137,7 @@ export function PrPreview({
 }
 
 function Sheet({
-  target: { pr, item, quiet, merged = false },
+  target: { pr, item, quiet, merged = false, watching = false },
   onToggleQuiet,
   onToggleImportant,
 }: {
@@ -168,11 +170,19 @@ function Sheet({
               onClick={onToggleImportant}
             >
               {pr.important ? (
-                <FlagOff aria-hidden="true" />
+                watching ? (
+                  <EyeOff aria-hidden="true" />
+                ) : (
+                  <FlagOff aria-hidden="true" />
+                )
               ) : (
                 <Flag aria-hidden="true" />
               )}
-              {pr.important ? "Remove flag" : "Important"}
+              {pr.important
+                ? watching
+                  ? "Stop watching"
+                  : "Remove flag"
+                : "Important"}
             </button>
           </div>
           <a

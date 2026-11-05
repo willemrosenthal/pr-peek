@@ -585,6 +585,51 @@ describe("marking important", () => {
   });
 });
 
+describe("the Watching section", () => {
+  const hasFlag = (row: { pr: { url: string } }) =>
+    rowOf(row).textContent?.includes("Important: ");
+
+  it("lists flagged PRs that fit no other section, without their flags", async () => {
+    const watched = important(idlePr({ group: "watching" }));
+    const merged = mergedPr({ group: "watching" });
+    const mine = important(idlePr({ group: "mine" }));
+    fakeApi(
+      listApi({
+        "GET /api/items": () =>
+          json(groups({ idlePrs: [watched, mine], merged: [merged] })),
+      }),
+    );
+    renderApp("/");
+
+    await sectionButton(/^Watching\s*2/);
+    expect(hasFlag(watched)).toBe(false);
+    expect(hasFlag(merged)).toBe(false);
+    // The same flag in another section shows.
+    expect(hasFlag(mine)).toBe(true);
+  });
+
+  it("says Stop watching in a row's preview", async () => {
+    const watched = important(idlePr({ group: "watching" }));
+    const fetch = fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ idlePrs: [watched] })),
+        [`DELETE /api/prs/${watched.pr.id}/important`]: () => noContent(),
+        ...previewApi(watched, false),
+      }),
+    );
+    renderApp("/");
+
+    await sectionButton(/Watching/);
+    fireEvent.contextMenu(rowOf(watched));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Stop watching" }),
+    );
+    expect(callsTo(fetch, `/api/prs/${watched.pr.id}/important`)).toHaveLength(
+      1,
+    );
+  });
+});
+
 describe("marking seen", () => {
   const newItem = () => item({ unseen: true });
 

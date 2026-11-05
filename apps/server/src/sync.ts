@@ -145,7 +145,8 @@ async function currentTeams(
 interface FromGitHub {
   // PRs the searches found.
   searchedIds: string[];
-  // Open PRs in watched repos: found by a search, or tracked and checked by id.
+  // Open PRs in watched repos, or added by their link: found by a search, or tracked and
+  // checked by id.
   open: PrStatus[];
   ended: Map<string, EndedState>;
   details: PrDetails;
@@ -157,6 +158,7 @@ interface FromGitHub {
 
 // Searches find new PRs. Tracked PRs the searches missed are checked by id, since the
 // search index lags, so a missed PR only ends when it's really merged, closed, or gone.
+// PRs the user added by their link are tracked whatever their repo.
 // Fetches the details of PRs that changed, or of every open PR on a full pass.
 async function fetchFromGitHub(
   deps: SyncDeps,
@@ -192,6 +194,7 @@ async function fetchFromGitHub(
         checkState: true,
         authorLogin: true,
         state: true,
+        addedAt: true,
         items: {
           where: { kind: "assigned", status: "open" },
           select: { id: true },
@@ -203,9 +206,14 @@ async function fetchFromGitHub(
   // Match on repo id, not name, so a renamed repo keeps syncing.
   const watchedIds = new Set(watched.map((repo) => repo.githubRepoId));
   const tracked = stored.filter((pr) => pr.state === "open");
+  const addedIds = new Set(
+    tracked.filter((pr) => pr.addedAt).map((pr) => pr.githubNodeId),
+  );
+  const isWatched = (id: string, githubRepoId: number) =>
+    watchedIds.has(githubRepoId) || addedIds.has(id);
   const ended = new Map<string, EndedState>(
     tracked
-      .filter((pr) => !watchedIds.has(pr.githubRepoId))
+      .filter((pr) => !isWatched(pr.githubNodeId, pr.githubRepoId))
       .map((pr) => [pr.githubNodeId, "unwatched"]),
   );
   const includeTeamRequests = settings?.includeTeamRequests ?? true;
@@ -215,7 +223,7 @@ async function fetchFromGitHub(
     includeTeamRequests,
     hideBots: settings?.hideBots ?? false,
   };
-  if (watched.length === 0) {
+  if (watched.length === 0 && addedIds.size === 0) {
     const details = { snapshots: [], failed: [] };
     return {
       searchedIds: [],
@@ -240,16 +248,22 @@ async function fetchFromGitHub(
   );
   const fullPass =
     !user.rulesRunAt || user.rulesRunAt.getTime() < staleAfter || teams.changed;
-  const all = await findRelevantPrs(octokit, { includeTeamRequests });
+  // The searches only find PRs in watched repos.
+  const all =
+    watched.length > 0
+      ? await findRelevantPrs(octokit, { includeTeamRequests })
+      : new Map<string, PrStatus>();
   const found = [...all.values()].filter((pr) =>
-    watchedIds.has(pr.githubRepoId),
+    isWatched(pr.id, pr.githubRepoId),
   );
   const searchedIds = found.map((pr) => pr.id);
 
   const searched = new Set(searchedIds);
   const missedIds = tracked
     .filter(
-      (pr) => watchedIds.has(pr.githubRepoId) && !searched.has(pr.githubNodeId),
+      (pr) =>
+        isWatched(pr.githubNodeId, pr.githubRepoId) &&
+        !searched.has(pr.githubNodeId),
     )
     .map((pr) => pr.githubNodeId);
   const open = [...found];
@@ -258,7 +272,7 @@ async function fetchFromGitHub(
     else if (status.state === "MERGED") ended.set(id, "merged");
     else if (status.state === "CLOSED") ended.set(id, "closed");
     // Moved to a repo the user doesn't watch.
-    else if (!watchedIds.has(status.githubRepoId)) ended.set(id, "unwatched");
+    else if (!isWatched(id, status.githubRepoId)) ended.set(id, "unwatched");
     else open.push(status);
   }
 

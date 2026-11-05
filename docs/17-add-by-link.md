@@ -66,7 +66,9 @@ Fine-grained tokens limited to some repos are the usual cause of "can't see", so
 ## PRs
 
 1. This plan.
-2. **The server** (17.1 to 17.3): `feat(server): add a PR by link`. The column, the sync and list changes, the routes, and the Watching section on screen, so no PR is ever in a section the web app doesn't show. Has a migration.
+2. **The server** (17.1 to 17.3), in two PRs, since it's over 400 lines:
+   - 2a (17.1, 17.3): `feat(web): a Watching section, and tracking added PRs`. The column, the sync and list changes, and the Watching section on screen, together, so no PR is ever in a section the web app doesn't show. Has a migration.
+   - 2b (17.2): `feat(server): add a PR by link`. The routes.
 3. **The web and Mac app** (17.4 to 17.7): `feat(web): add a PR by link, paste, or drop`. The dialog, paste, drop, the Android share target, and the Mac window change.
 
 Both release a minor version and deploy. PR 3 also builds the Mac app, since it changes `apps/desktop`. Each is about 250 to 350 lines with tests.
@@ -75,13 +77,13 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 
 ### 17.1 Track added PRs
 
-- [ ] Migration: `PullRequest.addedAt DateTime?`.
-- [ ] Sync: added PRs count as watched. They're checked by ID with the other missed PRs, never marked `unwatched` (at the start, or when a PR moved repos), and their details load when they change. A user with no watched repos still syncs their added PRs: today `fetchFromGitHub` returns early for them.
-- [ ] Clean up as today: merged ones stay until unflagged, closed ones leave after 7 days.
-- [ ] The list: added PRs show whatever their repo. Merged added PRs show too, though `mergedPrs` hides other merged PRs in repos you don't watch.
-- [ ] A new `watching` group in `packages/core`. `idleGroup` in `item-list.ts` picks the section for a PR with no item to go by: yours, assigned, reviewing, or else Watching (was: Needs my review). The sync saves it as `listGroup`.
-- [ ] Stored rows keep their old `listGroup` until refetched. The full pass after the deploy refetches open PRs. Merged rows aren't, so the migration clears `lastPushSha` on merged rows whose `listGroup` is `review`. The plan 16 backfill (`backfill.ts`) picks rows by an empty `lastPushSha`, and refills all three columns from their snapshot, with the new `idleGroup`. `lastPushSha` only matters for open PRs, so clearing it on merged ones is safe. This must ship before plan 16 step 16.7 drops the snapshots.
-- [ ] Tests: an added PR in an unwatched repo syncs, changes, and merges like any other. One sync with an added PR makes no extra status request when other PRs were missed too. A user with only added PRs syncs. The Watching section gets the right PRs.
+- [x] Migration: `PullRequest.addedAt DateTime?`.
+- [x] Sync: added PRs count as watched. They're checked by ID with the other missed PRs, never marked `unwatched` (at the start, or when a PR moved repos), and their details load when they change. A user with no watched repos still syncs their added PRs, and skips the searches, which only find PRs in watched repos.
+- [x] Clean up as today: merged ones stay until unflagged, closed ones leave after 7 days. No change needed.
+- [x] The list: added PRs show whatever their repo. Merged added PRs show too, though `mergedPrs` hides other merged PRs in repos you don't watch.
+- [x] A new `ListSection` type in `packages/core`: the item groups plus `watching`. Not a new `ItemGroup`, since no item goes in Watching, and the list's item groups would get an always empty one. `idleGroup` in `item-list.ts` picks the section for a PR with no item to go by: yours, reviewing, assigned, or else Watching (was: Needs my review). The sync saves it as `listGroup`. A row without one goes by its author, else Watching.
+- [x] Stored rows keep their old `listGroup` until refetched. The full pass after the deploy refetches open PRs. Merged rows aren't, so the migration clears `lastPushSha` on merged rows whose `listGroup` is `review` and that still have a snapshot. The plan 16 backfill (`backfill.ts`) picks rows by an empty `lastPushSha`, and refills all three columns from their snapshot, with the new `idleGroup`. `lastPushSha` only matters for open PRs, so clearing it on merged ones is safe. Rows first saved after plan 16 PR 5b-2 have no snapshot, so merged ones among them stay in Needs my review until unflagged. Few, if any. This must ship before plan 16 step 16.7 drops the snapshots.
+- [x] Tests: an added PR in an unwatched repo syncs and merges like any other, and stays when a search finds it or it moves repos. One sync with an added PR makes one status request with the other missed PRs. A user with only added PRs syncs, without searching. `idleGroup` picks Watching. A merged added PR shows.
 
 ### 17.2 The routes
 
@@ -95,9 +97,9 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 
 ### 17.3 The Watching section on screen
 
-- [ ] Add `{ group: "watching", title: "Watching" }` to `SECTIONS` in `sections.ts`. Saved section orders that don't name it put it at the end, which `orderSections` already does.
-- [ ] Rows in Watching hide the flag. Their swipe and the preview's button say "Stop watching" with `EyeOff`, in place of "Remove flag" with `FlagOff`. `ItemSection` knows its group and passes it down.
-- [ ] Tests: Watching shows, and can be reordered. Its rows show no flag, and their swipe and preview say "Stop watching". The same PR in another section shows its flag and "Remove flag".
+- [x] Add `{ group: "watching", title: "Watching" }` to `SECTIONS` in `sections.ts`. Saved section orders that don't name it put it at the end, which `orderSections` already does.
+- [x] Rows in Watching hide the flag. Their swipe and the preview's button say "Stop watching" with `EyeOff`, in place of "Remove flag" with `FlagOff`. `ItemSection` gets `watching` and passes it down.
+- [x] Tests: Watching shows, and can be reordered. Its rows show no flag, and their swipe and preview say "Stop watching". A flagged PR in another section shows its flag.
 
 ### 17.4 The dialog
 

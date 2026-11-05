@@ -187,6 +187,8 @@ model PullRequest {
   quietAt         DateTime?
   // When the user marked it important, as a reminder. Stays until they unmark it.
   importantAt     DateTime?
+  // When the user added it by its link. Tracked whatever its repo, until unflagged.
+  addedAt         DateTime?
   // When a sync saw it merged. Important PRs stay on the list after, until unmarked.
   mergedAt        DateTime?
   // When the push saying an important PR merged went out, so it goes once.
@@ -196,7 +198,7 @@ model PullRequest {
   // Worked out from the PR's details when a sync saves them (see sync.ts).
   // The latest real push, so a quiet PR wakes on new commits.
   lastPushSha     String?
-  // The list section it shows in with no open items: "mine", "assigned", or "review".
+  // The list section it shows in with no open items (`ListSection`).
   listGroup       String?
   // What an assigned PR needs next (`AssignedState`).
   assignedState   String?

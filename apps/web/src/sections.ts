@@ -1,12 +1,13 @@
-import type { ItemGroup } from "@pr-peek/core";
+import type { ListSection } from "@pr-peek/core";
 import { localSetting } from "./localSetting";
 
 // The list's sections, in their default order. Quiet always comes last, so it's not here.
-export const SECTIONS: { group: ItemGroup; title: string }[] = [
+export const SECTIONS: { group: ListSection; title: string }[] = [
   { group: "review", title: "Needs my review" },
   { group: "replies", title: "Replies to me" },
   { group: "assigned", title: "Assigned to me" },
   { group: "mine", title: "My PRs" },
+  { group: "watching", title: "Watching" },
 ];
 
 // Kept on this device, like collapsed sections. Saved as text, like "mine,review",
@@ -30,5 +31,5 @@ export function orderSections(order: string) {
   ];
 }
 
-export const saveSectionOrder = (groups: ItemGroup[]) =>
+export const saveSectionOrder = (groups: ListSection[]) =>
   sectionOrder.set(groups.join(","));

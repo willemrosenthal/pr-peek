@@ -5,11 +5,18 @@ const groups = (order: string) =>
   orderSections(order).map((section) => section.group);
 
 it("keeps the default order when none is saved", () => {
-  expect(groups("")).toEqual(["review", "replies", "assigned", "mine"]);
+  expect(groups("")).toEqual([
+    "review",
+    "replies",
+    "assigned",
+    "mine",
+    "watching",
+  ]);
 });
 
 it("follows the saved order", () => {
-  expect(groups("mine,assigned,replies,review")).toEqual([
+  expect(groups("watching,mine,assigned,replies,review")).toEqual([
+    "watching",
     "mine",
     "assigned",
     "replies",
@@ -23,9 +30,24 @@ it("puts sections the order leaves out at the end, in their default order", () =
     "replies",
     "review",
     "assigned",
+    "watching",
+  ]);
+  // Saved before Watching existed.
+  expect(groups("mine,assigned,replies,review")).toEqual([
+    "mine",
+    "assigned",
+    "replies",
+    "review",
+    "watching",
   ]);
 });
 
 it("ignores names it doesn't know", () => {
-  expect(groups("old,mine")).toEqual(["mine", "review", "replies", "assigned"]);
+  expect(groups("old,mine")).toEqual([
+    "mine",
+    "review",
+    "replies",
+    "assigned",
+    "watching",
+  ]);
 });

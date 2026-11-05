@@ -1,4 +1,9 @@
-import type { ItemGroup, ItemsResponse, ShowAuthors } from "@pr-peek/core";
+import type {
+  ItemDto,
+  ItemsResponse,
+  ListSection,
+  ShowAuthors,
+} from "@pr-peek/core";
 import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Alert } from "../components/Alert";
@@ -31,11 +36,15 @@ import { orderSections, SECTIONS, sectionOrder } from "../sections";
 import styles from "./ListPage.module.css";
 
 // Whether a section's rows show their authors' pictures.
-const showsAuthors = (setting: ShowAuthors, group: ItemGroup) =>
+const showsAuthors = (setting: ShowAuthors, group: ListSection) =>
   setting === "all" || (setting === "review" && group === "review");
 
+// A section's items. Watching has none: only PRs with nothing to do go there.
+const itemsIn = (groups: ItemsResponse, group: ListSection): ItemDto[] =>
+  group === "watching" ? [] : groups[group];
+
 // The sections that can collapse: each group, and Quiet at the bottom.
-type SectionKey = ItemGroup | "quiet";
+type SectionKey = ListSection | "quiet";
 
 const isSectionList = (value: unknown): value is SectionKey[] =>
   Array.isArray(value) &&
@@ -112,7 +121,7 @@ function ListBody({ onPreview }: { onPreview: OnPreview }) {
     );
   }
   const total = SECTIONS.reduce(
-    (sum, { group }) => sum + items.data[group].length,
+    (sum, { group }) => sum + itemsIn(items.data, group).length,
     0,
   );
   return (
@@ -143,7 +152,7 @@ function Sections({
   const unseenIds = useMemo(
     () =>
       SECTIONS.filter(({ group }) => !collapsed.includes(group))
-        .flatMap(({ group }) => groups[group])
+        .flatMap(({ group }) => itemsIn(groups, group))
         .filter((item) => item.unseen)
         // A row stands for every open item on its PR.
         .flatMap((item) => [item.id, ...item.otherIds]),
@@ -157,16 +166,16 @@ function Sections({
   return (
     <>
       {sections.map(({ group, title }) => {
+        const items = itemsIn(groups, group);
         const idle = groups.idlePrs.filter((pr) => pr.group === group);
         const merged = groups.merged.filter((pr) => pr.group === group);
-        if (groups[group].length + idle.length + merged.length === 0) {
-          return null;
-        }
+        if (items.length + idle.length + merged.length === 0) return null;
         return (
           <ItemSection
             key={group}
             title={title}
-            items={groups[group]}
+            items={items}
+            watching={group === "watching"}
             idle={idle}
             merged={merged}
             showAuthors={showsAuthors(showAuthors, group)}

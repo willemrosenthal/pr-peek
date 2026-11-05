@@ -8,9 +8,9 @@ import {
   type AssignedState,
   type IdlePrDto,
   type ItemDto,
-  type ItemGroup,
   type ItemGroups,
   type ItemKind,
+  type ListSection,
   type MergedPrDto,
   type PrSnapshot,
   type Severity,
@@ -26,9 +26,12 @@ const isItemKind = (kind: string): kind is ItemKind =>
 const isAssignedState = (state: string | null): state is AssignedState =>
   (ASSIGNED_STATES as readonly (string | null)[]).includes(state);
 
-const LIST_GROUPS = new Set<string | null>(Object.values(ITEM_GROUPS));
-const isItemGroup = (group: string | null): group is ItemGroup =>
-  LIST_GROUPS.has(group);
+const LIST_SECTIONS = new Set<string | null>([
+  ...Object.values(ITEM_GROUPS),
+  "watching",
+]);
+const isListSection = (group: string | null): group is ListSection =>
+  LIST_SECTIONS.has(group);
 
 const PR_FIELDS = {
   id: true,
@@ -243,12 +246,12 @@ export async function idlePrs(
 }
 
 // The section a PR with no open items shows in. With no item to go by, it goes by the PR:
-// the user's own, or one they're assigned to and not reviewing. Any other goes under
-// review.
+// the user's own, one they're reviewing, or one they're assigned to. Any other, like a
+// flagged PR the user only follows, goes under Watching.
 export function idleGroup(
   snapshot: PrSnapshot,
   viewerLogin: string,
-): ItemGroup {
+): ListSection {
   const isViewer = (login: string) =>
     login.toLowerCase() === viewerLogin.toLowerCase();
   if (isViewer(snapshot.author.login)) return "mine";
@@ -257,23 +260,25 @@ export function idleGroup(
     snapshot.reviewRequests.some(
       (reviewer) => reviewer.type === "user" && isViewer(reviewer.login),
     );
+  if (reviewing) return "review";
   const assigned = snapshot.assignees?.some(isViewer) ?? false;
-  return assigned && !reviewing ? "assigned" : "review";
+  return assigned ? "assigned" : "watching";
 }
 
 // The section the sync stored. A row the backfill couldn't fill goes by its author.
 function prGroup(
   pr: Pick<PullRequest, "authorLogin" | "listGroup">,
   viewerLogin: string,
-): ItemGroup {
-  if (isItemGroup(pr.listGroup)) return pr.listGroup;
+): ListSection {
+  if (isListSection(pr.listGroup)) return pr.listGroup;
   return pr.authorLogin.toLowerCase() === viewerLogin.toLowerCase()
     ? "mine"
-    : "review";
+    : "watching";
 }
 
 // The user's important PRs that merged, newest merge first. Only those in repos the user
-// watches now, like open items. A paused repo's come back when it's on again.
+// watches now, like open items, or added by their link. A paused repo's come back when
+// it's on again.
 export async function mergedPrs(
   db: Db,
   user: { id: string; login: string },
@@ -289,6 +294,7 @@ export async function mergedPrs(
         listGroup: true,
         mergedAt: true,
         githubUpdatedAt: true,
+        addedAt: true,
       },
     }),
     db.watchedRepo.findMany({
@@ -298,7 +304,7 @@ export async function mergedPrs(
   ]);
   const watchedIds = new Set(watched.map((repo) => repo.githubRepoId));
   return rows
-    .filter((row) => watchedIds.has(row.githubRepoId))
+    .filter((row) => row.addedAt || watchedIds.has(row.githubRepoId))
     .map((row) => ({
       id: row.id,
       group: prGroup(row, user.login),

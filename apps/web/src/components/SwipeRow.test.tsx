@@ -213,6 +213,35 @@ describe("SwipeRow that unflags", () => {
   });
 });
 
+describe("SwipeRow in Watching", () => {
+  const setupWatching = (unflags = false) => {
+    render(
+      <SwipeRow
+        quiet={false}
+        onToggle={vi.fn()}
+        important
+        watching
+        unflags={unflags}
+        onToggleImportant={unflags ? undefined : vi.fn()}
+      >
+        <a href="https://github.com/acme/web-app/pull/7">Add login</a>
+      </SwipeRow>,
+    );
+    return screen.getByRole("link", { name: "Add login" });
+  };
+
+  it("says Stop watching, not Remove flag", () => {
+    hold(setupWatching(), 100);
+    expect(screen.getByText("Stop watching")).toBeTruthy();
+    expect(screen.queryByText("Remove flag")).toBe(null);
+  });
+
+  it("says it either way on a merged row", () => {
+    hold(setupWatching(true), -100);
+    expect(screen.getByText("Stop watching")).toBeTruthy();
+  });
+});
+
 describe("SwipeRow long press", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());

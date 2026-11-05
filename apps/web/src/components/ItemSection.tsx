@@ -15,12 +15,14 @@ import { SwipeRow } from "./SwipeRow";
 // swipe either way unflags, taking them off the list. Rows in the `quiet` section
 // are one line, and swiping one brings it back. A long press on a row calls
 // `onPreview`. The list shows the sheet, so it stays open if this section goes away.
+// In Watching (`watching`), rows hide their flag, and removing it says "Stop watching".
 export function ItemSection({
   title,
   items,
   idle = [],
   merged = [],
   quiet = false,
+  watching = false,
   showAuthors = false,
   open,
   onOpenChange,
@@ -31,6 +33,7 @@ export function ItemSection({
   idle?: IdlePrDto[];
   merged?: MergedPrDto[];
   quiet?: boolean;
+  watching?: boolean;
   showAuthors?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -51,8 +54,9 @@ export function ItemSection({
     onToggle: merged ? () => toggleImportant(pr) : toggle(pr.id),
     unflags: merged,
     important: pr.important,
+    watching,
     onToggleImportant: merged ? undefined : () => toggleImportant(pr),
-    onLongPress: () => onPreview({ pr, item, quiet, merged }),
+    onLongPress: () => onPreview({ pr, item, quiet, merged, watching }),
     onPressStart: () => prefetch(pr.id, item?.id ?? null),
   });
   return (
@@ -72,12 +76,17 @@ export function ItemSection({
         ))}
         {idle.map((pr) => (
           <SwipeRow key={pr.id} {...rowProps(pr.pr, null)}>
-            <IdlePrRow pr={pr} quiet={quiet} showAuthor={showAuthors} />
+            <IdlePrRow
+              pr={pr}
+              quiet={quiet}
+              showAuthor={showAuthors}
+              flag={!watching}
+            />
           </SwipeRow>
         ))}
         {merged.map((pr) => (
           <SwipeRow key={pr.id} {...rowProps(pr.pr, null, true)}>
-            <MergedPrRow pr={pr} showAuthor={showAuthors} />
+            <MergedPrRow pr={pr} showAuthor={showAuthors} flag={!watching} />
           </SwipeRow>
         ))}
       </Collapsible.Panel>

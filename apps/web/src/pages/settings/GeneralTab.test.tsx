@@ -205,6 +205,7 @@ it("moves a section with the keyboard, and saves the order on this device", asyn
     "Replies to me",
     "Assigned to me",
     "My PRs",
+    "Watching",
     "Quiet",
   ]);
 
@@ -221,12 +222,13 @@ it("moves a section with the keyboard, and saves the order on this device", asyn
       "Needs my review",
       "Assigned to me",
       "My PRs",
+      "Watching",
       "Quiet",
     ]),
   );
-  expect(sectionOrder.get()).toBe("replies,review,assigned,mine");
+  expect(sectionOrder.get()).toBe("replies,review,assigned,mine,watching");
   expect(
-    screen.getByText("Dropped Needs my review in place 2 of 4."),
+    screen.getByText("Dropped Needs my review in place 2 of 5."),
   ).toBeTruthy();
 });
 
