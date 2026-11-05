@@ -7,7 +7,7 @@ import { inDesktopApp, popOut } from "../desktop";
 import { useIsDropdown } from "../hooks/useIsTray";
 import { useNow } from "../hooks/useNow";
 import styles from "./ListHeader.module.css";
-import { Mascot } from "./RainbowIcon";
+import { Mascot, useRainbow } from "./RainbowIcon";
 
 // How far the header moves before the dropdown pops out.
 const POP_OUT_DRAG_PX = 20;
@@ -23,6 +23,7 @@ export function ListHeader({
 }) {
   const canPopOut = useIsDropdown() && inDesktopApp();
   const startDrag = usePopOutDrag();
+  const rainbow = useRainbow();
   return (
     <header
       className={cx(styles.header, canPopOut && styles.draggable)}
@@ -36,7 +37,8 @@ export function ListHeader({
           <Mascot />
           Git Buddy
         </h1>
-        <UpdatedAt lastSyncedAt={lastSyncedAt} />
+        {/* Comes back with the new time once the refresh ends. */}
+        {!refreshing && <UpdatedAt lastSyncedAt={lastSyncedAt} />}
       </div>
       <button
         type="button"
@@ -46,7 +48,17 @@ export function ListHeader({
         disabled={refreshing}
         onClick={onRefresh}
       >
-        <RotateCw className={cx(refreshing && styles.spin)} />
+        {/* Turns the mascot's rainbow while it spins. The span spins, since the
+            arrow's own animation turns its colors. */}
+        <span className={cx(styles.arrow, refreshing && styles.spin)}>
+          <RotateCw
+            className={cx(refreshing && rainbow.className)}
+            stroke={refreshing ? rainbow.stroke : "currentColor"}
+            aria-hidden="true"
+          >
+            {refreshing && rainbow.defs}
+          </RotateCw>
+        </span>
       </button>
       <Link to="/settings" className={styles.iconButton} aria-label="Settings">
         <Settings />

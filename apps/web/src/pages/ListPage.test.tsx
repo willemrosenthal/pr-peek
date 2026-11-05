@@ -924,6 +924,8 @@ describe("the header", () => {
     const refresh = screen.getByRole("button", { name: "Refresh" });
     await userEvent.click(refresh);
     expect(refresh.getAttribute("aria-busy")).toBe("true");
+    // The time comes back once it's done.
+    expect(screen.queryByText("Updated 5m ago")).toBe(null);
 
     // The worker finishes. The next check, 2 seconds later, sees it.
     synced = minutesAgo(0);
