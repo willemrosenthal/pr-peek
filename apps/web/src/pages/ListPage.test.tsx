@@ -982,7 +982,7 @@ describe("the header", () => {
         "Wait a moment and try again",
       ),
     );
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("alert")).toBe(null);
     expect(
       screen.getByRole("button", { name: "Refresh" }).getAttribute("aria-busy"),
     ).toBe("false");
