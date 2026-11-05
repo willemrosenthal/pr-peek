@@ -3,7 +3,7 @@ import { cx } from "../cx";
 import styles from "./Toast.module.css";
 
 // How long a toast stays: long enough to read, or longer with a button to tap.
-export const TOAST_MS = 3_000;
+export const TOAST_MS = 2_500;
 export const ACTION_TOAST_MS = 5_000;
 // The last part of that, when it slides away (`.leaving` in Toast.module.css).
 const LEAVE_MS = 200;
