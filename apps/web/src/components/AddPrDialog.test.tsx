@@ -1,5 +1,5 @@
 import type { PrLookupResponse } from "@pr-peek/core";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
@@ -14,6 +14,8 @@ import {
   sentBodies,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
+import { stubTauri } from "../test/tauri";
+import { hideWindow } from "../test/visibility";
 
 // jsdom has no layout, so nothing scrolls.
 beforeAll(() => {
@@ -79,6 +81,19 @@ it("adds a PR by its link, then shows its row", async () => {
       document.querySelector('[data-pr-id="pr-9"]')?.hasAttribute("data-flash"),
     ).toBe(true),
   );
+});
+
+it("opens on the link field, and closes when the Mac app hides", async () => {
+  stubTauri();
+  fakeApi(listApi());
+  renderApp("/?shell=tray");
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add a PR by link" }),
+  );
+  await waitFor(async () => expect(document.activeElement).toBe(await input()));
+
+  act(hideWindow);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 });
 
 it.each([

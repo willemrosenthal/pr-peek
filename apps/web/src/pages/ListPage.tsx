@@ -64,9 +64,14 @@ export function ListPage() {
   // The PR whose preview is open. Kept here, not in its section, so the sheet stays
   // through its closing slide even when the section goes away.
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
-  // Closes when the app hides, so it opens on the plain list, like other pages.
-  useWhenHidden(useCallback(() => setPreview(null), []));
   const [adding, setAdding] = useAddLink();
+  // Both close when the app hides, so it opens on the plain list, like other pages.
+  useWhenHidden(
+    useCallback(() => {
+      setPreview(null);
+      setAdding(null);
+    }, [setAdding]),
+  );
   // A PR just added, to scroll to once the list shows it.
   const [added, setAdded] = useState<string | null>(null);
   const onShown = useCallback(() => setAdded(null), []);
@@ -77,7 +82,7 @@ export function ListPage() {
         className={styles.panel}
         refreshing={sync.refreshing}
         onRefresh={sync.refresh}
-        enabled={preview === null}
+        enabled={preview === null && adding === null}
       >
         <div className={styles.top}>
           <ListHeader

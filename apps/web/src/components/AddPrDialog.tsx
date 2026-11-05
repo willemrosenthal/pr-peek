@@ -1,7 +1,13 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { parsePrLink, prUrl, type PrLookupResponse } from "@pr-peek/core";
 import { X } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import {
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { Link } from "react-router";
 import { ApiError } from "../api";
 import { cx } from "../cx";
@@ -49,6 +55,8 @@ export function AddPrDialog({
   onClose: () => void;
   onAdded: (prId: string) => void;
 }) {
+  // Opens on the link field, so a link can be pasted right away.
+  const field = useRef<HTMLInputElement>(null);
   return (
     <Dialog.Root
       open={link !== null}
@@ -58,10 +66,15 @@ export function AddPrDialog({
     >
       <Dialog.Portal>
         <Dialog.Backdrop className={styles.backdrop} />
-        <Dialog.Popup className={styles.popup}>
+        <Dialog.Popup className={styles.popup} initialFocus={field}>
           {/* A new opening starts from its own link. */}
           {link !== null && (
-            <AddPrForm key={link} initial={link} onAdded={onAdded} />
+            <AddPrForm
+              key={link}
+              initial={link}
+              field={field}
+              onAdded={onAdded}
+            />
           )}
         </Dialog.Popup>
       </Dialog.Portal>
@@ -71,9 +84,11 @@ export function AddPrDialog({
 
 function AddPrForm({
   initial,
+  field,
   onAdded,
 }: {
   initial: string;
+  field: RefObject<HTMLInputElement | null>;
   onAdded: (prId: string) => void;
 }) {
   const [text, setText] = useState(initial);
@@ -133,6 +148,7 @@ function AddPrForm({
         </Dialog.Close>
       </div>
       <TextField
+        ref={field}
         label="PR link"
         value={text}
         onChange={(event) => {

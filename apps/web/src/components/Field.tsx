@@ -1,4 +1,8 @@
-import type { InputHTMLAttributes, SelectHTMLAttributes } from "react";
+import type {
+  ComponentProps,
+  InputHTMLAttributes,
+  SelectHTMLAttributes,
+} from "react";
 import { cx } from "../cx";
 import styles from "./Field.module.css";
 
@@ -6,7 +10,7 @@ import styles from "./Field.module.css";
 export function TextField({
   label,
   ...props
-}: { label: string } & InputHTMLAttributes<HTMLInputElement>) {
+}: { label: string } & ComponentProps<"input">) {
   return (
     <label className={styles.field}>
       <span>{label}</span>
