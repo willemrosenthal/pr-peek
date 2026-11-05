@@ -1,9 +1,9 @@
 import type { RequestSyncResponse, SyncStatusResponse } from "@pr-peek/core";
 import express, { type Router } from "express";
-import { rateLimit } from "express-rate-limit";
 import type { Db } from "../db";
 import { NeedsReauthError, STOP_REASONS } from "../github/tokens";
 import { SYNC_TIMEOUT_SECONDS } from "../jobs";
+import { userLimiter } from "../rate-limit";
 import { currentUser, requireUser } from "./auth";
 
 const REFRESH_EVERY_MS = 30 * 1000;
@@ -21,16 +21,7 @@ export function syncRouter(deps: SyncRouteDeps): Router {
   router.use("/sync", requireUser(deps.db));
 
   // One refresh per user every 30 seconds.
-  const limiter = rateLimit({
-    windowMs: REFRESH_EVERY_MS,
-    limit: 1,
-    keyGenerator: (_req, res) => currentUser(res).id,
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
-    message: {
-      error: { code: "rate_limited", message: "Wait a moment and try again" },
-    },
-  });
+  const limiter = userLimiter(REFRESH_EVERY_MS, 1);
 
   // "Refresh now". Runs even while a failed sync is waiting to retry.
   router.post("/sync", limiter, async (_req, res) => {

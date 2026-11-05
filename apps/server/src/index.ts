@@ -12,6 +12,7 @@ import { listenForItemChanges } from "./items-listener";
 import { createBoss, createQueues, queueSync } from "./jobs";
 import { vapidFrom, webPushSender } from "./push";
 import { activityRouter } from "./routes/activity";
+import { addedPrsRouter } from "./routes/added-prs";
 import { authRouter } from "./routes/auth";
 import { desktopRouter } from "./routes/desktop";
 import { githubTokenRouter } from "./routes/github-token";
@@ -77,7 +78,8 @@ const app = createApp({
     reposRouter({ db, github }),
     // Before itemsRouter, whose sign in check covers all of /prs.
     previewRouter({ db, github }),
-    itemsRouter({ db }),
+    addedPrsRouter({ db, github, requestSync }),
+    itemsRouter({ db, requestSync }),
     settingsRouter({ db, requestSync }),
     syncRouter({ db, requestSync }),
     desktopRouter({ db }),

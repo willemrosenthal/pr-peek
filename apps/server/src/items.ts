@@ -122,6 +122,8 @@ export interface SavedPr {
   // The PullRequest row id.
   id: string;
   snapshot: PrSnapshot;
+  // Its items are seen and not new, like a PR added by its link with weeks of history.
+  itemsStartSeen?: boolean;
 }
 
 export interface SavedItems {
@@ -180,6 +182,7 @@ export async function saveItems(
   for (const pr of prs) {
     for (const item of detect(pr.snapshot)) {
       found.add(item.dedupeKey);
+      const startsSeen = item.startsSeen || pr.itemsStartSeen;
       const fields: ItemFields = {
         kind: item.kind,
         latestEventId: item.latestEventId,
@@ -197,7 +200,7 @@ export async function saveItems(
       // Nothing is new while it's the author's turn: the user acted last.
       const isNewEvent =
         !item.waitingOnAuthor &&
-        !item.startsSeen &&
+        !startsSeen &&
         existing?.latestEventId !== item.latestEventId;
       // Reopens an item that was resolved before.
       const update = { ...fields, status: "open" as const, resolvedAt: null };
@@ -208,10 +211,15 @@ export async function saveItems(
           pullRequestId: pr.id,
           dedupeKey: item.dedupeKey,
           ...update,
-          ...(item.startsSeen && { seenAt: now }),
+          ...(startsSeen && { seenAt: now }),
         },
-        // Something new happened, so the user hasn't seen it yet.
-        update: { ...update, ...(isNewEvent && { seenAt: null }) },
+        // Something new happened, so the user hasn't seen it yet. An item reopened on a
+        // PR whose items start seen, like one added back by its link, is old news.
+        update: {
+          ...update,
+          ...(isNewEvent && { seenAt: null }),
+          ...(pr.itemsStartSeen && !existing?.seenAt && { seenAt: now }),
+        },
         select: { id: true },
       });
       written += 1;

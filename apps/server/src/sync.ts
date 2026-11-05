@@ -23,9 +23,12 @@ import {
 import { quietPrs, wakeQuietPrs } from "./quiet";
 
 // PRs with no open items that no search has found for this long are deleted.
-const KEEP_UNSEEN_MS = 7 * 24 * 60 * 60 * 1000;
+export const KEEP_UNSEEN_MS = 7 * 24 * 60 * 60 * 1000;
 // How often a found PR's `lastSeenAt` moves forward, at most.
 const LAST_SEEN_EVERY_MS = 60 * 60 * 1000;
+// `githubUpdatedAt` for a PR added by its link and not synced yet. Older than any real
+// change, so the next sync fetches its details.
+export const NEVER_SYNCED = new Date(0);
 // How long the user's team list is kept. Joining a team takes up to this long to show.
 const TEAMS_KEPT_MS = 60 * 60 * 1000;
 
@@ -154,6 +157,8 @@ interface FromGitHub {
   // Teams just checked with GitHub, to save when the sync ends. Null if not checked.
   checkedTeams: string[] | null;
   fullPass: boolean;
+  // PRs added by their link and never synced. Their first items are old news.
+  firstSyncIds: Set<string>;
 }
 
 // Searches find new PRs. Tracked PRs the searches missed are checked by id, since the
@@ -233,6 +238,7 @@ async function fetchFromGitHub(
       viewer,
       checkedTeams: null,
       fullPass: false,
+      firstSyncIds: new Set(),
     };
   }
 
@@ -291,6 +297,15 @@ async function fetchFromGitHub(
     viewer: { ...viewer, teams: teams.teams },
     checkedTeams: teams.checked ? teams.teams : null,
     fullPass,
+    firstSyncIds: new Set(
+      tracked
+        .filter(
+          (pr) =>
+            pr.addedAt &&
+            pr.githubUpdatedAt.getTime() === NEVER_SYNCED.getTime(),
+        )
+        .map((pr) => pr.githubNodeId),
+    ),
   };
 }
 
@@ -301,8 +316,16 @@ export async function syncUser(
 ): Promise<SyncResult> {
   const { db } = deps;
   const now = (deps.now ?? (() => new Date()))();
-  const { searchedIds, open, ended, details, viewer, checkedTeams, fullPass } =
-    await fetchFromGitHub(deps, userId, now);
+  const {
+    searchedIds,
+    open,
+    ended,
+    details,
+    viewer,
+    checkedTeams,
+    fullPass,
+    firstSyncIds,
+  } = await fetchFromGitHub(deps, userId, now);
   const viewerLogin = viewer.login;
   // The rules run only on the PRs just fetched. A PR that didn't change keeps its items.
   const detect = await prepareRules(db, userId, now, viewer);
@@ -337,7 +360,11 @@ export async function syncUser(
         update: row,
         select: { id: true },
       });
-      saved.push({ id, snapshot });
+      saved.push({
+        id,
+        snapshot,
+        itemsStartSeen: firstSyncIds.has(snapshot.id),
+      });
     }
     const items = await saveItems(tx, userId, saved, detect, now);
     const woke = await wakeQuietPrs(

@@ -1,5 +1,5 @@
 import type { ItemsResponse, SummaryResponse } from "@pr-peek/core";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   APP_URL,
   bodyOf,
@@ -24,12 +24,13 @@ afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
 async function setup() {
+  const requestSync = vi.fn(() => Promise.resolve(true));
   const { agent } = makeTestApp(db, {
-    routers: [itemsRouter({ db, now: () => NOW })],
+    routers: [itemsRouter({ db, requestSync, now: () => NOW })],
   });
   await signIn(agent);
   const user = await db.user.findFirstOrThrow();
-  return { agent, user };
+  return { agent, user, requestSync };
 }
 
 const { makePr, makeItem } = itemRows(db);
@@ -56,7 +57,9 @@ const unmarkImportant = (agent: Agent, id: string) =>
   agent.delete(`/api/prs/${id}/important`).set("Origin", APP_URL);
 
 it("needs sign in for every items endpoint", async () => {
-  const { agent } = makeTestApp(db, { routers: [itemsRouter({ db })] });
+  const { agent } = makeTestApp(db, {
+    routers: [itemsRouter({ db, requestSync: vi.fn() })],
+  });
   expect((await agent.get("/api/items")).status).toBe(401);
   expect((await agent.get("/api/summary")).status).toBe(401);
   expect((await markSeen(agent, ["x"])).status).toBe(401);
@@ -476,7 +479,7 @@ describe("important PRs", () => {
   });
 
   it("unmarks a PR, leaving its items unseen", async () => {
-    const { agent, user } = await setup();
+    const { agent, user, requestSync } = await setup();
     const pr = await makePr(user.id, 7, { importantAt: hours(-1) });
     const reply = await makeItem(user.id, pr.id, "reply");
 
@@ -488,6 +491,28 @@ describe("important PRs", () => {
     expect(after.importantAt).toBeNull();
     const item = await db.item.findUniqueOrThrow({ where: { id: reply.id } });
     expect(item.seenAt).toBeNull();
+    // The searches found it, so nothing else changes.
+    expect(requestSync).not.toHaveBeenCalled();
+  });
+
+  it("stops tracking a PR added by its link, at the next sync", async () => {
+    const { agent, user, requestSync } = await setup();
+    const pr = await makePr(user.id, 7, {
+      importantAt: hours(-1),
+      addedAt: hours(-1),
+    });
+
+    expect((await unmarkImportant(agent, pr.id)).status).toBe(204);
+
+    const after = await db.pullRequest.findUniqueOrThrow({
+      where: { id: pr.id },
+    });
+    expect(after).toMatchObject({
+      importantAt: null,
+      addedAt: null,
+      lastSeenAt: hours(-24 * 7),
+    });
+    expect(requestSync).toHaveBeenCalledExactlyOnceWith(user.id);
   });
 
   it("lists open ones with nothing to do, each in its section", async () => {

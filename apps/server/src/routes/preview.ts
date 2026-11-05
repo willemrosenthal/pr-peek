@@ -1,10 +1,10 @@
 import { formatAge, previewQuery, type PrPreviewResponse } from "@pr-peek/core";
 import express, { type Router } from "express";
-import { rateLimit } from "express-rate-limit";
 import type { Octokit } from "octokit";
 import type { Db } from "../db";
 import { fetchPrPreview } from "../github/pull-preview";
 import { HttpError, parseInput } from "../http-error";
+import { userLimiter } from "../rate-limit";
 import { reviewersOf } from "../reviewers";
 import { currentUser, requireUser } from "./auth";
 
@@ -23,16 +23,7 @@ const notFound = () => new HttpError(404, "not_found", "PR not found");
 export function previewRouter(deps: PreviewDeps): Router {
   const router = express.Router();
   const now = () => (deps.now ?? (() => new Date()))();
-  const limiter = rateLimit({
-    windowMs: 60 * 1000,
-    limit: PREVIEWS_PER_MINUTE,
-    keyGenerator: (_req, res) => currentUser(res).id,
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
-    message: {
-      error: { code: "rate_limited", message: "Wait a moment and try again" },
-    },
-  });
+  const limiter = userLimiter(60 * 1000, PREVIEWS_PER_MINUTE);
   router.use("/prs/:id/preview", requireUser(deps.db), limiter);
 
   // More about one of the user's PRs, for the preview sheet.
