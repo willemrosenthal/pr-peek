@@ -966,7 +966,7 @@ describe("the header", () => {
     });
   });
 
-  it("shows why a refresh was refused", async () => {
+  it("shows why a refresh was refused in a toast", async () => {
     fakeApi(
       listApi({
         "POST /api/sync": () =>
@@ -977,9 +977,12 @@ describe("the header", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Refresh" }),
     );
-    expect((await screen.findByRole("alert")).textContent).toBe(
-      "Wait a moment and try again",
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toBe(
+        "Wait a moment and try again",
+      ),
     );
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(
       screen.getByRole("button", { name: "Refresh" }).getAttribute("aria-busy"),
     ).toBe("false");

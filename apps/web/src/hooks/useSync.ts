@@ -15,8 +15,9 @@ interface Started {
   at: number;
 }
 
-// The sync status, plus "refresh now", which spins until the sync ends.
-export function useSync() {
+// The sync status, plus "refresh now", which spins until the sync ends. onError gets
+// refresh errors worth showing. A stopped token shows as a banner instead.
+export function useSync({ onError }: { onError?: (err: Error) => void } = {}) {
   const queryClient = useQueryClient();
   const [started, setStarted] = useState<Started | null>(null);
   const isRunning = (data: SyncStatusResponse | undefined, checkedAt: number) =>
@@ -46,7 +47,9 @@ export function useSync() {
       // The token stopped working. The banner comes from the user's details.
       if (err instanceof ApiError && err.status === 401) {
         await queryClient.invalidateQueries({ queryKey: queryKeys.me });
+        return;
       }
+      onError?.(err);
     },
   });
 
@@ -69,11 +72,6 @@ export function useSync() {
     status: status.data,
     refreshing: refreshing || refresh.isPending,
     refresh: () => refresh.mutate(),
-    // Only errors worth showing. A stopped token shows as a banner instead.
-    refreshError:
-      refresh.error instanceof ApiError && refresh.error.status === 401
-        ? null
-        : refresh.error,
   };
 }
 

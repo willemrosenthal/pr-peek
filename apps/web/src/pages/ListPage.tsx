@@ -9,7 +9,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { AddPrDialog } from "../components/AddPrDialog";
 import { Toast, type ToastMessage } from "../components/Toast";
-import { Alert } from "../components/Alert";
 import { Banners } from "../components/Banners";
 import { Button } from "../components/Button";
 import { ItemSection } from "../components/ItemSection";
@@ -59,7 +58,10 @@ const isSectionList = (value: unknown): value is SectionKey[] =>
 
 export function ListPage() {
   const me = useMe();
-  const sync = useSync();
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const endToast = useCallback(() => setToast(null), []);
+  // Like "Wait a moment and try again" after refreshing too often.
+  const sync = useSync({ onError: (err) => setToast({ text: err.message }) });
   const tray = useIsTray();
   const setQuiet = useSetQuiet();
   const toggleImportant = useToggleImportant();
@@ -77,8 +79,6 @@ export function ListPage() {
   // A PR just added, to scroll to once the list shows it.
   const [added, setAdded] = useState<string | null>(null);
   const onShown = useCallback(() => setAdded(null), []);
-  const [toast, setToast] = useState<ToastMessage | null>(null);
-  const endToast = useCallback(() => setToast(null), []);
   // Paste or drop a PR link on the list to add it.
   const { dragging, dropTarget } = useQuickAdd({
     enabled: preview === null && adding === null,
@@ -113,11 +113,6 @@ export function ListPage() {
             onRefresh={sync.refresh}
           />
           <Banners me={me.data} syncError={sync.status?.syncError} />
-          {sync.refreshError && (
-            <div className={styles.message}>
-              <Alert>{sync.refreshError.message}</Alert>
-            </div>
-          )}
         </div>
         <ListBody
           onPreview={setPreview}
