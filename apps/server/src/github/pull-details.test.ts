@@ -3,27 +3,14 @@ import { describe, expect, it } from "vitest";
 import { fakeGraphQL } from "../../test/github";
 import {
   checkContexts,
+  checkCounts,
   detailIds,
   githubPr,
   prGitHub,
   recentCommit,
+  withHeadChecks,
 } from "../../test/pulls";
 import { fetchPrDetails, mentionsIn, preview } from "./pull-details";
-
-// A PR's head commit, with these checks.
-const withHeadChecks = (statusCheckRollup: unknown) => ({
-  commits: {
-    nodes: [
-      {
-        commit: {
-          oid: "abc123",
-          committedDate: "2026-10-21T07:00:00Z",
-          statusCheckRollup,
-        },
-      },
-    ],
-  },
-});
 
 describe("fetchPrDetails", () => {
   it("turns GitHub's answer into a snapshot", async () => {
@@ -128,7 +115,8 @@ describe("fetchPrDetails", () => {
         },
         checks: {
           state: "FAILURE",
-          fingerprint: "runs: none; statuses: none",
+          fingerprint:
+            "runs: FAILURE 1, IN_PROGRESS 1, SUCCESS 1; statuses: ERROR 1",
           failing: [
             { name: "lint", url: "https://ci.example/lint" },
             { name: "e2e", url: null },
@@ -274,7 +262,6 @@ describe("fetchPrDetails", () => {
   it("skips check runs hidden from a fine-grained token, and keeps statuses", async () => {
     const pr = githubPr(
       withHeadChecks({
-        state: "FAILURE",
         contexts: {
           ...checkContexts([
             null,
@@ -286,8 +273,7 @@ describe("fetchPrDetails", () => {
             },
           ]),
           // The hidden run passed. The counts still say so.
-          checkRunCountsByState: [{ state: "SUCCESS", count: 1 }],
-          statusContextCountsByState: [{ state: "FAILURE", count: 1 }],
+          ...checkCounts({ SUCCESS: 1 }, { FAILURE: 1 }),
         },
       }),
     );

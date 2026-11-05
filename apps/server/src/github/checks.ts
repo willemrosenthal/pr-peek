@@ -35,7 +35,7 @@ export const CHECK_CONTEXTS = `contexts(first: 100) {
     __typename
     ... on CheckRun {
       name conclusion startedAt detailsUrl
-      checkSuite { app { slug } workflowRun { workflow { name } } }
+      checkSuite { app { slug } workflowRun { event workflow { name } } }
     }
     ... on StatusContext { context state createdAt targetUrl }
   }
@@ -66,7 +66,11 @@ export const rawChecks = rawCheckCounts.extend({
           .object({
             app: z.object({ slug: z.string() }).nullable().optional(),
             workflowRun: z
-              .object({ workflow: z.object({ name: z.string() }) })
+              .object({
+                // What started it, like "push" or "pull_request".
+                event: z.string(),
+                workflow: z.object({ name: z.string() }),
+              })
               .nullable()
               .optional(),
           })
@@ -91,8 +95,9 @@ export const isHiddenCheckRun = ({ type, path }: GraphQLErrorItem) =>
   path.at(-3) === "contexts";
 
 interface Check {
-  // Runs of the same check share it: the same name, run by the same workflow or app.
-  // Two workflows can each have a job named "test", and both count.
+  // Runs of the same check share it: the same name, run by the same workflow for the same
+  // event, or by the same app. Two workflows can each have a job named "test", and a
+  // workflow can run for both a push and the PR. GitHub's PR page shows each.
   key: string;
   // When it started. Sorts by time, as ISO strings do.
   at: string;
@@ -108,7 +113,10 @@ const NOT_STARTED = "~";
 function toCheck(node: RawChecks["nodes"][number]): Check | null {
   if (node?.__typename === "CheckRun" && node.name) {
     const suite = node.checkSuite;
-    const by = suite?.workflowRun?.workflow.name ?? suite?.app?.slug ?? "";
+    const workflow = suite?.workflowRun;
+    const by = workflow
+      ? `${workflow.workflow.name} (${workflow.event})`
+      : (suite?.app?.slug ?? "");
     return {
       key: `run:${by}:${node.name}`,
       at: node.startedAt ?? NOT_STARTED,

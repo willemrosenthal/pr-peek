@@ -22,6 +22,7 @@ import {
   statusIds,
   teamQueries,
   type FakePrGitHub,
+  withHeadChecks,
 } from "../test/pulls";
 import { ITEMS_CHANNEL } from "./items";
 import { syncUser } from "./sync";
@@ -111,7 +112,8 @@ describe("syncUser", () => {
       isDraft: false,
       state: "open",
       headSha: "abc123",
-      checkFingerprint: "runs: none; statuses: none",
+      checkFingerprint:
+        "runs: FAILURE 1, IN_PROGRESS 1, SUCCESS 1; statuses: ERROR 1",
       githubUpdatedAt: new Date("2026-10-21T10:00:00Z"),
       lastSeenAt: NOW,
       // What the list needs, worked out from the details.
@@ -237,40 +239,24 @@ describe("syncUser", () => {
     // passed. GitHub's own state still says FAILURE.
     const pr = githubPr({
       author: { __typename: "User", login: "octocat" },
-      commits: {
-        nodes: [
+      ...withHeadChecks({
+        contexts: checkContexts([
           {
-            commit: {
-              oid: "abc123",
-              committedDate: "2026-10-21T07:00:00Z",
-              statusCheckRollup: {
-                contexts: {
-                  ...checkContexts([
-                    {
-                      __typename: "CheckRun",
-                      name: "pr-title",
-                      conclusion: "CANCELLED",
-                      startedAt: "2026-10-21T07:01:00Z",
-                      detailsUrl: null,
-                    },
-                    {
-                      __typename: "CheckRun",
-                      name: "pr-title",
-                      conclusion: "SUCCESS",
-                      startedAt: "2026-10-21T07:02:00Z",
-                      detailsUrl: null,
-                    },
-                  ]),
-                  checkRunCountsByState: [
-                    { state: "CANCELLED", count: 1 },
-                    { state: "SUCCESS", count: 1 },
-                  ],
-                },
-              },
-            },
+            __typename: "CheckRun",
+            name: "pr-title",
+            conclusion: "CANCELLED",
+            startedAt: "2026-10-21T07:01:00Z",
+            detailsUrl: null,
           },
-        ],
-      },
+          {
+            __typename: "CheckRun",
+            name: "pr-title",
+            conclusion: "SUCCESS",
+            startedAt: "2026-10-21T07:02:00Z",
+            detailsUrl: null,
+          },
+        ]),
+      }),
     });
     const runs = { CANCELLED: 1, SUCCESS: 1 };
     const hit = searchHit("PR_1", { repoId: WATCHED, checkRuns: runs });

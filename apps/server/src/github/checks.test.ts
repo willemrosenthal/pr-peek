@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkContexts } from "../../test/pulls";
+import { checkContexts, checkCounts } from "../../test/pulls";
 import {
   checksFingerprint,
   countsFailed,
@@ -13,6 +13,7 @@ const run = (
   conclusion: string | null,
   startedAt: string | null = "2026-11-05T02:00:00Z",
   workflow = "CI",
+  event = "pull_request",
 ) => ({
   __typename: "CheckRun",
   name,
@@ -21,7 +22,7 @@ const run = (
   detailsUrl: `https://ci.example/${name}`,
   checkSuite: {
     app: { slug: "github-actions" },
-    workflowRun: { workflow: { name: workflow } },
+    workflowRun: { event, workflow: { name: workflow } },
   },
 });
 
@@ -82,6 +83,15 @@ describe("readChecks", () => {
     ).toMatchObject({ state: "FAILURE", failing: [{ name: "test" }] });
   });
 
+  it("keeps a workflow's runs for a push and for the PR apart", () => {
+    expect(
+      read([
+        run("test", "FAILURE", "2026-11-05T02:00:00Z", "CI", "push"),
+        run("test", "SUCCESS", "2026-11-05T03:00:00Z", "CI", "pull_request"),
+      ]).state,
+    ).toBe("FAILURE");
+  });
+
   it("doesn't count a cancelled run as failed", () => {
     expect(read([run("test", "CANCELLED"), run("lint", "SUCCESS")]).state).toBe(
       "SUCCESS",
@@ -114,22 +124,14 @@ describe("readChecks", () => {
   });
 
   describe("when some runs can't be seen", () => {
-    const counts = (runs: Record<string, number>) => ({
-      checkRunCountsByState: Object.entries(runs).map(([state, count]) => ({
-        state,
-        count,
-      })),
-      statusContextCountsByState: [],
-    });
-
     it("goes by the counts, without cancelled runs, when runs are hidden", () => {
-      const hidden = read([null], counts({ CANCELLED: 1, SUCCESS: 2 }));
+      const hidden = read([null], checkCounts({ CANCELLED: 1, SUCCESS: 2 }));
       expect(hidden.state).toBe("SUCCESS");
     });
 
     it("goes by the counts past 100 checks", () => {
       const many = read([run("test", "SUCCESS")], {
-        ...counts({ SUCCESS: 100, FAILURE: 1 }),
+        ...checkCounts({ SUCCESS: 100, FAILURE: 1 }),
         pageInfo: { hasNextPage: true },
       });
       expect(many.state).toBe("FAILURE");
@@ -139,12 +141,8 @@ describe("readChecks", () => {
 
 describe("countsFailed", () => {
   it("is true only for a failed run or status, not a cancelled one", () => {
-    const counts = (state: string) => ({
-      checkRunCountsByState: [{ state, count: 1 }],
-      statusContextCountsByState: [],
-    });
-    expect(countsFailed(counts("TIMED_OUT"))).toBe(true);
-    expect(countsFailed(counts("CANCELLED"))).toBe(false);
+    expect(countsFailed(checkCounts({ TIMED_OUT: 1 }))).toBe(true);
+    expect(countsFailed(checkCounts({ CANCELLED: 1 }))).toBe(false);
     expect(countsFailed(null)).toBe(false);
   });
 });
@@ -152,23 +150,10 @@ describe("countsFailed", () => {
 describe("checksFingerprint", () => {
   it("changes when a run finishes, even if GitHub's own state doesn't", () => {
     // A cancelled run keeps GitHub's state at FAILURE while another check runs, then after.
-    const counts = (runs: [string, number][]) => ({
-      checkRunCountsByState: runs.map(([state, count]) => ({ state, count })),
-      statusContextCountsByState: [],
-    });
     const running = checksFingerprint(
-      counts([
-        ["CANCELLED", 1],
-        ["IN_PROGRESS", 1],
-        ["SUCCESS", 0],
-      ]),
+      checkCounts({ CANCELLED: 1, IN_PROGRESS: 1, SUCCESS: 0 }),
     );
-    const done = checksFingerprint(
-      counts([
-        ["SUCCESS", 1],
-        ["CANCELLED", 1],
-      ]),
-    );
+    const done = checksFingerprint(checkCounts({ SUCCESS: 1, CANCELLED: 1 }));
     expect(running).toBe("runs: CANCELLED 1, IN_PROGRESS 1; statuses: none");
     expect(done).toBe("runs: CANCELLED 1, SUCCESS 1; statuses: none");
     expect(checksFingerprint(null)).toBeNull();
