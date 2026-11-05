@@ -33,7 +33,13 @@ import {
   syncStatus,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
-import { drag, FAR_ENOUGH, pull, stubPointerCapture } from "../test/swipe";
+import {
+  drag,
+  FAR_ENOUGH,
+  pull,
+  PULL_FAR_ENOUGH,
+  stubPointerCapture,
+} from "../test/swipe";
 import { callsOf, stubTauri } from "../test/tauri";
 import { hideWindow, setVisibility } from "../test/visibility";
 
@@ -918,6 +924,11 @@ describe("the header", () => {
     const refresh = screen.getByRole("button", { name: "Refresh" });
     await userEvent.click(refresh);
     expect(refresh.getAttribute("aria-busy")).toBe("true");
+    // In the rainbow while it spins. The time comes back once it's done.
+    const arrowColor = () =>
+      refresh.querySelector("svg")!.getAttribute("stroke");
+    expect(arrowColor()).toMatch(/^url\(#rainbow/);
+    expect(screen.queryByText("Updated 5m ago")).toBe(null);
 
     // The worker finishes. The next check, 2 seconds later, sees it.
     synced = minutesAgo(0);
@@ -925,6 +936,7 @@ describe("the header", () => {
       await screen.findByText("Updated just now", {}, { timeout: 4000 }),
     ).toBeTruthy();
     expect(refresh.getAttribute("aria-busy")).toBe("false");
+    expect(arrowColor()).toBe("currentColor");
   });
 
   // How far a pull must go is tested in PullToRefresh.test.tsx.
@@ -934,7 +946,10 @@ describe("the header", () => {
         listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),
       );
       renderApp("/");
-      pull(await screen.findByText("Nothing needs you right now"), 200);
+      pull(
+        await screen.findByText("Nothing needs you right now"),
+        PULL_FAR_ENOUGH,
+      );
       await waitFor(() => expect(callsTo(fetch, "/api/sync")).toHaveLength(1));
       expect(
         screen

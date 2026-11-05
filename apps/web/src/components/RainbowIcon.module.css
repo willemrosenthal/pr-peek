@@ -3,6 +3,10 @@
   flex: none;
   width: 1.5em;
   height: 1.5em;
+}
+
+/* Turns the colors, on anything drawn with `useRainbow`. */
+.shifting {
   animation: rainbow 8s linear infinite;
 }
 
@@ -17,12 +21,12 @@
 }
 
 /* Saves battery while the Mac app's dropdown is hidden. See desktop.ts. */
-:global(.app-hidden) .icon {
+:global(.app-hidden) .shifting {
   animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .icon {
+  .shifting {
     animation: none;
   }
 }

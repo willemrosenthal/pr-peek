@@ -1,22 +1,16 @@
 import { useId, type ReactNode } from "react";
+import { cx } from "../cx";
 import styles from "./RainbowIcon.module.css";
 
-// A line icon on a 24 by 24 grid, drawn in a rainbow that shifts color. The PR
-// preview's marked comment has the same rainbow edge (PrPreview.module.css).
-export function RainbowIcon({ children }: { children: ReactNode }) {
+// The rainbow, for any line icon on a 24 by 24 grid: put `defs` inside the svg, use
+// `stroke` as its stroke, and `className` shifts its colors.
+export function useRainbow() {
   // React's ids have characters that break inside url(#...).
   const gradient = `rainbow${useId().replace(/[^\w-]/g, "")}`;
-  return (
-    <svg
-      className={styles.icon}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={`url(#${gradient})`}
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+  return {
+    stroke: `url(#${gradient})`,
+    className: styles.shifting,
+    defs: (
       <defs>
         <linearGradient
           id={gradient}
@@ -33,6 +27,26 @@ export function RainbowIcon({ children }: { children: ReactNode }) {
           <stop offset="1" stopColor="#bf5af2" />
         </linearGradient>
       </defs>
+    ),
+  };
+}
+
+// A line icon on a 24 by 24 grid, drawn in a rainbow that shifts color. The PR
+// preview's marked comment has the same rainbow edge (PrPreview.module.css).
+export function RainbowIcon({ children }: { children: ReactNode }) {
+  const rainbow = useRainbow();
+  return (
+    <svg
+      className={cx(styles.icon, rainbow.className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={rainbow.stroke}
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {rainbow.defs}
       {children}
     </svg>
   );

@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   type ReactNode,
   useEffect,
   useEffectEvent,
@@ -13,13 +14,15 @@ import styles from "./PullToRefresh.module.css";
 const START_PX = 8;
 // The furthest the page comes down.
 const MAX_PX = 160;
-// How far the page comes down before letting go refreshes.
-const ARM_PX = 72;
+// How far the page comes down before letting go refreshes. Room for the burst.
+const ARM_PX = 70;
+// How fast the page moves at first, for each px the finger moves.
+const RESISTANCE = 0.55;
 
-// How far the page comes down for a finger `distance` past the start. Close to the
-// finger at first, then heavier the further it goes, and never past MAX_PX.
+// How far the page comes down for a finger `distance` past the start. About half as
+// far as the finger at first, then heavier the further it goes, and never past MAX_PX.
 export const pullOffset = (distance: number) =>
-  MAX_PX * (1 - 1 / (1 + Math.max(0, distance) / MAX_PX));
+  MAX_PX * (1 - 1 / (1 + (RESISTANCE * Math.max(0, distance)) / MAX_PX));
 
 interface Options {
   refreshing: boolean;
@@ -40,13 +43,15 @@ export function PullToRefresh({
   children,
   ...options
 }: Options & { className?: string | undefined; children: ReactNode }) {
-  const { offset, dragging } = usePull(options);
+  const { offset, dragging, arms, fired } = usePull(options);
   return (
     <>
       <Behind
         offset={offset}
         dragging={dragging}
         refreshing={options.refreshing}
+        arms={arms}
+        fired={fired}
       />
       <div
         className={cx(className, styles.page, dragging && styles.dragging)}
@@ -61,11 +66,15 @@ export function PullToRefresh({
   );
 }
 
-// How far the page is down, while a finger pulls it.
+// How far the page is down, while a finger pulls it, how many pulls have gone far
+// enough to refresh, and whether the last one let go and refreshed.
 function usePull({ refreshing, onRefresh, enabled }: Options) {
   // How far the page is down.
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [arms, setArms] = useState(0);
+  // Until the next pull starts.
+  const [fired, setFired] = useState(false);
   // The touch, while it could still become a pull. `pulling` once it is one.
   const touch = useRef<{
     x: number;
@@ -113,13 +122,17 @@ function usePull({ refreshing, onRefresh, enabled }: Options) {
         }
         t.pulling = true;
         setDragging(true);
+        setFired(false);
       }
       // Older browsers ignore the overscroll CSS, so this stops them scrolling too.
       if (event.cancelable) event.preventDefault();
       const at = pullOffset(dy - START_PX);
-      // Buzzes as it gets far enough, where the phone can buzz mid-pull.
       const arming = at >= ARM_PX && t.at < ARM_PX && !isRefreshing();
-      if (arming && canVibrate()) haptic();
+      if (arming) {
+        setArms((n) => n + 1);
+        // A buzz, where the phone can buzz mid-pull.
+        if (canVibrate()) haptic();
+      }
       t.at = at;
       setOffset(at);
     };
@@ -133,6 +146,7 @@ function usePull({ refreshing, onRefresh, enabled }: Options) {
       if (event?.type !== "touchend" || t.at < ARM_PX || isRefreshing()) return;
       // iPhones can only tick as the finger lifts.
       if (!canVibrate()) haptic();
+      setFired(true);
       refresh();
     };
 
@@ -149,23 +163,90 @@ function usePull({ refreshing, onRefresh, enabled }: Options) {
     };
   }, []);
 
-  return { offset, dragging };
+  return { offset, dragging, arms, fired };
 }
 
 // How far the ring turns as the page comes down, before it's far enough.
 const TURN_DEG_PER_PX = 3;
 
+// Bright colors for the splotches. Each pull picks a base and `SPLOTCHES` more.
+const SPLOTCH_COLORS = [
+  "#ff4fa3",
+  "#ff8a3d",
+  "#ffd93d",
+  "#5ef08c",
+  "#3de0ff",
+  "#5b7cff",
+  "#b15bff",
+];
+const SPLOTCHES = 5;
+
+const between = (min: number, max: number) => min + Math.random() * (max - min);
+
+// A new random mix: colors in a random order, at random places and sizes.
+function makeSplotches() {
+  const [base, ...colors] = SPLOTCH_COLORS.map((color) => ({
+    color,
+    order: Math.random(),
+  }))
+    .sort((a, b) => a.order - b.order)
+    .map(({ color }) => color);
+  return {
+    base,
+    splotches: colors.slice(0, SPLOTCHES).map((color) => ({
+      color,
+      // Where its middle is, and how wide it is, as a share of the gap's width.
+      x: between(0, 100),
+      y: between(0, 100),
+      size: between(45, 80),
+      // How long one drift takes. Each starts partway through, so they don't line up.
+      drift: between(5, 9),
+      start: between(0, 9),
+    })),
+  };
+}
+
+// The splotches, mixed once when they appear. Remount them for a new mix.
+function Splotches() {
+  const [{ base, splotches }] = useState(makeSplotches);
+  return (
+    <div className={styles.splotches} style={{ background: base }}>
+      {splotches.map((splotch) => (
+        <span
+          key={splotch.color}
+          className={styles.splotch}
+          style={
+            {
+              left: `${splotch.x}%`,
+              top: `${splotch.y}%`,
+              width: `${splotch.size}%`,
+              "--color": splotch.color,
+              animationDuration: `${splotch.drift}s`,
+              animationDelay: `-${splotch.start}s`,
+            } as CSSProperties
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
 // What's behind the page, in the gap a pull opens above it: a ring that turns with
-// the pull, and the rainbow once letting go would refresh. During a refresh, the ring
-// spins and says so instead.
+// the pull, and grainy splotches of color once letting go would refresh, a new mix
+// each time (`arms`). During a refresh, the ring spins and says so instead. Once a
+// pull has let go and refreshed (`fired`), the ring stays hidden as the page goes up.
 function Behind({
   offset,
   dragging,
   refreshing,
+  arms,
+  fired,
 }: {
   offset: number;
   dragging: boolean;
   refreshing: boolean;
+  arms: number;
+  fired: boolean;
 }) {
   const armed = !refreshing && offset >= ARM_PX;
   return (
@@ -175,12 +256,15 @@ function Behind({
       style={{ height: `calc(env(safe-area-inset-top) + ${MAX_PX}px)` }}
       aria-hidden="true"
     >
-      <div className={cx(styles.rainbow, armed && styles.shown)} />
+      <div className={cx(styles.rainbow, armed && styles.shown)}>
+        <Splotches key={arms} />
+      </div>
       <div
         className={cx(
           styles.spinner,
           dragging && styles.dragging,
           armed && styles.armed,
+          fired && styles.fired,
         )}
         style={{
           // Centered in the gap, so it stays in view as the gap opens. Fully shown once

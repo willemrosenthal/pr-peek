@@ -27,38 +27,68 @@
   pointer-events: none;
 }
 
-/* Fills the gap once letting go would refresh. Its colors keep turning, like the
-   mascot's. */
+/* Fills the gap once letting go would refresh: soft splotches of bright color that
+   drift, with grain on top. PullToRefresh.tsx picks a new mix each time. */
 .rainbow {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    100deg,
-    #ff5f6d,
-    #ffb347,
-    #ffe156,
-    #47e891,
-    #3fa7ff,
-    #b06bff
-  );
+  overflow: hidden;
+  /* So the grain only mixes with the splotches. */
+  isolation: isolate;
   opacity: 0;
   transition: opacity 0.2s;
 }
 
-/* Only animates while shown, so the hidden layer doesn't cost battery. */
 .shown {
   opacity: 1;
-  animation: rainbow 3s linear infinite;
 }
 
-@keyframes rainbow {
-  from {
-    filter: hue-rotate(0deg);
+.splotches {
+  position: absolute;
+  inset: 0;
+  /* Keeps it bright where opposite colors meet, which would turn grey. */
+  filter: saturate(1.5);
+}
+
+/* Placed by its middle. */
+.splotch {
+  position: absolute;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--color), transparent);
+  translate: -50% -50%;
+  animation: drift linear infinite;
+  /* Only moves while shown, so the hidden layer doesn't cost battery. */
+  animation-play-state: paused;
+}
+
+.shown .splotch {
+  animation-play-state: running;
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: none;
   }
 
-  to {
-    filter: hue-rotate(360deg);
+  33% {
+    transform: translate(18%, -12%) scale(1.15);
   }
+
+  66% {
+    transform: translate(-14%, 10%) scale(0.9);
+  }
+}
+
+/* Grain: SVG noise, blended into the colors. See https://css-tricks.com/grainy-gradients/ */
+.rainbow::after {
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  content: "";
+  mix-blend-mode: overlay;
+  opacity: 0.7;
 }
 
 .spinner {
@@ -117,7 +147,7 @@
   border-radius: 999px;
   content: "";
   opacity: 0;
-  animation: ripple 0.2s ease-out;
+  animation: ripple 0.18s ease-out;
 }
 
 @keyframes ripple {
@@ -140,11 +170,14 @@
   border-radius: 999px;
 }
 
+/* Far enough, the colors and the burst show it instead. */
 .armed .ring {
-  border-color: rgb(255 255 255 / 45%);
-  border-top-color: #fff;
-  /* Stands out over the yellow too. */
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 30%));
+  display: none;
+}
+
+/* Let go and refreshed: it stays hidden as the page goes back up. */
+.fired {
+  visibility: hidden;
 }
 
 /* During a refresh. */
@@ -181,7 +214,7 @@
     animation: none;
   }
 
-  .shown {
+  .splotch {
     animation: none;
   }
 
