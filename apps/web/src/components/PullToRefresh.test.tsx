@@ -36,6 +36,10 @@ describe("pullOffset", () => {
     expect(pullOffset(10_000)).toBeLessThan(160);
     expect(pullOffset(-50)).toBe(0);
   });
+
+  it("moves less than the finger, even at the start", () => {
+    expect(pullOffset(10)).toBeLessThan(6);
+  });
 });
 
 describe("usePullToRefresh", () => {

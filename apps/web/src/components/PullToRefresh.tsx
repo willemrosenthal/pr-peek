@@ -13,13 +13,15 @@ import styles from "./PullToRefresh.module.css";
 const START_PX = 8;
 // The furthest the page comes down.
 const MAX_PX = 160;
-// How far the page comes down before letting go refreshes.
-const ARM_PX = 72;
+// How far the page comes down before letting go refreshes. Room for the ring's pop.
+const ARM_PX = 70;
+// How fast the page moves at first, for each px the finger moves.
+const RESISTANCE = 0.55;
 
-// How far the page comes down for a finger `distance` past the start. Close to the
-// finger at first, then heavier the further it goes, and never past MAX_PX.
+// How far the page comes down for a finger `distance` past the start. About half as
+// far as the finger at first, then heavier the further it goes, and never past MAX_PX.
 export const pullOffset = (distance: number) =>
-  MAX_PX * (1 - 1 / (1 + Math.max(0, distance) / MAX_PX));
+  MAX_PX * (1 - 1 / (1 + (RESISTANCE * Math.max(0, distance)) / MAX_PX));
 
 interface Options {
   refreshing: boolean;
