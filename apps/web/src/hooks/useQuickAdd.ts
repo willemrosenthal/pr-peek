@@ -6,7 +6,7 @@ import {
   useState,
   type DragEvent,
 } from "react";
-import { errorText } from "../components/AddPrDialog";
+import { addPrError } from "../addPrError";
 import type { ToastMessage } from "../components/Toast";
 import { useAddPr, useSetImportant } from "../queries";
 
@@ -64,7 +64,7 @@ export function useQuickAdd({
                 },
           );
         },
-        onError: (err) => onToast({ text: errorText(err) }),
+        onError: (err) => onToast({ text: addPrError(err) }),
       });
       return true;
     },
