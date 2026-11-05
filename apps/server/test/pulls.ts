@@ -30,6 +30,15 @@ export const recentCommit = (
   },
 });
 
+// A commit's check runs and statuses, as `CHECK_CONTEXTS` asks for them: all shown, so
+// the counts go unused.
+export const checkContexts = (nodes: unknown[]) => ({
+  checkRunCountsByState: [],
+  statusContextCountsByState: [],
+  pageInfo: { hasNextPage: false },
+  nodes,
+});
+
 // One PR as GitHub's details query returns it, with a bit of everything in it.
 export function githubPr(overrides: Record<string, unknown> = {}) {
   return {
@@ -159,35 +168,33 @@ export function githubPr(overrides: Record<string, unknown> = {}) {
             committedDate: "2026-10-21T07:00:00Z",
             statusCheckRollup: {
               state: "FAILURE",
-              contexts: {
-                nodes: [
-                  {
-                    __typename: "CheckRun",
-                    name: "lint",
-                    conclusion: "FAILURE",
-                    detailsUrl: "https://ci.example/lint",
-                  },
-                  {
-                    __typename: "CheckRun",
-                    name: "unit",
-                    conclusion: "SUCCESS",
-                    detailsUrl: "https://ci.example/unit",
-                  },
-                  // Still running.
-                  {
-                    __typename: "CheckRun",
-                    name: "deploy",
-                    conclusion: null,
-                    detailsUrl: null,
-                  },
-                  {
-                    __typename: "StatusContext",
-                    context: "e2e",
-                    state: "ERROR",
-                    targetUrl: null,
-                  },
-                ],
-              },
+              contexts: checkContexts([
+                {
+                  __typename: "CheckRun",
+                  name: "lint",
+                  conclusion: "FAILURE",
+                  detailsUrl: "https://ci.example/lint",
+                },
+                {
+                  __typename: "CheckRun",
+                  name: "unit",
+                  conclusion: "SUCCESS",
+                  detailsUrl: "https://ci.example/unit",
+                },
+                // Still running.
+                {
+                  __typename: "CheckRun",
+                  name: "deploy",
+                  conclusion: null,
+                  detailsUrl: null,
+                },
+                {
+                  __typename: "StatusContext",
+                  context: "e2e",
+                  state: "ERROR",
+                  targetUrl: null,
+                },
+              ]),
             },
           },
         },

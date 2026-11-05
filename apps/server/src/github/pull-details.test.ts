@@ -1,7 +1,13 @@
 import { prSnapshot, type PrSnapshot } from "@pr-peek/core";
 import { describe, expect, it } from "vitest";
 import { fakeGraphQL } from "../../test/github";
-import { detailIds, githubPr, prGitHub, recentCommit } from "../../test/pulls";
+import {
+  checkContexts,
+  detailIds,
+  githubPr,
+  prGitHub,
+  recentCommit,
+} from "../../test/pulls";
 import { fetchPrDetails, mentionsIn, preview } from "./pull-details";
 
 // A PR's head commit, with these checks.
@@ -122,6 +128,7 @@ describe("fetchPrDetails", () => {
         },
         checks: {
           state: "FAILURE",
+          githubState: "FAILURE",
           failing: [
             { name: "lint", url: "https://ci.example/lint" },
             { name: "e2e", url: null },
@@ -142,7 +149,11 @@ describe("fetchPrDetails", () => {
     const pr = githubPr(withHeadChecks(null));
     const { octokit } = fakeGraphQL(prGitHub({ prs: { PR_1: pr } }));
     const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
-    expect(snapshots[0]?.checks).toEqual({ state: null, failing: [] });
+    expect(snapshots[0]?.checks).toEqual({
+      state: null,
+      githubState: null,
+      failing: [],
+    });
   });
 
   it("takes the last push from the newest commit that isn't a merge", async () => {
@@ -265,7 +276,7 @@ describe("fetchPrDetails", () => {
       withHeadChecks({
         state: "FAILURE",
         contexts: {
-          nodes: [
+          ...checkContexts([
             null,
             {
               __typename: "StatusContext",
@@ -273,7 +284,10 @@ describe("fetchPrDetails", () => {
               state: "FAILURE",
               targetUrl: null,
             },
-          ],
+          ]),
+          // The hidden run passed. The counts still say so.
+          checkRunCountsByState: [{ state: "SUCCESS", count: 1 }],
+          statusContextCountsByState: [{ state: "FAILURE", count: 1 }],
         },
       }),
     );
@@ -302,6 +316,7 @@ describe("fetchPrDetails", () => {
     const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
     expect(snapshots[0]?.checks).toEqual({
       state: "FAILURE",
+      githubState: "FAILURE",
       failing: [{ name: "Vercel", url: null }],
     });
   });

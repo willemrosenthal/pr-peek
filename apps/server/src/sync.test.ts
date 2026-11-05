@@ -12,6 +12,7 @@ import {
 import { fakeGraphQL } from "../test/github";
 import { itemRows } from "../test/items";
 import {
+  checkContexts,
   detailIds,
   githubPr,
   prGitHub,
@@ -227,6 +228,56 @@ describe("syncUser", () => {
       ],
       prs,
     });
+    expect(detailIds(requests)).toEqual([]);
+  });
+
+  it("goes by the newest run of each check, and saves GitHub's state to compare", async () => {
+    const user = await makeUser();
+    // The user's PR. Its title check ran twice: the first run was cancelled, the second
+    // passed. GitHub's own state still says FAILURE.
+    const pr = githubPr({
+      author: { __typename: "User", login: "octocat" },
+      commits: {
+        nodes: [
+          {
+            commit: {
+              oid: "abc123",
+              committedDate: "2026-10-21T07:00:00Z",
+              statusCheckRollup: {
+                state: "FAILURE",
+                contexts: checkContexts([
+                  {
+                    __typename: "CheckRun",
+                    name: "pr-title",
+                    conclusion: "CANCELLED",
+                    startedAt: "2026-10-21T07:01:00Z",
+                    detailsUrl: null,
+                  },
+                  {
+                    __typename: "CheckRun",
+                    name: "pr-title",
+                    conclusion: "SUCCESS",
+                    startedAt: "2026-10-21T07:02:00Z",
+                    detailsUrl: null,
+                  },
+                ]),
+              },
+            },
+          },
+        ],
+      },
+    });
+    const hit = searchHit("PR_1", { repoId: WATCHED, checkState: "FAILURE" });
+    await sync(user.id, { authored: [hit], prs: { PR_1: pr } });
+
+    expect(
+      await db.item.count({ where: { kind: "check_failed", status: "open" } }),
+    ).toBe(0);
+    expect((await db.pullRequest.findFirstOrThrow()).checkState).toBe(
+      "FAILURE",
+    );
+    // The search's state matches what's saved, so nothing is fetched again.
+    const { requests } = await sync(user.id, { authored: [hit] }, hours(1));
     expect(detailIds(requests)).toEqual([]);
   });
 

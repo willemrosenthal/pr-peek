@@ -109,7 +109,8 @@ function toRow(
     isDraft: snapshot.isDraft,
     state: "open" as const,
     headSha: snapshot.headSha,
-    checkState: snapshot.checks.state,
+    // GitHub's own state, which the searches give, so a later sync can tell it changed.
+    checkState: snapshot.checks.githubState ?? snapshot.checks.state,
     githubUpdatedAt: new Date(snapshot.updatedAt),
     ...snapshotColumns(snapshot, viewerLogin),
   };

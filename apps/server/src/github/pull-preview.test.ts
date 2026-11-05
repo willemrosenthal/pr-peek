@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fakeGraphQL } from "../../test/github";
+import { checkContexts } from "../../test/pulls";
 import { fetchPrPreview } from "./pull-preview";
 
 const user = (login: string) => ({ __typename: "User", login });
@@ -75,7 +76,7 @@ it("is null when the PR is gone from GitHub", async () => {
 describe("reviewers and checks", () => {
   const checks = (...contexts: (object | null)[]) => ({
     nodes: [
-      { commit: { statusCheckRollup: { contexts: { nodes: contexts } } } },
+      { commit: { statusCheckRollup: { contexts: checkContexts(contexts) } } },
     ],
   });
 
