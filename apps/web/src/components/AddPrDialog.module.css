@@ -35,10 +35,10 @@
   transform: translateX(-50%) scale(0.97);
 }
 
-/* The Mac dropdown is short, so the card sits near its top. */
-@media (max-height: 520px) {
+/* Near the top on a phone, above its keyboard, and in the short Mac dropdown. */
+@media (max-width: 600px), (max-height: 520px) {
   .popup {
-    top: var(--space-4);
+    top: calc(env(safe-area-inset-top, 0px) + var(--space-4));
   }
 }
 

@@ -41,7 +41,7 @@ const found = (fields: Partial<PrLookupResponse> = {}): PrLookupResponse => ({
 const dialog = () => screen.findByRole("dialog");
 const input = async () =>
   within(await dialog()).getByRole("textbox", { name: "PR link" });
-const addButton = (name: RegExp | string) =>
+const dialogButton = (name: RegExp | string) =>
   within(screen.getByRole("dialog")).getByRole("button", { name });
 
 async function openAndType(text: string) {
@@ -72,7 +72,7 @@ it("adds a PR by its link, then shows its row", async () => {
   await openAndType("other/lib#9");
   expect(await screen.findByText("Add search")).toBeTruthy();
   expect(screen.getByText("other/lib#9 · by sam · open")).toBeTruthy();
-  await userEvent.click(addButton("Add as important"));
+  await userEvent.click(dialogButton("Add as important"));
 
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(sentBodies(fetch, "POST /api/prs")).toEqual([{ link: LINK }]);
@@ -100,7 +100,7 @@ it("starts empty each time it opens", async () => {
   fakeApi(listApi());
   renderApp("/");
   await openAndType("hello");
-  await userEvent.click(addButton("Cancel"));
+  await userEvent.click(dialogButton("Cancel"));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
   await userEvent.click(
@@ -121,7 +121,7 @@ it.each([
   renderApp("/");
   await openAndType(LINK);
   expect(await screen.findByText(note)).toBeTruthy();
-  expect(addButton(button)).toBeTruthy();
+  expect(dialogButton(button)).toBeTruthy();
 });
 
 describe("why a link can't be added", () => {
@@ -136,7 +136,7 @@ describe("why a link can't be added", () => {
     expect(
       await screen.findByText("That doesn't look like a PR link yet."),
     ).toBeTruthy();
-    expect(addButton("Add as important")).toHaveProperty("disabled", true);
+    expect(dialogButton("Add as important")).toHaveProperty("disabled", true);
   });
 
   it("says when it's an issue", async () => {
@@ -157,7 +157,7 @@ describe("why a link can't be added", () => {
     });
     const settings = await screen.findByRole("link", { name: "Settings" });
     expect(settings.getAttribute("href")).toBe("/settings/general");
-    expect(addButton("Add as important")).toHaveProperty("disabled", true);
+    expect(dialogButton("Add as important")).toHaveProperty("disabled", true);
   });
 
   it("shows why adding failed", async () => {
@@ -171,7 +171,7 @@ describe("why a link can't be added", () => {
         ),
     });
     await screen.findByText("Add search");
-    await userEvent.click(addButton("Add as important"));
+    await userEvent.click(dialogButton("Add as important"));
     expect(await screen.findByText(/You've added 25 PRs/)).toBeTruthy();
   });
 });
