@@ -1,4 +1,3 @@
-import { fillSnapshotColumns } from "./backfill";
 import { loadConfig } from "./config";
 import { createDb, createPool } from "./db";
 import { getOctokit } from "./github/client";
@@ -45,9 +44,6 @@ boss.on("error", (err) => logger.error({ err }, "pg-boss error"));
 await boss.start();
 
 await createQueues(boss);
-
-const filled = await fillSnapshotColumns(db);
-if (filled > 0) logger.info({ filled }, "filled PR columns from snapshots");
 
 const scheduled = { pollingIntervalSeconds: POLL_SCHEDULED_SECONDS };
 const jobs = { pollingIntervalSeconds: POLL_JOBS_SECONDS };

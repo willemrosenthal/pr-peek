@@ -84,7 +84,7 @@ function needsDetails(
 }
 
 // What the list needs from a PR's details, kept on its row.
-export const snapshotColumns = (snapshot: PrSnapshot, viewerLogin: string) => ({
+const snapshotColumns = (snapshot: PrSnapshot, viewerLogin: string) => ({
   lastPushSha: lastPushSha(snapshot),
   listGroup: idleGroup(snapshot, viewerLogin),
   assignedState: assignedState(snapshot),

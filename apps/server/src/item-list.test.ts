@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { storedSnapshot } from "../test/items";
+import { prDetails } from "../test/items";
 import { idleGroup } from "./item-list";
 
 const approved = {
@@ -33,5 +33,5 @@ it.each([
   // Like a flagged PR the user only follows.
   { pr: "anyone else's", fields: {}, group: "watching" },
 ])("puts $pr under $group", ({ fields, group }) => {
-  expect(idleGroup(storedSnapshot(fields), "octocat")).toBe(group);
+  expect(idleGroup(prDetails(fields), "octocat")).toBe(group);
 });

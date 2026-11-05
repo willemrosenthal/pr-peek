@@ -3,10 +3,8 @@ import type { Db } from "../src/db";
 import type { Prisma } from "../src/generated/prisma/client";
 import { hours, NOW } from "./fakes";
 
-// A stored snapshot of PR_7, by sam, with passing checks and nothing else on it.
-export const storedSnapshot = (
-  fields: Partial<PrSnapshot> = {},
-): PrSnapshot => ({
+// PR_7's details, by sam, with passing checks and nothing else on it.
+export const prDetails = (fields: Partial<PrSnapshot> = {}): PrSnapshot => ({
   id: "PR_7",
   number: 7,
   repo: { owner: "acme", name: "web-app" },
@@ -42,7 +40,6 @@ export function itemRows(db: Db) {
         | "quietAt"
         | "importantAt"
         | "mergedAt"
-        | "snapshot"
         | "listGroup"
         | "assignedState"
         | "addedAt"

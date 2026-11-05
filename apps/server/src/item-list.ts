@@ -265,7 +265,7 @@ export function idleGroup(
   return assigned ? "assigned" : "watching";
 }
 
-// The section the sync stored. A row the backfill couldn't fill goes by its author.
+// The section the sync stored. A row from before it was stored goes by its author.
 function prGroup(
   pr: Pick<PullRequest, "authorLogin" | "listGroup">,
   viewerLogin: string,
