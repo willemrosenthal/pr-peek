@@ -3,6 +3,12 @@
   overflow: hidden;
 }
 
+/* After the slide out, the row closes up, so the rows below slide up. See CLOSE_MS in
+   SwipeRow.tsx. */
+.closing {
+  transition: height 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .slide {
   position: relative;
   background: var(--color-surface);
@@ -14,6 +20,8 @@
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;
   user-select: none;
+  /* Keeps `.flash` above the background. */
+  isolation: isolate;
   /* Springs back with a small overshoot. */
   transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -27,66 +35,201 @@
   transition: transform 0.1s ease-in;
 }
 
-/* Shows behind the row as it slides. Muted until the row has gone far enough. */
+/* Shows behind the row as it slides: the action's icon in a circle of its color, on
+   grey. The circle stretches after the row, and once the row has gone far enough, its
+   color fills the strip. */
 .action {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0 var(--space-5);
+  padding: 0 var(--edge);
   background: var(--color-surface-muted);
-  color: var(--color-text-secondary);
   font-size: var(--text-sm);
   font-weight: 700;
-  transition:
-    background 0.15s,
-    color 0.15s;
+  /* How far the circle sits from the edge. See CIRCLE_SHOWN_PX in SwipeRow.tsx. */
+  --edge: calc(var(--space-5) - 5px);
+  /* The circle's middle, where the fill grows from. */
+  --x: calc(var(--edge) + 16px);
+  /* A spring: overshoots a bit, then settles. */
+  --spring: linear(
+    0,
+    0.069 5%,
+    0.232 10%,
+    0.435 15%,
+    0.638 20%,
+    0.815 25%,
+    0.953 30%,
+    1.047 35%,
+    1.102 40%,
+    1.125 45%,
+    1.123 50%,
+    1.106 55%,
+    1.082 60%,
+    1.056 65%,
+    1.032 70%,
+    1.012 75%,
+    0.998 80%,
+    0.989 85%,
+    0.985 90%,
+    1
+  );
 }
 
-.action svg {
+.end {
+  flex-direction: row-reverse;
+  --x: calc(100% - var(--edge) - 16px);
+}
+
+/* Each action's color, and the color on top of it. */
+.quiet {
+  --tone: var(--color-text-secondary);
+  --on-tone: var(--color-surface);
+}
+
+.back {
+  --tone: var(--color-accent);
+  --on-tone: var(--color-on-accent);
+}
+
+.important {
+  --tone: var(--color-important);
+  --on-tone: var(--color-on-important);
+}
+
+.fill {
+  position: absolute;
+  inset: 0;
+  background: var(--tone);
+  clip-path: circle(0 at var(--x) 50%);
+  transition: clip-path 0.15s ease-in;
+}
+
+.circle {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--on-tone);
+}
+
+/* The circle's color, as wide as `--stretch` (SwipeRow.tsx) pulls it. It gets a bit
+   thinner as it stretches. */
+.circle::before {
+  content: "";
+  position: absolute;
+  inset-block: calc(var(--stretch) * 0.06);
+  inset-inline-start: 0;
+  z-index: -1;
+  width: calc(100% + var(--stretch));
+  border-radius: 16px;
+  background: var(--tone);
+}
+
+.end .circle::before {
+  inset-inline: auto 0;
+}
+
+.circle svg {
   width: 16px;
   height: 16px;
   transition: transform 0.15s;
 }
 
-.end {
-  justify-content: flex-end;
+.label {
+  position: relative;
+  color: var(--on-tone);
+  opacity: 0;
+  transform: translateX(-8px);
+  transition:
+    opacity 0.1s,
+    transform 0.15s;
 }
 
-/* Swiping right to mark it important or unmark it: the flag's amber from the start,
-   so it looks nothing like quiet. The label is dim until it's far enough. */
-.important {
-  background: var(--color-important);
-  color: color-mix(in srgb, var(--color-on-important) 60%, transparent);
+.end .label {
+  transform: translateX(8px);
 }
 
-/* Far enough that letting go acts: it quiets, comes back, or is marked important. */
-.armed {
-  background: var(--color-text-secondary);
-  color: var(--color-surface);
+/* Far enough that letting go acts: the color fills the strip with a little bounce. */
+.armed .fill {
+  clip-path: circle(150% at var(--x) 50%);
+  transition: clip-path 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
-.back {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+/* The icon pops and wiggles: the bell rings, the flag waves. */
+.armed svg {
+  transform: scale(1.3);
+  animation: wiggle 0.5s ease-out;
 }
 
-.importantArmed {
-  color: var(--color-on-important);
+@keyframes wiggle {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.5) rotate(-18deg);
+  }
+  45% {
+    transform: scale(1.35) rotate(14deg);
+  }
+  65% {
+    transform: scale(1.3) rotate(-8deg);
+  }
+  82% {
+    transform: scale(1.3) rotate(4deg);
+  }
+  100% {
+    transform: scale(1.3);
+  }
 }
 
-.armed svg,
-.back svg,
-.importantArmed svg {
-  transform: scale(1.25);
+/* A swipe marked it important, or unmarked it. It stays, so it flashes amber, behind
+   the row's content. */
+.flash {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  animation: flash 0.7s ease-out;
+}
+
+@keyframes flash {
+  from {
+    background: color-mix(
+      in srgb,
+      var(--color-important) 35%,
+      var(--color-surface)
+    );
+  }
+}
+
+.armed .label {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.15s,
+    transform 0.5s var(--spring);
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .closing,
   .slide,
-  .action,
-  .action svg {
+  .fill,
+  .armed .fill,
+  .circle svg,
+  .label,
+  .armed .label {
     transition: none;
+  }
+
+  .armed svg,
+  .flash {
+    animation: none;
   }
 }
 

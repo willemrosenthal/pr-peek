@@ -10,11 +10,42 @@ import {
   it,
   vi,
 } from "vitest";
+import { haptic } from "../haptics";
 import { drag, FAR_ENOUGH, hold, stubPointerCapture } from "../test/swipe";
 import { SwipeRow } from "./SwipeRow";
 import styles from "./SwipeRow.module.css";
 
+vi.mock("../haptics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../haptics")>()),
+  haptic: vi.fn(),
+}));
+
 beforeAll(stubPointerCapture);
+// For the flicks, which use fake timers.
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+// Presses on `link`, then for each `[ms, dx]` waits `ms` and moves to `dx` across. Then
+// waits `pause` ms and lets go. Needs fake timers, which time the moves.
+function swipeTimed(link: Element, steps: [number, number][], pause = 0) {
+  const at = (dx: number) => ({ pointerId: 1, clientX: 200 + dx, clientY: 20 });
+  fireEvent.pointerDown(link, { button: 0, ...at(0) });
+  let dx = 0;
+  for (const [ms, to] of steps) {
+    vi.advanceTimersByTime(ms);
+    dx = to;
+    fireEvent.pointerMove(link, at(dx));
+  }
+  vi.advanceTimersByTime(pause);
+  fireEvent.pointerUp(link, at(dx));
+}
+
+// Short of `FAR_ENOUGH`, but quick: over 60ms, and about 1.9px per ms at the end.
+const flick = (dx: number): [number, number][] => [
+  [30, (dx * 3) / 7],
+  [30, dx],
+];
 
 function setup(quiet = false) {
   const onToggle = vi.fn();
@@ -35,8 +66,9 @@ function setup(quiet = false) {
 // Waits longer than a row takes to slide out.
 const settle = () => new Promise((done) => setTimeout(done, 300));
 
-// The strip behind the row, while it shows.
-const strip = () => screen.queryByText("Quiet");
+// The strip behind the row that says `label`, while it shows.
+const strip = (label = "Quiet") =>
+  screen.queryByText(label)?.parentElement ?? null;
 
 describe("SwipeRow", () => {
   it.each([-FAR_ENOUGH, FAR_ENOUGH])(
@@ -89,14 +121,67 @@ describe("SwipeRow", () => {
     expect(onLinkClick).toHaveBeenCalledTimes(1);
   });
 
-  it("lets a click elsewhere through right after a swipe", () => {
-    const { link } = setup();
+  it("lets a click elsewhere through right after a swipe, and still blocks its own", () => {
+    // Like the hidden switch a haptic tick clicks on iPhones.
+    const { onLinkClick, link } = setup();
     const other = vi.fn();
     document.body.addEventListener("click", other);
     drag(link, -FAR_ENOUGH);
     fireEvent.click(document.body);
     document.body.removeEventListener("click", other);
     expect(other).toHaveBeenCalledTimes(1);
+    fireEvent.click(link);
+    expect(onLinkClick).not.toHaveBeenCalled();
+  });
+
+  it("closes up after sliding out, then quiets", async () => {
+    const { onToggle, link } = setup();
+    const row = link.closest(`.${styles.swipe}`)!;
+    drag(link, -FAR_ENOUGH);
+    await waitFor(() => expect(row.className).toContain(styles.closing));
+    expect(onToggle).not.toHaveBeenCalled();
+    await waitFor(() => expect(onToggle).toHaveBeenCalledTimes(1));
+  });
+
+  describe("a quick flick", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    it("quiets before it's gone far enough", async () => {
+      const { onToggle, link } = setup();
+      swipeTimed(link, flick(-100));
+      await vi.advanceTimersByTimeAsync(400);
+      expect(onToggle).toHaveBeenCalledTimes(1);
+    });
+
+    // Over the whole swipe it's still fast enough, so only the last moments count.
+    it("doesn't count if the finger stopped before letting go", async () => {
+      const { onToggle, link } = setup();
+      swipeTimed(link, flick(-100), 60);
+      await vi.advanceTimersByTimeAsync(400);
+      expect(onToggle).not.toHaveBeenCalled();
+    });
+
+    it("doesn't count a flick back toward the start", async () => {
+      const { onToggle, link } = setup();
+      swipeTimed(link, [
+        [30, -30],
+        [300, -150],
+        [30, -100],
+      ]);
+      await vi.advanceTimersByTimeAsync(400);
+      expect(onToggle).not.toHaveBeenCalled();
+    });
+  });
+
+  it("ticks when a swipe acts, not when it springs back", () => {
+    vi.mocked(haptic).mockClear();
+    const { link } = setup();
+    drag(link, -40);
+    expect(haptic).not.toHaveBeenCalled();
+    drag(link, -FAR_ENOUGH);
+    expect(haptic).toHaveBeenCalledTimes(1);
   });
 
   it("lets the list scroll when the move is mostly down", async () => {
@@ -167,6 +252,24 @@ describe("SwipeRow right swipe", () => {
     expect(onToggle).not.toHaveBeenCalled();
   });
 
+  it("flashes the row each time it marks it", () => {
+    const { link } = setupImportant();
+    const flash = () => link.parentElement!.querySelector(`.${styles.flash}`);
+    drag(link, FAR_ENOUGH);
+    const first = flash();
+    expect(first).not.toBe(null);
+    // A new one, so the flash starts over.
+    drag(link, FAR_ENOUGH);
+    expect(flash()).not.toBe(first);
+  });
+
+  it("marks the PR important on a quick flick right", () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { onToggleImportant, link } = setupImportant();
+    swipeTimed(link, flick(100));
+    expect(onToggleImportant).toHaveBeenCalledTimes(1);
+  });
+
   it("still quiets when swiped left", async () => {
     const { onToggle, onToggleImportant, link } = setupImportant();
     drag(link, -FAR_ENOUGH);
@@ -174,16 +277,13 @@ describe("SwipeRow right swipe", () => {
     expect(onToggleImportant).not.toHaveBeenCalled();
   });
 
-  it("says Important in amber, brighter once far enough", () => {
+  it("says Important in amber, filled once far enough", () => {
     const { link } = setupImportant();
     hold(link, 100);
-    const strip = screen.getByText("Important");
-    expect(strip.className).toContain(styles.important);
-    expect(strip.className).not.toContain(styles.importantArmed);
+    expect(strip("Important")!.className).toContain(styles.important);
+    expect(strip("Important")!.className).not.toContain(styles.armed);
     hold(link, FAR_ENOUGH);
-    expect(screen.getByText("Important").className).toContain(
-      styles.importantArmed,
-    );
+    expect(strip("Important")!.className).toContain(styles.armed);
   });
 
   it("says Remove flag when it's marked", () => {
@@ -206,9 +306,7 @@ describe("SwipeRow that unflags", () => {
       </SwipeRow>,
     );
     hold(screen.getByRole("link", { name: "Add login" }), dx);
-    expect(screen.getByText("Remove flag").className).toContain(
-      styles.important,
-    );
+    expect(strip("Remove flag")!.className).toContain(styles.important);
     expect(strip()).toBe(null);
   });
 });
