@@ -33,7 +33,13 @@ import {
   syncStatus,
 } from "../test/fake-api";
 import { renderApp } from "../test/render";
-import { drag, FAR_ENOUGH, pull, stubPointerCapture } from "../test/swipe";
+import {
+  drag,
+  FAR_ENOUGH,
+  pull,
+  PULL_FAR_ENOUGH,
+  stubPointerCapture,
+} from "../test/swipe";
 import { callsOf, stubTauri } from "../test/tauri";
 import { hideWindow, setVisibility } from "../test/visibility";
 
@@ -934,7 +940,10 @@ describe("the header", () => {
         listApi({ "POST /api/sync": () => json({ queued: true }, 202) }),
       );
       renderApp("/");
-      pull(await screen.findByText("Nothing needs you right now"), 200);
+      pull(
+        await screen.findByText("Nothing needs you right now"),
+        PULL_FAR_ENOUGH,
+      );
       await waitFor(() => expect(callsTo(fetch, "/api/sync")).toHaveLength(1));
       expect(
         screen

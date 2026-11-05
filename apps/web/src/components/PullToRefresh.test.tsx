@@ -1,6 +1,6 @@
 import { fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { holdPull, pull } from "../test/swipe";
+import { holdPull, pull, PULL_FAR_ENOUGH } from "../test/swipe";
 import { PullToRefresh, pullOffset } from "./PullToRefresh";
 import styles from "./PullToRefresh.module.css";
 
@@ -57,7 +57,7 @@ describe("usePullToRefresh", () => {
     expect(partWay).toBeGreaterThan(0);
     expect(Number(spinner.style.opacity)).toBeLessThan(1);
 
-    holdPull(document.body, 200);
+    holdPull(document.body, PULL_FAR_ENOUGH);
     expect(pageAt(page)).toBeGreaterThan(partWay);
     expect(spinner.style.opacity).toBe("1");
   });
@@ -66,23 +66,34 @@ describe("usePullToRefresh", () => {
     const { rainbowShown } = setup();
     holdPull(document.body, 100);
     expect(rainbowShown()).toBe(false);
-    holdPull(document.body, 200);
+    holdPull(document.body, PULL_FAR_ENOUGH);
     expect(rainbowShown()).toBe(true);
     fireEvent.touchEnd(document.body, { touches: [] });
     expect(rainbowShown()).toBe(false);
+  });
+
+  it("mixes new splotches each time a pull gets far enough", () => {
+    const { view } = setup();
+    const splotches = () =>
+      view.container.querySelector(`.${styles.splotches}`);
+    holdPull(document.body, PULL_FAR_ENOUGH);
+    const first = splotches();
+    fireEvent.touchEnd(document.body, { touches: [] });
+    holdPull(document.body, PULL_FAR_ENOUGH);
+    expect(splotches()).not.toBe(first);
   });
 
   it("refreshes only once pulled far enough", () => {
     const { onRefresh } = setup();
     pull(document.body, 100);
     expect(onRefresh).not.toHaveBeenCalled();
-    pull(document.body, 200);
+    pull(document.body, PULL_FAR_ENOUGH);
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
   it("springs back up when the finger lifts, while the refresh runs", () => {
     const { page, rerender } = setup();
-    pull(document.body, 200);
+    pull(document.body, PULL_FAR_ENOUGH);
     rerender(true);
     expect(pageAt(page)).toBe(0);
     expect(page.style.transform).toBe("");
@@ -94,7 +105,7 @@ describe("usePullToRefresh", () => {
     expect(pageAt(page)).toBe(0);
     fireEvent.touchEnd(document.body, { touches: [] });
     Object.assign(window, { scrollY: 50 });
-    pull(document.body, 200);
+    pull(document.body, PULL_FAR_ENOUGH);
     expect(onRefresh).not.toHaveBeenCalled();
   });
 
@@ -105,7 +116,7 @@ describe("usePullToRefresh", () => {
     holdPull(document.body, 100);
     expect(pageAt(page)).toBeGreaterThan(0);
     expect(spinner.style.opacity).toBe("1");
-    holdPull(document.body, 200);
+    holdPull(document.body, PULL_FAR_ENOUGH);
     expect(rainbowShown()).toBe(false);
     fireEvent.touchEnd(document.body, { touches: [] });
     expect(onRefresh).not.toHaveBeenCalled();
@@ -124,13 +135,13 @@ describe("usePullToRefresh", () => {
       </PullToRefresh>,
     );
     expect(renders).toBe(1);
-    pull(document.body, 200);
+    pull(document.body, PULL_FAR_ENOUGH);
     expect(renders).toBe(1);
   });
 
   it("goes back up without refreshing when a second finger lands", () => {
     const { onRefresh, page } = setup();
-    holdPull(document.body, 200);
+    holdPull(document.body, PULL_FAR_ENOUGH);
     fireEvent.touchStart(document.body, {
       touches: [
         { clientX: 200, clientY: 300 },

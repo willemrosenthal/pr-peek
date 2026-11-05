@@ -21,6 +21,9 @@ export function hold(el: Element, dx: number, dy = 0) {
   fireEvent.pointerMove(el, at(dx, dy, 1));
 }
 
+// Far enough to refresh with pull to refresh.
+export const PULL_FAR_ENOUGH = 300;
+
 // For pull to refresh: a finger on `el` moves `dy` down and `dx` across, and stays.
 export function holdPull(el: Element, dy: number, dx = 0) {
   const finger = (share: number) => ({
