@@ -32,9 +32,10 @@ const WHEEL_END_MS = 150;
 // in px per ms, after at least `FLICK_MIN_PX`.
 const FLICK_SPEED = 0.5;
 const FLICK_MIN_PX = 40;
-// Speed is measured over at least this long, since moves come every few ms. A finger
-// still for this long before letting go isn't flicking.
-const SPEED_WINDOW_MS = 30;
+// Speed is measured over the last this long before letting go, so a finger that
+// stopped first has none. Under `SPEED_MIN_MS` is too few moves to tell.
+const SPEED_WINDOW_MS = 50;
+const SPEED_MIN_MS = 20;
 // How long after letting go the row starts closing up, once it has slid out (`.leaving`
 // in SwipeRow.module.css), and how long closing takes (`.closing`). Then it moves.
 const CLOSE_AFTER_MS = 120;
@@ -79,6 +80,17 @@ function blockSelection(onEnd: () => void): () => void {
     window.addEventListener(type, stop, true);
   }
   return stop;
+}
+
+type Point = { x: number; at: number };
+
+// How fast `trail` was moving across at `now`, in px per ms.
+function speedAt(trail: Point[], now: number): number {
+  const recent = trail.filter((point) => point.at >= now - SPEED_WINDOW_MS);
+  const first = recent[0];
+  const last = recent.at(-1);
+  if (!first || !last || now - first.at < SPEED_MIN_MS) return 0;
+  return (last.x - first.x) / (now - first.at);
 }
 
 // Stops the click a drag on `row` ends with, so the row's link doesn't open. Clicks
@@ -143,9 +155,8 @@ export function SwipeRow({
     moved: number;
     long: boolean;
     el: Element;
-    // How fast it's moving across, from the last `SPEED_WINDOW_MS` or more.
-    speed: number;
-    sample: { x: number; at: number };
+    // Where it has been in the last `SPEED_WINDOW_MS`, for how fast it's moving.
+    trail: Point[];
   }>(undefined);
   const wheel = useRef({ offset: 0, timer: 0 });
   const leaveTimer = useRef(0);
@@ -160,8 +171,9 @@ export function SwipeRow({
   const armedNow = useRef(false);
   // The row's height while it closes up, then 0.
   const [height, setHeight] = useState<number | null>(null);
-  // Flashes the row after a swipe marks it important or unmarks it.
-  const [marked, setMarked] = useState(false);
+  // How many times a swipe has marked it important or unmarked it. Each one flashes the
+  // row, as a new element so the flash starts over.
+  const [marks, setMarks] = useState(0);
 
   const measure = () => {
     const width = rowRef.current?.offsetWidth ?? 0;
@@ -217,7 +229,7 @@ export function SwipeRow({
     // The row stays in the list, so it springs back.
     if (marksImportant(at)) {
       snapBack();
-      setMarked(true);
+      setMarks((n) => n + 1);
       onToggleImportant?.();
       return true;
     }
@@ -264,8 +276,7 @@ export function SwipeRow({
       moved: 0,
       long: false,
       el: event.currentTarget,
-      speed: 0,
-      sample: { x: event.clientX, at: event.timeStamp },
+      trail: [{ x: event.clientX, at: event.timeStamp }],
     };
     if (onLongPress) {
       clearTimeout(longPressTimer.current);
@@ -300,22 +311,22 @@ export function SwipeRow({
       measure();
     }
     p.moved = moved;
-    const since = event.timeStamp - p.sample.at;
-    if (since >= SPEED_WINDOW_MS) {
-      p.speed = (event.clientX - p.sample.x) / since;
-      p.sample = { x: event.clientX, at: event.timeStamp };
-    }
+    p.trail = [
+      ...p.trail.filter(
+        (point) => point.at >= event.timeStamp - SPEED_WINDOW_MS,
+      ),
+      { x: event.clientX, at: event.timeStamp },
+    ];
     move(moved);
   };
 
   // Where a swipe let go counts as: far enough if it was flicked that way.
   const flung = (p: NonNullable<typeof press.current>, now: number) => {
-    const still = now - p.sample.at > SPEED_WINDOW_MS * 2;
+    const speed = speedAt(p.trail, now);
     const flicked =
-      !still &&
-      Math.abs(p.speed) >= FLICK_SPEED &&
+      Math.abs(speed) >= FLICK_SPEED &&
       Math.abs(p.moved) >= FLICK_MIN_PX &&
-      Math.sign(p.speed) === Math.sign(p.moved);
+      Math.sign(speed) === Math.sign(p.moved);
     return flicked ? Math.sign(p.moved) * swipePx.current : p.moved;
   };
 
@@ -410,7 +421,6 @@ export function SwipeRow({
           styles.slide,
           dragging && styles.dragging,
           leaving && styles.leaving,
-          marked && styles.marked,
         )}
         style={{
           transform: leaving
@@ -423,12 +433,12 @@ export function SwipeRow({
         onPointerCancel={onPointerCancel}
         onContextMenu={onContextMenu}
         onWheel={onWheel}
-        onAnimationEnd={(event) => {
-          if (event.target === event.currentTarget) setMarked(false);
-        }}
         // Stops the browser dragging the link out when a mouse swipes.
         onDragStart={(event) => event.preventDefault()}
       >
+        {marks > 0 && (
+          <span key={marks} className={styles.flash} aria-hidden="true" />
+        )}
         {children}
       </div>
       {quiet && (

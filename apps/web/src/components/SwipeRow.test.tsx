@@ -10,11 +10,42 @@ import {
   it,
   vi,
 } from "vitest";
+import { haptic } from "../haptics";
 import { drag, FAR_ENOUGH, hold, stubPointerCapture } from "../test/swipe";
 import { SwipeRow } from "./SwipeRow";
 import styles from "./SwipeRow.module.css";
 
+vi.mock("../haptics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../haptics")>()),
+  haptic: vi.fn(),
+}));
+
 beforeAll(stubPointerCapture);
+// For the flicks, which use fake timers.
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+// Presses on `link`, then for each `[ms, dx]` waits `ms` and moves to `dx` across. Then
+// waits `pause` ms and lets go. Needs fake timers, which time the moves.
+function swipeTimed(link: Element, steps: [number, number][], pause = 0) {
+  const at = (dx: number) => ({ pointerId: 1, clientX: 200 + dx, clientY: 20 });
+  fireEvent.pointerDown(link, { button: 0, ...at(0) });
+  let dx = 0;
+  for (const [ms, to] of steps) {
+    vi.advanceTimersByTime(ms);
+    dx = to;
+    fireEvent.pointerMove(link, at(dx));
+  }
+  vi.advanceTimersByTime(pause);
+  fireEvent.pointerUp(link, at(dx));
+}
+
+// Short of `FAR_ENOUGH`, but quick: over 60ms, and about 1.9px per ms at the end.
+const flick = (dx: number): [number, number][] => [
+  [30, (dx * 3) / 7],
+  [30, dx],
+];
 
 function setup(quiet = false) {
   const onToggle = vi.fn();
@@ -116,40 +147,41 @@ describe("SwipeRow", () => {
     beforeEach(() => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
     });
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    // Moves 70px left over 60ms, so 0.67px per ms at the end, then waits `pause` ms
-    // and lets go.
-    function flick(link: Element, pause = 0) {
-      const at = (x: number) => ({
-        pointerId: 1,
-        clientX: 200 + x,
-        clientY: 20,
-      });
-      fireEvent.pointerDown(link, { button: 0, ...at(0) });
-      vi.advanceTimersByTime(30);
-      fireEvent.pointerMove(link, at(-30));
-      vi.advanceTimersByTime(30);
-      fireEvent.pointerMove(link, at(-70));
-      vi.advanceTimersByTime(pause);
-      fireEvent.pointerUp(link, at(-70));
-    }
 
     it("quiets before it's gone far enough", async () => {
       const { onToggle, link } = setup();
-      flick(link);
+      swipeTimed(link, flick(-100));
       await vi.advanceTimersByTimeAsync(400);
       expect(onToggle).toHaveBeenCalledTimes(1);
     });
 
+    // Over the whole swipe it's still fast enough, so only the last moments count.
     it("doesn't count if the finger stopped before letting go", async () => {
       const { onToggle, link } = setup();
-      flick(link, 100);
+      swipeTimed(link, flick(-100), 60);
       await vi.advanceTimersByTimeAsync(400);
       expect(onToggle).not.toHaveBeenCalled();
     });
+
+    it("doesn't count a flick back toward the start", async () => {
+      const { onToggle, link } = setup();
+      swipeTimed(link, [
+        [30, -30],
+        [300, -150],
+        [30, -100],
+      ]);
+      await vi.advanceTimersByTimeAsync(400);
+      expect(onToggle).not.toHaveBeenCalled();
+    });
+  });
+
+  it("ticks when a swipe acts, not when it springs back", () => {
+    vi.mocked(haptic).mockClear();
+    const { link } = setup();
+    drag(link, -40);
+    expect(haptic).not.toHaveBeenCalled();
+    drag(link, -FAR_ENOUGH);
+    expect(haptic).toHaveBeenCalledTimes(1);
   });
 
   it("lets the list scroll when the move is mostly down", async () => {
@@ -220,10 +252,22 @@ describe("SwipeRow right swipe", () => {
     expect(onToggle).not.toHaveBeenCalled();
   });
 
-  it("flashes the row when it marks it", () => {
+  it("flashes the row each time it marks it", () => {
     const { link } = setupImportant();
+    const flash = () => link.parentElement!.querySelector(`.${styles.flash}`);
     drag(link, FAR_ENOUGH);
-    expect(link.parentElement!.className).toContain(styles.marked);
+    const first = flash();
+    expect(first).not.toBe(null);
+    // A new one, so the flash starts over.
+    drag(link, FAR_ENOUGH);
+    expect(flash()).not.toBe(first);
+  });
+
+  it("marks the PR important on a quick flick right", () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { onToggleImportant, link } = setupImportant();
+    swipeTimed(link, flick(100));
+    expect(onToggleImportant).toHaveBeenCalledTimes(1);
   });
 
   it("still quiets when swiped left", async () => {
