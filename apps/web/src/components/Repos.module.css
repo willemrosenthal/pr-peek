@@ -42,9 +42,11 @@
   cursor: pointer;
 }
 
-.remove:hover {
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
+@media (hover: hover) {
+  .remove:hover {
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+  }
 }
 
 .remove:disabled {

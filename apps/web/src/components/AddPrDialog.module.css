@@ -79,8 +79,10 @@
   height: 18px;
 }
 
-.close:hover {
-  background: var(--color-hover);
+@media (hover: hover) {
+  .close:hover {
+    background: var(--color-hover);
+  }
 }
 
 /* What the link names, or why it can't be added. */

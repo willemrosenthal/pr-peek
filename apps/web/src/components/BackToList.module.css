@@ -9,8 +9,10 @@
   font-size: var(--text-lg);
 }
 
-.back:hover {
-  background: var(--color-hover);
+@media (hover: hover) {
+  .back:hover {
+    background: var(--color-hover);
+  }
 }
 
 @media (pointer: coarse) {

@@ -114,11 +114,11 @@
   height: 14px;
 }
 
-.bell:hover {
-  background: var(--color-hover);
-}
-
 @media (hover: hover) {
+  .bell:hover {
+    background: var(--color-hover);
+  }
+
   .swipe:hover .bell {
     display: flex;
   }

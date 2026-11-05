@@ -54,8 +54,10 @@
   text-decoration: none;
 }
 
-.tab:hover {
-  color: var(--color-text);
+@media (hover: hover) {
+  .tab:hover {
+    color: var(--color-text);
+  }
 }
 
 /* Inside the tab, since the scrolling bar clips anything outside it. */

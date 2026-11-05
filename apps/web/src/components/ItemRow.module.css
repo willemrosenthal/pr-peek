@@ -11,9 +11,11 @@
   text-decoration: none;
 }
 
-.row:hover {
-  background: var(--color-hover);
-  color: var(--color-text);
+@media (hover: hover) {
+  .row:hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
 }
 
 .row:focus-visible {
@@ -114,8 +116,10 @@
   background: var(--color-surface);
 }
 
-.row:hover .badge {
-  background: var(--color-hover);
+@media (hover: hover) {
+  .row:hover .badge {
+    background: var(--color-hover);
+  }
 }
 
 .badge svg {
