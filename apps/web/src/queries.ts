@@ -141,20 +141,26 @@ export function useSetQuiet() {
 }
 
 // Marks a PR important, as a reminder to come back to it, or unmarks it. The flag
-// changes right away. Returns a function that flips a PR's mark.
-export function useToggleImportant() {
+// changes right away.
+export function useSetImportant() {
   const queryClient = useQueryClient();
-  const { mutate } = useMutation({
+  return useMutation({
     mutationKey: [...LIST_CHANGE, "important"],
     mutationFn: ({ prId, important }: { prId: string; important: boolean }) =>
       api(`/prs/${prId}/important`, { method: important ? "PUT" : "DELETE" }),
     ...changesList(queryClient, (list, { prId, important }) =>
       markImportant(list, prId, important),
     ),
-  });
+  }).mutate;
+}
+
+// Returns a function that flips a PR's mark.
+export function useToggleImportant() {
+  const setImportant = useSetImportant();
   return useCallback(
-    (pr: ItemDto["pr"]) => mutate({ prId: pr.id, important: !pr.important }),
-    [mutate],
+    (pr: ItemDto["pr"]) =>
+      setImportant({ prId: pr.id, important: !pr.important }),
+    [setImportant],
   );
 }
 

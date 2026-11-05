@@ -8,6 +8,7 @@ import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { AddPrDialog } from "../components/AddPrDialog";
+import { Toast, type ToastMessage } from "../components/Toast";
 import { Alert } from "../components/Alert";
 import { Banners } from "../components/Banners";
 import { Button } from "../components/Button";
@@ -22,6 +23,7 @@ import { PullToRefresh } from "../components/PullToRefresh";
 import { cx } from "../cx";
 import { useIsTray } from "../hooks/useIsTray";
 import { useMarkSeen } from "../hooks/useMarkSeen";
+import { useQuickAdd } from "../hooks/useQuickAdd";
 import { useStoredState } from "../hooks/useStoredState";
 import { useSync } from "../hooks/useSync";
 import { useWhenHidden } from "../hooks/useWhenHidden";
@@ -75,9 +77,29 @@ export function ListPage() {
   // A PR just added, to scroll to once the list shows it.
   const [added, setAdded] = useState<string | null>(null);
   const onShown = useCallback(() => setAdded(null), []);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const endToast = useCallback(() => setToast(null), []);
+  // Paste or drop a PR link on the list to add it.
+  const { dragging, dropTarget } = useQuickAdd({
+    enabled: preview === null && adding === null,
+    onAdded: setAdded,
+    onToast: setToast,
+  });
 
   return (
-    <main className={cx(styles.page, tray && styles.tray)}>
+    <main
+      className={cx(
+        styles.page,
+        tray && styles.tray,
+        dragging && styles.dropping,
+      )}
+      {...dropTarget}
+    >
+      {dragging && (
+        <p className={styles.dropHint} aria-hidden="true">
+          Drop to add
+        </p>
+      )}
       <PullToRefresh
         className={styles.panel}
         refreshing={sync.refreshing}
@@ -112,6 +134,7 @@ export function ListPage() {
           setAdded(prId);
         }}
       />
+      <Toast toast={toast} onDone={endToast} />
       <PrPreview
         target={preview}
         // The row moves, like after a swipe, so the sheet closes.

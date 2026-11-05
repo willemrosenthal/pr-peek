@@ -27,7 +27,7 @@ function prLinkIn(text: string): string | null {
 }
 
 // What the dialog says about an error from looking a PR up or adding it.
-function errorText(err: Error): ReactNode {
+export function errorText(err: Error): ReactNode {
   if (!(err instanceof ApiError)) return err.message;
   if (err.code === "not_found") {
     return (

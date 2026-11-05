@@ -1,0 +1,52 @@
+/* At the bottom, over the list. Design C in the plan 17 mockups. */
+.region {
+  position: fixed;
+  right: var(--space-3);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-3));
+  left: var(--space-3);
+  z-index: 90;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 420px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  font-size: var(--text-sm);
+  pointer-events: auto;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.text a {
+  color: inherit;
+}
+
+.action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  opacity: 0.75;
+  cursor: pointer;
+}
+
+.action:hover {
+  opacity: 1;
+}
