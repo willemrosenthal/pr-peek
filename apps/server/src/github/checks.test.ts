@@ -6,12 +6,17 @@ const run = (
   name: string,
   conclusion: string | null,
   startedAt: string | null = "2026-11-05T02:00:00Z",
+  workflow = "CI",
 ) => ({
   __typename: "CheckRun",
   name,
   conclusion,
   startedAt,
   detailsUrl: `https://ci.example/${name}`,
+  checkSuite: {
+    app: { slug: "github-actions" },
+    workflowRun: { workflow: { name: workflow } },
+  },
 });
 
 const status = (context: string, state: string, createdAt: string) => ({
@@ -64,6 +69,15 @@ describe("readChecks", () => {
       state: "FAILURE",
       failing: [{ name: "test", url: "https://ci.example/test" }],
     });
+  });
+
+  it("keeps checks of the same name from different workflows apart", () => {
+    expect(
+      read([
+        run("test", "FAILURE", "2026-11-05T02:00:00Z", "Web"),
+        run("test", "SUCCESS", "2026-11-05T03:00:00Z", "Server"),
+      ]),
+    ).toMatchObject({ state: "FAILURE", failing: [{ name: "test" }] });
   });
 
   it("doesn't count a cancelled run as failed", () => {

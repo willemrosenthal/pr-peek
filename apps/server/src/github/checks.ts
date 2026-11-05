@@ -33,7 +33,10 @@ export const CHECK_CONTEXTS = `contexts(first: 100) {
   pageInfo { hasNextPage }
   nodes {
     __typename
-    ... on CheckRun { name conclusion startedAt detailsUrl }
+    ... on CheckRun {
+      name conclusion startedAt detailsUrl
+      checkSuite { app { slug } workflowRun { workflow { name } } }
+    }
     ... on StatusContext { context state createdAt targetUrl }
   }
 }`;
@@ -58,6 +61,17 @@ export const rawChecks = rawCheckCounts.extend({
         // Null while it waits to start.
         startedAt: z.string().nullable().optional(),
         detailsUrl: z.string().nullable().optional(),
+        // What ran it: a GitHub Actions workflow, or another app, like a CI service.
+        checkSuite: z
+          .object({
+            app: z.object({ slug: z.string() }).nullable().optional(),
+            workflowRun: z
+              .object({ workflow: z.object({ name: z.string() }) })
+              .nullable()
+              .optional(),
+          })
+          .nullable()
+          .optional(),
         context: z.string().optional(),
         state: z.string().optional(),
         createdAt: z.string().optional(),
@@ -77,7 +91,8 @@ export const isHiddenCheckRun = ({ type, path }: GraphQLErrorItem) =>
   path.at(-3) === "contexts";
 
 interface Check {
-  // Runs of the same check share it.
+  // Runs of the same check share it: the same name, run by the same workflow or app.
+  // Two workflows can each have a job named "test", and both count.
   key: string;
   // When it started. Sorts by time, as ISO strings do.
   at: string;
@@ -92,8 +107,10 @@ const NOT_STARTED = "~";
 
 function toCheck(node: RawChecks["nodes"][number]): Check | null {
   if (node?.__typename === "CheckRun" && node.name) {
+    const suite = node.checkSuite;
+    const by = suite?.workflowRun?.workflow.name ?? suite?.app?.slug ?? "";
     return {
-      key: `run:${node.name}`,
+      key: `run:${by}:${node.name}`,
       at: node.startedAt ?? NOT_STARTED,
       name: node.name,
       url: node.detailsUrl ?? null,
