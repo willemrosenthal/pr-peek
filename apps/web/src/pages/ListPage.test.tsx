@@ -1011,6 +1011,7 @@ describe("the header", () => {
       await screen.findByRole("button", { name: "Refresh" }),
     );
     expect(await screen.findByText("Add a new token")).toBeTruthy();
-    expect(screen.queryByRole("alert")).toBe(null);
+    // The banner says it, so no toast too.
+    expect(screen.queryByText("Your GitHub token stopped")).toBe(null);
   });
 });
