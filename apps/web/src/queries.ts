@@ -1,7 +1,9 @@
 import type {
+  AddPrResponse,
   ItemDto,
   ItemsResponse,
   MeResponse,
+  PrLookupResponse,
   PrPreviewResponse,
   PushKeyResponse,
   PushSubscriptionsResponse,
@@ -41,6 +43,7 @@ export const queryKeys = {
   launchAtLogin: ["launch-at-login"],
   // Kept on this device only, by useListUpdate.
   listUpdate: ["list-update"],
+  prLookup: ["pr-lookup"],
 } as const;
 
 // Ages and stale colors change with time, so lists refetch this often.
@@ -92,6 +95,35 @@ function changesList<Save>(
       ]);
     },
   };
+}
+
+// The PR a link names, for the add dialog. Off until there's a link. Each lookup asks
+// GitHub, so one that failed isn't tried again on its own.
+export function usePrLookup(link: string | null) {
+  return useQuery({
+    queryKey: [...queryKeys.prLookup, link],
+    queryFn: () =>
+      api<PrLookupResponse>(`/prs/lookup?link=${encodeURIComponent(link!)}`),
+    enabled: link !== null,
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
+// Adds a PR by its link, flagged. The list reloads to show it.
+export function useAddPr() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (link: string) =>
+      api<AddPrResponse>("/prs", { method: "POST", body: { link } }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.items }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.summary }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.prLookup }),
+      ]);
+    },
+  });
 }
 
 // Quiets a PR until something new happens on it, or brings it back. The row moves

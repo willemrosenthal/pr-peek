@@ -4,6 +4,7 @@ import { RequireAuth } from "./components/RequireAuth";
 import { InstallPage } from "./pages/InstallPage";
 import { ListPage } from "./pages/ListPage";
 import { Onboarding } from "./pages/Onboarding";
+import { SharePage } from "./pages/SharePage";
 import { DevicesTab } from "./pages/settings/DevicesTab";
 import { GeneralTab } from "./pages/settings/GeneralTab";
 import { ReposTab } from "./pages/settings/ReposTab";
@@ -34,6 +35,7 @@ export const routes = [
         ],
       },
       { path: "/onboarding", element: <Onboarding /> },
+      { path: "/add", element: <SharePage /> },
     ],
   },
   {

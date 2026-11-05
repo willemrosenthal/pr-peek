@@ -50,6 +50,7 @@ export function ItemSection({
     item: ItemDto | null,
     merged = false,
   ) => ({
+    prId: pr.id,
     quiet,
     onToggle: merged ? () => toggleImportant(pr) : toggle(pr.id),
     unflags: merged,

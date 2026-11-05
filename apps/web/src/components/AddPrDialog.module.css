@@ -1,0 +1,136 @@
+/* A centered card over a dimmed list. Design B in the plan 17 mockups. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  min-height: 100dvh;
+  background: rgb(0 0 0 / 40%);
+  transition: opacity 0.2s;
+}
+
+.backdrop[data-starting-style],
+.backdrop[data-ending-style] {
+  opacity: 0;
+}
+
+.popup {
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  z-index: 101;
+  box-sizing: border-box;
+  width: min(400px, calc(100vw - 2 * var(--space-4)));
+  transform: translateX(-50%);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+
+.popup[data-starting-style],
+.popup[data-ending-style] {
+  opacity: 0;
+  transform: translateX(-50%) scale(0.97);
+}
+
+/* Near the top on a phone, above its keyboard, and in the short Mac dropdown. */
+@media (max-width: 600px), (max-height: 520px) {
+  .popup {
+    top: calc(env(safe-area-inset-top, 0px) + var(--space-4));
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.close:hover {
+  background: var(--color-hover);
+}
+
+/* What the link names, or why it can't be added. */
+.preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  border-style: dashed;
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+.error {
+  border-color: transparent;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.error a {
+  color: inherit;
+}
+
+/* Already on the list: amber, like the flag. */
+.tracked {
+  border-color: transparent;
+  background: var(--color-warning-bg);
+}
+
+.title {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.meta {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

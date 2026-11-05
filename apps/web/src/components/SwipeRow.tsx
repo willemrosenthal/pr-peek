@@ -89,6 +89,7 @@ function blockNextClick(row: Element) {
 // click calls `onLongPress`. `onPressStart` comes partway through a long press, so the
 // preview can start loading.
 export function SwipeRow({
+  prId,
   quiet,
   onToggle,
   unflags = false,
@@ -99,6 +100,8 @@ export function SwipeRow({
   onPressStart,
   children,
 }: {
+  // The row's PR, so the list can find it, like to scroll to a PR just added.
+  prId?: string;
   quiet: boolean;
   onToggle: () => void;
   unflags?: boolean;
@@ -313,6 +316,7 @@ export function SwipeRow({
   return (
     <div
       ref={rowRef}
+      data-pr-id={prId}
       className={cx(styles.swipe, shown !== 0 && styles.moving)}
     >
       {shown !== 0 && (

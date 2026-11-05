@@ -4,8 +4,10 @@ import type {
   ListSection,
   ShowAuthors,
 } from "@pr-peek/core";
-import { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router";
+import { AddPrDialog } from "../components/AddPrDialog";
 import { Alert } from "../components/Alert";
 import { Banners } from "../components/Banners";
 import { Button } from "../components/Button";
@@ -62,8 +64,17 @@ export function ListPage() {
   // The PR whose preview is open. Kept here, not in its section, so the sheet stays
   // through its closing slide even when the section goes away.
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
-  // Closes when the app hides, so it opens on the plain list, like other pages.
-  useWhenHidden(useCallback(() => setPreview(null), []));
+  const [adding, setAdding] = useAddLink();
+  // Both close when the app hides, so it opens on the plain list, like other pages.
+  useWhenHidden(
+    useCallback(() => {
+      setPreview(null);
+      setAdding(null);
+    }, [setAdding]),
+  );
+  // A PR just added, to scroll to once the list shows it.
+  const [added, setAdded] = useState<string | null>(null);
+  const onShown = useCallback(() => setAdded(null), []);
 
   return (
     <main className={cx(styles.page, tray && styles.tray)}>
@@ -71,7 +82,7 @@ export function ListPage() {
         className={styles.panel}
         refreshing={sync.refreshing}
         onRefresh={sync.refresh}
-        enabled={preview === null}
+        enabled={preview === null && adding === null}
       >
         <div className={styles.top}>
           <ListHeader
@@ -86,8 +97,21 @@ export function ListPage() {
             </div>
           )}
         </div>
-        <ListBody onPreview={setPreview} />
+        <ListBody
+          onPreview={setPreview}
+          onAdd={() => setAdding("")}
+          added={added}
+          onShown={onShown}
+        />
       </PullToRefresh>
+      <AddPrDialog
+        link={adding}
+        onClose={() => setAdding(null)}
+        onAdded={(prId) => {
+          setAdding(null);
+          setAdded(prId);
+        }}
+      />
       <PrPreview
         target={preview}
         // The row moves, like after a swipe, so the sheet closes.
@@ -108,8 +132,58 @@ export function ListPage() {
   );
 }
 
-function ListBody({ onPreview }: { onPreview: OnPreview }) {
+// The add dialog's link: null when closed. Kept in the address as `?add=`, so a share
+// can open it (SharePage).
+function useAddLink() {
+  const [params, setParams] = useSearchParams();
+  const setLink = useCallback(
+    (link: string | null) =>
+      setParams(
+        (current) => {
+          if (link === null) current.delete("add");
+          else current.set("add", link);
+          return current;
+        },
+        { replace: true },
+      ),
+    [setParams],
+  );
+  return [params.get("add"), setLink] as const;
+}
+
+// Scrolls to the row of the PR `prId` once the list shows it, with a short highlight.
+// Not found while its section is closed.
+function useShowRow(
+  prId: string | null,
+  list: ItemsResponse | undefined,
+  onShown: () => void,
+) {
+  useEffect(() => {
+    if (!prId || !list) return;
+    const row = document.querySelector<HTMLElement>(`[data-pr-id="${prId}"]`);
+    if (!row) return;
+    row.scrollIntoView({ block: "center", behavior: "smooth" });
+    row.dataset.flash = "";
+    row.addEventListener("animationend", () => delete row.dataset.flash, {
+      once: true,
+    });
+    onShown();
+  }, [prId, list, onShown]);
+}
+
+function ListBody({
+  onPreview,
+  onAdd,
+  added,
+  onShown,
+}: {
+  onPreview: OnPreview;
+  onAdd: () => void;
+  added: string | null;
+  onShown: () => void;
+}) {
   const items = useItems();
+  useShowRow(added, items.data, onShown);
 
   if (items.isPending) return <p className={styles.message}>Loading</p>;
   if (items.isError) {
@@ -128,6 +202,10 @@ function ListBody({ onPreview }: { onPreview: OnPreview }) {
     <>
       {total === 0 && <EmptyList />}
       <Sections groups={items.data} onPreview={onPreview} />
+      <button type="button" className={styles.addRow} onClick={onAdd}>
+        <Plus aria-hidden="true" />
+        Add a PR by link
+      </button>
     </>
   );
 }
