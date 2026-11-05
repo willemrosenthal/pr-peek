@@ -43,7 +43,7 @@ export function PullToRefresh({
   children,
   ...options
 }: Options & { className?: string | undefined; children: ReactNode }) {
-  const { offset, dragging, arms } = usePull(options);
+  const { offset, dragging, arms, fired } = usePull(options);
   return (
     <>
       <Behind
@@ -51,6 +51,7 @@ export function PullToRefresh({
         dragging={dragging}
         refreshing={options.refreshing}
         arms={arms}
+        fired={fired}
       />
       <div
         className={cx(className, styles.page, dragging && styles.dragging)}
@@ -65,13 +66,15 @@ export function PullToRefresh({
   );
 }
 
-// How far the page is down, while a finger pulls it, and how many pulls have gone far
-// enough to refresh.
+// How far the page is down, while a finger pulls it, how many pulls have gone far
+// enough to refresh, and whether the last one let go and refreshed.
 function usePull({ refreshing, onRefresh, enabled }: Options) {
   // How far the page is down.
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [arms, setArms] = useState(0);
+  // Until the next pull starts.
+  const [fired, setFired] = useState(false);
   // The touch, while it could still become a pull. `pulling` once it is one.
   const touch = useRef<{
     x: number;
@@ -119,6 +122,7 @@ function usePull({ refreshing, onRefresh, enabled }: Options) {
         }
         t.pulling = true;
         setDragging(true);
+        setFired(false);
       }
       // Older browsers ignore the overscroll CSS, so this stops them scrolling too.
       if (event.cancelable) event.preventDefault();
@@ -142,6 +146,7 @@ function usePull({ refreshing, onRefresh, enabled }: Options) {
       if (event?.type !== "touchend" || t.at < ARM_PX || isRefreshing()) return;
       // iPhones can only tick as the finger lifts.
       if (!canVibrate()) haptic();
+      setFired(true);
       refresh();
     };
 
@@ -158,7 +163,7 @@ function usePull({ refreshing, onRefresh, enabled }: Options) {
     };
   }, []);
 
-  return { offset, dragging, arms };
+  return { offset, dragging, arms, fired };
 }
 
 // How far the ring turns as the page comes down, before it's far enough.
@@ -228,17 +233,20 @@ function Splotches() {
 
 // What's behind the page, in the gap a pull opens above it: a ring that turns with
 // the pull, and grainy splotches of color once letting go would refresh, a new mix
-// each time (`arms`). During a refresh, the ring spins and says so instead.
+// each time (`arms`). During a refresh, the ring spins and says so instead. Once a
+// pull has let go and refreshed (`fired`), the ring stays hidden as the page goes up.
 function Behind({
   offset,
   dragging,
   refreshing,
   arms,
+  fired,
 }: {
   offset: number;
   dragging: boolean;
   refreshing: boolean;
   arms: number;
+  fired: boolean;
 }) {
   const armed = !refreshing && offset >= ARM_PX;
   return (
@@ -256,6 +264,7 @@ function Behind({
           styles.spinner,
           dragging && styles.dragging,
           armed && styles.armed,
+          fired && styles.fired,
         )}
         style={{
           // Centered in the gap, so it stays in view as the gap opens. Fully shown once

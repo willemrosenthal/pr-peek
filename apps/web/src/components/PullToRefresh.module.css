@@ -147,7 +147,7 @@
   border-radius: 999px;
   content: "";
   opacity: 0;
-  animation: ripple 0.2s ease-out;
+  animation: ripple 0.18s ease-out;
 }
 
 @keyframes ripple {
@@ -170,11 +170,14 @@
   border-radius: 999px;
 }
 
+/* Far enough, the colors and the burst show it instead. */
 .armed .ring {
-  border-color: rgb(255 255 255 / 45%);
-  border-top-color: #fff;
-  /* Stands out over the yellow too. */
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 30%));
+  display: none;
+}
+
+/* Let go and refreshed: it stays hidden as the page goes back up. */
+.fired {
+  visibility: hidden;
 }
 
 /* During a refresh. */

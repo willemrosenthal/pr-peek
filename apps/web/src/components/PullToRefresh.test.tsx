@@ -91,6 +91,17 @@ describe("usePullToRefresh", () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
+  it("hides the ring as the page goes up after refreshing, until the next pull", () => {
+    const { spinner } = setup();
+    const hidden = () => spinner.classList.contains(styles.fired!);
+    pull(document.body, 100);
+    expect(hidden()).toBe(false);
+    pull(document.body, PULL_FAR_ENOUGH);
+    expect(hidden()).toBe(true);
+    holdPull(document.body, 100);
+    expect(hidden()).toBe(false);
+  });
+
   it("springs back up when the finger lifts, while the refresh runs", () => {
     const { page, rerender } = setup();
     pull(document.body, PULL_FAR_ENOUGH);
