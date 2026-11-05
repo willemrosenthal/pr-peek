@@ -129,15 +129,15 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 
 ### 17.7 Try it (You)
 
-- [ ] Add a PR from a repo you don't watch, by the row, by paste, and by drop on the Mac dropdown.
+- [ ] Add a PR from a repo you don't watch, by the row, by paste, and by drop on the popped out Mac window or the web app. Not on the dropdown: it hides when you click the browser to start the drag.
 - [ ] Share a PR to Git Buddy from the GitHub app on Android. Android only offers it once the app is reinstalled or updated, so the new manifest is read.
 
 ## Done when
 
-- [ ] A PR from a repo you don't watch shows in Watching within seconds of adding it, flagged (You).
-- [ ] It moves to Needs my review when someone asks you to review it, and stays flagged.
-- [ ] When it merges, you get the "merged" push, and it shows as Merged until you unflag it.
-- [ ] Unflagging it removes it from the list, and it's gone after a refresh.
-- [ ] Paste, drop on the Mac dropdown, and share on Android all add a PR (You).
-- [ ] Each error in [Clear errors](#clear-errors) shows its message.
-- [ ] A sync with 3 added PRs and nothing new makes at most one more GitHub request than before, and none when other PRs were missed too.
+- [x] A PR from a repo you don't watch shows in Watching within seconds of adding it, flagged (You).
+- [x] It moves to Needs my review when someone asks you to review it, and stays flagged. The sync tests in `added-prs.test.ts` make a review request item on an added PR, and the sync never changes the flag.
+- [x] When it merges, you get the "merged" push, and it shows as Merged until you unflag it. The sync test "syncs one in a repo the user doesn't watch, until it merges", and the list test for merged added PRs.
+- [x] Unflagging it removes it from the list, and it's gone after a refresh. The tests under "unflagging an added PR".
+- [ ] Paste, drop on the popped out Mac window, and share on Android all add a PR (You).
+- [x] Each error in [Clear errors](#clear-errors) shows its message. The tests in `AddPrDialog.test.tsx`.
+- [x] A sync with 3 added PRs and nothing new makes at most one more GitHub request than before, and none when other PRs were missed too. The sync tests check added PRs go in one status request, with the other missed PRs or alone.
