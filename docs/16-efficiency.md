@@ -231,12 +231,12 @@ PR 5b-3, Settings:
 
 ### 16.7 Drop the column
 
-- [ ] Once PR 5 has been released: a migration drops `PullRequest.snapshot`, the backfill is removed, and `prSnapshot` stops being read from the database anywhere.
+- [x] Once PR 5 has been released, and plan 17 PR 2a (#128), whose migration had the backfill re-sort merged PRs once: a migration drops `PullRequest.snapshot`, and the backfill is removed. Nothing reads `prSnapshot` from the database any more. It only checks the shape of what GitHub sends.
 
 ## Done when
 
-- [ ] A normal sync with nothing new reads no snapshots and makes two search requests. Check with the "sync done" log (`fullPass: false`, `fetched: 0`).
-- [ ] A settings change, like hiding bots, shows "Updating your list…", then the list changes within a few seconds.
+- [x] A normal sync with nothing new reads no snapshots and makes two search requests. The sync test "only searches when nothing changed" checks it. You can confirm it live in the "sync done" log (`fullPass: false`, `fetched: 0`).
+- [x] A settings change, like hiding bots, shows "Updating your list…", then the list changes within a few seconds. Settings tests check the notice, and the sync tests check the full pass.
 - [ ] With the app closed, a new review request pushes within 5 minutes. With the app open or the Mac app running, within 2 (You).
 - [ ] Opening the app after an hour away shows a fresh list within seconds (You).
 - [ ] Supabase egress drops by at least 10 times, compared to 16.0 (You).

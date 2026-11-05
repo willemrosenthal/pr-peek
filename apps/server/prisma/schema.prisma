@@ -193,8 +193,6 @@ model PullRequest {
   mergedAt        DateTime?
   // When the push saying an important PR merged went out, so it goes once.
   mergeNotifiedAt DateTime?
-  // No longer written. Only the backfill reads it. Dropped in plan 16 step 16.7.
-  snapshot        Json?
   // Worked out from the PR's details when a sync saves them (see sync.ts).
   // The latest real push, so a quiet PR wakes on new commits.
   lastPushSha     String?

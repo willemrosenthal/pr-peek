@@ -117,7 +117,6 @@ describe("syncUser", () => {
       lastPushSha: "abc123",
       listGroup: "review",
       assignedState: "checks_failing",
-      snapshot: null,
     });
     expect(await db.pullRequest.count()).toBe(1);
 
