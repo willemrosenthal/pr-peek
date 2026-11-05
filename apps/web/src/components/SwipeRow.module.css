@@ -3,6 +3,12 @@
   overflow: hidden;
 }
 
+/* After the slide out, the row closes up, so the rows below slide up. See CLOSE_MS in
+   SwipeRow.tsx. */
+.closing {
+  transition: height 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .slide {
   position: relative;
   background: var(--color-surface);
@@ -151,9 +157,46 @@
   transition: clip-path 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
+/* The icon pops and wiggles: the bell rings, the flag waves. */
 .armed svg {
   transform: scale(1.3);
-  transition: transform 0.5s var(--spring);
+  animation: wiggle 0.5s ease-out;
+}
+
+@keyframes wiggle {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.5) rotate(-18deg);
+  }
+  45% {
+    transform: scale(1.35) rotate(14deg);
+  }
+  65% {
+    transform: scale(1.3) rotate(-8deg);
+  }
+  82% {
+    transform: scale(1.3) rotate(4deg);
+  }
+  100% {
+    transform: scale(1.3);
+  }
+}
+
+/* A swipe marked it important, or unmarked it. It stays, so it flashes amber. */
+.marked {
+  animation: marked 0.7s ease-out;
+}
+
+@keyframes marked {
+  from {
+    background: color-mix(
+      in srgb,
+      var(--color-important) 35%,
+      var(--color-surface)
+    );
+  }
 }
 
 .armed .label {
@@ -165,6 +208,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .swipe,
   .slide,
   .fill,
   .armed .fill,
@@ -173,6 +217,11 @@
   .label,
   .armed .label {
     transition: none;
+  }
+
+  .armed svg,
+  .marked {
+    animation: none;
   }
 }
 

@@ -10,6 +10,7 @@ import {
   type WheelEvent,
 } from "react";
 import { cx } from "../cx";
+import { canVibrate, haptic } from "../haptics";
 import { unflagAction } from "../important";
 import styles from "./SwipeRow.module.css";
 
@@ -27,9 +28,17 @@ const STRETCH_MAX_PX = 80;
 const START_PX = 8;
 // A trackpad swipe ends when its scroll events stop for this long.
 const WHEEL_END_MS = 150;
-// How long after letting go the row moves. Longer than its slide out (`.leaving` in
-// SwipeRow.module.css), so it pauses off to the side first.
-const LEAVE_MS = 200;
+// A quick flick acts before it's gone that far: moving at least this fast as it lets go,
+// in px per ms, after at least `FLICK_MIN_PX`.
+const FLICK_SPEED = 0.5;
+const FLICK_MIN_PX = 40;
+// Speed is measured over at least this long, since moves come every few ms. A finger
+// still for this long before letting go isn't flicking.
+const SPEED_WINDOW_MS = 30;
+// How long after letting go the row starts closing up, once it has slid out (`.leaving`
+// in SwipeRow.module.css), and how long closing takes (`.closing`). Then it moves.
+const CLOSE_AFTER_MS = 120;
+const CLOSE_MS = 180;
 // How long after a drag its click can still arrive. Some browsers send it a bit later.
 const CLICK_AFTER_DRAG_MS = 300;
 // How long a press is held, without moving, to open the preview.
@@ -78,8 +87,9 @@ function blockSelection(onEnd: () => void): () => void {
 function blockNextClick(row: Element) {
   const stop = () => window.removeEventListener("click", block, true);
   const block = (event: MouseEvent) => {
-    stop();
+    // Others go through and keep it waiting, like the hidden switch `haptic` clicks.
     if (!(event.target instanceof Node && row.contains(event.target))) return;
+    stop();
     event.preventDefault();
     event.stopImmediatePropagation();
   };
@@ -133,6 +143,9 @@ export function SwipeRow({
     moved: number;
     long: boolean;
     el: Element;
+    // How fast it's moving across, from the last `SPEED_WINDOW_MS` or more.
+    speed: number;
+    sample: { x: number; at: number };
   }>(undefined);
   const wheel = useRef({ offset: 0, timer: 0 });
   const leaveTimer = useRef(0);
@@ -142,8 +155,13 @@ export function SwipeRow({
   const rowRef = useRef<HTMLDivElement>(null);
   // How far this drag must go, measured when it starts.
   const swipePx = useRef(SWIPE_MIN_PX);
-  // Past `swipePx`, so letting go quiets it.
+  // Past `swipePx`, so letting go quiets it. The ref has it before it renders.
   const [armed, setArmed] = useState(false);
+  const armedNow = useRef(false);
+  // The row's height while it closes up, then 0.
+  const [height, setHeight] = useState<number | null>(null);
+  // Flashes the row after a swipe marks it important or unmarks it.
+  const [marked, setMarked] = useState(false);
 
   const measure = () => {
     const width = rowRef.current?.offsetWidth ?? 0;
@@ -166,39 +184,54 @@ export function SwipeRow({
     clearTimeout(longPressTimer.current);
   };
 
+  const arm = (on: boolean) => {
+    // A tick as it gets far enough. Only Android can buzz while a finger moves.
+    if (on && !armedNow.current && canVibrate()) navigator.vibrate(8);
+    armedNow.current = on;
+    setArmed(on);
+  };
+
   const move = (to: number) => {
     setDragging(true);
     setOffset(to);
-    setArmed(Math.abs(to) >= swipePx.current);
+    arm(Math.abs(to) >= swipePx.current);
   };
 
   // Springs back to where it was.
   const snapBack = () => {
     setDragging(false);
     setOffset(0);
-    setArmed(false);
+    arm(false);
   };
 
   // A swipe this way marks it important or unmarks it, not quiet.
   const marksImportant = (at: number) =>
     at > 0 && onToggleImportant !== undefined;
 
-  const release = (at: number) => {
+  // Returns whether it acted.
+  const release = (at: number): boolean => {
     if (Math.abs(at) < swipePx.current) {
       snapBack();
-      return;
+      return false;
     }
     // The row stays in the list, so it springs back.
     if (marksImportant(at)) {
       snapBack();
+      setMarked(true);
       onToggleImportant?.();
-      return;
+      return true;
     }
     setDragging(false);
     setOffset(0);
     // Stays slid out until the row moves, which also ignores the rest of a trackpad swipe.
     setLeaving(at < 0 ? -1 : 1);
-    leaveTimer.current = window.setTimeout(onToggle, LEAVE_MS);
+    // Then closes up, so the rows below slide up instead of jumping.
+    setHeight(rowRef.current?.offsetHeight ?? 0);
+    leaveTimer.current = window.setTimeout(() => {
+      setHeight(0);
+      leaveTimer.current = window.setTimeout(onToggle, CLOSE_MS);
+    }, CLOSE_AFTER_MS);
+    return true;
   };
 
   const longPress = () => {
@@ -216,8 +249,8 @@ export function SwipeRow({
         // The pointer is already gone, so there's no release to wait for.
       }
     }
-    // A short buzz, where the device has one (not iPhones).
-    navigator.vibrate?.(10);
+    // A short buzz, where the device has one (not iPhones, while a finger is down).
+    if (canVibrate()) navigator.vibrate(10);
     onLongPress?.();
   };
 
@@ -231,6 +264,8 @@ export function SwipeRow({
       moved: 0,
       long: false,
       el: event.currentTarget,
+      speed: 0,
+      sample: { x: event.clientX, at: event.timeStamp },
     };
     if (onLongPress) {
       clearTimeout(longPressTimer.current);
@@ -265,7 +300,23 @@ export function SwipeRow({
       measure();
     }
     p.moved = moved;
+    const since = event.timeStamp - p.sample.at;
+    if (since >= SPEED_WINDOW_MS) {
+      p.speed = (event.clientX - p.sample.x) / since;
+      p.sample = { x: event.clientX, at: event.timeStamp };
+    }
     move(moved);
+  };
+
+  // Where a swipe let go counts as: far enough if it was flicked that way.
+  const flung = (p: NonNullable<typeof press.current>, now: number) => {
+    const still = now - p.sample.at > SPEED_WINDOW_MS * 2;
+    const flicked =
+      !still &&
+      Math.abs(p.speed) >= FLICK_SPEED &&
+      Math.abs(p.moved) >= FLICK_MIN_PX &&
+      Math.sign(p.speed) === Math.sign(p.moved);
+    return flicked ? Math.sign(p.moved) * swipePx.current : p.moved;
   };
 
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
@@ -275,7 +326,8 @@ export function SwipeRow({
     if (p?.long) blockNextClick(event.currentTarget);
     if (!p?.on) return;
     blockNextClick(event.currentTarget);
-    release(p.moved);
+    // A tick as it acts. iPhones can only do it as a finger lifts.
+    if (release(flung(p, event.timeStamp))) haptic();
   };
 
   const onPointerCancel = () => {
@@ -326,7 +378,12 @@ export function SwipeRow({
     <div
       ref={rowRef}
       data-pr-id={prId}
-      className={cx(styles.swipe, shown !== 0 && styles.moving)}
+      className={cx(
+        styles.swipe,
+        shown !== 0 && styles.moving,
+        height === 0 && styles.closing,
+      )}
+      style={height === null ? undefined : { height }}
     >
       {shown !== 0 && (
         <div
@@ -353,6 +410,7 @@ export function SwipeRow({
           styles.slide,
           dragging && styles.dragging,
           leaving && styles.leaving,
+          marked && styles.marked,
         )}
         style={{
           transform: leaving
@@ -365,6 +423,9 @@ export function SwipeRow({
         onPointerCancel={onPointerCancel}
         onContextMenu={onContextMenu}
         onWheel={onWheel}
+        onAnimationEnd={(event) => {
+          if (event.target === event.currentTarget) setMarked(false);
+        }}
         // Stops the browser dragging the link out when a mouse swipes.
         onDragStart={(event) => event.preventDefault()}
       >

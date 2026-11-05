@@ -90,14 +90,66 @@ describe("SwipeRow", () => {
     expect(onLinkClick).toHaveBeenCalledTimes(1);
   });
 
-  it("lets a click elsewhere through right after a swipe", () => {
-    const { link } = setup();
+  it("lets a click elsewhere through right after a swipe, and still blocks its own", () => {
+    // Like the hidden switch a haptic tick clicks on iPhones.
+    const { onLinkClick, link } = setup();
     const other = vi.fn();
     document.body.addEventListener("click", other);
     drag(link, -FAR_ENOUGH);
     fireEvent.click(document.body);
     document.body.removeEventListener("click", other);
     expect(other).toHaveBeenCalledTimes(1);
+    fireEvent.click(link);
+    expect(onLinkClick).not.toHaveBeenCalled();
+  });
+
+  it("closes up after sliding out, then quiets", async () => {
+    const { onToggle, link } = setup();
+    const row = link.closest(`.${styles.swipe}`)!;
+    drag(link, -FAR_ENOUGH);
+    await waitFor(() => expect(row.className).toContain(styles.closing));
+    expect(onToggle).not.toHaveBeenCalled();
+    await waitFor(() => expect(onToggle).toHaveBeenCalledTimes(1));
+  });
+
+  describe("a quick flick", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    // Moves 70px left over 60ms, so 0.67px per ms at the end, then waits `pause` ms
+    // and lets go.
+    function flick(link: Element, pause = 0) {
+      const at = (x: number) => ({
+        pointerId: 1,
+        clientX: 200 + x,
+        clientY: 20,
+      });
+      fireEvent.pointerDown(link, { button: 0, ...at(0) });
+      vi.advanceTimersByTime(30);
+      fireEvent.pointerMove(link, at(-30));
+      vi.advanceTimersByTime(30);
+      fireEvent.pointerMove(link, at(-70));
+      vi.advanceTimersByTime(pause);
+      fireEvent.pointerUp(link, at(-70));
+    }
+
+    it("quiets before it's gone far enough", async () => {
+      const { onToggle, link } = setup();
+      flick(link);
+      await vi.advanceTimersByTimeAsync(400);
+      expect(onToggle).toHaveBeenCalledTimes(1);
+    });
+
+    it("doesn't count if the finger stopped before letting go", async () => {
+      const { onToggle, link } = setup();
+      flick(link, 100);
+      await vi.advanceTimersByTimeAsync(400);
+      expect(onToggle).not.toHaveBeenCalled();
+    });
   });
 
   it("lets the list scroll when the move is mostly down", async () => {
@@ -166,6 +218,12 @@ describe("SwipeRow right swipe", () => {
     expect(onToggleImportant).toHaveBeenCalledTimes(2);
     await settle();
     expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("flashes the row when it marks it", () => {
+    const { link } = setupImportant();
+    drag(link, FAR_ENOUGH);
+    expect(link.parentElement!.className).toContain(styles.marked);
   });
 
   it("still quiets when swiped left", async () => {
