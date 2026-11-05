@@ -123,12 +123,16 @@ describe("usePullToRefresh", () => {
   it("shows a running refresh when pulled, without starting another", () => {
     const { onRefresh, rerender, page, spinner, rainbowShown, view } = setup();
     rerender(true);
-    expect(view.queryByText("Refreshing…")).toBeTruthy();
-    holdPull(document.body, 100);
+    expect(rainbowShown()).toBe(false);
+    // Any pull shows the colors and says so, with no ring.
+    holdPull(document.body, 20);
     expect(pageAt(page)).toBeGreaterThan(0);
     expect(spinner.style.opacity).toBe("1");
+    expect(rainbowShown()).toBe(true);
+    expect(view.queryByText("Refreshing…")).toBeTruthy();
+    expect(spinner.querySelector(`.${styles.ring}`)).toBe(null);
+    fireEvent.touchEnd(document.body, { touches: [] });
     holdPull(document.body, PULL_FAR_ENOUGH);
-    expect(rainbowShown()).toBe(false);
     fireEvent.touchEnd(document.body, { touches: [] });
     expect(onRefresh).not.toHaveBeenCalled();
     expect(pageAt(page)).toBe(0);
