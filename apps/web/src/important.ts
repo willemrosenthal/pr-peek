@@ -1,4 +1,11 @@
 import type { IdlePrDto, ItemDto, ItemsResponse } from "@pr-peek/core";
+import { EyeOff, FlagOff } from "lucide-react";
+
+// What removing a PR's flag says. In Watching, the row leaves, so it says that.
+export const unflagAction = (watching: boolean) =>
+  watching
+    ? { Icon: EyeOff, label: "Stop watching" }
+    : { Icon: FlagOff, label: "Remove flag" };
 
 // The list with one PR marked important, or not, shown until the server's list arrives.
 // Unmarked, a merged PR leaves, and so does an idle one that isn't the user's: only the

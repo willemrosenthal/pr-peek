@@ -1,4 +1,4 @@
-import { Bell, BellOff, EyeOff, Flag, FlagOff } from "lucide-react";
+import { Bell, BellOff, Flag } from "lucide-react";
 import {
   useEffect,
   useRef,
@@ -9,6 +9,7 @@ import {
   type WheelEvent,
 } from "react";
 import { cx } from "../cx";
+import { unflagAction } from "../important";
 import styles from "./SwipeRow.module.css";
 
 // How far a row moves before letting go quiets it: a share of its width, but at least
@@ -297,8 +298,7 @@ export function SwipeRow({
   };
 
   const shown = leaving ?? offset;
-  const UnflagIcon = watching ? EyeOff : FlagOff;
-  const unflag = watching ? "Stop watching" : "Remove flag";
+  const { Icon: UnflagIcon, label: unflag } = unflagAction(watching);
   const Icon = unflags ? UnflagIcon : quiet ? Bell : BellOff;
   const action = unflags ? unflag : quiet ? "Bring back" : "Quiet";
   const toImportant = marksImportant(shown);

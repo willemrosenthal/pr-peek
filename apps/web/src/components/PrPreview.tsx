@@ -16,14 +16,13 @@ import {
   Clock,
   ExternalLink,
   Flag,
-  EyeOff,
-  FlagOff,
   MessageCircle,
   Users,
   type LucideIcon,
 } from "lucide-react";
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cx } from "../cx";
+import { unflagAction } from "../important";
 import { usePrPreview } from "../queries";
 import { GitHubHtml } from "./GitHubHtml";
 import { avatarUrl } from "./ItemRow";
@@ -147,6 +146,7 @@ function Sheet({
   const { data } = preview;
   const failing = data?.failingChecks ?? [];
   const QuietIcon = quiet ? Bell : BellOff;
+  const unflag = unflagAction(watching);
   return (
     <>
       <div className={styles.dragArea}>
@@ -170,19 +170,11 @@ function Sheet({
               onClick={onToggleImportant}
             >
               {pr.important ? (
-                watching ? (
-                  <EyeOff aria-hidden="true" />
-                ) : (
-                  <FlagOff aria-hidden="true" />
-                )
+                <unflag.Icon aria-hidden="true" />
               ) : (
                 <Flag aria-hidden="true" />
               )}
-              {pr.important
-                ? watching
-                  ? "Stop watching"
-                  : "Remove flag"
-                : "Important"}
+              {pr.important ? unflag.label : "Important"}
             </button>
           </div>
           <a
