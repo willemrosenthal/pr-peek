@@ -121,11 +121,17 @@ describe("dropping a PR link", () => {
   it("shows where to drop while a link is over the list", async () => {
     await setup();
     const list = screen.getByRole("main");
-    fireEvent.dragOver(list, {
-      dataTransfer: { types: ["text/plain"], getData: () => "" },
-    });
+    const row = screen.getByRole("button", { name: "Add a PR by link" });
+    const dataTransfer = { types: ["text/plain"], getData: () => "" };
+    fireEvent.dragEnter(list, { dataTransfer });
+    fireEvent.dragOver(list, { dataTransfer });
     expect(screen.getByText("Drop to add")).toBeTruthy();
-    fireEvent.dragLeave(list, { relatedTarget: null });
+
+    // Crossing onto a row leaves the list's own box, but not the list.
+    fireEvent.dragEnter(row, { dataTransfer });
+    fireEvent.dragLeave(list, { dataTransfer });
+    expect(screen.getByText("Drop to add")).toBeTruthy();
+    fireEvent.dragLeave(row, { dataTransfer });
     expect(screen.queryByText("Drop to add")).toBeNull();
   });
 

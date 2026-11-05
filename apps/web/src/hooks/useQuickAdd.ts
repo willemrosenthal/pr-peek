@@ -1,5 +1,11 @@
 import { parsePrLink, prUrl } from "@pr-peek/core";
-import { useCallback, useEffect, useState, type DragEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+} from "react";
 import { errorText } from "../components/AddPrDialog";
 import type { ToastMessage } from "../components/Toast";
 import { useAddPr, useSetImportant } from "../queries";
@@ -32,6 +38,9 @@ export function useQuickAdd({
   const setImportant = useSetImportant();
   // A text drag is over the list, so it shows where to drop.
   const [dragging, setDragging] = useState(false);
+  // Drag enters minus leaves. Each row the drag crosses sends both, and Safari, the Mac
+  // app's web view, doesn't say where a drag went, so only 0 means it left the list.
+  const inside = useRef(0);
 
   // True if `text` had a PR link to add.
   const addFrom = useCallback(
@@ -76,20 +85,22 @@ export function useQuickAdd({
   // For the list's element. The dragged text can only be read on drop, so the outline
   // shows for any text.
   const dropTarget = {
+    onDragEnter: () => {
+      inside.current += 1;
+    },
     onDragOver: (event: DragEvent) => {
       if (!enabled || !isTextDrag(event.dataTransfer)) return;
       event.preventDefault();
       setDragging(true);
     },
-    onDragLeave: (event: DragEvent) => {
-      // Moving onto a row inside the list isn't leaving it.
-      if (event.currentTarget.contains(event.relatedTarget as Node | null))
-        return;
-      setDragging(false);
+    onDragLeave: () => {
+      inside.current = Math.max(0, inside.current - 1);
+      if (inside.current === 0) setDragging(false);
     },
     // Always takes the drop it allowed. Otherwise the browser opens the dropped link,
     // leaving the app.
     onDrop: (event: DragEvent) => {
+      inside.current = 0;
       setDragging(false);
       if (!enabled) return;
       event.preventDefault();
