@@ -96,6 +96,19 @@ it("opens on the link field, and closes when the Mac app hides", async () => {
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 });
 
+it("starts empty each time it opens", async () => {
+  fakeApi(listApi());
+  renderApp("/");
+  await openAndType("hello");
+  await userEvent.click(addButton("Cancel"));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Add a PR by link" }),
+  );
+  expect(await input()).toHaveProperty("value", "");
+});
+
 it.each([
   [{ tracked: true }, "Flag it", "Already on your list."],
   [
@@ -164,6 +177,15 @@ describe("why a link can't be added", () => {
 });
 
 describe("sharing to Git Buddy", () => {
+  it("starts over on a new share while the dialog is open", async () => {
+    fakeApi(listApi({ [lookupKey()]: () => json(found()) }));
+    const { router } = renderApp("/?add=hello");
+    expect(await input()).toHaveProperty("value", "hello");
+
+    await act(() => router.navigate(`/?add=${encodeURIComponent(LINK)}`));
+    expect(await input()).toHaveProperty("value", LINK);
+  });
+
   it("opens the dialog on the PR link in what was shared", async () => {
     fakeApi(listApi({ [lookupKey()]: () => json(found()) }));
     const { router } = renderApp(

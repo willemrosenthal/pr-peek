@@ -57,6 +57,14 @@ export function AddPrDialog({
 }) {
   // Opens on the link field, so a link can be pasted right away.
   const field = useRef<HTMLInputElement>(null);
+  // The form keeps showing while the dialog fades out. Each opening, or a new shared
+  // link, starts a fresh one.
+  const [opened, setOpened] = useState({ link: link ?? "", count: 0 });
+  const [last, setLast] = useState(link);
+  if (link !== last) {
+    setLast(link);
+    if (link !== null) setOpened({ link, count: opened.count + 1 });
+  }
   return (
     <Dialog.Root
       open={link !== null}
@@ -67,15 +75,12 @@ export function AddPrDialog({
       <Dialog.Portal>
         <Dialog.Backdrop className={styles.backdrop} />
         <Dialog.Popup className={styles.popup} initialFocus={field}>
-          {/* A new opening starts from its own link. */}
-          {link !== null && (
-            <AddPrForm
-              key={link}
-              initial={link}
-              field={field}
-              onAdded={onAdded}
-            />
-          )}
+          <AddPrForm
+            key={opened.count}
+            initial={opened.link}
+            field={field}
+            onAdded={onAdded}
+          />
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>
