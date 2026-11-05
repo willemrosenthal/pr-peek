@@ -53,7 +53,7 @@ export function ListHeader({
         <span className={cx(styles.arrow, refreshing && styles.spin)}>
           <RotateCw
             className={cx(refreshing && rainbow.className)}
-            stroke={refreshing ? rainbow.stroke : "currentColor"}
+            color={refreshing ? rainbow.stroke : undefined}
             aria-hidden="true"
           >
             {refreshing && rainbow.defs}

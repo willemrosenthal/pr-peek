@@ -14,7 +14,7 @@ import styles from "./PullToRefresh.module.css";
 const START_PX = 8;
 // The furthest the page comes down.
 const MAX_PX = 160;
-// How far the page comes down before letting go refreshes. Room for the ring's pop.
+// How far the page comes down before letting go refreshes. Room for the burst.
 const ARM_PX = 70;
 // How fast the page moves at first, for each px the finger moves.
 const RESISTANCE = 0.55;

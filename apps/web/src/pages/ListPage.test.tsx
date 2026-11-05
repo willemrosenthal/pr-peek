@@ -924,7 +924,10 @@ describe("the header", () => {
     const refresh = screen.getByRole("button", { name: "Refresh" });
     await userEvent.click(refresh);
     expect(refresh.getAttribute("aria-busy")).toBe("true");
-    // The time comes back once it's done.
+    // In the rainbow while it spins. The time comes back once it's done.
+    const arrowColor = () =>
+      refresh.querySelector("svg")!.getAttribute("stroke");
+    expect(arrowColor()).toMatch(/^url\(#rainbow/);
     expect(screen.queryByText("Updated 5m ago")).toBe(null);
 
     // The worker finishes. The next check, 2 seconds later, sees it.
@@ -933,6 +936,7 @@ describe("the header", () => {
       await screen.findByText("Updated just now", {}, { timeout: 4000 }),
     ).toBeTruthy();
     expect(refresh.getAttribute("aria-busy")).toBe("false");
+    expect(arrowColor()).toBe("currentColor");
   });
 
   // How far a pull must go is tested in PullToRefresh.test.tsx.
