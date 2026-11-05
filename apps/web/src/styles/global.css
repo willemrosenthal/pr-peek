@@ -41,8 +41,12 @@ a {
   color: var(--color-accent);
 }
 
-a:hover {
-  color: var(--color-accent-hover);
+/* Put hover styles in this query everywhere. A phone fires hover on touch, and it
+   stays after you scroll or tap. */
+@media (hover: hover) {
+  a:hover {
+    color: var(--color-accent-hover);
+  }
 }
 
 button,

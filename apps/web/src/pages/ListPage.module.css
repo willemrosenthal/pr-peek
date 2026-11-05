@@ -80,8 +80,10 @@
   height: 15px;
 }
 
-.addRow:hover {
-  background: var(--color-hover);
+@media (hover: hover) {
+  .addRow:hover {
+    background: var(--color-hover);
+  }
 }
 
 .emptyTitle {

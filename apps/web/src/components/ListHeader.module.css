@@ -51,9 +51,11 @@
   cursor: pointer;
 }
 
-.iconButton:hover {
-  background: var(--color-hover);
-  color: var(--color-text);
+@media (hover: hover) {
+  .iconButton:hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
 }
 
 .iconButton:disabled {

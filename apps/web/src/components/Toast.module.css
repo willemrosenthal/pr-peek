@@ -47,6 +47,8 @@
   cursor: pointer;
 }
 
-.action:hover {
-  opacity: 1;
+@media (hover: hover) {
+  .action:hover {
+    opacity: 1;
+  }
 }
