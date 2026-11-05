@@ -213,8 +213,13 @@ export async function saveItems(
           ...update,
           ...(startsSeen && { seenAt: now }),
         },
-        // Something new happened, so the user hasn't seen it yet.
-        update: { ...update, ...(isNewEvent && { seenAt: null }) },
+        // Something new happened, so the user hasn't seen it yet. An item reopened on a
+        // PR whose items start seen, like one added back by its link, is old news.
+        update: {
+          ...update,
+          ...(isNewEvent && { seenAt: null }),
+          ...(pr.itemsStartSeen && !existing?.seenAt && { seenAt: now }),
+        },
         select: { id: true },
       });
       written += 1;

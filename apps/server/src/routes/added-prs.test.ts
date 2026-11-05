@@ -330,6 +330,25 @@ describe("the syncs after", () => {
     expect(later.newEventItemIds).not.toEqual([]);
   });
 
+  it("reopen a PR's old items as seen when it's added back", async () => {
+    const { agent, user } = await setup();
+    // Tracked from a watched repo, with an item the user never saw.
+    const repo = await watchLib(user.id);
+    await sync({ reviewRequested: [status9.PR_9], prs: pr9 }, minutes(1));
+    expect(await db.item.count({ where: { seenAt: null } })).toBeGreaterThan(0);
+    // The user stops watching it, so it ends and its items close.
+    await db.watchedRepo.delete({ where: { id: repo.id } });
+    await sync({}, minutes(2));
+    expect(await db.item.count({ where: { status: "open" } })).toBe(0);
+
+    await add(agent);
+    const first = await sync({ statuses: status9, prs: pr9 }, minutes(3));
+    expect(first.newEventItemIds).toEqual([]);
+    const items = await db.item.findMany();
+    expect(items.every((item) => item.status === "open")).toBe(true);
+    expect(items.every((item) => item.seenAt !== null)).toBe(true);
+  });
+
   describe("unflagging an added PR", () => {
     const unflag = async (agent: Agent) => {
       const id = (await row())!.id;
