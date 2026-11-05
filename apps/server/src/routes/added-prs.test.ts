@@ -98,6 +98,10 @@ const lookUp = (agent: Agent, link: string) =>
 const add = (agent: Agent, link = LINK) =>
   agent.post("/api/prs").set("Origin", APP_URL).send({ link });
 const row = () => db.pullRequest.findFirst({ where: { githubNodeId: "PR_9" } });
+const watchLib = (userId: string) =>
+  db.watchedRepo.create({
+    data: { userId, githubRepoId: REPO_ID, owner: "other", name: "lib" },
+  });
 
 it("needs sign in", async () => {
   const { agent } = makeTestApp(db, {
@@ -131,12 +135,21 @@ describe("GET /api/prs/lookup", () => {
     }
   });
 
-  it("says when the user already tracks it, and whether it's flagged", async () => {
+  it("says when it's on the user's list, and whether it's flagged", async () => {
     const { agent, user } = await setup();
-    await makePr(user.id, 9, { importantAt: hours(-1) });
+    await watchLib(user.id);
+    await makePr(user.id, 9, { githubRepoId: REPO_ID, importantAt: hours(-1) });
 
     const body = bodyOf<PrLookupResponse>(await lookUp(agent, LINK));
     expect(body).toMatchObject({ tracked: true, flagged: true });
+  });
+
+  it("doesn't count a stored PR the list doesn't show", async () => {
+    const { agent, user } = await setup();
+    await makePr(user.id, 9, { githubRepoId: REPO_ID, state: "unwatched" });
+
+    const body = bodyOf<PrLookupResponse>(await lookUp(agent, LINK));
+    expect(body).toMatchObject({ tracked: false, flagged: false });
   });
 
   it.each([
@@ -197,9 +210,10 @@ describe("POST /api/prs", () => {
     });
   });
 
-  it("flags a PR the user already tracks, without marking it added", async () => {
+  it("flags a PR already on the list, without marking it added", async () => {
     const { agent, user, requestSync } = await setup();
-    const tracked = await makePr(user.id, 9);
+    await watchLib(user.id);
+    const tracked = await makePr(user.id, 9, { githubRepoId: REPO_ID });
 
     const res = await add(agent);
     expect(res.status).toBe(200);
@@ -212,6 +226,25 @@ describe("POST /api/prs", () => {
 
     // Again, and it says so.
     expect(bodyOf<AddPrResponse>(await add(agent)).alreadyFlagged).toBe(true);
+  });
+
+  it.each([
+    ["in a repo the user stopped watching", "unwatched" as const],
+    ["merged, in a repo the user doesn't watch", "merged" as const],
+  ])("adds back a stored PR %s, as added", async (_name, state) => {
+    const { agent, user, requestSync } = await setup();
+    const stored = await makePr(user.id, 9, { githubRepoId: REPO_ID, state });
+
+    const res = await add(agent);
+    expect(res.status).toBe(201);
+    expect(bodyOf<AddPrResponse>(res).id).toBe(stored.id);
+    expect(await row()).toMatchObject({
+      state: "open",
+      importantAt: NOW,
+      addedAt: NOW,
+      githubUpdatedAt: NEVER_SYNCED,
+    });
+    expect(requestSync).toHaveBeenCalledExactlyOnceWith(user.id);
   });
 
   it(`stops at ${MAX_ADDED_PRS} added PRs, merged ones too`, async () => {
@@ -315,14 +348,7 @@ describe("the syncs after", () => {
 
     it("keeps it when the searches find it", async () => {
       const { agent, user } = await setup();
-      await db.watchedRepo.create({
-        data: {
-          userId: user.id,
-          githubRepoId: REPO_ID,
-          owner: "other",
-          name: "lib",
-        },
-      });
+      await watchLib(user.id);
       await add(agent);
       await sync({ reviewRequested: [status9.PR_9], prs: pr9 }, minutes(1));
 
@@ -333,14 +359,7 @@ describe("the syncs after", () => {
 
     it("keeps it while it has open items", async () => {
       const { agent, user } = await setup();
-      await db.watchedRepo.create({
-        data: {
-          userId: user.id,
-          githubRepoId: REPO_ID,
-          owner: "other",
-          name: "lib",
-        },
-      });
+      await watchLib(user.id);
       await add(agent);
       await sync({ statuses: status9, prs: pr9 }, minutes(1));
       expect(

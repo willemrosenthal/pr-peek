@@ -10,11 +10,10 @@ import {
 import express, { type Router } from "express";
 import type { Octokit } from "octokit";
 import type { Db } from "../db";
-import { Prisma } from "../generated/prisma/client";
 import { lookUpPr, type LookedUpPr } from "../github/pull-lookup";
 import { HttpError, parseInput } from "../http-error";
 import { publishItemsChanged } from "../items";
-import { attemptLimiter } from "../rate-limit";
+import { userLimiter } from "../rate-limit";
 import { NEVER_SYNCED } from "../sync";
 import { currentUser, requireUser } from "./auth";
 import { updatePr } from "./items";
@@ -28,12 +27,11 @@ export interface AddedPrDeps {
   now?: () => Date;
 }
 
+// Each lookup or add asks GitHub. The dialog looks up once a link parses, not per key.
+const ASKS_PER_MINUTE = 30;
+
 const fail = (status: number, code: AddPrErrorCode, message: string) =>
   new HttpError(status, code, message);
-
-// Prisma's code for "a row like this already exists".
-const isUniqueViolation = (err: unknown) =>
-  err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
 
 // Adding PRs by their link: looking one up for the dialog, and adding it. Unflagging an
 // added PR is in items.ts.
@@ -41,10 +39,9 @@ export function addedPrsRouter(deps: AddedPrDeps): Router {
   const router = express.Router();
   const { db } = deps;
   const now = () => (deps.now ?? (() => new Date()))();
-  // On each route, not `router.use`, which would cover every path under /prs. Each one
-  // asks GitHub.
+  // On each route, not `router.use`, which would cover every path under /prs.
   const signedIn = requireUser(db);
-  const limiter = attemptLimiter();
+  const limiter = userLimiter(60 * 1000, ASKS_PER_MINUTE);
 
   // The PR a link names, or why it can't be added.
   async function lookUp(userId: string, link: string): Promise<LookedUpPr> {
@@ -62,16 +59,27 @@ export function addedPrsRouter(deps: AddedPrDeps): Router {
     return pr;
   }
 
-  const trackedRow = (userId: string, pr: LookedUpPr) =>
-    db.pullRequest.findUnique({
-      where: { userId_githubNodeId: { userId, githubNodeId: pr.nodeId } },
-      select: { id: true, importantAt: true },
-    });
+  // The user's row for the PR, if the list shows it: open or merged, and in a watched
+  // repo or added. A row that ended, like one in a repo the user stopped watching, stays
+  // stored a while, but isn't on the list.
+  async function listedRow(userId: string, pr: LookedUpPr) {
+    const [row, watched] = await Promise.all([
+      db.pullRequest.findUnique({
+        where: { userId_githubNodeId: { userId, githubNodeId: pr.nodeId } },
+        select: { id: true, importantAt: true, addedAt: true, state: true },
+      }),
+      db.watchedRepo.count({
+        where: { userId, githubRepoId: pr.githubRepoId, enabled: true },
+      }),
+    ]);
+    const live = row?.state === "open" || row?.state === "merged";
+    return live && (row.addedAt || watched > 0) ? row : null;
+  }
 
   router.get("/prs/lookup", signedIn, limiter, async (req, res) => {
     const userId = currentUser(res).id;
     const pr = await lookUp(userId, parseInput(prLookupQuery, req.query).link);
-    const row = await trackedRow(userId, pr);
+    const row = await listedRow(userId, pr);
     const body: PrLookupResponse = {
       owner: pr.owner,
       repo: pr.repo,
@@ -85,8 +93,8 @@ export function addedPrsRouter(deps: AddedPrDeps): Router {
     res.json(body);
   });
 
-  // Flags a PR the user already tracks. It isn't marked added: the searches found it on
-  // their own, so unflagging it works as it always has.
+  // Flags a PR already on the user's list. It isn't marked added: the searches found it
+  // on their own, so unflagging it works as it always has.
   async function flagTracked(
     userId: string,
     row: { id: string; importantAt: Date | null },
@@ -99,9 +107,9 @@ export function addedPrsRouter(deps: AddedPrDeps): Router {
   router.post("/prs", signedIn, limiter, async (req, res) => {
     const userId = currentUser(res).id;
     const pr = await lookUp(userId, parseInput(addPrBody, req.body).link);
-    const tracked = await trackedRow(userId, pr);
-    if (tracked) {
-      res.json(await flagTracked(userId, tracked));
+    const listed = await listedRow(userId, pr);
+    if (listed) {
+      res.json(await flagTracked(userId, listed));
       return;
     }
 
@@ -117,44 +125,36 @@ export function addedPrsRouter(deps: AddedPrDeps): Router {
     }
 
     const at = now();
-    const id = await db
-      .$transaction(async (tx) => {
-        const row = await tx.pullRequest.create({
-          data: {
-            userId,
-            githubNodeId: pr.nodeId,
-            githubRepoId: pr.githubRepoId,
-            repoOwner: pr.owner,
-            repoName: pr.repo,
-            number: pr.number,
-            title: pr.title,
-            url: pr.url,
-            authorLogin: pr.author,
-            isDraft: pr.isDraft,
-            state: pr.state,
-            headSha: pr.headSha,
-            ...(pr.mergedAt && { mergedAt: new Date(pr.mergedAt) }),
-            // The next sync sees it as changed, fetches its details, and runs the rules.
-            githubUpdatedAt: NEVER_SYNCED,
-            importantAt: at,
-            addedAt: at,
-            listGroup: "watching",
-          },
-          select: { id: true },
-        });
-        await publishItemsChanged(tx, userId);
-        return row.id;
-      })
-      .catch((err: unknown) => {
-        // A sync or another add saved it first.
-        if (isUniqueViolation(err)) return null;
-        throw err;
+    const fields = {
+      githubRepoId: pr.githubRepoId,
+      repoOwner: pr.owner,
+      repoName: pr.repo,
+      number: pr.number,
+      title: pr.title,
+      url: pr.url,
+      authorLogin: pr.author,
+      isDraft: pr.isDraft,
+      state: pr.state,
+      headSha: pr.headSha,
+      mergedAt: pr.mergedAt ? new Date(pr.mergedAt) : null,
+      // The next sync sees it as changed, fetches its details, and runs the rules.
+      githubUpdatedAt: NEVER_SYNCED,
+      importantAt: at,
+      addedAt: at,
+      quietAt: null,
+      listGroup: "watching",
+    };
+    // Updates a row that ended, so it comes back as added.
+    const { id } = await db.$transaction(async (tx) => {
+      const row = await tx.pullRequest.upsert({
+        where: { userId_githubNodeId: { userId, githubNodeId: pr.nodeId } },
+        create: { userId, githubNodeId: pr.nodeId, ...fields },
+        update: fields,
+        select: { id: true },
       });
-    if (!id) {
-      const row = await trackedRow(userId, pr);
-      res.json(await flagTracked(userId, row!));
-      return;
-    }
+      await publishItemsChanged(tx, userId);
+      return row;
+    });
 
     await deps.requestSync(userId).catch((err: unknown) => {
       req.log.warn({ err }, "queueing a sync after adding a PR failed");
