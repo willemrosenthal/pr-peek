@@ -8,8 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { Link } from "react-router";
-import { ApiError } from "../api";
+import { addPrError } from "../addPrError";
 import { cx } from "../cx";
 import { useDebounced } from "../hooks/useDebounced";
 import { useAddPr, usePrLookup } from "../queries";
@@ -24,20 +23,6 @@ const LOOKUP_AFTER_MS = 400;
 function prLinkIn(text: string): string | null {
   const ref = parsePrLink(text);
   return ref && prUrl(ref);
-}
-
-// What the dialog says about an error from looking a PR up or adding it.
-function errorText(err: Error): ReactNode {
-  if (!(err instanceof ApiError)) return err.message;
-  if (err.code === "not_found") {
-    return (
-      <>
-        Your GitHub token can't see this PR. Check its repo access in{" "}
-        <Link to="/settings/general">Settings</Link>.
-      </>
-    );
-  }
-  return err.message;
 }
 
 const describe = (pr: PrLookupResponse) =>
@@ -113,7 +98,7 @@ function AddPrForm({
   let preview: ReactNode;
   let tone: "empty" | "error" | "tracked" | undefined;
   if (add.error) {
-    preview = errorText(add.error);
+    preview = addPrError(add.error);
     tone = "error";
   } else if (!text.trim()) {
     preview = "Paste a link to a pull request on GitHub.";
@@ -125,7 +110,7 @@ function AddPrForm({
     preview = "Looking it up…";
     tone = "empty";
   } else if (lookup.error) {
-    preview = errorText(lookup.error);
+    preview = addPrError(lookup.error);
     tone = "error";
   } else if (pr) {
     preview = (

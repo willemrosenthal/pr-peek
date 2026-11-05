@@ -700,6 +700,9 @@ pub fn run() {
                     .visible(false)
                     // Keeps the live stream and timers running while hidden.
                     .background_throttling(BackgroundThrottlingPolicy::Disabled)
+                    // Lets the page take a dropped PR link. Tauri's own handler would
+                    // catch drops for its file drop events, which we don't use.
+                    .disable_drag_drop_handler()
                     .build()?;
 
             let handle = app.handle().clone();

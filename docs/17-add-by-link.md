@@ -114,11 +114,12 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 
 ### 17.5 Paste and drop
 
-- [ ] A `paste` listener on the list page. Ignored when typing in a field. If the text is a PR link, add it right away and show a toast: "Added owner/repo#123", with Undo (unflags it). If it was already flagged, the toast says "Already on your list", with no Undo, so Undo never unflags something you flagged before. On an error, the toast shows the message instead.
-- [ ] A small `Toast` component. There isn't one yet.
-- [ ] Drop: the list page takes `dragover` and `drop`, reading `text/uri-list`, then `text/plain`. While a link is dragged over, the list shows an outline and "Drop to add". Then it works like paste.
-- [ ] Mac app: call `.disable_drag_drop_handler()` on the window in `lib.rs`. Without it, Tauri catches drops for its own file drop events, and the page never sees them. We don't use those events.
-- [ ] Tests: paste and drop add a PR, other text is ignored, Undo unflags, and an already flagged PR shows no Undo.
+- [x] A `paste` listener on the list page (`useQuickAdd`). Ignored when typing in a field, and while the dialog or preview is open. If the text is a PR link, add it right away and show a toast: "Added owner/repo#123", with Undo (unflags it). If it was already flagged, the toast says "Already on your list", with no Undo, so Undo never unflags something you flagged before. On an error, the toast shows the message instead.
+- [x] A small `Toast` component. There isn't one yet.
+- [x] Drop: the list page takes `dragover` and `drop`, reading `text/uri-list`, then `text/plain`. While text is dragged over, the list shows an outline and "Drop to add": the text can only be read on drop. Then it works like paste. Every drop it allowed is taken, so dropping other text doesn't open it and leave the app.
+- [x] Mac app: call `.disable_drag_drop_handler()` on the window in `lib.rs`. Without it, Tauri catches drops for its own file drop events, and the page never sees them. We don't use those events.
+- [x] Tests: paste and drop add a PR, other text is ignored, text pasted in a field is ignored, Undo unflags, an already flagged PR shows no Undo, an error shows its message, and the toast goes away.
+- [ ] Try paste in the Mac app (You). Its web view is Safari's, which may not send a paste to a page with no text field focused. If it doesn't, drop still works, and we can read the clipboard on ⌘V instead.
 
 ### 17.6 Share on Android
 
