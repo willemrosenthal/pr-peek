@@ -45,6 +45,7 @@ export function itemRows(db: Db) {
         | "snapshot"
         | "listGroup"
         | "assignedState"
+        | "addedAt"
       >
     > = {},
   ) {

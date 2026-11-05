@@ -124,7 +124,7 @@ GitHub's `involves:@me` matches PRs the user authored, is assigned to, is mentio
      - 5b-1, the preview: `perf(server): get the preview's reviewers and checks from GitHub`.
      - 5b-2, the list: `perf(server): stop storing PR snapshots`. The list reads the new columns, and snapshots stop being written. Needs 5b-1, so nothing reads them once they stop. Has a migration.
      - 5b-3, Settings: `feat(web): show when the list is updating after a settings change`.
-6. **Drop the column** (16.7): `chore(server): drop the snapshot column`. Once PR 5b has been live for a release, so a server mid-deploy never reads a missing column.
+6. **Drop the column** (16.7): `chore(server): drop the snapshot column`. Once PR 5b has been live for a release, so a server mid-deploy never reads a missing column. And after [plan 17](17-add-by-link.md) PR 2a is live: its migration has the backfill re-sort merged PRs from their snapshots, once.
 
 PRs 2 to 5b-3 release a patch or minor version and deploy. PR 6 releases nothing by itself, and ships with the next release. Each is about 150 to 300 lines with tests. PR 2 is first: quick, no migration, and most of the savings that don't need PR 5.
 

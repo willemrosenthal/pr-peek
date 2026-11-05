@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { ItemGroup } from "@pr-peek/core";
+import type { ListSection } from "@pr-peek/core";
 import { GripVertical } from "lucide-react";
 import { cx } from "../cx";
 import { useLocalSetting } from "../localSetting";
@@ -65,8 +65,8 @@ export function SectionOrder() {
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
-    const from = groups.indexOf(active.id as ItemGroup);
-    const to = groups.indexOf(over.id as ItemGroup);
+    const from = groups.indexOf(active.id as ListSection);
+    const to = groups.indexOf(over.id as ListSection);
     saveSectionOrder(arrayMove(groups, from, to));
   };
 
@@ -95,7 +95,7 @@ export function SectionOrder() {
   );
 }
 
-function SectionRow({ group, title }: { group: ItemGroup; title: string }) {
+function SectionRow({ group, title }: { group: ListSection; title: string }) {
   const {
     attributes,
     listeners,

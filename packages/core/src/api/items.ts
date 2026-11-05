@@ -3,8 +3,12 @@ import type { AssignedState } from "../assigned-state";
 import type { ItemKind, Severity } from "../rules";
 import type { StaleLevel } from "../urgency";
 
-// The list's sections.
+// The list's sections for items.
 export type ItemGroup = "review" | "replies" | "assigned" | "mine";
+
+// Every section of the list. Watching holds only PRs with nothing to do that fit no other
+// section, like a flagged PR you didn't write, aren't reviewing, and aren't assigned to.
+export type ListSection = ItemGroup | "watching";
 
 export const ITEM_GROUPS: Record<ItemKind, ItemGroup> = {
   review_requested: "review",
@@ -73,7 +77,7 @@ export type ItemGroups = Record<ItemGroup, ItemDto[]>;
 export interface IdlePrDto {
   id: string;
   // The section it shows in, like a merged PR's.
-  group: ItemGroup;
+  group: ListSection;
   isDraft: boolean;
   // Real time since the PR last changed, like "3h".
   age: string;
@@ -83,9 +87,8 @@ export interface IdlePrDto {
 // A PR the user marked important that merged. It stays on the list until they unmark it.
 export interface MergedPrDto {
   id: string;
-  // The section it shows in: the user's own PRs, ones they're assigned to, or else
-  // review. Picked by `prGroup` on the server.
-  group: ItemGroup;
+  // The section it shows in, like an idle PR's. Picked by `prGroup` on the server.
+  group: ListSection;
   // Real time since it merged, like "3h".
   age: string;
   pr: ItemDto["pr"];

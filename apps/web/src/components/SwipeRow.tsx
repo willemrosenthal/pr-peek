@@ -1,4 +1,4 @@
-import { Bell, BellOff, Flag, FlagOff } from "lucide-react";
+import { Bell, BellOff, Flag } from "lucide-react";
 import {
   useEffect,
   useRef,
@@ -9,6 +9,7 @@ import {
   type WheelEvent,
 } from "react";
 import { cx } from "../cx";
+import { unflagAction } from "../important";
 import styles from "./SwipeRow.module.css";
 
 // How far a row moves before letting go quiets it: a share of its width, but at least
@@ -83,7 +84,8 @@ function blockNextClick(row: Element) {
 // calls `onToggleImportant` to mark it important, or unmark it when it is (`important`).
 // Rows without `onToggleImportant` quiet or come back either way. A quiet row also has
 // a bell button that brings it back. With `unflags`, like a merged row, a swipe either
-// way removes the flag with `onToggle`, and the row leaves. A long press or a right
+// way removes the flag with `onToggle`, and the row leaves. In Watching (`watching`),
+// removing the flag says "Stop watching", since the row leaves. A long press or a right
 // click calls `onLongPress`. `onPressStart` comes partway through a long press, so the
 // preview can start loading.
 export function SwipeRow({
@@ -91,6 +93,7 @@ export function SwipeRow({
   onToggle,
   unflags = false,
   important = false,
+  watching = false,
   onToggleImportant,
   onLongPress,
   onPressStart,
@@ -100,6 +103,7 @@ export function SwipeRow({
   onToggle: () => void;
   unflags?: boolean;
   important?: boolean;
+  watching?: boolean;
   onToggleImportant?: (() => void) | undefined;
   onLongPress?: () => void;
   onPressStart?: () => void;
@@ -294,10 +298,11 @@ export function SwipeRow({
   };
 
   const shown = leaving ?? offset;
-  const Icon = unflags ? FlagOff : quiet ? Bell : BellOff;
-  const action = unflags ? "Remove flag" : quiet ? "Bring back" : "Quiet";
+  const { Icon: UnflagIcon, label: unflag } = unflagAction(watching);
+  const Icon = unflags ? UnflagIcon : quiet ? Bell : BellOff;
+  const action = unflags ? unflag : quiet ? "Bring back" : "Quiet";
   const toImportant = marksImportant(shown);
-  const ShownIcon = toImportant ? (important ? FlagOff : Flag) : Icon;
+  const ShownIcon = toImportant ? (important ? UnflagIcon : Flag) : Icon;
   // Flag swipes are amber.
   const flagSwipe = toImportant || unflags;
   const armedStyle = flagSwipe
@@ -321,7 +326,7 @@ export function SwipeRow({
           aria-hidden="true"
         >
           <ShownIcon />
-          {toImportant ? (important ? "Remove flag" : "Important") : action}
+          {toImportant ? (important ? unflag : "Important") : action}
         </div>
       )}
       <div

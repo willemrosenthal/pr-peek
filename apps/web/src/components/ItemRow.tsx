@@ -161,15 +161,18 @@ function StateLabel({ state }: { state: AssignedState }) {
   );
 }
 
-// One of the user's PRs with nothing to do. Drafts are dimmed.
+// One of the user's PRs with nothing to do. Drafts are dimmed. Without `flag`, an
+// important one shows no flag, like in Watching, where every row is flagged.
 export function IdlePrRow({
   pr,
   quiet = false,
   showAuthor = false,
+  flag = true,
 }: {
   pr: IdlePrDto;
   quiet?: boolean;
   showAuthor?: boolean;
+  flag?: boolean;
 }) {
   return (
     <Row
@@ -181,7 +184,7 @@ export function IdlePrRow({
       tone={styles.muted}
       title={
         <>
-          <ImportantFlag pr={pr.pr} />
+          {flag && <ImportantFlag pr={pr.pr} />}
           {pr.pr.title}
         </>
       }
@@ -196,12 +199,15 @@ export function IdlePrRow({
 }
 
 // A PR the user marked important that merged. It stays until they remove the flag.
+// Without `flag`, it shows no flag, like an idle row.
 export function MergedPrRow({
   pr,
   showAuthor = false,
+  flag = true,
 }: {
   pr: MergedPrDto;
   showAuthor?: boolean;
+  flag?: boolean;
 }) {
   return (
     <Row
@@ -213,7 +219,7 @@ export function MergedPrRow({
       tone={styles.merged}
       title={
         <>
-          <ImportantFlag pr={pr.pr} />
+          {flag && <ImportantFlag pr={pr.pr} />}
           {pr.pr.title}
         </>
       }

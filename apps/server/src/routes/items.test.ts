@@ -516,7 +516,7 @@ describe("important PRs", () => {
     expect(body.replies.map((row) => row.pr.id)).toEqual([busy.id]);
   });
 
-  it("lists merged ones in watched repos, newest first, each in its stored section", async () => {
+  it("lists merged ones in watched repos or added, newest first, each in its stored section", async () => {
     const { agent, user } = await setup();
     await db.watchedRepo.createMany({
       data: [
@@ -550,6 +550,14 @@ describe("important PRs", () => {
       mergedAt: hours(-4),
       listGroup: "review",
     });
+    // Added by its link, so it shows in a repo the user doesn't watch.
+    const added = await makePr(user.id, 15, {
+      ...merged,
+      githubRepoId: 3,
+      addedAt: hours(-9),
+      mergedAt: hours(-5),
+      listGroup: "watching",
+    });
     // Left out: not important, closed, in a paused repo, or one not watched.
     await makePr(user.id, 10, { state: "merged" });
     await makePr(user.id, 11, { ...merged, state: "closed" });
@@ -561,9 +569,10 @@ describe("important PRs", () => {
       body.merged.map(({ id, group, age }) => ({ id, group, age })),
     ).toEqual([
       { id: assigned.id, group: "assigned", age: "1h" },
-      { id: other.id, group: "review", age: "2h" },
+      { id: other.id, group: "watching", age: "2h" },
       { id: mine.id, group: "mine", age: "3h" },
       { id: quiet.id, group: "review", age: "4h" },
+      { id: added.id, group: "watching", age: "5h" },
     ]);
     expect(body.merged[0]?.pr.important).toBe(true);
     expect(body.idlePrs).toEqual([]);

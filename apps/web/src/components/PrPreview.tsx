@@ -16,25 +16,26 @@ import {
   Clock,
   ExternalLink,
   Flag,
-  FlagOff,
   MessageCircle,
   Users,
   type LucideIcon,
 } from "lucide-react";
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cx } from "../cx";
+import { unflagAction } from "../important";
 import { usePrPreview } from "../queries";
 import { GitHubHtml } from "./GitHubHtml";
 import { avatarUrl } from "./ItemRow";
 import styles from "./PrPreview.module.css";
 
 // What a preview is opened on: a row's PR, its item if it has one, whether it's in the
-// Quiet section, and whether it merged.
+// Quiet section, whether it merged, and whether it's in Watching.
 export interface PreviewTarget {
   pr: ItemDto["pr"];
   item: ItemDto | null;
   quiet: boolean;
   merged?: boolean;
+  watching?: boolean;
 }
 
 // Opens the preview on a row. The list passes it down to its rows.
@@ -135,7 +136,7 @@ export function PrPreview({
 }
 
 function Sheet({
-  target: { pr, item, quiet, merged = false },
+  target: { pr, item, quiet, merged = false, watching = false },
   onToggleQuiet,
   onToggleImportant,
 }: {
@@ -145,6 +146,7 @@ function Sheet({
   const { data } = preview;
   const failing = data?.failingChecks ?? [];
   const QuietIcon = quiet ? Bell : BellOff;
+  const unflag = unflagAction(watching);
   return (
     <>
       <div className={styles.dragArea}>
@@ -168,11 +170,11 @@ function Sheet({
               onClick={onToggleImportant}
             >
               {pr.important ? (
-                <FlagOff aria-hidden="true" />
+                <unflag.Icon aria-hidden="true" />
               ) : (
                 <Flag aria-hidden="true" />
               )}
-              {pr.important ? "Remove flag" : "Important"}
+              {pr.important ? unflag.label : "Important"}
             </button>
           </div>
           <a

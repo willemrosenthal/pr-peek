@@ -10,6 +10,7 @@ import {
   TEST_KEY,
 } from "../test/fakes";
 import { fakeGraphQL } from "../test/github";
+import { itemRows } from "../test/items";
 import {
   detailIds,
   githubPr,
@@ -385,6 +386,96 @@ describe("syncUser", () => {
       mergedImportantPrIds: [],
       fullPass: false,
     });
+  });
+});
+
+describe("added PRs", () => {
+  const { makePr } = itemRows(db);
+  // GitHub's view of PR_9, in a repo the user doesn't watch, by someone else.
+  const hit = (options: Parameters<typeof searchHit>[1] = {}) =>
+    searchHit("PR_9", { repoId: UNWATCHED, ...options });
+  const details = {
+    PR_9: githubPr({ id: "PR_9", number: 9, title: "Add search" }),
+  };
+
+  // Added by its link, as the route saves it: never synced, so its details load.
+  const added = (userId: string) =>
+    makePr(userId, 9, {
+      githubRepoId: UNWATCHED,
+      addedAt: NOW,
+      importantAt: NOW,
+      githubUpdatedAt: new Date(0),
+    });
+  const row = () =>
+    db.pullRequest.findFirstOrThrow({ where: { githubNodeId: "PR_9" } });
+
+  it("syncs one in a repo the user doesn't watch, until it merges", async () => {
+    const user = await makeUser();
+    await added(user.id);
+
+    const { requests } = await sync(user.id, {
+      statuses: { PR_9: hit() },
+      prs: details,
+    });
+    expect(detailIds(requests)).toEqual(["PR_9"]);
+    expect(await row()).toMatchObject({ state: "open", title: "Add search" });
+
+    const { result } = await sync(
+      user.id,
+      { statuses: { PR_9: hit({ state: "MERGED" }) } },
+      hours(1),
+    );
+    expect(result.mergedImportantPrIds).toEqual([(await row()).id]);
+    expect((await row()).state).toBe("merged");
+  });
+
+  it("keeps one a search finds, or that moved repos", async () => {
+    const user = await makeUser();
+    await added(user.id);
+
+    const { result } = await sync(user.id, {
+      reviewRequested: [hit()],
+      prs: details,
+    });
+    expect(result).toMatchObject({ found: 1, fetched: 1, ended: 0 });
+
+    const moved = hit({ repoId: DISABLED });
+    await sync(user.id, { statuses: { PR_9: moved } }, hours(1));
+    expect((await row()).state).toBe("open");
+  });
+
+  it("checks one with the other PRs the searches missed, in one request", async () => {
+    const user = await makeUser();
+    await sync(user.id, asked());
+    await added(user.id);
+
+    const { requests } = await sync(
+      user.id,
+      {
+        statuses: { PR_1: searchHit("PR_1"), PR_9: hit() },
+        prs: details,
+      },
+      hours(1),
+    );
+    const statusRequests = requests.filter(
+      (r) => r.variables.ids && !r.query.includes("reviewThreads"),
+    );
+    expect(statusRequests).toHaveLength(1);
+    expect(statusIds(requests).toSorted()).toEqual(["PR_1", "PR_9"]);
+  });
+
+  it("syncs a user who watches no repos, without searching", async () => {
+    const user = await makeUser();
+    await db.watchedRepo.deleteMany();
+    await added(user.id);
+
+    const { requests } = await sync(user.id, {
+      statuses: { PR_9: hit() },
+      prs: details,
+    });
+    expect(searchQueries(requests)).toEqual([]);
+    expect(statusIds(requests)).toEqual(["PR_9"]);
+    expect((await row()).title).toBe("Add search");
   });
 });
 

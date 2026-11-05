@@ -21,6 +21,7 @@ it.each([
     fields: { assignees: ["octocat"], reviews: [approved] },
     group: "review",
   },
+  { pr: "reviewed", fields: { reviews: [approved] }, group: "review" },
   {
     pr: "assigned and asked to review",
     fields: {
@@ -29,7 +30,8 @@ it.each([
     },
     group: "review",
   },
-  { pr: "anyone else's", fields: {}, group: "review" },
+  // Like a flagged PR the user only follows.
+  { pr: "anyone else's", fields: {}, group: "watching" },
 ])("puts $pr under $group", ({ fields, group }) => {
   expect(idleGroup(storedSnapshot(fields), "octocat")).toBe(group);
 });
