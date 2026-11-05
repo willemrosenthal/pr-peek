@@ -211,9 +211,14 @@ export function searchHit(
     repoId?: number;
     state?: "OPEN" | "CLOSED" | "MERGED";
     updatedAt?: string;
+    // One run in this state. Or `checkRuns`, the runs by state.
     checkState?: string;
+    checkRuns?: Record<string, number>;
   } = {},
 ) {
+  const runs =
+    options.checkRuns ??
+    (options.checkState ? { [options.checkState]: 1 } : null);
   return {
     id,
     state: options.state ?? "OPEN",
@@ -223,8 +228,15 @@ export function searchHit(
       nodes: [
         {
           commit: {
-            statusCheckRollup: options.checkState
-              ? { state: options.checkState }
+            statusCheckRollup: runs
+              ? {
+                  contexts: {
+                    checkRunCountsByState: Object.entries(runs).map(
+                      ([state, count]) => ({ state, count }),
+                    ),
+                    statusContextCountsByState: [],
+                  },
+                }
               : null,
           },
         },

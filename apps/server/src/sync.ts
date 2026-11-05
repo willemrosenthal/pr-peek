@@ -65,7 +65,7 @@ interface StoredPr {
   githubNodeId: string;
   githubRepoId: number;
   githubUpdatedAt: Date;
-  checkState: string | null;
+  checkFingerprint: string | null;
   authorLogin: string;
   state: PrState;
   // The open assigned item, if the user is assigned. At most one.
@@ -83,7 +83,9 @@ function needsDetails(
   if (stored.githubUpdatedAt.getTime() !== pr.updatedAt.getTime()) return true;
   const isOwn = stored.authorLogin.toLowerCase() === viewerLogin.toLowerCase();
   const isAssigned = stored.items.length > 0;
-  return (isOwn || isAssigned) && stored.checkState !== pr.checkState;
+  return (
+    (isOwn || isAssigned) && stored.checkFingerprint !== pr.checkFingerprint
+  );
 }
 
 // What the list needs from a PR's details, kept on its row.
@@ -109,8 +111,7 @@ function toRow(
     isDraft: snapshot.isDraft,
     state: "open" as const,
     headSha: snapshot.headSha,
-    // GitHub's own state, which the searches give, so a later sync can tell it changed.
-    checkState: snapshot.checks.githubState ?? snapshot.checks.state,
+    checkFingerprint: snapshot.checks.fingerprint ?? null,
     githubUpdatedAt: new Date(snapshot.updatedAt),
     ...snapshotColumns(snapshot, viewerLogin),
   };
@@ -197,7 +198,7 @@ async function fetchFromGitHub(
         githubNodeId: true,
         githubRepoId: true,
         githubUpdatedAt: true,
-        checkState: true,
+        checkFingerprint: true,
         authorLogin: true,
         state: true,
         addedAt: true,

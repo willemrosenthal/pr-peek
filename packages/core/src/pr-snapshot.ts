@@ -111,9 +111,9 @@ export const prSnapshot = z.object({
     // From the newest run of each check, as GitHub's PR page shows them. Null when the
     // commit has no checks.
     state: checkState.nullable(),
-    // GitHub's own state, which counts every run. The searches give this one, so the sync
-    // compares it to notice when checks change. Same as `state` when missing.
-    githubState: checkState.nullable().optional(),
+    // The commit's runs counted by state, which the searches give too. The sync compares
+    // it to notice when checks change. Missing in snapshots made by hand, like in tests.
+    fingerprint: z.string().nullable().optional(),
     failing: z.array(
       z.object({ name: z.string(), url: z.string().nullable() }),
     ),

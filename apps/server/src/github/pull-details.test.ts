@@ -128,7 +128,7 @@ describe("fetchPrDetails", () => {
         },
         checks: {
           state: "FAILURE",
-          githubState: "FAILURE",
+          fingerprint: "runs: none; statuses: none",
           failing: [
             { name: "lint", url: "https://ci.example/lint" },
             { name: "e2e", url: null },
@@ -151,7 +151,7 @@ describe("fetchPrDetails", () => {
     const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
     expect(snapshots[0]?.checks).toEqual({
       state: null,
-      githubState: null,
+      fingerprint: null,
       failing: [],
     });
   });
@@ -316,7 +316,7 @@ describe("fetchPrDetails", () => {
     const { snapshots } = await fetchPrDetails(octokit, ["PR_1"]);
     expect(snapshots[0]?.checks).toEqual({
       state: "FAILURE",
-      githubState: "FAILURE",
+      fingerprint: "runs: SUCCESS 1; statuses: FAILURE 1",
       failing: [{ name: "Vercel", url: null }],
     });
   });

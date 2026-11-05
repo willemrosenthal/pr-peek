@@ -111,7 +111,7 @@ describe("syncUser", () => {
       isDraft: false,
       state: "open",
       headSha: "abc123",
-      checkState: "FAILURE",
+      checkFingerprint: "runs: none; statuses: none",
       githubUpdatedAt: new Date("2026-10-21T10:00:00Z"),
       lastSeenAt: NOW,
       // What the list needs, worked out from the details.
@@ -231,7 +231,7 @@ describe("syncUser", () => {
     expect(detailIds(requests)).toEqual([]);
   });
 
-  it("goes by the newest run of each check, and saves GitHub's state to compare", async () => {
+  it("goes by the newest run of each check, and notices when any run finishes", async () => {
     const user = await makeUser();
     // The user's PR. Its title check ran twice: the first run was cancelled, the second
     // passed. GitHub's own state still says FAILURE.
@@ -244,41 +244,57 @@ describe("syncUser", () => {
               oid: "abc123",
               committedDate: "2026-10-21T07:00:00Z",
               statusCheckRollup: {
-                state: "FAILURE",
-                contexts: checkContexts([
-                  {
-                    __typename: "CheckRun",
-                    name: "pr-title",
-                    conclusion: "CANCELLED",
-                    startedAt: "2026-10-21T07:01:00Z",
-                    detailsUrl: null,
-                  },
-                  {
-                    __typename: "CheckRun",
-                    name: "pr-title",
-                    conclusion: "SUCCESS",
-                    startedAt: "2026-10-21T07:02:00Z",
-                    detailsUrl: null,
-                  },
-                ]),
+                contexts: {
+                  ...checkContexts([
+                    {
+                      __typename: "CheckRun",
+                      name: "pr-title",
+                      conclusion: "CANCELLED",
+                      startedAt: "2026-10-21T07:01:00Z",
+                      detailsUrl: null,
+                    },
+                    {
+                      __typename: "CheckRun",
+                      name: "pr-title",
+                      conclusion: "SUCCESS",
+                      startedAt: "2026-10-21T07:02:00Z",
+                      detailsUrl: null,
+                    },
+                  ]),
+                  checkRunCountsByState: [
+                    { state: "CANCELLED", count: 1 },
+                    { state: "SUCCESS", count: 1 },
+                  ],
+                },
               },
             },
           },
         ],
       },
     });
-    const hit = searchHit("PR_1", { repoId: WATCHED, checkState: "FAILURE" });
+    const runs = { CANCELLED: 1, SUCCESS: 1 };
+    const hit = searchHit("PR_1", { repoId: WATCHED, checkRuns: runs });
     await sync(user.id, { authored: [hit], prs: { PR_1: pr } });
 
     expect(
       await db.item.count({ where: { kind: "check_failed", status: "open" } }),
     ).toBe(0);
-    expect((await db.pullRequest.findFirstOrThrow()).checkState).toBe(
-      "FAILURE",
+    // The same runs, so nothing is fetched again.
+    const same = await sync(user.id, { authored: [hit] }, hours(1));
+    expect(detailIds(same.requests)).toEqual([]);
+
+    // Another check finished on the same commit. GitHub's own state was FAILURE before
+    // and after, but the counts changed, so it's fetched again.
+    const finished = searchHit("PR_1", {
+      repoId: WATCHED,
+      checkRuns: { ...runs, FAILURE: 1 },
+    });
+    const later = await sync(
+      user.id,
+      { authored: [finished], prs: { PR_1: pr } },
+      hours(2),
     );
-    // The search's state matches what's saved, so nothing is fetched again.
-    const { requests } = await sync(user.id, { authored: [hit] }, hours(1));
-    expect(detailIds(requests)).toEqual([]);
+    expect(detailIds(later.requests)).toEqual(["PR_1"]);
   });
 
   it("deletes PRs 7 days after the searches last found them, once nothing is open", async () => {

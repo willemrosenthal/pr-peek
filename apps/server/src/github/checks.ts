@@ -169,6 +169,21 @@ function stateFromCounts(counts: CheckCounts): CheckState | null {
   return [...runs, ...statuses].some((c) => c.count > 0) ? "SUCCESS" : null;
 }
 
+// The runs counted by state, as one string, like "runs: CANCELLED 1, SUCCESS 5; statuses:
+// none".
+// It changes whenever a run starts or finishes, even when GitHub's own state stays the same,
+// so the sync compares it to notice when checks change. Null without checks.
+export function checksFingerprint(counts: CheckCounts | null): string | null {
+  if (!counts) return null;
+  const part = (list: z.infer<typeof stateCount>[]) =>
+    list
+      .filter((c) => c.count > 0)
+      .map((c) => `${c.state} ${c.count}`)
+      .sort()
+      .join(", ") || "none";
+  return `runs: ${part(counts.checkRunCountsByState)}; statuses: ${part(counts.statusContextCountsByState)}`;
+}
+
 // True if a check run or status failed, from the counts. For older commits, where the
 // counts are all we ask for.
 export const countsFailed = (counts: CheckCounts | null) =>
@@ -178,9 +193,9 @@ export const countsFailed = (counts: CheckCounts | null) =>
 // every run, so a run cancelled, or failed before a re-run that passed, reads as failed.
 // From the counts when some runs are hidden, or there are more than 100.
 export function readChecks(
-  rollup: { state: CheckState; contexts: RawChecks } | null,
+  rollup: { contexts: RawChecks } | null,
 ): PrSnapshot["checks"] {
-  if (!rollup) return { state: null, githubState: null, failing: [] };
+  if (!rollup) return { state: null, fingerprint: null, failing: [] };
   const { contexts } = rollup;
   const checks = newestChecks(contexts);
   const failing = failedOf(checks);
@@ -191,5 +206,5 @@ export function readChecks(
   else if (failing.length > 0) state = "FAILURE";
   else if (checks.some((check) => check.running)) state = "PENDING";
   else state = checks.length > 0 ? "SUCCESS" : null;
-  return { state, githubState: rollup.state, failing };
+  return { state, fingerprint: checksFingerprint(contexts), failing };
 }

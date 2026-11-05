@@ -1,5 +1,4 @@
 import {
-  checkState,
   type PrActor,
   type PrComment,
   prReview,
@@ -80,10 +79,7 @@ const DETAILS_QUERY = `query ($ids: [ID!]!) {
         nodes {
           commit {
             oid committedDate
-            statusCheckRollup {
-              state
-              ${CHECK_CONTEXTS}
-            }
+            statusCheckRollup { ${CHECK_CONTEXTS} }
           }
         }
       }
@@ -185,12 +181,7 @@ const rawPr = z.object({
           commit: z.object({
             oid: z.string(),
             committedDate: z.string(),
-            statusCheckRollup: z
-              .object({
-                state: checkState,
-                contexts: rawChecks,
-              })
-              .nullable(),
+            statusCheckRollup: z.object({ contexts: rawChecks }).nullable(),
           }),
         }),
       )
