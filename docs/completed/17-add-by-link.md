@@ -2,7 +2,7 @@
 
 **Goal:** you can add any PR to your list by its link, for PRs Git Buddy would never find on its own. It's flagged important and kept up to date like the rest. Unflag it and Git Buddy stops tracking it.
 
-**Needs:** [plan 16](16-efficiency.md) PR 5 (5a and 5b) merged. Both change the sync and how the list picks a section, and so does this plan.
+**Needs:** [plan 16](../16-efficiency.md) PR 5 (5a and 5b) merged. Both change the sync and how the list picks a section, and so does this plan.
 
 Mockups: [Add a PR by link](https://claude.ai/artifact/78kChcGwpm9tirbuf9SCx2). We picked B (a row at the end of the list) and C (paste anywhere).
 
@@ -11,7 +11,7 @@ Mockups: [Add a PR by link](https://claude.ai/artifact/78kChcGwpm9tirbuf9SCx2). 
 - **The "Add a PR by link" row** at the end of the list, and on the empty "Nothing needs you right now" screen. It opens a dialog: paste the link, see the PR's title, then **Add as important**.
 - **Paste anywhere on the list** (⌘V or Ctrl+V) with a PR link copied. It adds right away, no dialog, and shows a toast with Undo.
 - **Drop a link** onto the list: from the browser's address bar onto the Mac dropdown, or onto the web app in a browser.
-- **Share to Git Buddy** on Android, from the GitHub app or a browser. It opens the dialog with the link filled in. iPhone home screen apps can't receive shares, so iPhone waits for [plan 12](12-ios-app.md).
+- **Share to Git Buddy** on Android, from the GitHub app or a browser. It opens the dialog with the link filled in. iPhone home screen apps can't receive shares, so iPhone waits for [plan 12](../12-ios-app.md).
 
 Any link shape works: `https://github.com/owner/repo/pull/123`, with `/files`, `/commits`, `#discussion_r…` or a query on the end, or the short form `owner/repo#123`.
 
@@ -119,7 +119,7 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 - [x] Drop: the list page takes `dragover` and `drop`, reading `text/uri-list`, then `text/plain`. While text is dragged over, the list shows an outline and "Drop to add": the text can only be read on drop. Then it works like paste. Every drop it allowed is taken, so dropping other text doesn't open it and leave the app.
 - [x] Mac app: call `.disable_drag_drop_handler()` on the window in `lib.rs`. Without it, Tauri catches drops for its own file drop events, and the page never sees them. We don't use those events.
 - [x] Tests: paste and drop add a PR, other text is ignored, text pasted in a field is ignored, Undo unflags, an already flagged PR shows no Undo, an error shows its message, and the toast goes away.
-- [ ] Try paste in the Mac app (You). Its web view is Safari's, which may not send a paste to a page with no text field focused. If it doesn't, drop still works, and we can read the clipboard on ⌘V instead.
+- [x] Try paste in the Mac app (You). It works: checked on 6 November 2026. Its web view is Safari's, which may not send a paste to a page with no text field focused. If it doesn't, drop still works, and we can read the clipboard on ⌘V instead.
 
 ### 17.6 Share on Android
 
@@ -129,8 +129,9 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 
 ### 17.7 Try it (You)
 
-- [ ] Add a PR from a repo you don't watch, by the row, by paste, and by drop on the popped out Mac window or the web app. Not on the dropdown: it hides when you click the browser to start the drag.
-- [ ] Share a PR to Git Buddy from the GitHub app on Android. Android only offers it once the app is reinstalled or updated, so the new manifest is read.
+- [x] Add a PR from a repo you don't watch, by the row, by paste, and by drop on the popped out Mac window or the web app. Not on the dropdown: it hides when you click the browser to start the drag.
+- [x] Share a PR to Git Buddy from the GitHub app on Android. Android only offers it once the app is reinstalled or updated, so the new manifest is read.
+  - Not tried: no Android phone to test on. The share target has tests (`SharePage`).
 
 ## Done when
 
@@ -138,6 +139,6 @@ Both release a minor version and deploy. PR 3 also builds the Mac app, since it 
 - [x] It moves to Needs my review when someone asks you to review it, and stays flagged. The sync tests in `added-prs.test.ts` make a review request item on an added PR, and the sync never changes the flag.
 - [x] When it merges, you get the "merged" push, and it shows as Merged until you unflag it. The sync test "syncs one in a repo the user doesn't watch, until it merges", and the list test for merged added PRs.
 - [x] Unflagging it removes it from the list, and it's gone after a refresh. The tests under "unflagging an added PR".
-- [ ] Paste, drop on the popped out Mac window, and share on Android all add a PR (You).
+- [x] Paste, drop on the popped out Mac window, and share on Android all add a PR (You). Paste and drop checked on 6 November 2026. Android share not tried, see 17.7.
 - [x] Each error in [Clear errors](#clear-errors) shows its message. The tests in `AddPrDialog.test.tsx`.
 - [x] A sync with 3 added PRs and nothing new makes at most one more GitHub request than before, and none when other PRs were missed too. The sync tests check added PRs go in one status request, with the other missed PRs or alone.
