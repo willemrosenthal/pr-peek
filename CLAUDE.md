@@ -113,7 +113,7 @@ After the PR is up, send a short message with:
 
 ## Releases
 
-Merging a PR can release it. PRs are squash merged, so the PR title becomes the commit on `main`, and its type decides. A `pr-title` check blocks PRs whose title doesn't follow the format. Details: [docs/15-auto-release.md](docs/15-auto-release.md).
+Merging a PR can release it. PRs are squash merged, so the PR title becomes the commit on `main`, and its type decides. A `pr-title` check blocks PRs whose title doesn't follow the format. Details: [docs/completed/15-auto-release.md](docs/completed/15-auto-release.md).
 
 | Title starts with                                  | Merging it                                             |
 | -------------------------------------------------- | ------------------------------------------------------ |

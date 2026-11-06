@@ -20,7 +20,7 @@ function git(...args: string[]) {
 }
 
 // What's being built, for Settings. Render gives the commit. The version comes from the
-// release tag on it, when this copy of the repo has the tag (docs/15-auto-release.md).
+// release tag on it, when this copy of the repo has the tag (docs/completed/15-auto-release.md).
 function buildInfo() {
   const commit = process.env.RENDER_GIT_COMMIT || git("rev-parse", "HEAD");
   const tag = commit

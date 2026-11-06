@@ -1,7 +1,7 @@
 name: PR title
 
 # PRs are squash merged, so the title becomes the commit on main, and its type decides
-# the release (docs/15-auto-release.md). A title that doesn't follow the format would
+# the release (docs/completed/15-auto-release.md). A title that doesn't follow the format would
 # never release, so it can't merge.
 on:
   pull_request:

@@ -2,7 +2,7 @@ name: Release
 
 # Every push to main: run the checks, then release if a feat, fix, or perf landed. A
 # release tags the version, deploys the web app by moving prod forward, and builds the
-# Mac app if apps/desktop changed. See docs/15-auto-release.md.
+# Mac app if apps/desktop changed. See docs/completed/15-auto-release.md.
 on:
   push:
     branches: [main]

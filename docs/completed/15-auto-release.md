@@ -182,7 +182,8 @@ After PR 2 merges, add rulesets in GitHub, Settings, Rules, Rulesets:
   - Done with #111 (`ci:`): the checks ran, no tag, no deploy, no Mac build.
 - [x] A `feat` or `fix` PR that changes only web code merges. A patch version is tagged, `prod` moves to it, Render deploys, and no Mac release is made.
   - Done with #112 (1.1.0). Settings on the live site shows "Version 1.1.0", so Render's copy has the tags. The first try at the tag push got a 500 from GitHub, and "Re-run failed jobs" finished it.
-- [ ] A `feat` or `fix` PR that changes `apps/desktop` merges. A Mac release is published with the new version, and an installed Mac app offers the update and installs it.
+- [x] A `feat` or `fix` PR that changes `apps/desktop` merges. A Mac release is published with the new version, and an installed Mac app offers the update and installs it.
+  - Mac 1.10.0 was published by the pipeline with #132. The update itself was checked on 6 November 2026: Mac 1.13.0, built by hand from its tag with the Desktop release workflow, updated an installed 1.10.0.
 - [x] A PR titled "Small fix" fails the `pr-title` check and can't merge. Renaming it to `fix(web): ...` passes.
   - Done with #112: "Show the version in Settings" failed `pr-title`, GitHub marked it blocked, and renaming it to `feat(web): ...` passed.
 - [ ] A GitHub revert PR passes `pr-title`, and releases a patch.

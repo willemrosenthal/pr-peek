@@ -137,7 +137,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
      - Turn on `bundle.createUpdaterArtifacts` only in this workflow (for example with `--config`). In `tauri.conf.json` it would make every local `pnpm desktop:build` need the private key.
   4. The workflow stops if the tag doesn't match `version` in `tauri.conf.json`, since that's the version `latest.json` gives.
 
-  **Changed by [plan 15](15-auto-release.md):** `release.yml` now calls `desktop-release.yml` with a `v1.2.3` tag when a `feat` or `fix` lands and `apps/desktop` changed. The version comes from the tag at build time, and `tauri.conf.json` holds `0.0.0`. Step 4 is gone.
+  **Changed by [plan 15](completed/15-auto-release.md):** `release.yml` now calls `desktop-release.yml` with a `v1.2.3` tag when a `feat` or `fix` lands and `apps/desktop` changed. The version comes from the tag at build time, and `tauri.conf.json` holds `0.0.0`. Step 4 is gone.
 
   The updater and the download link both use GitHub's "latest release". Only the Mac app should publish non-draft releases from this repo, or installed apps stop finding updates.
 
