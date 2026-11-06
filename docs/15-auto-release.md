@@ -186,4 +186,6 @@ After PR 2 merges, add rulesets in GitHub, Settings, Rules, Rulesets:
 - [x] A PR titled "Small fix" fails the `pr-title` check and can't merge. Renaming it to `fix(web): ...` passes.
   - Done with #112: "Show the version in Settings" failed `pr-title`, GitHub marked it blocked, and renaming it to `feat(web): ...` passed.
 - [ ] A GitHub revert PR passes `pr-title`, and releases a patch.
+  - Not seen yet. Only a real revert shows it. The one revert so far (`ddb122f`, #94) came before automatic releases.
 - [ ] A Mac build that fails leaves a draft, not a broken latest release, and "Re-run failed jobs" finishes it.
+  - Not seen yet. Only a real failed Mac build shows it. The re-runs so far (#112, #117) were web only releases.

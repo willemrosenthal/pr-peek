@@ -82,4 +82,4 @@ Both release a minor version and deploy.
 - [x] "All my repos" lists only repos you own, share, or reach through an org. No strangers' repos. The server test on `ownerAffiliations`, and checked live: 895 repos, all yours, your orgs', or shared.
 - [x] Other… with a public org's name lists its public repos. The test "lists any user or org's repos from Other".
 - [x] An owner with over 1,000 repos still finds a repo by name. The test "searches GitHub for the rest of an owner".
-- [ ] Try it on your phone and in the Mac app (You).
+- [x] Try it on your phone and in the Mac app (You). Checked on 6 November 2026, on v1.13.0.
