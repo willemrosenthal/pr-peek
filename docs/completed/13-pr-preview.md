@@ -53,13 +53,13 @@ One PR for all of it.
 - [x] Permalinks to code and suggested changes as numbered lines under their file, with GitHub's syntax colors.
 - [x] "See N earlier comments" shows the rest of the conversation with a fast, short animation. Reduced motion turns it off.
 - [x] Loading and error states. Retry on error.
-- [ ] Works in dark mode and in the Mac app's small window.
+- [x] Works in dark mode and in the Mac app's small window. Checked on 6 November 2026.
 
 ## Done when
 
-- [ ] Long press on a phone opens the preview, and a tap still opens GitHub.
-- [ ] Right click in the Mac app opens the preview.
-- [ ] A reply shows the conversation in order, and "See N earlier comments" expands smoothly.
-- [ ] A description with headings, lists, and code looks like it does on GitHub.
-- [ ] Quiet from the preview moves the row, like a swipe.
-- [ ] A PR with a long description scrolls inside the sheet, and swiping down closes it smoothly.
+- [x] Long press on a phone opens the preview, and a tap still opens GitHub.
+- [x] Right click in the Mac app opens the preview.
+- [x] A reply shows the conversation in order, and "See N earlier comments" expands smoothly.
+- [x] A description with headings, lists, and code looks like it does on GitHub.
+- [x] Quiet from the preview moves the row, like a swipe.
+- [x] A PR with a long description scrolls inside the sheet, and swiping down closes it smoothly.

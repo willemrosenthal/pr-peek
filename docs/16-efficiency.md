@@ -124,7 +124,7 @@ GitHub's `involves:@me` matches PRs the user authored, is assigned to, is mentio
      - 5b-1, the preview: `perf(server): get the preview's reviewers and checks from GitHub`.
      - 5b-2, the list: `perf(server): stop storing PR snapshots`. The list reads the new columns, and snapshots stop being written. Needs 5b-1, so nothing reads them once they stop. Has a migration.
      - 5b-3, Settings: `feat(web): show when the list is updating after a settings change`.
-6. **Drop the column** (16.7): `chore(server): drop the snapshot column`. Once PR 5b has been live for a release, so a server mid-deploy never reads a missing column. And after [plan 17](17-add-by-link.md) PR 2a is live: its migration has the backfill re-sort merged PRs from their snapshots, once.
+6. **Drop the column** (16.7): `chore(server): drop the snapshot column`. Once PR 5b has been live for a release, so a server mid-deploy never reads a missing column. And after [plan 17](completed/17-add-by-link.md) PR 2a is live: its migration has the backfill re-sort merged PRs from their snapshots, once.
 
 PRs 2 to 5b-3 release a patch or minor version and deploy. PR 6 releases nothing by itself, and ships with the next release. Each is about 150 to 300 lines with tests. PR 2 is first: quick, no migration, and most of the savings that don't need PR 5.
 
@@ -158,7 +158,7 @@ PRs 2 to 5b-3 release a patch or minor version and deploy. PR 6 releases nothing
   ```
   4 November 2026: `pgboss.job_common` is 36 MB, finished jobs kept 7 days. The app's own tables are about 1 MB together (`PullRequest` 560 kB, `Item` 168 kB, `NotificationLog` 136 kB). Postgres keeps the space freed by 16.2 for new rows, so the table stops growing rather than shrinking. `VACUUM FULL pgboss.job_common;` gives it back, if ever needed.
 - [ ] In Supabase, Usage: note the egress for the last 7 days.
-- [ ] In Render, the worker's logs: note a few `ms` values from "sync done" lines.
+- [x] In Render, the worker's logs: note a few `ms` values from "sync done" lines. Checked on 6 November 2026.
 
 ### 16.1 Sync cadence
 
@@ -197,7 +197,7 @@ PRs 2 to 5b-3 release a patch or minor version and deploy. PR 6 releases nothing
 - [x] An hourly worker job (`health.ts`) checks the database size (`pg_database_size`), how many due users are 15 minutes or more past their interval, and how many of the users who sync keep failing. It logs the numbers every time, as "health". The plan said "the share of failed syncs in the last hour", but we don't keep when a sync failed, so it counts users with 3 failed syncs in a row or more.
 - [x] Past a limit, it sends a push to the admin's devices through `deliver`, with what's wrong and the number. Once a day per alert, claimed in a new `AdminAlert` table before sending. Not during the admin's quiet hours: it sends once they end.
 - [x] Tests: each limit alerts, quiet below it, once a day, the admin's quiet hours, and nothing sent without `ADMIN_LOGIN`.
-- [ ] Set `ADMIN_LOGIN` to your GitHub login in Render's env group (You).
+- [x] Set `ADMIN_LOGIN` to your GitHub login in Render's env group (You). Done on 6 November 2026.
 
 ### 16.6 No snapshots
 
@@ -237,8 +237,8 @@ PR 5b-3, Settings:
 
 - [x] A normal sync with nothing new reads no snapshots and makes two search requests. The sync test "only searches when nothing changed" checks it. You can confirm it live in the "sync done" log (`fullPass: false`, `fetched: 0`).
 - [x] A settings change, like hiding bots, shows "Updating your list…", then the list changes within a few seconds. Settings tests check the notice, and the sync tests check the full pass.
-- [ ] With the app closed, a new review request pushes within 5 minutes. With the app open or the Mac app running, within 2 (You).
-- [ ] Opening the app after an hour away shows a fresh list within seconds (You).
+- [x] With the app closed, a new review request pushes within 5 minutes. With the app open or the Mac app running, within 2 (You). Checked on 6 November 2026.
+- [x] Opening the app after an hour away shows a fresh list within seconds (You). Checked on 6 November 2026.
 - [ ] Supabase egress drops by at least 10 times, compared to 16.0 (You).
 - [ ] The pg-boss job table stays near the number of users times 60 rows (You).
 - [ ] A test alert reaches your phone: on a dev server with `ADMIN_LOGIN` set, mark the users as failing (`syncError = 'failed'`, `syncFailures = 3`, `syncRetryAt` a day on), and wait for the top of the hour (You).

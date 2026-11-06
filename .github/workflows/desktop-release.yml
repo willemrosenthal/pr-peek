@@ -3,7 +3,7 @@ name: Desktop release
 # Builds the Mac app for a release tag, and publishes it as a GitHub Release with the
 # .dmg, the signed update files, and latest.json, which installed apps check.
 # release.yml calls it when apps/desktop changed. Run it by hand from the Actions tab
-# to rebuild a tag. See docs/15-auto-release.md.
+# to rebuild a tag. See docs/completed/15-auto-release.md.
 on:
   workflow_call:
     inputs:
