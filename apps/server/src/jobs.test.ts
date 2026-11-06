@@ -52,7 +52,7 @@ it("sets up the queues, and updates ones made before", async () => {
   });
 });
 
-it("deletes finished jobs past their time in every queue when it cleans up", async () => {
+it("cleans up every hour, deleting finished jobs past their time in every queue", async () => {
   await createQueues(boss);
   const errors: unknown[] = [];
   boss.on("error", (err) => errors.push(err));
@@ -70,8 +70,10 @@ it("deletes finished jobs past their time in every queue when it cleans up", asy
   // Past their hour, in two queues.
   const old = [await finish(HEARTBEAT, 2), await finish(SYNC_DISPATCH, 2)];
   const recent = await finish(HEARTBEAT, 0);
-  // Due now, not on the hour.
-  await pool.query(`UPDATE ${SCHEMA}.queue SET maintain_on = NULL`);
+  // The last cleanup was 90 minutes ago: due when cleanup runs hourly, not daily.
+  await pool.query(
+    `UPDATE ${SCHEMA}.queue SET maintain_on = now() - interval '90 minutes'`,
+  );
 
   await boss.supervise();
   for (const { queue, id } of old) {

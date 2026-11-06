@@ -101,7 +101,7 @@ PRs 2 and 3 were one PR in the first draft of this plan. Together they're over 4
 - [x] Keep finished jobs of pg-boss's own queue, and of the summary, reminder, and health-check queues, an hour.
 - [x] pg-boss cleans up every hour, not once a day.
 - [x] The Job table reading expects 600 rows, plus 100 per user.
-- [x] Tests: the queues' keep times, and that cleanup deletes old finished jobs in every queue, through `createBoss`.
+- [x] Tests: the queues' keep times, and that cleanup runs hourly and deletes old finished jobs in every queue, through `createBoss`. The hourly part fails with pg-boss's daily default.
 
 ## Done when
 
