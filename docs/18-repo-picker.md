@@ -62,6 +62,7 @@ Both release a minor version and deploy.
 - [x] Repos say whether they're forks, and when they were last pushed.
 - [x] `GET /api/github/owners`: you, your orgs, and owners who share repos with you, in that order. Each sorted by name, ignoring case.
 - [x] The picker's routes allow 60 asks a minute per user (`userLimiter`).
+- [x] An org that blocks Git Buddy doesn't break the lists or the owners. GitHub sends the rest along with FORBIDDEN errors, and we keep the rest, as the sync does.
 - [x] Archived repos are left out by each query (`isArchived: false`, `archived:false`), so the code doesn't filter them again.
 - [x] Tests: each of the above, and an unknown owner.
 

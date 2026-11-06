@@ -1,7 +1,7 @@
 import type { RepoOption, RepoOwner, SearchReposResponse } from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import { z } from "zod";
-import { isNotFound } from "./errors";
+import { isNotFound, partialDataOrThrow } from "./errors";
 
 // Lists are filtered in the browser, so they come in big pages. Search shows a few.
 const LIST_PAGE_SIZE = 100;
@@ -29,6 +29,17 @@ const page = z.object({
 });
 
 type RepoNode = z.infer<typeof repoNode>;
+
+// Asks GitHub for a list. An org that blocks Git Buddy comes back as null items and
+// FORBIDDEN errors, which Octokit throws on. Keep the rest of the list instead.
+const askForList = (
+  octokit: Octokit,
+  query: string,
+  variables: Record<string, unknown> = {},
+): Promise<unknown> =>
+  octokit
+    .graphql(query, variables)
+    .catch((err: unknown) => partialDataOrThrow(err, ["FORBIDDEN"]));
 
 function toRepoOption(node: RepoNode): RepoOption {
   return {
@@ -64,7 +75,8 @@ export async function listRepos(
   if (!options.owner) {
     // Only ownerAffiliations. Adding `affiliations` makes GitHub return the personal
     // repos of everyone in the user's orgs, which can be over 100,000.
-    const data = await octokit.graphql(
+    const data = await askForList(
+      octokit,
       `query ($cursor: String) {
         viewer {
           repositories(${args}, ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
@@ -81,7 +93,8 @@ export async function listRepos(
     );
   }
 
-  const data = await octokit.graphql(
+  const data = await askForList(
+    octokit,
     `query ($owner: String!, $cursor: String) {
       repositoryOwner(login: $owner) {
         repositories(${args}, ownerAffiliations: [OWNER]) {
@@ -111,7 +124,8 @@ export async function searchRepos(
 ): Promise<SearchReposResponse> {
   // `user:` matches orgs too.
   const owner = options.owner ? ` user:${options.owner}` : "";
-  const data = await octokit.graphql(
+  const data = await askForList(
+    octokit,
     `query ($q: String!, $cursor: String) {
       search(type: REPOSITORY, query: $q, first: ${SEARCH_PAGE_SIZE}, after: $cursor) {
         nodes { ... on Repository { ${REPO_FIELDS} } }
@@ -131,7 +145,8 @@ const login = z.object({ login: z.string() });
 // The owners to pick from: the user, their orgs, then owners of repos shared with them.
 export async function listOwners(octokit: Octokit): Promise<RepoOwner[]> {
   // Shared owners come from the first 100 shared repos, which covers nearly everyone.
-  const data = await octokit.graphql(
+  const data = await askForList(
+    octokit,
     `query {
       viewer {
         login
@@ -160,7 +175,9 @@ export async function listOwners(octokit: Octokit): Promise<RepoOwner[]> {
     .flatMap((org) => (org ? [org.login] : []))
     .sort(byName);
   // GitHub logins ignore case.
-  const seen = new Set([viewer.login, ...orgs].map((l) => l.toLowerCase()));
+  const seen = new Set(
+    [viewer.login, ...orgs].map((name) => name.toLowerCase()),
+  );
   const shared = [
     ...new Set(
       viewer.repositories.nodes.flatMap((repo) =>
@@ -168,13 +185,13 @@ export async function listOwners(octokit: Octokit): Promise<RepoOwner[]> {
       ),
     ),
   ]
-    .filter((l) => !seen.has(l.toLowerCase()))
+    .filter((name) => !seen.has(name.toLowerCase()))
     .sort(byName);
 
   return [
     { login: viewer.login, kind: "you" },
-    ...orgs.map((l): RepoOwner => ({ login: l, kind: "org" })),
-    ...shared.map((l): RepoOwner => ({ login: l, kind: "shared" })),
+    ...orgs.map((name): RepoOwner => ({ login: name, kind: "org" })),
+    ...shared.map((name): RepoOwner => ({ login: name, kind: "shared" })),
   ];
 }
 

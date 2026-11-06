@@ -97,7 +97,10 @@ function github(request: GraphQLRequest) {
   return { data: { repository: repo(1, String(request.variables.name)) } };
 }
 
-async function setup(answer = github, delayMs = 0) {
+async function setup(
+  answer: (request: GraphQLRequest) => unknown = github,
+  delayMs = 0,
+) {
   const fake = fakeGraphQL(answer, delayMs);
   const { agent } = makeTestApp(db, {
     routers: [reposRouter({ db, github: () => Promise.resolve(fake.octokit) })],
@@ -211,6 +214,60 @@ describe("GET /api/github/repos", () => {
     const res = await agent.get("/api/github/repos");
     expect(res.status).toBe(401);
     expect(res.body).toMatchObject({ error: { code: "reauth" } });
+  });
+});
+
+describe("an org that blocks Git Buddy", () => {
+  const blocked = { type: "FORBIDDEN", message: "OAuth App access restricted" };
+
+  it("leaves out its repos and keeps the rest of the list", async () => {
+    const { agent } = await setup(() => ({
+      data: {
+        viewer: {
+          repositories: {
+            nodes: [repo(1, "web-app"), null],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+      errors: [blocked],
+    }));
+
+    const res = await agent.get("/api/github/repos");
+    expect(res.status).toBe(200);
+    expect(bodyOf<SearchReposResponse>(res).repos).toEqual([
+      option(1, "web-app"),
+    ]);
+  });
+
+  it("leaves it out of the owners", async () => {
+    const { agent } = await setup(() => ({
+      data: {
+        viewer: {
+          login: "octocat",
+          organizations: { nodes: [{ login: "acme" }, null] },
+          repositories: { nodes: [] },
+        },
+      },
+      errors: [blocked],
+    }));
+
+    const res = await agent.get("/api/github/owners");
+    expect(res.body).toEqual({
+      owners: [
+        { login: "octocat", kind: "you" },
+        { login: "acme", kind: "org" },
+      ],
+    });
+  });
+
+  it("still fails on other errors", async () => {
+    const { agent } = await setup(() => ({
+      data: null,
+      errors: [{ type: "INTERNAL", message: "Something went wrong" }],
+    }));
+
+    expect((await agent.get("/api/github/owners")).status).toBe(500);
   });
 });
 
