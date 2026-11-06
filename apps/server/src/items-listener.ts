@@ -3,6 +3,7 @@ import pg from "pg";
 import type { Logger } from "pino";
 import { ITEMS_CHANNEL } from "./items";
 import { DESKTOP_CHANNEL } from "./push";
+import { countConnection, type Usage } from "./usage";
 
 const RECONNECT_MS = 5_000;
 
@@ -20,6 +21,8 @@ export interface ItemsListenerOptions {
   connectionString: string;
   logger: Logger;
   reconnectMs?: number;
+  // Counts the connection's bytes for the admin page.
+  usage?: Usage;
 }
 
 // Listens for `publishItemsChanged` and `deliver` on its own connection, since LISTEN
@@ -75,6 +78,7 @@ export async function listenForItemChanges(
 
     try {
       await next.connect();
+      if (options.usage) countConnection(next, options.usage);
       await next.query(`LISTEN ${ITEMS_CHANNEL}`);
       await next.query(`LISTEN ${DESKTOP_CHANNEL}`);
     } catch (err) {

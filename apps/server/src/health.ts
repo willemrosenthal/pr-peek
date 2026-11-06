@@ -16,6 +16,8 @@ const LATE_MS = 15 * MINUTE_MS;
 const FAILING_AFTER = 3;
 // Alerts when more than this share of the users who sync keep failing.
 const FAILING_SHARE = 0.25;
+// Usage counts for the admin page are kept this long.
+export const USAGE_KEPT_DAYS = 90;
 
 const users = (count: number) => (count === 1 ? "1 user" : `${count} users`);
 
@@ -24,8 +26,6 @@ export interface HealthDeps {
   // Null when push is off, because the VAPID keys aren't set.
   send: SendPush | null;
   logger: Logger;
-  // The GitHub login of the person who gets the alerts. Unset: alerts are only logged.
-  adminLogin: string | undefined;
 }
 
 export interface Health {
@@ -103,48 +103,62 @@ async function claimAlert(db: Db, kind: AlertKind, now: Date) {
   return claimed.length > 0;
 }
 
-// Logs the numbers, and pushes each alert to the admin, at most once a day each. Waits
-// out the admin's quiet hours. Run every hour. Returns the alerts sent.
+// Logs the numbers, and pushes each alert to every admin, at most once a day each. An
+// admin in their quiet hours misses it, unless every admin is: then it waits for them.
+// Also deletes old usage counts. Run every hour. Returns the alerts sent.
 export async function checkHealth(
   deps: HealthDeps,
   now: Date,
 ): Promise<AlertKind[]> {
-  const { db, send, logger, adminLogin } = deps;
+  const { db, send, logger } = deps;
+  await db.usageStat.deleteMany({
+    where: {
+      bucket: { lt: new Date(now.getTime() - USAGE_KEPT_DAYS * DAY_MS) },
+    },
+  });
   const health = await readHealth(db, now);
   const alerts = alertsFor(health);
   logger.info(
     { ...health, alerts: alerts.map((alert) => alert.kind) },
     "health",
   );
-  if (alerts.length === 0 || !send || !adminLogin) return [];
+  if (alerts.length === 0 || !send) return [];
 
-  const admin = await db.user.findFirst({
-    where: { login: { equals: adminLogin, mode: "insensitive" } },
+  const admins = await db.user.findMany({
+    where: { role: "admin" },
     select: {
       id: true,
       desktopSeenAt: true,
       pushSubscriptions: true,
-      settings: {
-        select: QUIET_SETTINGS,
-      },
+      settings: { select: QUIET_SETTINGS },
     },
   });
-  if (!admin) {
-    logger.warn({ adminLogin }, "ADMIN_LOGIN matches no user, so no alerts");
+  if (admins.length === 0) {
+    logger.warn("no admins, so no alerts");
     return [];
   }
-  if (admin.settings && isQuiet(admin.settings, now)) return [];
+  const awake = admins.filter(
+    (admin) => !(admin.settings && isQuiet(admin.settings, now)),
+  );
+  if (awake.length === 0) return [];
 
   const sent: AlertKind[] = [];
   for (const { kind, body } of alerts) {
     if (!(await claimAlert(db, kind, now))) continue;
-    await deliver(
-      { ...deps, send },
-      admin,
-      admin.pushSubscriptions,
-      { title: "Git Buddy needs a look", body, url: "/", tag: `alert-${kind}` },
-      { ttlSeconds: NOTIFY_TTL_SECONDS, urgency: "normal", now },
-    );
+    for (const admin of awake) {
+      await deliver(
+        { ...deps, send },
+        admin,
+        admin.pushSubscriptions,
+        {
+          title: "Git Buddy needs a look",
+          body,
+          url: "/",
+          tag: `alert-${kind}`,
+        },
+        { ttlSeconds: NOTIFY_TTL_SECONDS, urgency: "normal", now },
+      );
+    }
     sent.push(kind);
   }
   return sent;

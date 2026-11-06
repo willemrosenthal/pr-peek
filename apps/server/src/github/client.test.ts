@@ -7,20 +7,26 @@ import {
   NOW,
   TEST_KEY,
 } from "../../test/fakes";
+import { savedUsage } from "../../test/usage";
+import { Usage } from "../usage";
 import { upsertGitHubUser } from "../users";
-import { getOctokit } from "./client";
+import { getOctokit, isRateLimited } from "./client";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
-function fakeGitHub(status: number, body: unknown) {
+function fakeGitHub(
+  status: number,
+  body: unknown,
+  headers: Record<string, string> = {},
+) {
   return vi.fn<typeof fetch>(() =>
-    Promise.resolve(Response.json(body, { status })),
+    Promise.resolve(Response.json(body, { status, headers })),
   );
 }
 
-async function setup(github: typeof fetch) {
+async function setup(github: typeof fetch, usage?: Usage) {
   const { user } = await upsertGitHubUser(
     db,
     githubUser(),
@@ -28,7 +34,14 @@ async function setup(github: typeof fetch) {
     TEST_KEY,
   );
   const octokit = await getOctokit(
-    { db, oauth: fakeOAuth(), key: TEST_KEY, now: () => NOW, fetch: github },
+    {
+      db,
+      oauth: fakeOAuth(),
+      key: TEST_KEY,
+      now: () => NOW,
+      fetch: github,
+      usage,
+    },
     user.id,
   );
   const syncError = async () =>
@@ -105,5 +118,76 @@ describe("getOctokit", () => {
       status: 404,
     });
     expect(await syncError()).toBeNull();
+  });
+
+  describe("counting for the admin page", () => {
+    const counts = async (usage: Usage) =>
+      (await savedUsage(db, usage)).map(({ key, count, low }) => ({
+        key,
+        count,
+        low,
+      }));
+
+    it("counts requests and the lowest budget left", async () => {
+      const usage = new Usage("worker", () => NOW);
+      const remaining = ["4999", "4998"];
+      const github = vi.fn<typeof fetch>(() =>
+        Promise.resolve(
+          Response.json(
+            { login: "octocat" },
+            { headers: { "x-ratelimit-remaining": remaining.shift()! } },
+          ),
+        ),
+      );
+      const { octokit } = await setup(github, usage);
+
+      await octokit.rest.users.getAuthenticated();
+      await octokit.rest.users.getAuthenticated();
+      expect(await counts(usage)).toEqual([
+        { key: "budget", count: 2, low: 4998 },
+        { key: "requests", count: 2, low: null },
+      ]);
+    });
+
+    it("counts a 403 with no budget left as rate limited", async () => {
+      const usage = new Usage("worker", () => NOW);
+      const { octokit } = await setup(
+        fakeGitHub(
+          403,
+          { message: "Slow down" },
+          { "x-ratelimit-remaining": "0" },
+        ),
+        usage,
+      );
+
+      await expect(octokit.rest.users.getAuthenticated()).rejects.toThrow();
+      expect((await counts(usage)).map(({ key }) => key)).toContain(
+        "rate_limited",
+      );
+    });
+
+    // Octokit's throttling holds a 429 for its whole wait, so this checks the rule alone.
+    it.each([
+      [429, {}, true],
+      [403, { "retry-after": "60" }, true],
+      [403, { "x-ratelimit-remaining": "0" }, true],
+      [403, { "x-ratelimit-remaining": "12" }, false],
+      [404, {}, false],
+    ])("treats %i with %o as rate limited: %s", (status, headers, limited) => {
+      expect(isRateLimited(status, headers)).toBe(limited);
+    });
+
+    it("doesn't count other errors as rate limited", async () => {
+      const usage = new Usage("worker", () => NOW);
+      const { octokit } = await setup(
+        fakeGitHub(404, { message: "Not Found" }),
+        usage,
+      );
+
+      await expect(octokit.rest.users.getAuthenticated()).rejects.toThrow();
+      expect(await counts(usage)).toEqual([
+        { key: "requests", count: 1, low: null },
+      ]);
+    });
   });
 });

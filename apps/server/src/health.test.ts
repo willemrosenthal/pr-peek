@@ -8,7 +8,13 @@ import {
   NOW,
   TEST_KEY,
 } from "../test/fakes";
-import { alertsFor, checkHealth, readHealth, type Health } from "./health";
+import {
+  alertsFor,
+  checkHealth,
+  readHealth,
+  USAGE_KEPT_DAYS,
+  type Health,
+} from "./health";
 import { createLogger } from "./logger";
 import type { SendPush } from "./push";
 import { upsertGitHubUser } from "./users";
@@ -105,23 +111,48 @@ describe("alertsFor", () => {
 });
 
 describe("checkHealth", () => {
-  // The admin, with one device, and two users who sync: one keeps failing.
-  // Neither is due, so time can move on without them falling behind.
+  const PHONE_2 = "https://fcm.googleapis.com/fcm/send/phone-2";
+
+  // An admin with one device, and two users who sync: one keeps failing. Neither is
+  // due, so time can move on without them falling behind.
   async function setup() {
-    const admin = await makeUser("Admin", {}, { syncs: false });
+    const admin = await makeUser("admin", { role: "admin" }, { syncs: false });
     await db.pushSubscription.create({
       data: { userId: admin.id, endpoint: PHONE, p256dh: "key", auth: "auth" },
     });
     await makeUser("failed-once", failedOnce);
     await makeUser("failing", failing);
     const send = vi.fn<SendPush>(() => Promise.resolve());
-    // As the admin, named in other letters, since logins ignore case.
-    const run = (now = NOW) =>
-      checkHealth({ db, send, logger, adminLogin: "ADMIN" }, now);
-    const runAs = (adminLogin: string | undefined) =>
-      checkHealth({ db, send, logger, adminLogin }, NOW);
-    return { admin, send, run, runAs };
+    const run = (now = NOW) => checkHealth({ db, send, logger }, now);
+    return { admin, send, run };
   }
+
+  // A second admin, with their own device.
+  async function addAdmin() {
+    const admin = await makeUser(
+      "admin-2",
+      { role: "admin" },
+      { syncs: false },
+    );
+    await db.pushSubscription.create({
+      data: {
+        userId: admin.id,
+        endpoint: PHONE_2,
+        p256dh: "key",
+        auth: "auth",
+      },
+    });
+    return admin;
+  }
+
+  const sentTo = (send: ReturnType<typeof vi.fn<SendPush>>) =>
+    send.mock.calls.map(([device]) => device.endpoint);
+
+  const quiet = (userId: string) =>
+    db.userSettings.update({
+      where: { userId },
+      data: { quietStart: "11:00", quietEnd: "13:00" },
+    });
 
   it("pushes each alert to the admin, once a day", async () => {
     const { send, run } = await setup();
@@ -152,22 +183,58 @@ describe("checkHealth", () => {
     expect(await run(hours(1))).toEqual(["late"]);
   });
 
-  it("waits out the admin's quiet hours", async () => {
+  it("pushes to every admin", async () => {
+    const { send, run } = await setup();
+    await addAdmin();
+
+    expect(await run()).toEqual(["failing"]);
+    expect(sentTo(send).sort()).toEqual([PHONE, PHONE_2]);
+  });
+
+  it("skips an admin in their quiet hours when another is awake", async () => {
+    const { admin, send, run } = await setup();
+    await addAdmin();
+    await quiet(admin.id);
+
+    expect(await run()).toEqual(["failing"]);
+    expect(sentTo(send)).toEqual([PHONE_2]);
+  });
+
+  it("waits while every admin is in their quiet hours", async () => {
     const { admin, run } = await setup();
-    await db.userSettings.update({
-      where: { userId: admin.id },
-      data: { quietStart: "11:00", quietEnd: "13:00" },
-    });
+    await quiet(admin.id);
 
     expect(await run()).toEqual([]);
     expect(await run(hours(1))).toEqual(["failing"]);
   });
 
-  it("only logs without an admin, or one who isn't a user", async () => {
-    const { send, runAs } = await setup();
+  it("only logs when nobody is an admin", async () => {
+    const { admin, send, run } = await setup();
+    await db.user.update({ where: { id: admin.id }, data: { role: "user" } });
 
-    expect(await runAs(undefined)).toEqual([]);
-    expect(await runAs("someone-else")).toEqual([]);
+    expect(await run()).toEqual([]);
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it(`deletes usage counts older than ${USAGE_KEPT_DAYS} days`, async () => {
+    const { run } = await setup();
+    const daysAgo = (days: number) =>
+      new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000);
+    const row = (bucket: Date) => ({
+      bucket,
+      source: "web",
+      metric: "db",
+      key: "connect",
+    });
+    await db.usageStat.createMany({
+      data: [
+        row(daysAgo(USAGE_KEPT_DAYS + 1)),
+        row(daysAgo(USAGE_KEPT_DAYS - 1)),
+      ],
+    });
+
+    await run();
+    const kept = await db.usageStat.findMany({ select: { bucket: true } });
+    expect(kept).toEqual([{ bucket: daysAgo(USAGE_KEPT_DAYS - 1) }]);
   });
 });
