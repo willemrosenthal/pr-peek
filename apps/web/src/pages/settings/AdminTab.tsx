@@ -367,8 +367,8 @@ function GitHubAndPeople({ overview }: { overview: AdminOverviewResponse }) {
         <Stats
           stats={[
             ["Users", formatCount(people.users)],
-            ["Active today", formatCount(people.activeDay)],
-            ["This week", formatCount(people.activeWeek)],
+            ["Active, last 24 hours", formatCount(people.activeDay)],
+            ["Active, last 7 days", formatCount(people.activeWeek)],
           ]}
         />
         <BarChart
