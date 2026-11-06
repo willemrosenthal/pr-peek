@@ -256,7 +256,8 @@ describe("GET /api/admin/overview", () => {
       dbWatchShare: 0.7,
       egressBytesPerMonth: 5 * 1024 * 1024 * 1024,
       egressWatchShare: 0.8,
-      jobRowsPerUser: 60,
+      jobRowsBase: 600,
+      jobRowsPerUser: 100,
       failingShare: 0.25,
     });
   });
