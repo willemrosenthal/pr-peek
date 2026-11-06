@@ -7,6 +7,8 @@ import {
   type MeResponse,
   type PushSubscriptionDto,
   type RepoOption,
+  type RepoOwner,
+  type RepoOwnersResponse,
   type SearchReposResponse,
   type SettingsResponse,
   type SummaryResponse,
@@ -186,6 +188,10 @@ export const device = (
   };
 };
 
+export const repoOwners = (
+  owners: RepoOwner[] = [{ login: "octocat", kind: "you" }],
+): RepoOwnersResponse => ({ owners });
+
 export const searchResults = (
   repos: RepoOption[] = [],
   nextCursor: string | null = null,
@@ -222,6 +228,7 @@ export const signedInApi = (overrides: Handlers = {}): Handlers => ({
   "GET /api/summary": () => json(summary()),
   "GET /api/settings": () => json(settingsResponse()),
   "POST /api/desktop/heartbeat": () => noContent(),
+  "GET /api/github/owners": () => json(repoOwners()),
   ...overrides,
 });
 

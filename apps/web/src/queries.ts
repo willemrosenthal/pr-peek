@@ -7,6 +7,7 @@ import type {
   PrPreviewResponse,
   PushKeyResponse,
   PushSubscriptionsResponse,
+  RepoOwnersResponse,
   SearchReposResponse,
   SettingsResponse,
   SummaryResponse,
@@ -14,7 +15,6 @@ import type {
   WatchedReposResponse,
 } from "@pr-peek/core";
 import {
-  keepPreviousData,
   queryOptions,
   useInfiniteQuery,
   useMutation,
@@ -22,7 +22,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { api, ApiError, isUnauthorized } from "./api";
 import { markImportant } from "./important";
 import { thisDeviceEndpoint } from "./push";
@@ -36,6 +36,7 @@ export const queryKeys = {
   syncStatus: ["sync-status"],
   repos: ["repos"],
   githubRepos: ["github-repos"],
+  githubOwners: ["github-owners"],
   settings: ["settings"],
   pushKey: ["push-key"],
   devices: ["devices"],
@@ -205,21 +206,77 @@ export function useRepos() {
   });
 }
 
-// Repos the user could watch: their recent ones, or matches for `query`. Paged.
-export function useRepoSearch(query: string) {
-  return useInfiniteQuery({
-    queryKey: [...queryKeys.githubRepos, query],
-    queryFn: ({ pageParam }) => {
-      const params = new URLSearchParams();
-      if (query) params.set("query", query);
-      if (pageParam) params.set("cursor", pageParam);
-      const search = params.size > 0 ? `?${params}` : "";
-      return api<SearchReposResponse>(`/github/repos${search}`);
-    },
+// Most pages of one owner's repos to load, 100 each. Past this, search finds the rest.
+export const MAX_REPO_PAGES = 10;
+// Repo lists change slowly, and each page spends the user's GitHub budget.
+const REPO_LIST_STALE_MS = 5 * 60_000;
+
+// A 4xx won't change on a retry: an unknown owner, or too many asks.
+const retryServerErrors = (count: number, err: Error) =>
+  !(err instanceof ApiError && err.status < 500) && count < 2;
+
+const repoUrl = (params: Record<string, string>) => {
+  const search = new URLSearchParams(params);
+  return `/github/repos${search.size > 0 ? `?${search}` : ""}`;
+};
+
+// Who the user can pick repos from: themselves, their orgs, and people who share repos.
+export function useRepoOwners() {
+  return useQuery({
+    queryKey: queryKeys.githubOwners,
+    queryFn: () => api<RepoOwnersResponse>("/github/owners"),
+    staleTime: REPO_LIST_STALE_MS,
+    retry: retryServerErrors,
+  });
+}
+
+// Repos the user could watch, most recently pushed first: one owner's, or all of
+// theirs when `owner` is null. Loads the pages one after another in the background.
+export function useRepoList(owner: string | null) {
+  const list = useInfiniteQuery({
+    queryKey: [...queryKeys.githubRepos, "list", owner],
+    queryFn: ({ pageParam }) =>
+      api<SearchReposResponse>(
+        repoUrl({
+          ...(owner && { owner }),
+          ...(pageParam && { cursor: pageParam }),
+        }),
+      ),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
-    // Keeps the old results up while new ones load.
-    placeholderData: keepPreviousData,
+    staleTime: REPO_LIST_STALE_MS,
+    // A refetch reloads every page, so not each time the window gets focus.
+    refetchOnWindowFocus: false,
+    retry: retryServerErrors,
+  });
+
+  const { data, hasNextPage, isFetching, isError, fetchNextPage } = list;
+  const pageCount = data?.pages.length ?? 0;
+  const loadingMore = hasNextPage && pageCount < MAX_REPO_PAGES && !isError;
+  // Runs again after each page: with fast answers, isFetching can be false both times.
+  useEffect(() => {
+    if (loadingMore && !isFetching) void fetchNextPage();
+  }, [loadingMore, isFetching, fetchNextPage, pageCount]);
+
+  return {
+    ...list,
+    repos: data?.pages.flatMap((page) => page.repos),
+    loadingMore,
+    // More repos than the list loads.
+    truncated: hasNextPage && pageCount >= MAX_REPO_PAGES,
+  };
+}
+
+// GitHub's search over one owner's repos by name, for owners with more than the list
+// loads. Off without both.
+export function useRepoSearch(owner: string | null, query: string) {
+  return useQuery({
+    queryKey: [...queryKeys.githubRepos, "search", owner, query],
+    queryFn: () =>
+      api<SearchReposResponse>(repoUrl({ owner: owner ?? "", query })),
+    enabled: !!owner && !!query,
+    staleTime: REPO_LIST_STALE_MS,
+    retry: retryServerErrors,
   });
 }
 
