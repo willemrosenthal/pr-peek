@@ -156,11 +156,13 @@ export async function readOverview(
     db.$queryRaw<
       {
         requests: bigint | null;
+        syncRequests: bigint | null;
         lowestBudget: bigint | null;
         rateLimited: bigint | null;
       }[]
     >`
       SELECT sum("count") FILTER (WHERE "key" = 'requests') AS requests,
+        sum("count") FILTER (WHERE "key" = 'requests' AND "source" = 'worker') AS "syncRequests",
         min("low") FILTER (WHERE "key" = 'budget') AS "lowestBudget",
         sum("count") FILTER (WHERE "key" = 'rate_limited') AS "rateLimited"
       FROM "UsageStat"
@@ -219,6 +221,7 @@ export async function readOverview(
     },
     github: {
       requests: num(github?.requests),
+      syncRequests: num(github?.syncRequests),
       lowestBudget: numOrNull(github?.lowestBudget),
       rateLimited: num(github?.rateLimited),
     },

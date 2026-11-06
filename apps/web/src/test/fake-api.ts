@@ -1,5 +1,6 @@
 import {
   rules,
+  type AdminOverviewResponse,
   type IdlePrDto,
   type MergedPrDto,
   type ItemDto,
@@ -187,6 +188,77 @@ export const device = (
     ...fields,
   };
 };
+
+const GB = 1024 * 1024 * 1024;
+
+// A quiet server, as the admin page sees it at 12:00 UTC on 21 October 2026.
+export const adminOverview = (
+  fields: Partial<AdminOverviewResponse> = {},
+): AdminOverviewResponse => ({
+  at: "2026-10-21T12:00:00.000Z",
+  health: {
+    dbBytes: 38 * 1024 * 1024,
+    jobRows: 980,
+    syncingUsers: 21,
+    lateUsers: 0,
+    failingUsers: 1,
+  },
+  limits: {
+    dbBytes: 500 * 1024 * 1024,
+    dbWatchShare: 0.7,
+    egressBytesPerMonth: 5 * GB,
+    egressWatchShare: 0.8,
+    jobRowsPerUser: 60,
+    failingShare: 0.25,
+  },
+  egress: {
+    days: [
+      { day: "2026-10-20T00:00:00.000Z", bytes: 9 * 1024 * 1024 },
+      { day: "2026-10-21T00:00:00.000Z", bytes: 4 * 1024 * 1024 },
+    ],
+    thisMonth: 0.33 * GB,
+    lastMonth: 3.04 * GB,
+    kinds: [
+      { kind: "PullRequest select", bytes: 3 * 1024 * 1024, queries: 4300 },
+    ],
+  },
+  queries: {
+    since: "2026-10-20T12:00:00.000Z",
+    top: [
+      {
+        query: "SELECT … FROM pgboss.job",
+        calls: 30_240,
+        meanMs: 0.4,
+        rows: 3024,
+      },
+    ],
+  },
+  worker: {
+    hours: [{ hour: "2026-10-21T11:00:00.000Z", jobs: 318 }],
+    queues: [
+      {
+        queue: "sync-user",
+        jobs: 120,
+        totalMs: 100_800,
+        slowestMs: 4200,
+        failed: 3,
+      },
+    ],
+  },
+  github: {
+    requests: 300,
+    syncRequests: 288,
+    lowestBudget: 4610,
+    rateLimited: 0,
+  },
+  people: {
+    users: 21,
+    activeDay: 9,
+    activeWeek: 14,
+    pushes: [{ day: "2026-10-21T00:00:00.000Z", sent: 30, failed: 2 }],
+  },
+  ...fields,
+});
 
 export const repoOwners = (
   owners: RepoOwner[] = [{ login: "octocat", kind: "you" }],

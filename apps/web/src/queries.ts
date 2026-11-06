@@ -1,5 +1,6 @@
 import type {
   AddPrResponse,
+  AdminOverviewResponse,
   ItemDto,
   ItemsResponse,
   MeResponse,
@@ -37,6 +38,7 @@ export const queryKeys = {
   repos: ["repos"],
   githubRepos: ["github-repos"],
   githubOwners: ["github-owners"],
+  adminOverview: ["admin-overview"],
   settings: ["settings"],
   pushKey: ["push-key"],
   devices: ["devices"],
@@ -283,6 +285,21 @@ export function useRepoSearch(owner: string | null, query: string) {
       api<SearchReposResponse>(repoUrl({ owner: owner ?? "", query })),
     enabled: !!owner && !!query,
     staleTime: REPO_LIST_STALE_MS,
+    retry: retryServerErrors,
+  });
+}
+
+// The admin page's numbers change hourly at most.
+const ADMIN_STALE_MS = 5 * 60_000;
+
+// Everything the admin page shows. Asked once when it opens: no refetch on focus, so
+// watching adds no traffic of its own.
+export function useAdminOverview() {
+  return useQuery({
+    queryKey: queryKeys.adminOverview,
+    queryFn: () => api<AdminOverviewResponse>("/admin/overview"),
+    staleTime: ADMIN_STALE_MS,
+    refetchOnWindowFocus: false,
     retry: retryServerErrors,
   });
 }

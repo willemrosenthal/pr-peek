@@ -4,6 +4,7 @@ import { BackToList } from "../../components/BackToList";
 import { cx } from "../../cx";
 import { useListUpdating } from "../../hooks/useListUpdate";
 import { useReturnToList } from "../../hooks/useReturnToList";
+import { useMe } from "../../queries";
 import styles from "./Settings.module.css";
 
 // Paths are relative to /settings.
@@ -14,11 +15,16 @@ const SETTINGS_TABS = [
   { path: "timing", label: "Timing" },
   { path: "devices", label: "Devices" },
 ];
+// Only admins see it.
+const ADMIN_TAB = { path: "admin", label: "Admin" };
 
 // The settings page: a tab bar above the open tab.
 export function SettingsLayout() {
   useReturnToList();
   const updating = useListUpdating();
+  const tabs = useMe().data?.isAdmin
+    ? [...SETTINGS_TABS, ADMIN_TAB]
+    : SETTINGS_TABS;
   return (
     <main className={styles.page}>
       <div className={styles.panel}>
@@ -31,7 +37,7 @@ export function SettingsLayout() {
         </header>
         <div className={styles.body}>
           <nav className={styles.tabs} aria-label="Settings">
-            {SETTINGS_TABS.map(({ path, label }) => (
+            {tabs.map(({ path, label }) => (
               <NavLink
                 key={path}
                 to={path}

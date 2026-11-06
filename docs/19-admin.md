@@ -81,14 +81,16 @@ PRs 2 and 3 were one PR in the first draft of this plan. Together they're over 4
 
 ### 19.4 The page
 
-- [ ] `/admin`, linked from Settings for admins. The mockup's sections. Small hand-made charts, no chart library.
-- [ ] Fetched once on open: 5 minutes fresh, no refetch on focus.
-- [ ] Tests: each section, a non-admin sees nothing, and the test alert button.
+- [x] An Admin tab in Settings (`/settings/admin`), shown only to admins. The mockup's sections. Small hand-made charts (`BarChart`), no chart library.
+- [x] Fetched once on open: 5 minutes fresh, no refetch on focus.
+- [x] The readings and their rules are worked out in `admin.ts`, apart from the page. "On pace for" waits a day into the month before guessing.
+- [x] GitHub requests per sync count only the worker's requests. The web service's, like the repo picker, aren't syncs. The API gives them apart (`syncRequests`).
+- [x] Tests: each section, the tab for admins only, a non-admin's message, the test alert button, and the readings' rules.
 
 ## Done when
 
 - [ ] The admin page shows each section with real numbers (You).
 - [ ] Its egress for a day is within about 20% of Supabase's for that day (You).
-- [ ] Opening the page makes one request, and its answer is under 50 KB. The server half: the test "stays small with 30 days of many kinds of read".
+- [x] Opening the page makes one request, and its answer is under 50 KB. The tests "shows each section, asking the server once" and "stays small with 30 days of many kinds of read".
 - [ ] A day of counting adds about 150 rows to `UsageStat`.
 - [ ] The test alert reaches your phone (You).
