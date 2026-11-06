@@ -241,4 +241,4 @@ PR 5b-3, Settings:
 - [x] Opening the app after an hour away shows a fresh list within seconds (You). Checked on 6 November 2026.
 - [ ] Supabase egress drops by at least 10 times, compared to 16.0 (You).
 - [ ] The pg-boss job table stays near the number of users times 60 rows (You).
-- [ ] A test alert reaches your phone: on a dev server with `ADMIN_LOGIN` set, mark the users as failing (`syncError = 'failed'`, `syncFailures = 3`, `syncRetryAt` a day on), and wait for the top of the hour (You).
+- [ ] A test alert reaches your phone (You). Use the admin page's "Send a test alert" button, from [plan 19](19-admin.md). `ADMIN_LOGIN` is gone: alerts go to users with the admin role.

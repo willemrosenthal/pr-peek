@@ -25,17 +25,20 @@ import { streamRouter } from "./routes/stream";
 import { syncRouter } from "./routes/sync";
 import { sessionMiddleware } from "./session";
 import { onShutdown } from "./shutdown";
+import { countPool, Usage } from "./usage";
 
 const config = loadConfig();
 const logger = createLogger(config);
 const pool = createPool(config);
+const usage = new Usage("web");
+countPool(pool, usage);
 const db = createDb(pool);
 const oauth = createGitHubOAuth({
   clientId: config.GITHUB_CLIENT_ID,
   clientSecret: config.GITHUB_CLIENT_SECRET,
 });
 const github = (userId: string) =>
-  getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY }, userId);
+  getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY, usage }, userId);
 const vapid = vapidFrom(config);
 if (!vapid) logger.warn("VAPID keys not set, so push notifications are off");
 const PgStore = connectPgSimple(session);
@@ -52,7 +55,9 @@ const requestSync = (userId: string) => queueSync(boss, userId);
 const listener = await listenForItemChanges({
   connectionString: config.DATABASE_URL,
   logger,
+  usage,
 });
+const stopSavingUsage = usage.saveHourly(db, logger);
 const streams = new AbortController();
 
 const app = createApp({
@@ -106,6 +111,7 @@ onShutdown(logger, async () => {
   await promisify(server.close.bind(server))();
   await listener.stop();
   await boss.stop({ graceful: true });
+  await stopSavingUsage();
   await db.$disconnect();
   // Stops the store's expired-session cleanup timer before the pool closes.
   sessionStore.close();

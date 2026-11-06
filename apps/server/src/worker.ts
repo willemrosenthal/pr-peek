@@ -1,3 +1,4 @@
+import type { WorkHandler, WorkOptions } from "pg-boss";
 import { loadConfig } from "./config";
 import { createDb, createPool } from "./db";
 import { getOctokit } from "./github/client";
@@ -23,6 +24,7 @@ import { notifyItems, notifyMerged } from "./notify";
 import { vapidFrom, webPushSender } from "./push";
 import { sendDueReminders } from "./reminders";
 import { onShutdown } from "./shutdown";
+import { countJobs, countPool, Usage } from "./usage";
 import { sendDueSummaries } from "./summary";
 import { dueUsers, isLagging, runSync } from "./sync-schedule";
 
@@ -32,6 +34,8 @@ const startedAt = new Date();
 const config = loadConfig();
 const logger = createLogger(config);
 const pool = createPool(config);
+const usage = new Usage("worker");
+countPool(pool, usage);
 const db = createDb(pool);
 const oauth = createGitHubOAuth({
   clientId: config.GITHUB_CLIENT_ID,
@@ -45,17 +49,24 @@ await boss.start();
 
 await createQueues(boss);
 
+// Runs a queue's jobs, each counted for the admin page.
+const work = <T>(
+  queue: string,
+  options: WorkOptions,
+  handler: WorkHandler<T>,
+) => boss.work<T>(queue, options, countJobs(usage, queue, handler));
+
 const scheduled = { pollingIntervalSeconds: POLL_SCHEDULED_SECONDS };
 const jobs = { pollingIntervalSeconds: POLL_JOBS_SECONDS };
 
 await boss.schedule(HEARTBEAT, "* * * * *");
-await boss.work(HEARTBEAT, scheduled, () => {
+await work(HEARTBEAT, scheduled, () => {
   logger.info("heartbeat");
   return Promise.resolve();
 });
 
 await boss.schedule(SYNC_DISPATCH, "* * * * *");
-await boss.work(SYNC_DISPATCH, scheduled, async () => {
+await work(SYNC_DISPATCH, scheduled, async () => {
   const due = await dueUsers(db, new Date());
   if (due.length === 0) return;
   const queued = await Promise.all(due.map(({ id }) => queueSync(boss, id)));
@@ -70,7 +81,7 @@ await boss.work(SYNC_DISPATCH, scheduled, async () => {
   );
 });
 
-await boss.work<{ userId: string }>(
+await work<{ userId: string }>(
   SYNC_USER,
   { ...jobs, localConcurrency: config.SYNC_CONCURRENCY },
   async ([job]) => {
@@ -81,7 +92,7 @@ await boss.work<{ userId: string }>(
         logger,
         rulesChangedAt: startedAt,
         github: (userId) =>
-          getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY }, userId),
+          getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY, usage }, userId),
         notifyItems: async (itemIds) => {
           await boss.send(NOTIFY_ITEMS, { itemIds });
         },
@@ -96,7 +107,7 @@ await boss.work<{ userId: string }>(
 
 const vapid = vapidFrom(config);
 const send = vapid ? webPushSender(vapid) : null;
-await boss.work<{ itemIds: string[] }>(NOTIFY_ITEMS, jobs, async ([job]) => {
+await work<{ itemIds: string[] }>(NOTIFY_ITEMS, jobs, async ([job]) => {
   if (!job) return;
   const { itemIds } = job.data;
   const outcomes = await notifyItems(
@@ -106,7 +117,7 @@ await boss.work<{ itemIds: string[] }>(NOTIFY_ITEMS, jobs, async ([job]) => {
   logger.info({ itemIds, outcomes }, "notify items");
 });
 
-await boss.work<{ prIds: string[] }>(NOTIFY_MERGED, jobs, async ([job]) => {
+await work<{ prIds: string[] }>(NOTIFY_MERGED, jobs, async ([job]) => {
   if (!job) return;
   const { prIds } = job.data;
   const outcomes = await notifyMerged({ db, send, logger }, prIds);
@@ -114,29 +125,29 @@ await boss.work<{ prIds: string[] }>(NOTIFY_MERGED, jobs, async ([job]) => {
 });
 
 await boss.schedule(SUMMARY_DISPATCH, "*/15 * * * *");
-await boss.work(SUMMARY_DISPATCH, scheduled, async () => {
+await work(SUMMARY_DISPATCH, scheduled, async () => {
   const sent = await sendDueSummaries({ db, send, logger }, new Date());
   if (sent > 0) logger.info({ sent }, "morning summaries sent");
 });
 
 await boss.schedule(REMINDER_DISPATCH, "*/5 * * * *");
-await boss.work(REMINDER_DISPATCH, scheduled, async () => {
+await work(REMINDER_DISPATCH, scheduled, async () => {
   const sent = await sendDueReminders({ db, send, logger }, new Date());
   if (sent > 0) logger.info({ sent }, "reminders sent");
 });
 
 await boss.schedule(HEALTH_CHECK, "0 * * * *");
-await boss.work(HEALTH_CHECK, scheduled, async () => {
-  await checkHealth(
-    { db, send, logger, adminLogin: config.ADMIN_LOGIN },
-    new Date(),
-  );
+await work(HEALTH_CHECK, scheduled, async () => {
+  await checkHealth({ db, send, logger }, new Date());
 });
+
+const stopSavingUsage = usage.saveHourly(db, logger);
 
 logger.info("worker started");
 
 onShutdown(logger, async () => {
   await boss.stop({ graceful: true });
+  await stopSavingUsage();
   await db.$disconnect();
   await pool.end();
 });

@@ -1,4 +1,5 @@
 import { Octokit } from "octokit";
+import type { Usage } from "../usage";
 import { getAccessToken, markNeedsReauth, type TokenDeps } from "./tokens";
 
 // Longer waits fail the request instead, and the sync tries again later.
@@ -15,6 +16,39 @@ const retryIfShort = (
 export interface ClientDeps extends TokenDeps {
   // Lets tests stand in for GitHub's API.
   fetch?: typeof fetch;
+  // Counts requests for the admin page.
+  usage?: Usage | undefined;
+}
+
+// GitHub's answer to too many requests: 429, or 403 with no budget left or a wait.
+export const isRateLimited = (
+  status: number,
+  headers: Record<string, unknown>,
+) =>
+  status === 429 ||
+  (status === 403 &&
+    (headers["x-ratelimit-remaining"] === "0" || "retry-after" in headers));
+
+// Counts each request, the lowest budget left, and rate limited answers, as "github".
+function countRequests(octokit: Octokit, usage: Usage) {
+  octokit.hook.after("request", (response) => {
+    usage.add("github", "requests");
+    const left = Number(response.headers["x-ratelimit-remaining"]);
+    if (Number.isFinite(left)) usage.add("github", "budget", { low: left });
+  });
+  octokit.hook.error("request", (error) => {
+    usage.add("github", "requests");
+    if ("status" in error && "response" in error) {
+      const headers = (error.response?.headers ?? {}) as Record<
+        string,
+        unknown
+      >;
+      if (isRateLimited(error.status, headers)) {
+        usage.add("github", "rate_limited");
+      }
+    }
+    throw error;
+  });
 }
 
 // A GitHub API client acting as the user. It comes with retries and rate limit handling.
@@ -40,5 +74,6 @@ export async function getOctokit(
     throw error;
   });
 
+  if (deps.usage) countRequests(octokit, deps.usage);
   return octokit;
 }

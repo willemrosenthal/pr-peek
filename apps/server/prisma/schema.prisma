@@ -29,6 +29,12 @@ enum AuthMethod {
   pat
 }
 
+// Admins see the admin page and get its alerts. Set by hand in the database.
+enum Role {
+  user
+  admin
+}
+
 // Why syncs are failing. "reauth" and "token" stop syncs until the user acts. "failed"
 // retries after a wait.
 enum SyncError {
@@ -111,6 +117,7 @@ model User {
   // The Mac menu bar app's last heartbeat. Recent means it's running, so it gets
   // notifications instead of the browsers on that Mac.
   desktopSeenAt         DateTime?
+  role                  Role       @default(user)
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 
@@ -296,4 +303,22 @@ model NotificationLog {
 model AdminAlert {
   kind   String   @id
   sentAt DateTime
+}
+
+// Usage counted in memory by each process and saved once an hour (usage.ts), for the
+// admin page. A save adds to the row, keeping the lowest `low` and the highest `high`.
+model UsageStat {
+  // The start of the day or hour counted.
+  bucket DateTime
+  // "web" or "worker".
+  source String
+  // What was counted, like "db" or "job", and which one, like "PullRequest select".
+  metric String
+  key    String
+  count  BigInt   @default(0)
+  total  BigInt   @default(0)
+  low    BigInt?
+  high   BigInt?
+
+  @@id([bucket, source, metric, key])
 }
