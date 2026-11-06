@@ -11,6 +11,8 @@ import { Spinner } from "./Spinner";
 export const ALL = "*all";
 export const OTHER = "*other";
 
+const LABELS = { [ALL]: "All my repos", [OTHER]: "Other…" };
+
 const GROUPS: { kind: RepoOwnerKind; label: string }[] = [
   { kind: "you", label: "You" },
   { kind: "org", label: "Your orgs" },
@@ -33,14 +35,14 @@ export function OwnerSelect({
   count: number | undefined;
   loadingMore: boolean;
 }) {
-  // The remembered owner, until the menu loads.
-  const listed =
-    owners ??
-    (value === ALL || value === OTHER ? [] : [{ login: value, kind: "you" }]);
+  const listed = owners ?? [];
+  // The remembered owner, until the menu loads and puts it in its group.
+  const remembered = !owners && value !== ALL && value !== OTHER ? value : null;
+  const logins = remembered ? [remembered] : listed.map(({ login }) => login);
   const items = [
-    { value: ALL, label: "All my repos" },
-    ...listed.map(({ login }) => ({ value: login, label: login })),
-    { value: OTHER, label: "Other…" },
+    { value: ALL, label: LABELS[ALL] },
+    ...logins.map((login) => ({ value: login, label: login })),
+    { value: OTHER, label: LABELS[OTHER] },
   ];
   const kind = listed.find((owner) => owner.login === value)?.kind;
 
@@ -75,7 +77,10 @@ export function OwnerSelect({
         >
           <Select.Popup className={styles.popup}>
             <Select.List className={styles.list}>
-              <OwnerItem value={ALL} label="All my repos" />
+              <OwnerItem value={ALL} label={LABELS[ALL]} />
+              {remembered && (
+                <OwnerItem value={remembered} label={remembered} />
+              )}
               {GROUPS.map(({ kind, label }) => (
                 <OwnerGroup
                   key={kind}
@@ -84,7 +89,7 @@ export function OwnerSelect({
                 />
               ))}
               <Select.Separator className={styles.separator} />
-              <OwnerItem value={OTHER} label="Other…" />
+              <OwnerItem value={OTHER} label={LABELS[OTHER]} />
             </Select.List>
           </Select.Popup>
         </Select.Positioner>

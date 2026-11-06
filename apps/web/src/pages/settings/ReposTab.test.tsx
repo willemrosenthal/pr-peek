@@ -255,9 +255,7 @@ describe("adding repos", () => {
     renderApp("/settings/repos");
 
     const options = await optionList();
-    expect(
-      within(options).getByText(/^Private · pushed \d+d ago$/),
-    ).toBeTruthy();
+    expect(within(options).getByText(/^Private · pushed/)).toBeTruthy();
     await userEvent.click(
       within(options).getByRole("button", { name: "Add acme/api" }),
     );
@@ -271,6 +269,31 @@ describe("adding repos", () => {
     ]);
     // The row flips without loading the list again.
     expect(callsTo(fetch, "/api/github/repos")).toHaveLength(1);
+  });
+
+  it.each([
+    [3 / 24, "Public · pushed 3h ago"],
+    [65, "Public · pushed 2mo ago"],
+    [400, "Public · pushed 1y ago"],
+  ])("says when a repo was pushed, %s days ago", async (days, details) => {
+    const pushedAt = new Date(Date.now() - days * 86_400_000).toISOString();
+    reposApi([], [repoOption({ pushedAt })]);
+    renderApp("/settings/repos");
+    expect(within(await optionList()).getByText(details)).toBeTruthy();
+  });
+
+  it("shows a remembered owner before the menu loads", async () => {
+    localStorage.setItem("pr-peek:repo-owner", '"acme"');
+    reposApi([], [], {
+      "GET /api/github/owners": () => new Promise<Response>(() => {}),
+      "GET /api/github/repos?owner=acme": () => json(searchResults()),
+    });
+    renderApp("/settings/repos");
+
+    await userEvent.click(await ownerMenu());
+    const menu = await screen.findByRole("listbox");
+    expect(within(menu).getByRole("option", { name: "acme" })).toBeTruthy();
+    expect(within(menu).queryByRole("group")).toBe(null);
   });
 
   it("lets other repos be added while one is adding", async () => {
@@ -427,7 +450,11 @@ describe("adding repos", () => {
     await addButton("acme/web");
 
     await userEvent.type(await filterBox(), "zzzz");
-    expect(await screen.findByText('No repos match "zzzz".')).toBeTruthy();
+    expect(
+      await screen.findByText(
+        'No repos match "zzzz". Type owner/name to add any repo.',
+      ),
+    ).toBeTruthy();
   });
 
   it("shows the first 50 matches", async () => {
@@ -521,6 +548,8 @@ describe("adding repos", () => {
     expect(
       await screen.findByText("Also searched all of acme's repos."),
     ).toBeTruthy();
+    // The count includes what the search found.
+    expect(await filterCount()).toBe("1 repo");
   });
 
   it.each([

@@ -205,7 +205,7 @@ function RepoResults({
       value={typedFilter}
       onChange={onFilterChange}
       // A typed owner/name is one repo, so a count would only confuse.
-      count={list.repos && !typedRepo ? rows.length : undefined}
+      count={list.repos && !typedRepo ? rows.length + extra.length : undefined}
     />
   );
   if (list.isPending) {
@@ -265,7 +265,9 @@ function RepoResults({
       )}
       {!typedMissing && rows.length === 0 && extra.length === 0 && (
         <p className={styles.hint}>
-          {filter ? `No repos match "${filter}".` : "No repos here to add."}
+          {filter
+            ? `No repos match "${filter}". Type owner/name to add any repo.`
+            : "No repos here to add."}
         </p>
       )}
       {list.truncated && (
@@ -301,9 +303,7 @@ function FilterBox({
         aria-label="Filter repos"
         type="search"
         placeholder={
-          owner
-            ? `Filter ${owner}'s repos, or owner/name`
-            : "Filter all your repos"
+          owner ? `Filter ${owner}'s repos` : "Filter all your repos"
         }
         autoCapitalize="off"
         spellCheck={false}
