@@ -12,6 +12,7 @@ import { listenForItemChanges } from "./items-listener";
 import { createBoss, createQueues, queueSync } from "./jobs";
 import { vapidFrom, webPushSender } from "./push";
 import { activityRouter } from "./routes/activity";
+import { adminRouter } from "./routes/admin";
 import { addedPrsRouter } from "./routes/added-prs";
 import { authRouter } from "./routes/auth";
 import { desktopRouter } from "./routes/desktop";
@@ -41,6 +42,7 @@ const github = (userId: string) =>
   getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY, usage }, userId);
 const vapid = vapidFrom(config);
 if (!vapid) logger.warn("VAPID keys not set, so push notifications are off");
+const send = vapid ? webPushSender(vapid) : null;
 const PgStore = connectPgSimple(session);
 // The table comes from a Prisma migration.
 const sessionStore = new PgStore({ pool, tableName: "session" });
@@ -83,6 +85,7 @@ const app = createApp({
     reposRouter({ db, github }),
     // Before itemsRouter, whose sign in check covers all of /prs.
     previewRouter({ db, github }),
+    adminRouter({ db, logger, send }),
     addedPrsRouter({ db, github, requestSync }),
     itemsRouter({ db, requestSync }),
     settingsRouter({ db, requestSync }),
@@ -91,10 +94,7 @@ const app = createApp({
     streamRouter({ db, listener, signal: streams.signal }),
     pushRouter({
       db,
-      push: vapid && {
-        publicKey: vapid.publicKey,
-        send: webPushSender(vapid),
-      },
+      push: vapid && send && { publicKey: vapid.publicKey, send },
     }),
   ],
   // Same depth from src/ (tsx in dev) and dist/ (built), so this works for both.

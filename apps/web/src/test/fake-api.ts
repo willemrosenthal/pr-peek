@@ -287,5 +287,6 @@ export const me = (
   },
   githubToken: null,
   needsReauth: false,
+  isAdmin: false,
   ...fields,
 });

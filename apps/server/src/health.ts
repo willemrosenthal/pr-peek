@@ -5,17 +5,18 @@ import { deliver, NOTIFY_TTL_SECONDS, type SendPush } from "./push";
 import { dueUsers, QUIET_SETTINGS, SYNCING_USERS } from "./sync-schedule";
 import { MINUTE_MS } from "./sync-timing";
 
-const MB = 1024 * 1024;
-const DAY_MS = 24 * 60 * MINUTE_MS;
+export const MB = 1024 * 1024;
+export const DAY_MS = 24 * 60 * MINUTE_MS;
 // Supabase's free plan has 500 MB. Alerts at 70% of it.
-const DB_LIMIT_MB = 500;
-const DB_WARN_BYTES = 0.7 * DB_LIMIT_MB * MB;
+export const DB_LIMIT_MB = 500;
+export const DB_WARN_SHARE = 0.7;
+const DB_WARN_BYTES = DB_WARN_SHARE * DB_LIMIT_MB * MB;
 // A due sync this late means the worker has stopped keeping up.
 const LATE_MS = 15 * MINUTE_MS;
 // Syncs failed this many times in a row, so more than a passing GitHub hiccup.
 const FAILING_AFTER = 3;
 // Alerts when more than this share of the users who sync keep failing.
-const FAILING_SHARE = 0.25;
+export const FAILING_SHARE = 0.25;
 // Usage counts for the admin page are kept this long.
 export const USAGE_KEPT_DAYS = 90;
 
