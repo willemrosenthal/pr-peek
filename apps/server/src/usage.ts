@@ -10,9 +10,10 @@ import { MINUTE_MS } from "./sync-timing";
 export type UsageSource = "web" | "worker";
 type Period = "day" | "hour";
 
-export const SAVE_EVERY_MS = 60 * MINUTE_MS;
+const SAVE_EVERY_MS = 60 * MINUTE_MS;
 // Most rows waiting to be saved. More go under "other", so odd queries can't add many.
-export const MAX_ENTRIES = 100;
+// A day uses about 70 per process, and the hour after midnight holds two days.
+export const MAX_ENTRIES = 200;
 export const OTHER = "other";
 
 interface Amount {

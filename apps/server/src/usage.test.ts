@@ -4,6 +4,7 @@ import { createTestDb, resetDb, TEST_DATABASE_URL } from "../test/db";
 import { NOW } from "../test/fakes";
 import { savedUsage } from "../test/usage";
 import { createDb, createPool, type Db } from "./db";
+import { createLogger } from "./logger";
 import {
   countConnection,
   countJobs,
@@ -15,6 +16,7 @@ import {
 } from "./usage";
 
 const db = createTestDb();
+const logger = createLogger({ LOG_LEVEL: "silent" });
 afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
@@ -90,6 +92,15 @@ describe("Usage", () => {
       count: 5,
       total: 50,
     });
+  });
+
+  it("saves what's left when stopped, for shutdown", async () => {
+    const usage = usageAt();
+    const stop = usage.saveHourly(db, logger);
+    usage.add("github", "requests");
+
+    await stop();
+    expect(await db.usageStat.count()).toBe(1);
   });
 
   it("keeps the counts of a failed save for the next one", async () => {

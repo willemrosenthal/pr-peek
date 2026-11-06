@@ -63,7 +63,7 @@ Both release a minor version and deploy.
 ### 19.2 Counting
 
 - [x] Migration: a `UsageStat` table: `bucket` (the day or hour), `source` (`web` or `worker`), `metric`, `key`, `count`, `total`, `low`, `high`.
-- [x] `usage.ts`: adds up counts in memory, and saves them in one `INSERT … ON CONFLICT` that adds to the row. `low` keeps the lowest and `high` the highest. At most 100 keys an hour, the rest as "other". Saves every hour and on shutdown.
+- [x] `usage.ts`: adds up counts in memory, and saves them in one `INSERT … ON CONFLICT` that adds to the row. `low` keeps the lowest and `high` the highest. At most 200 rows waiting, the rest as "other". A day uses about 70 per process, and the hour after midnight holds two days. Saves every hour and on shutdown.
 - [x] The pool counts bytes per query as above, in both processes. So does the web service's LISTEN connection, which is outside the pool: its messages count as "notify".
 - [x] The GitHub client counts requests, the budget, and rate limits.
 - [x] The worker counts each job: per queue per day, and all jobs per hour.
