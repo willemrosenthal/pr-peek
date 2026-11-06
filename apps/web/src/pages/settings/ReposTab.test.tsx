@@ -24,6 +24,13 @@ const watchedList = () => screen.findByRole("list", { name: "Watched repos" });
 const optionList = () =>
   screen.findByRole("list", { name: "Repos you can add" });
 
+// The menu: one owner of each kind.
+const owners = repoOwners([
+  { login: "octocat", kind: "you" },
+  { login: "acme", kind: "org" },
+  { login: "dana", kind: "shared" },
+]);
+
 // A server holding a watch list, and `options` to search. Tests change `watched` in
 // place to change what the server returns.
 function reposApi(
@@ -35,6 +42,7 @@ function reposApi(
     signedInApi({
       "GET /api/repos": () => json({ repos: watched }),
       "GET /api/github/repos": () => json(searchResults(options)),
+      "GET /api/github/owners": () => json(owners),
       ...overrides,
     }),
   );
@@ -211,12 +219,6 @@ function repoPages(count: number, owner?: string): Handlers {
   return handlers;
 }
 
-const owners = repoOwners([
-  { login: "octocat", kind: "you" },
-  { login: "acme", kind: "org" },
-  { login: "dana", kind: "shared" },
-]);
-
 const ownerMenu = () => screen.findByLabelText("Add a repo from");
 const filterBox = () => screen.findByLabelText("Filter repos");
 const addButton = (name: string) =>
@@ -328,7 +330,6 @@ describe("adding repos", () => {
 
   it("picks an owner from the menu, and remembers it", async () => {
     reposApi([], [], {
-      "GET /api/github/owners": () => json(owners),
       "GET /api/github/repos?owner=acme": () =>
         json(searchResults([repoOption({ owner: "acme", name: "web" })])),
     });
@@ -348,7 +349,6 @@ describe("adding repos", () => {
   it("starts on the remembered owner, without loading all repos", async () => {
     localStorage.setItem("pr-peek:repo-owner", '"acme"');
     const fetch = reposApi([], [], {
-      "GET /api/github/owners": () => json(owners),
       "GET /api/github/repos?owner=acme": () =>
         json(searchResults([repoOption({ owner: "acme", name: "web" })])),
     });
@@ -377,7 +377,6 @@ describe("adding repos", () => {
   it("falls back to all repos when a remembered owner isn't listed anymore", async () => {
     localStorage.setItem("pr-peek:repo-owner", '"gone"');
     reposApi([], [repoOption({ name: "mine" })], {
-      "GET /api/github/owners": () => json(owners),
       "GET /api/github/repos?owner=gone": () => json(searchResults()),
     });
     renderApp("/settings/repos");
@@ -489,7 +488,6 @@ describe("adding repos", () => {
 
   it(`searches GitHub for the rest of an owner with over ${MAX_REPO_PAGES} pages`, async () => {
     reposApi([], [], {
-      "GET /api/github/owners": () => json(owners),
       ...repoPages(MAX_REPO_PAGES, "acme"),
       // Only the full word has a fake, so a search per letter would fail the test.
       "GET /api/github/repos?owner=acme&query=far": () =>

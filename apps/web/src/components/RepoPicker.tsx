@@ -206,9 +206,10 @@ function RepoResults({
   // Offers a typed owner/name the list doesn't have, like one from another owner or an
   // org that blocks Git Buddy.
   const typedRepo = typed && { owner: typed[1]!, name: typed[2]! };
-  const rows: Row[] = typedRepo
+  const typedName = typedRepo && fullName(typedRepo);
+  const rows: Row[] = typedName
     ? repos
-        .filter((repo) => fullName(repo) === fullName(typedRepo))
+        .filter((repo) => fullName(repo) === typedName)
         .map((repo) => ({ repo }))
     : filter
       ? fuse.search(filter).map(({ item, matches }) => ({
@@ -266,7 +267,7 @@ function RepoResults({
         <Card label="Repos you can add">
           {typedMissing && (
             <AddRepoRow
-              key={fullName(typedRepo)}
+              key={typedName}
               repo={typedRepo}
               isWatched={isWatched}
             />
