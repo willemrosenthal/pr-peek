@@ -25,6 +25,8 @@ const QUERY_CHARS = 160;
 
 // Sums come back from Postgres as bigint, or null over no rows.
 const num = (n: bigint | number | null | undefined) => Number(n ?? 0);
+const numOrNull = (n: bigint | null | undefined) =>
+  n === null || n === undefined ? null : Number(n);
 const iso = (date: Date) => date.toISOString();
 
 const startOfDay = (at: Date) =>
@@ -217,10 +219,7 @@ export async function readOverview(
     },
     github: {
       requests: num(github?.requests),
-      lowestBudget:
-        github?.lowestBudget === null || github?.lowestBudget === undefined
-          ? null
-          : num(github.lowestBudget),
+      lowestBudget: numOrNull(github?.lowestBudget),
       rateLimited: num(github?.rateLimited),
     },
     people: {
