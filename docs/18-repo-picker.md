@@ -68,18 +68,18 @@ Both release a minor version and deploy.
 
 ### 18.2 The picker
 
-- [ ] Owner `<select>`, the "Other…" box, and the remembered pick.
-- [ ] Load every page of an owner's list in the background, up to 10.
-- [ ] Fuse.js filter with highlights, a count, and **Show forks**.
-- [ ] Search fallback for owners with over 1,000 repos.
-- [ ] `owner/name` and repo links still offered from any owner.
-- [ ] Arrow keys move through the list, and Enter adds the selected repo.
-- [ ] Tests: switching owners, filtering, a typo still matching, forks, Other, the fallback, and pasting `owner/name`.
+- [x] Owner `<select>`, the "Other…" box, and the remembered pick. A remembered owner that's no longer listed falls back to All my repos.
+- [x] Load every page of an owner's list in the background, up to 10. Lists stay fresh for 5 minutes, and don't reload when the window gets focus, since that would reload every page. An error, like too many asks, stops the loading and says why.
+- [x] Fuse.js filter with highlights, a count, and **Show forks** (only when the list has forks). At most 50 rows show at once.
+- [x] Search fallback for owners with over 1,000 repos. Not for All my repos, where it would search all of GitHub again: the picker asks you to pick an owner instead.
+- [x] `owner/name` and repo links still offered from any owner.
+- [x] ~~Arrow keys and Enter~~: dropped. Tab already moves through the Add buttons, and Enter would need the list to click a row's button from outside.
+- [x] Tests: switching owners, filtering, a typo still matching, forks, Other, the fallback, and pasting `owner/name`.
 
 ## Done when
 
-- [ ] Picking an org and typing part of a repo name shows only that org's matching repos, as you type.
-- [ ] "All my repos" lists only repos you own, share, or reach through an org. No strangers' repos.
-- [ ] Other… with a public org's name lists its public repos.
-- [ ] An owner with over 1,000 repos still finds a repo by name.
+- [x] Picking an org and typing part of a repo name shows only that org's matching repos, as you type. The tests "picks an owner from the menu" and "filters as you type".
+- [x] "All my repos" lists only repos you own, share, or reach through an org. No strangers' repos. The server test on `ownerAffiliations`, and checked live: 895 repos, all yours, your orgs', or shared.
+- [x] Other… with a public org's name lists its public repos. The test "lists any user or org's repos from Other".
+- [x] An owner with over 1,000 repos still finds a repo by name. The test "searches GitHub for the rest of an owner".
 - [ ] Try it on your phone and in the Mac app (You).

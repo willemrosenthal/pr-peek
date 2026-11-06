@@ -10,17 +10,26 @@ import {
   type Handlers,
   noContent,
   repoOption,
+  repoOwners,
   searchResults,
   sentBodies,
   signedInApi,
   watchedRepo,
 } from "../../test/fake-api";
 import { SAVE_DELAY_MS } from "../../components/ColorPicker";
+import { MAX_REPO_PAGES } from "../../queries";
 import { renderApp } from "../../test/render";
 
 const watchedList = () => screen.findByRole("list", { name: "Watched repos" });
 const optionList = () =>
   screen.findByRole("list", { name: "Repos you can add" });
+
+// The menu: one owner of each kind.
+const owners = repoOwners([
+  { login: "octocat", kind: "you" },
+  { login: "acme", kind: "org" },
+  { login: "dana", kind: "shared" },
+]);
 
 // A server holding a watch list, and `options` to search. Tests change `watched` in
 // place to change what the server returns.
@@ -33,6 +42,7 @@ function reposApi(
     signedInApi({
       "GET /api/repos": () => json({ repos: watched }),
       "GET /api/github/repos": () => json(searchResults(options)),
+      "GET /api/github/owners": () => json(owners),
       ...overrides,
     }),
   );
@@ -193,6 +203,27 @@ describe("watched repos", () => {
   });
 });
 
+// Fake answers for `count` pages of an owner's repos, one repo each. The last page says
+// there are more.
+function repoPages(count: number, owner?: string): Handlers {
+  const handlers: Handlers = {};
+  for (let page = 0; page < count; page++) {
+    const params = new URLSearchParams({
+      ...(owner && { owner }),
+      ...(page > 0 && { cursor: `page-${page}` }),
+    });
+    const repos = [repoOption({ owner: owner ?? "acme", name: `p${page}` })];
+    handlers[`GET /api/github/repos${params.size > 0 ? `?${params}` : ""}`] =
+      () => json(searchResults(repos, `page-${page + 1}`));
+  }
+  return handlers;
+}
+
+const ownerMenu = () => screen.findByLabelText("Add a repo from");
+const filterBox = () => screen.findByLabelText("Filter repos");
+const addButton = (name: string) =>
+  screen.findByRole("button", { name: `Add ${name}` });
+
 describe("adding repos", () => {
   it("lists your repos and adds one, showing progress", async () => {
     const option = repoOption({ owner: "acme", name: "api", isPrivate: true });
@@ -227,7 +258,7 @@ describe("adding repos", () => {
     expect(sentBodies(fetch, "POST /api/repos")).toEqual([
       { owner: "acme", name: "api" },
     ]);
-    // The row flips without searching GitHub again.
+    // The row flips without loading the list again.
     expect(callsTo(fetch, "/api/github/repos")).toHaveLength(1);
   });
 
@@ -239,14 +270,10 @@ describe("adding repos", () => {
     );
     renderApp("/settings/repos");
 
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Add acme/slow" }),
+    await userEvent.click(await addButton("acme/slow"));
+    expect((await addButton("acme/other")).hasAttribute("disabled")).toBe(
+      false,
     );
-    expect(
-      screen
-        .getByRole("button", { name: "Add acme/other" })
-        .hasAttribute("disabled"),
-    ).toBe(false);
   });
 
   it("offers a repo again after it's added and then removed", async () => {
@@ -283,24 +310,212 @@ describe("adding repos", () => {
     expect(callsTo(fetch, "/api/github/repos")).toHaveLength(1);
   });
 
-  it("searches once typing pauses", async () => {
-    // Only the full word has a fake, so a search per letter would fail the test.
+  it(`loads every page in the background, up to ${MAX_REPO_PAGES}`, async () => {
+    // Page 11 has no fake, so asking for it would fail the test.
+    const fetch = reposApi([], [], repoPages(MAX_REPO_PAGES));
+    renderApp("/settings/repos");
+
+    expect(await addButton(`acme/p${MAX_REPO_PAGES - 1}`)).toBeTruthy();
+    expect(screen.getByText(`${MAX_REPO_PAGES} repos`)).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Showing your 1,000 most recently pushed repos. Pick an owner to search all of theirs.",
+      ),
+    ).toBeTruthy();
+    const pages = fetch.mock.calls.filter(([url]) =>
+      url.startsWith("/api/github/repos"),
+    );
+    expect(pages).toHaveLength(MAX_REPO_PAGES);
+  });
+
+  it("picks an owner from the menu, and remembers it", async () => {
     reposApi([], [], {
-      "GET /api/github/repos?query=web": () =>
+      "GET /api/github/repos?owner=acme": () =>
         json(searchResults([repoOption({ owner: "acme", name: "web" })])),
     });
     renderApp("/settings/repos");
 
-    await userEvent.type(await screen.findByLabelText("Add a repo"), "web");
+    const menu = await ownerMenu();
+    await within(menu).findByRole("group", { name: "Your orgs" });
+    expect(within(menu).getByRole("group", { name: "You" })).toBeTruthy();
     expect(
-      await within(await optionList()).findByText("acme/web"),
+      within(menu).getByRole("group", { name: "Shared with you" }),
+    ).toBeTruthy();
+    await userEvent.selectOptions(menu, "acme");
+    expect(await addButton("acme/web")).toBeTruthy();
+    expect(localStorage.getItem("pr-peek:repo-owner")).toBe('"acme"');
+  });
+
+  it("starts on the remembered owner, without loading all repos", async () => {
+    localStorage.setItem("pr-peek:repo-owner", '"acme"');
+    const fetch = reposApi([], [], {
+      "GET /api/github/repos?owner=acme": () =>
+        json(searchResults([repoOption({ owner: "acme", name: "web" })])),
+    });
+    renderApp("/settings/repos");
+
+    expect(await addButton("acme/web")).toBeTruthy();
+    expect(callsTo(fetch, "/api/github/repos")).toHaveLength(0);
+  });
+
+  it("stops loading pages after an error, like too many asks", async () => {
+    const fetch = reposApi([], [], {
+      "GET /api/github/repos": () =>
+        json(searchResults([repoOption({ name: "first" })], "page-1")),
+      "GET /api/github/repos?cursor=page-1": () =>
+        apiError(429, "rate_limited", "Wait a moment and try again"),
+    });
+    renderApp("/settings/repos");
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Wait a moment and try again",
+    );
+    expect(screen.getByRole("button", { name: "Add acme/first" })).toBeTruthy();
+    expect(callsTo(fetch, "/api/github/repos?cursor=page-1")).toHaveLength(1);
+  });
+
+  it("falls back to all repos when a remembered owner isn't listed anymore", async () => {
+    localStorage.setItem("pr-peek:repo-owner", '"gone"');
+    reposApi([], [repoOption({ name: "mine" })], {
+      "GET /api/github/repos?owner=gone": () => json(searchResults()),
+    });
+    renderApp("/settings/repos");
+
+    expect(await addButton("acme/mine")).toBeTruthy();
+    expect(
+      (await ownerMenu()).querySelector("option:checked")?.textContent,
+    ).toBe("All my repos");
+  });
+
+  it("filters as you type, forgiving typos, and marks what matched", async () => {
+    reposApi(
+      [],
+      ["web-app", "api", "docs"].map((name) => repoOption({ name })),
+    );
+    renderApp("/settings/repos");
+    await addButton("acme/docs");
+
+    await userEvent.type(await filterBox(), "wbapp");
+    expect(await addButton("acme/web-app")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Add acme/docs" })).toBe(null);
+    expect(screen.getByText("1 of 3 repos")).toBeTruthy();
+
+    await userEvent.clear(await filterBox());
+    await userEvent.type(await filterBox(), "doc");
+    expect(await addButton("acme/docs")).toBeTruthy();
+    expect(
+      [...document.querySelectorAll("mark")].map((m) => m.textContent),
+    ).toEqual(["doc"]);
+  });
+
+  it("says when nothing matches", async () => {
+    reposApi([], [repoOption({ name: "web" })]);
+    renderApp("/settings/repos");
+    await addButton("acme/web");
+
+    await userEvent.type(await filterBox(), "zzzz");
+    expect(await screen.findByText('No repos match "zzzz".')).toBeTruthy();
+  });
+
+  it("shows the first 50 matches", async () => {
+    reposApi(
+      [],
+      Array.from({ length: 60 }, (_, i) => repoOption({ name: `r${i}` })),
+    );
+    renderApp("/settings/repos");
+
+    const options = await optionList();
+    expect(within(options).getAllByRole("button")).toHaveLength(50);
+    expect(
+      screen.getByText("Showing the first 50. Type more to narrow it down."),
     ).toBeTruthy();
   });
 
-  it("adds a repo typed as owner/name that search doesn't find", async () => {
+  it("hides forks until asked", async () => {
+    reposApi(
+      [],
+      [repoOption({ name: "own" }), repoOption({ name: "copy", isFork: true })],
+    );
+    renderApp("/settings/repos");
+
+    await addButton("acme/own");
+    expect(screen.queryByRole("button", { name: "Add acme/copy" })).toBe(null);
+    await userEvent.click(screen.getByRole("switch", { name: "Show forks" }));
+    expect(await addButton("acme/copy")).toBeTruthy();
+    expect(screen.getByText("Fork")).toBeTruthy();
+  });
+
+  it("lists any user or org's repos from Other, and remembers the name", async () => {
+    reposApi([], [], {
+      "GET /api/github/repos?owner=vercel": () =>
+        json(searchResults([repoOption({ owner: "vercel", name: "next" })])),
+    });
+    renderApp("/settings/repos");
+
+    await userEvent.selectOptions(await ownerMenu(), "Other…");
+    expect(screen.queryByLabelText("Filter repos")).toBe(null);
+    await userEvent.type(
+      screen.getByLabelText("GitHub user or org"),
+      " vercel ",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Show repos" }));
+    expect(await addButton("vercel/next")).toBeTruthy();
+    expect(localStorage.getItem("pr-peek:repo-owner-other")).toBe('"vercel"');
+  });
+
+  it("says when Other's name isn't on GitHub", async () => {
+    reposApi([], [], {
+      "GET /api/github/repos?owner=nobody": () =>
+        apiError(404, "not_found", "No GitHub user or org has that name"),
+    });
+    renderApp("/settings/repos");
+
+    await userEvent.selectOptions(await ownerMenu(), "Other…");
+    const box = screen.getByLabelText("GitHub user or org");
+    await userEvent.type(box, "not a name");
+    expect(
+      screen
+        .getByRole("button", { name: "Show repos" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    await userEvent.clear(box);
+    await userEvent.type(box, "nobody{Enter}");
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "No GitHub user or org has that name",
+    );
+    expect(screen.queryByText("No repos here to add.")).toBe(null);
+  });
+
+  it(`searches GitHub for the rest of an owner with over ${MAX_REPO_PAGES} pages`, async () => {
+    reposApi([], [], {
+      ...repoPages(MAX_REPO_PAGES, "acme"),
+      // Only the full word has a fake, so a search per letter would fail the test.
+      "GET /api/github/repos?owner=acme&query=far": () =>
+        json(searchResults([repoOption({ owner: "acme", name: "far-away" })])),
+    });
+    renderApp("/settings/repos");
+
+    const menu = await ownerMenu();
+    await within(menu).findByRole("option", { name: "acme" });
+    await userEvent.selectOptions(menu, "acme");
+    expect(
+      await screen.findByText(
+        "Showing the 1,000 most recently pushed. Type a name to search all of acme's repos.",
+      ),
+    ).toBeTruthy();
+    await userEvent.type(await filterBox(), "far");
+    expect(await addButton("acme/far-away")).toBeTruthy();
+    expect(
+      await screen.findByText("Also searched all of acme's repos."),
+    ).toBeTruthy();
+  });
+
+  it.each([
+    ["owner/name", "acme/secret"],
+    ["a link", "https://github.com/acme/secret"],
+  ])("adds a repo typed as %s that the list doesn't have", async (_, typed) => {
     const watched: WatchedRepoDto[] = [];
     const fetch = reposApi(watched, [], {
-      "GET /api/github/repos?query=acme%2Fsecret": () => json(searchResults()),
       "POST /api/repos": () => {
         watched.push(watchedRepo({ owner: "acme", name: "secret" }));
         return json({ repo: watched[0] }, 201);
@@ -308,12 +523,8 @@ describe("adding repos", () => {
     });
     renderApp("/settings/repos");
 
-    await userEvent.type(
-      await screen.findByLabelText("Add a repo"),
-      "acme/secret",
-    );
+    await userEvent.type(await filterBox(), typed);
     const options = await optionList();
-    expect(within(options).getByText("acme/secret")).toBeTruthy();
     await userEvent.click(
       within(options).getByRole("button", { name: "Add acme/secret" }),
     );
@@ -326,8 +537,6 @@ describe("adding repos", () => {
   it("shows a typed repo as watched when GitHub knows it by a new name", async () => {
     const watched: WatchedRepoDto[] = [];
     reposApi(watched, [], {
-      "GET /api/github/repos?query=acme%2Fold-name": () =>
-        json(searchResults()),
       "POST /api/repos": () => {
         watched.push(watchedRepo({ owner: "acme", name: "new-name" }));
         return json({ repo: watched[0] }, 201);
@@ -335,13 +544,8 @@ describe("adding repos", () => {
     });
     renderApp("/settings/repos");
 
-    await userEvent.type(
-      await screen.findByLabelText("Add a repo"),
-      "acme/old-name",
-    );
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Add acme/old-name" }),
-    );
+    await userEvent.type(await filterBox(), "acme/old-name");
+    await userEvent.click(await addButton("acme/old-name"));
     expect(
       await within(await optionList()).findByText("Watching"),
     ).toBeTruthy();
@@ -354,28 +558,9 @@ describe("adding repos", () => {
     });
     renderApp("/settings/repos");
 
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Add acme/api" }),
-    );
+    await userEvent.click(await addButton("acme/api"));
     expect((await screen.findByRole("alert")).textContent).toBe(
       "You can watch up to 50 repos",
     );
-  });
-
-  it("shows more", async () => {
-    reposApi([], [], {
-      "GET /api/github/repos": () =>
-        json(searchResults([repoOption({ name: "first" })], "page-2")),
-      "GET /api/github/repos?cursor=page-2": () =>
-        json(searchResults([repoOption({ name: "second" })])),
-    });
-    renderApp("/settings/repos");
-
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Show more" }),
-    );
-    expect(await screen.findByText("acme/second")).toBeTruthy();
-    expect(screen.getByText("acme/first")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Show more" })).toBe(null);
   });
 });
