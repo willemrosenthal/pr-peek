@@ -5,6 +5,7 @@ import { InstallPage } from "./pages/InstallPage";
 import { ListPage } from "./pages/ListPage";
 import { Onboarding } from "./pages/Onboarding";
 import { SharePage } from "./pages/SharePage";
+import { AdminTab } from "./pages/settings/AdminTab";
 import { DevicesTab } from "./pages/settings/DevicesTab";
 import { GeneralTab } from "./pages/settings/GeneralTab";
 import { ReposTab } from "./pages/settings/ReposTab";
@@ -30,6 +31,7 @@ export const routes = [
           { path: "rules", element: <RulesTab /> },
           { path: "timing", element: <TimingTab /> },
           { path: "devices", element: <DevicesTab /> },
+          { path: "admin", element: <AdminTab /> },
           { index: true, element: <Navigate to="/settings/general" replace /> },
           { path: "*", element: <Navigate to="/settings/general" replace /> },
         ],
