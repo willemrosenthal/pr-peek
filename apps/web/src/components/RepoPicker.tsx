@@ -1,16 +1,18 @@
+import { Toggle } from "@base-ui/react/toggle";
 import {
   addRepoBody,
+  formatAge,
   type AddRepoBody,
   type AddRepoResponse,
   type RepoOption,
-  type RepoOwner,
-  type RepoOwnerKind,
 } from "@pr-peek/core";
 import { useMutation } from "@tanstack/react-query";
 import Fuse, { type IFuseOptions, type RangeTuple } from "fuse.js";
+import { Check } from "lucide-react";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { api } from "../api";
 import { useDebounced } from "../hooks/useDebounced";
+import { useNow } from "../hooks/useNow";
 import { useStoredState } from "../hooks/useStoredState";
 import {
   MAX_REPO_PAGES,
@@ -23,20 +25,10 @@ import {
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import { Card, CardRow } from "./Card";
-import { SelectField, TextField } from "./Field";
+import { TextField } from "./Field";
+import { ALL, OTHER, OwnerSelect } from "./OwnerSelect";
 import styles from "./Repos.module.css";
 import { Spinner } from "./Spinner";
-import { Switch } from "./Switch";
-
-// The owner menu's choices that aren't a GitHub name. No GitHub name starts with "*".
-const ALL = "*all";
-const OTHER = "*other";
-
-const GROUPS: { kind: RepoOwnerKind; label: string }[] = [
-  { kind: "you", label: "You" },
-  { kind: "org", label: "Your orgs" },
-  { kind: "shared", label: "Shared with you" },
-];
 
 // Most rows shown at once. Typing narrows down the rest.
 const MAX_ROWS = 50;
@@ -92,58 +84,28 @@ export function RepoPicker() {
   // Null lists all the user's repos. Undefined waits for a name in Other.
   const owner =
     shown === ALL ? null : shown === OTHER ? other || undefined : shown;
+  const list = useRepoList(owner);
 
   return (
     <div className={styles.picker}>
-      <SelectField
-        label="Add a repo from"
+      <OwnerSelect
         value={shown}
-        onChange={(e) => setPick(e.target.value)}
-      >
-        <option value={ALL}>All my repos</option>
-        {listed
-          ? GROUPS.map(({ kind, label }) => (
-              <OwnerGroup
-                key={kind}
-                label={label}
-                owners={listed.filter((o) => o.kind === kind)}
-              />
-            ))
-          : // The remembered owner, until the menu loads.
-            shown !== ALL &&
-            shown !== OTHER && <option value={shown}>{shown}</option>}
-        <option value={OTHER}>Other…</option>
-      </SelectField>
+        onChange={setPick}
+        owners={listed}
+        count={owner === undefined ? undefined : list.repos?.length}
+        loadingMore={owner !== undefined && list.loadingMore}
+      />
       {owners.isError && <Alert>{owners.error.message}</Alert>}
       {shown === OTHER && <OtherOwner name={other} onSubmit={setOther} />}
       {owner !== undefined && (
-        <>
-          <TextField
-            label="Filter repos"
-            type="search"
-            placeholder="Part of a name, or owner/name"
-            autoCapitalize="off"
-            spellCheck={false}
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
-          <RepoResults owner={owner} filter={filter.trim()} />
-        </>
+        <RepoResults
+          owner={owner}
+          list={list}
+          filterText={filter}
+          onFilterChange={setFilter}
+        />
       )}
     </div>
-  );
-}
-
-function OwnerGroup({ label, owners }: { label: string; owners: RepoOwner[] }) {
-  if (owners.length === 0) return null;
-  return (
-    <optgroup label={label}>
-      {owners.map(({ login }) => (
-        <option key={login} value={login}>
-          {login}
-        </option>
-      ))}
-    </optgroup>
   );
 }
 
@@ -182,15 +144,21 @@ function OtherOwner({
   );
 }
 
-// One owner's repos, or all of the user's, narrowed down by `filter`.
+// One owner's repos, or all of the user's, narrowed down by the filter box.
 function RepoResults({
   owner,
-  filter,
+  list,
+  filterText,
+  onFilterChange,
 }: {
   owner: string | null;
-  filter: string;
+  list: ReturnType<typeof useRepoList>;
+  // The filter box's text, as typed.
+  filterText: string;
+  onFilterChange: (filterText: string) => void;
 }) {
-  const list = useRepoList(owner);
+  const filter = filterText.trim();
+  const now = useNow(60_000);
   const [showForks, setShowForks] = useState(false);
   const isShown = useCallback(
     (repo: RepoOption) => showForks || !repo.isFork,
@@ -232,37 +200,42 @@ function RepoResults({
   const watched = new Set(repoList.data?.repos.map(fullName));
   const isWatched = (repo: AddRepoBody) => watched.has(fullName(repo));
 
-  if (list.isPending) return <p className={styles.hint}>Loading</p>;
+  const filterBox = (
+    <FilterBox
+      owner={owner}
+      value={filterText}
+      onChange={onFilterChange}
+      // A typed owner/name is one repo, so a count would only confuse.
+      count={list.repos && !typedRepo ? rows.length + extra.length : undefined}
+    />
+  );
+  if (list.isPending) {
+    return (
+      <>
+        {filterBox}
+        <p className={styles.hint}>Loading</p>
+      </>
+    );
+  }
   // Like an unknown name in Other. A count and "no repos" would only repeat it.
   if (!list.repos) return <Alert>{list.error?.message}</Alert>;
 
-  // A typed owner/name is one repo, so a count would only confuse.
-  const count = typedRepo
-    ? ""
-    : filter
-      ? `${rows.length} of ${repos.length} repos`
-      : `${repos.length} repos`;
   const shownRows = rows.slice(0, MAX_ROWS);
 
   return (
     <>
+      {filterBox}
       {list.isError && <Alert>{list.error.message}</Alert>}
       {searched.isError && <Alert>{searched.error.message}</Alert>}
-      <div className={styles.listInfo}>
-        <p className={styles.hint} aria-live="polite">
-          {count && list.loadingMore ? `${count}, loading more` : count}
-        </p>
-        {list.repos?.some((repo) => repo.isFork) && (
-          <label className={styles.forks}>
-            <Switch
-              label="Show forks"
-              checked={showForks}
-              onChange={setShowForks}
-            />
-            Show forks
-          </label>
-        )}
-      </div>
+      {list.repos.some((repo) => repo.isFork) && (
+        <Toggle
+          className={styles.pill}
+          pressed={showForks}
+          onPressedChange={setShowForks}
+        >
+          Show forks
+        </Toggle>
+      )}
       {(shownRows.length > 0 || typedMissing || extra.length > 0) && (
         <Card label="Repos you can add">
           {typedMissing && (
@@ -270,6 +243,7 @@ function RepoResults({
               key={typedName}
               repo={typedRepo}
               isWatched={isWatched}
+              now={now}
             />
           )}
           {[...shownRows, ...extra.map((repo): Row => ({ repo }))].map(
@@ -279,6 +253,7 @@ function RepoResults({
                 repo={row.repo}
                 nameMatch={row.nameMatch}
                 isWatched={isWatched}
+                now={now}
               />
             ),
           )}
@@ -291,7 +266,9 @@ function RepoResults({
       )}
       {!typedMissing && rows.length === 0 && extra.length === 0 && (
         <p className={styles.hint}>
-          {filter ? `No repos match "${filter}".` : "No repos here to add."}
+          {filter
+            ? `No repos match "${filter}". Type owner/name to add any repo.`
+            : "No repos here to add."}
         </p>
       )}
       {list.truncated && (
@@ -306,6 +283,52 @@ function RepoResults({
       )}
     </>
   );
+}
+
+// The filter, with how many repos match inside it on the right.
+function FilterBox({
+  owner,
+  value,
+  onChange,
+  count,
+}: {
+  owner: string | null;
+  value: string;
+  onChange: (value: string) => void;
+  count: number | undefined;
+}) {
+  return (
+    <label className={styles.filter}>
+      <input
+        className={styles.filterInput}
+        aria-label="Filter repos"
+        type="search"
+        placeholder={
+          owner ? `Filter ${owner}'s repos` : "Filter all your repos"
+        }
+        autoCapitalize="off"
+        spellCheck={false}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {count !== undefined && (
+        <span className={styles.filterCount} aria-live="polite">
+          {count.toLocaleString("en-US")}
+          <span className="visually-hidden">
+            {count === 1 ? " repo" : " repos"}
+          </span>
+        </span>
+      )}
+    </label>
+  );
+}
+
+// How long since a push: "5h", "3mo", or "2y".
+function pushedAge(pushedAt: string, now: Date) {
+  const days = (now.getTime() - new Date(pushedAt).getTime()) / 86_400_000;
+  if (days >= 365) return `${Math.floor(days / 365)}y`;
+  if (days >= 30) return `${Math.floor(days / 30)}mo`;
+  return formatAge(pushedAt, now);
 }
 
 function truncatedHint(owner: string | null, filter: string, busy: boolean) {
@@ -348,10 +371,13 @@ function AddRepoRow({
   repo,
   nameMatch,
   isWatched,
+  now,
 }: {
-  repo: AddRepoBody & Partial<Pick<RepoOption, "isPrivate" | "isFork">>;
+  repo: AddRepoBody &
+    Partial<Pick<RepoOption, "isPrivate" | "isFork" | "pushedAt">>;
   nameMatch?: readonly RangeTuple[] | undefined;
   isWatched: (repo: AddRepoBody) => boolean;
+  now: Date;
 }) {
   const reloadWatchList = useReloadWatchList();
   const add = useMutation({
@@ -367,19 +393,29 @@ function AddRepoRow({
   // GitHub may save a typed repo under its current name.
   const watched =
     isWatched(repo) || (add.isSuccess && isWatched(add.data.repo));
+  // A typed repo knows only its name.
+  const details = [
+    repo.isPrivate === undefined ? null : repo.isPrivate ? "Private" : "Public",
+    repo.isFork && "Fork",
+    repo.pushedAt && `pushed ${pushedAge(repo.pushedAt, now)} ago`,
+  ].filter(Boolean);
 
   return (
-    <CardRow>
-      <span className={styles.name}>
-        <span>
+    <CardRow className={styles.addRow}>
+      <span className={styles.repo}>
+        <span className={styles.repoName}>
           <span className={styles.owner}>{repo.owner}/</span>
           <Highlighted text={repo.name} ranges={nameMatch} />
         </span>
-        {repo.isPrivate && <span className={styles.hint}>Private</span>}
-        {repo.isFork && <span className={styles.hint}>Fork</span>}
+        {details.length > 0 && (
+          <span className={styles.hint}>{details.join(" · ")}</span>
+        )}
       </span>
       {watched ? (
-        <span className={styles.hint}>Watching</span>
+        <span className={styles.watching}>
+          <Check size={16} strokeWidth={2.5} />
+          Watching
+        </span>
       ) : add.isPending ? (
         <span className={styles.adding} role="status">
           <Spinner />

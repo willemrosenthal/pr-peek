@@ -232,7 +232,8 @@ export function useRepoOwners() {
 
 // Repos the user could watch, most recently pushed first: one owner's, or all of
 // theirs when `owner` is null. Loads the pages one after another in the background.
-export function useRepoList(owner: string | null) {
+// Undefined waits for an owner, like an empty Other box.
+export function useRepoList(owner: string | null | undefined) {
   const list = useInfiniteQuery({
     queryKey: [...queryKeys.githubRepos, "list", owner],
     queryFn: ({ pageParam }) =>
@@ -248,6 +249,7 @@ export function useRepoList(owner: string | null) {
     // A refetch reloads every page, so not each time the window gets focus.
     refetchOnWindowFocus: false,
     retry: retryServerErrors,
+    enabled: owner !== undefined,
   });
 
   const { data, hasNextPage, isFetching, isError, fetchNextPage } = list;
