@@ -37,6 +37,8 @@ The last pick is remembered in `localStorage` (the browser's own storage).
 
 Opening the picker costs one request for the owners and one per 100 repos. Filtering costs nothing. React Query keeps each owner's list for 5 minutes, so switching back and forth doesn't reload it.
 
+These requests use the user's own GitHub budget (5,000 points an hour), which their sync needs too. Each page costs 1 point. A limit of 60 asks a minute per user, across the picker's routes, stops a stuck page from using it up.
+
 ### Not in this plan
 
 - Orgs that limit which OAuth apps can see their data hide their private repos from us. The picker shows what GitHub returns, which is the public ones. A "Needs access" tag and a link to ask for approval can come later.
@@ -59,6 +61,8 @@ Both release a minor version and deploy.
 - [x] `?query=` with `owner` limits search to that owner (`user:x`, which matches orgs too).
 - [x] Repos say whether they're forks, and when they were last pushed.
 - [x] `GET /api/github/owners`: you, your orgs, and owners who share repos with you, in that order. Each sorted by name, ignoring case.
+- [x] The picker's routes allow 60 asks a minute per user (`userLimiter`).
+- [x] Archived repos are left out by each query (`isArchived: false`, `archived:false`), so the code doesn't filter them again.
 - [x] Tests: each of the above, and an unknown owner.
 
 ### 18.2 The picker

@@ -7,14 +7,14 @@ import { isNotFound } from "./errors";
 const LIST_PAGE_SIZE = 100;
 const SEARCH_PAGE_SIZE = 20;
 
-const REPO_FIELDS = `databaseId name owner { login } isPrivate isArchived isFork pushedAt`;
+// Archived repos are left out by each query, so their flag isn't needed.
+const REPO_FIELDS = `databaseId name owner { login } isPrivate isFork pushedAt`;
 
 const repoNode = z.object({
   databaseId: z.number(),
   name: z.string(),
   owner: z.object({ login: z.string() }),
   isPrivate: z.boolean(),
-  isArchived: z.boolean(),
   isFork: z.boolean(),
   pushedAt: z.string().nullable(),
 });
@@ -44,7 +44,6 @@ function toRepoOption(node: RepoNode): RepoOption {
 function toPage(raw: z.infer<typeof page>): SearchReposResponse {
   const repos = raw.nodes
     .filter((node): node is RepoNode => !!node && "databaseId" in node)
-    .filter((node) => !node.isArchived)
     .map(toRepoOption);
   return {
     repos,

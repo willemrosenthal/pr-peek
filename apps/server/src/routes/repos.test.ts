@@ -12,7 +12,7 @@ import {
   type GraphQLRequest,
 } from "../../test/github";
 import { NeedsReauthError } from "../github/tokens";
-import { reposRouter } from "./repos";
+import { PICKER_ASKS_PER_MINUTE, reposRouter } from "./repos";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
@@ -26,7 +26,6 @@ const repo = (id: number, name: string, extra: object = {}) => ({
   name,
   owner: { login: "acme" },
   isPrivate: false,
-  isArchived: false,
   isFork: false,
   pushedAt: "2026-11-01T00:00:00Z",
   ...extra,
@@ -85,7 +84,6 @@ function github(request: GraphQLRequest) {
         viewer: {
           repositories: page([
             repo(1, "web-app"),
-            repo(2, "old-thing", { isArchived: true }),
             repo(3, "api", { isPrivate: true }),
           ]),
         },
@@ -112,7 +110,7 @@ const add = (agent: Awaited<ReturnType<typeof setup>>["agent"], name: string) =>
   agent.post("/api/repos").set("Origin", APP_URL).send({ owner: "acme", name });
 
 describe("GET /api/github/repos", () => {
-  it("lists the user's repos, skipping archived ones", async () => {
+  it("lists the user's repos", async () => {
     const { agent } = await setup();
 
     const res = await agent.get("/api/github/repos");
@@ -133,6 +131,7 @@ describe("GET /api/github/repos", () => {
     );
     expect(query).not.toMatch(/\baffiliations:/);
     expect(query).toContain("first: 100");
+    expect(query).toContain("isArchived: false");
   });
 
   it("lists one owner's repos, and passes the cursor along", async () => {
@@ -184,6 +183,18 @@ describe("GET /api/github/repos", () => {
       q: "web in:name archived:false user:acme",
       cursor: null,
     });
+  });
+
+  it(`stops after ${PICKER_ASKS_PER_MINUTE} asks a minute, to save the user's GitHub budget`, async () => {
+    const { agent, requests } = await setup();
+    for (let i = 0; i < PICKER_ASKS_PER_MINUTE; i++) {
+      await agent.get(i % 2 ? "/api/github/repos" : "/api/github/owners");
+    }
+
+    const res = await agent.get("/api/github/repos");
+    expect(res.status).toBe(429);
+    expect(res.body).toMatchObject({ error: { code: "rate_limited" } });
+    expect(requests).toHaveLength(PICKER_ASKS_PER_MINUTE);
   });
 
   it("asks the user to sign in again if their GitHub token is gone", async () => {

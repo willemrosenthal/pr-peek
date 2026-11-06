@@ -14,6 +14,7 @@ import type { Db } from "../db";
 import { Prisma, type WatchedRepo } from "../generated/prisma/client";
 import { findRepo, listOwners, listRepos, searchRepos } from "../github/repos";
 import { HttpError, parseInput, sentFields } from "../http-error";
+import { userLimiter } from "../rate-limit";
 import { currentUser, requireUser } from "./auth";
 
 export interface RepoDeps {
@@ -35,6 +36,9 @@ function toDto(repo: WatchedRepo): WatchedRepoDto {
   };
 }
 
+// Enough for the picker to load a few owners' lists, 100 repos a page.
+export const PICKER_ASKS_PER_MINUTE = 60;
+
 const notFound = () => new HttpError(404, "not_found", "Repo not found");
 
 // Prisma's code for "a row like this already exists".
@@ -46,6 +50,11 @@ export function reposRouter(deps: RepoDeps): Router {
   router.use(
     ["/github/repos", "/github/owners", "/repos"],
     requireUser(deps.db),
+  );
+  // These spend the user's GitHub budget, which their sync needs too.
+  router.use(
+    ["/github/repos", "/github/owners"],
+    userLimiter(60 * 1000, PICKER_ASKS_PER_MINUTE),
   );
 
   // Repos the user could add, for the picker: a list, or a search with `query`.
