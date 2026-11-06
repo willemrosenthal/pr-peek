@@ -92,7 +92,7 @@ describe("readings", () => {
         adminOverview({
           health: {
             dbBytes: 400 * 1024 * 1024,
-            jobRows: 3000,
+            jobRows: 6000,
             syncingUsers: 20,
             lateUsers: 2,
             failingUsers: 6,

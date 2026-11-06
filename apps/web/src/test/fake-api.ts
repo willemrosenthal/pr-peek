@@ -208,7 +208,8 @@ export const adminOverview = (
     dbWatchShare: 0.7,
     egressBytesPerMonth: 5 * GB,
     egressWatchShare: 0.8,
-    jobRowsPerUser: 60,
+    jobRowsBase: 600,
+    jobRowsPerUser: 100,
     failingShare: 0.25,
   },
   egress: {

@@ -16,8 +16,13 @@ import {
 // Supabase's free plan includes 5 GB of egress a month.
 const EGRESS_LIMIT_BYTES = 5 * 1024 * MB;
 const EGRESS_WATCH_SHARE = 0.8;
-// pg-boss keeps finished jobs of frequent queues for an hour, so about 60 a user (plan 16).
-const JOB_ROWS_PER_USER = 60;
+// pg-boss keeps finished jobs an hour and cleans up hourly, so up to 2 hours of each. The
+// schedules alone make about 550: the heartbeat and sync dispatch every minute (120
+// each), pg-boss's own queue for every scheduled run (275), and the reminder, summary,
+// and health runs (35). Each user adds their syncs (60, at one every 2 minutes) and
+// their pushes, kept 7 days.
+const JOB_ROWS_BASE = 600;
+const JOB_ROWS_PER_USER = 100;
 // Queries shown from Postgres's stats, and the kinds of read shown.
 const TOP = 8;
 // Query text is cut to this, so long queries don't make the answer big.
@@ -195,6 +200,7 @@ export async function readOverview(
       dbWatchShare: DB_WARN_SHARE,
       egressBytesPerMonth: EGRESS_LIMIT_BYTES,
       egressWatchShare: EGRESS_WATCH_SHARE,
+      jobRowsBase: JOB_ROWS_BASE,
       jobRowsPerUser: JOB_ROWS_PER_USER,
       failingShare: FAILING_SHARE,
     },

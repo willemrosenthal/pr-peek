@@ -96,8 +96,9 @@ export function readings(overview: AdminOverviewResponse): Reading[] {
 
   const pace = egressPace(overview);
   const egressWatch = limits.egressBytesPerMonth * limits.egressWatchShare;
-  // Expected rows, but never under one user's worth, so a quiet server isn't flagged.
-  const expectedRows = Math.max(health.syncingUsers, 1) * limits.jobRowsPerUser;
+  const expectedRows =
+    limits.jobRowsBase + health.syncingUsers * limits.jobRowsPerUser;
+  const jobRowsWatch = expectedRows * 2;
 
   return [
     {
@@ -121,17 +122,17 @@ export function readings(overview: AdminOverviewResponse): Reading[] {
           label: "Job table",
           value: "Unknown",
           detail: "Couldn't read pg-boss's job table.",
-          rule: `Worth a look past twice ${formatCount(limits.jobRowsPerUser)} rows a user.`,
+          rule: `Worth a look past ${formatCount(jobRowsWatch)}.`,
           share: 0,
           watch: false,
         }
       : {
           label: "Job table",
           value: `${formatCount(health.jobRows)} rows`,
-          detail: `About ${formatCount(expectedRows)} expected: ${formatCount(limits.jobRowsPerUser)} a user.`,
-          rule: `Worth a look past ${formatCount(expectedRows * 2)}.`,
-          share: clamp(health.jobRows / (expectedRows * 2)),
-          watch: health.jobRows > expectedRows * 2,
+          detail: `About ${formatCount(expectedRows)} expected: ${formatCount(limits.jobRowsBase)}, plus ${formatCount(limits.jobRowsPerUser)} a user.`,
+          rule: `Worth a look past ${formatCount(jobRowsWatch)}.`,
+          share: clamp(health.jobRows / jobRowsWatch),
+          watch: health.jobRows > jobRowsWatch,
         },
     {
       label: "Syncs on time",

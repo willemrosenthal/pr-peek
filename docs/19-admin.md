@@ -39,6 +39,15 @@ Supabase has no API for egress, so this is the only way to see it in the app. It
 - The busiest queries, from Postgres's own query stats (`pg_stat_statements`, on by default in Supabase). Top 8, query text cut to 160 characters. If our role can't read them, the page says so.
 - Users, and pushes per day, from `User` and `NotificationLog`, grouped in SQL.
 
+### Found while building
+
+The Job table reading showed 8,000 rows on a local database with one user, against the 60 a user that plan 16 expected. Two causes:
+
+- **pg-boss's own queue (`__pgboss__send-it`)** handles every scheduled run, about 3,300 a day, and kept its finished jobs 7 days. By the schedules, about 23,000 rows in production at any time. The admin page will show the real number. Our summary, reminder, and health-check queues kept theirs 7 days too. All of them now keep finished jobs an hour.
+- **pg-boss cleans up once a day** by default, so an hour's keep could be 25 hours. It now cleans up every hour: a few small queries per queue.
+
+pg-boss copies the keep time onto each job when it's made. Jobs made before a change keep the old time, and leave on their own within 7 days. The reading now expects 600 rows, plus 100 per user.
+
 ### Not in this plan
 
 - Supabase's own egress number. Its usage page has it, and the page links there.
@@ -48,6 +57,7 @@ Supabase has no API for egress, so this is the only way to see it in the app. It
 1. **Counting** (19.1, 19.2): `feat(server): an admin role, and hourly usage counts`. Has a migration. Counting starts as soon as it's live, so the page has history when it lands. Merged (#144).
 2. **The admin API** (19.3): `feat(server): the admin API`.
 3. **The page** (19.4): `feat(web): the admin page`.
+4. **pg-boss's own jobs** (19.5): `fix(server): keep pg-boss's own finished jobs an hour, not 7 days`. Found while building (#147).
 
 PRs 2 and 3 were one PR in the first draft of this plan. Together they're over 400 lines, so they're split. Each releases a minor version and deploys.
 
@@ -86,6 +96,13 @@ PRs 2 and 3 were one PR in the first draft of this plan. Together they're over 4
 - [x] The readings and their rules are worked out in `admin.ts`, apart from the page. "On pace for" waits a day into the month before guessing.
 - [x] GitHub requests per sync count only the worker's requests. The web service's, like the repo picker, aren't syncs. The API gives them apart (`syncRequests`).
 - [x] Tests: each section, the tab for admins only, a non-admin's message, the test alert button, and the readings' rules.
+
+### 19.5 pg-boss's own jobs
+
+- [x] Keep finished jobs of pg-boss's own queue, and of the summary, reminder, and health-check queues, an hour.
+- [x] pg-boss cleans up every hour, not once a day.
+- [x] The Job table reading expects 600 rows, plus 100 per user.
+- [x] Tests: the queues' keep times, and that cleanup runs hourly and deletes old finished jobs in every queue, through `createBoss`. The hourly part fails with pg-boss's daily default.
 
 ## Done when
 

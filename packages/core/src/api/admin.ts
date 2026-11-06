@@ -19,7 +19,9 @@ export interface AdminOverviewResponse {
     dbWatchShare: number;
     egressBytesPerMonth: number;
     egressWatchShare: number;
-    // pg-boss keeps about this many job rows per user. Worth a look at twice that.
+    // pg-boss keeps about this many job rows, plus this many per syncing user. Worth a
+    // look at twice that.
+    jobRowsBase: number;
     jobRowsPerUser: number;
     // Worth a look when more than this share of syncing users keep failing.
     failingShare: number;

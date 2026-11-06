@@ -17,8 +17,8 @@ export const HEARTBEAT = "heartbeat";
 // A sync running longer than this is given up on.
 export const SYNC_TIMEOUT_SECONDS = 10 * 60;
 
-// Finished jobs of queues that run every minute are deleted after an hour, not pg-boss's
-// 7 days, so the job table stays small.
+// Finished jobs of queues that run often are deleted after an hour, not pg-boss's 7 days,
+// so the job table stays small.
 const FREQUENT = { deleteAfterSeconds: 60 * 60 };
 
 // How often the worker checks each queue for jobs, in seconds. pg-boss's 2 seconds would
@@ -28,16 +28,25 @@ export const POLL_JOBS_SECONDS = 10;
 // 55 seconds (see DISPATCH_SLACK_MS in sync-schedule.ts).
 export const POLL_SCHEDULED_SECONDS = 30;
 
+// pg-boss's own queue, which every scheduled job passes through.
+export const SEND_IT = "__pgboss__send-it";
+
+// How often pg-boss deletes finished jobs past their time. Its default is once a day, so
+// an hour's keep would really be up to 25 hours.
+const CLEANUP_EVERY_SECONDS = 60 * 60;
+
 // pg-boss, sharing the pool with Prisma to keep connection counts low.
 export function createBoss(
   pool: pg.Pool,
-  options: { worker: boolean },
+  options: { worker: boolean; schema?: string },
 ): PgBoss {
   return new PgBoss({
     db: { executeSql: (text, values) => pool.query(text, values) },
     // Only the worker runs scheduled jobs and queue upkeep.
     supervise: options.worker,
     schedule: options.worker,
+    maintenanceIntervalSeconds: CLEANUP_EVERY_SECONDS,
+    ...(options.schema && { schema: options.schema }),
   });
 }
 
@@ -68,10 +77,13 @@ export async function createQueues(boss: PgBoss): Promise<void> {
   );
   await ensureQueue(boss, NOTIFY_ITEMS);
   await ensureQueue(boss, NOTIFY_MERGED);
-  await ensureQueue(boss, SUMMARY_DISPATCH);
-  await ensureQueue(boss, REMINDER_DISPATCH);
-  await ensureQueue(boss, HEALTH_CHECK);
+  // Scheduled: a finished run is no use after it.
+  await ensureQueue(boss, SUMMARY_DISPATCH, FREQUENT);
+  await ensureQueue(boss, REMINDER_DISPATCH, FREQUENT);
+  await ensureQueue(boss, HEALTH_CHECK, FREQUENT);
   await ensureQueue(boss, HEARTBEAT, FREQUENT);
+  // pg-boss's own, made here too, so its finished jobs go after an hour, not 7 days.
+  await ensureQueue(boss, SEND_IT, FREQUENT);
 }
 
 // Queues a sync for the user. False if one was already queued or running.
