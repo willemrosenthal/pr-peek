@@ -345,6 +345,35 @@ describe("adding repos", () => {
     expect(localStorage.getItem("pr-peek:repo-owner")).toBe('"acme"');
   });
 
+  it("starts on the remembered owner, without loading all repos", async () => {
+    localStorage.setItem("pr-peek:repo-owner", '"acme"');
+    const fetch = reposApi([], [], {
+      "GET /api/github/owners": () => json(owners),
+      "GET /api/github/repos?owner=acme": () =>
+        json(searchResults([repoOption({ owner: "acme", name: "web" })])),
+    });
+    renderApp("/settings/repos");
+
+    expect(await addButton("acme/web")).toBeTruthy();
+    expect(callsTo(fetch, "/api/github/repos")).toHaveLength(0);
+  });
+
+  it("stops loading pages after an error, like too many asks", async () => {
+    const fetch = reposApi([], [], {
+      "GET /api/github/repos": () =>
+        json(searchResults([repoOption({ name: "first" })], "page-1")),
+      "GET /api/github/repos?cursor=page-1": () =>
+        apiError(429, "rate_limited", "Wait a moment and try again"),
+    });
+    renderApp("/settings/repos");
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Wait a moment and try again",
+    );
+    expect(screen.getByRole("button", { name: "Add acme/first" })).toBeTruthy();
+    expect(callsTo(fetch, "/api/github/repos?cursor=page-1")).toHaveLength(1);
+  });
+
   it("falls back to all repos when a remembered owner isn't listed anymore", async () => {
     localStorage.setItem("pr-peek:repo-owner", '"gone"');
     reposApi([], [repoOption({ name: "mine" })], {
@@ -389,7 +418,7 @@ describe("adding repos", () => {
     expect(await screen.findByText('No repos match "zzzz".')).toBeTruthy();
   });
 
-  it(`shows the first ${50} matches`, async () => {
+  it("shows the first 50 matches", async () => {
     reposApi(
       [],
       Array.from({ length: 60 }, (_, i) => repoOption({ name: `r${i}` })),
@@ -455,6 +484,7 @@ describe("adding repos", () => {
     expect((await screen.findByRole("alert")).textContent).toBe(
       "No GitHub user or org has that name",
     );
+    expect(screen.queryByText("No repos here to add.")).toBe(null);
   });
 
   it(`searches GitHub for the rest of an owner with over ${MAX_REPO_PAGES} pages`, async () => {

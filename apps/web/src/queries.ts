@@ -22,7 +22,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { api, ApiError, isUnauthorized } from "./api";
 import { markImportant } from "./important";
 import { thisDeviceEndpoint } from "./push";
@@ -251,6 +251,11 @@ export function useRepoList(owner: string | null) {
   });
 
   const { data, hasNextPage, isFetching, isError, fetchNextPage } = list;
+  // The same array until a page arrives, so the filter's index isn't rebuilt each render.
+  const repos = useMemo(
+    () => data?.pages.flatMap((page) => page.repos),
+    [data],
+  );
   const pageCount = data?.pages.length ?? 0;
   const loadingMore = hasNextPage && pageCount < MAX_REPO_PAGES && !isError;
   // Runs again after each page: with fast answers, isFetching can be false both times.
@@ -260,7 +265,7 @@ export function useRepoList(owner: string | null) {
 
   return {
     ...list,
-    repos: data?.pages.flatMap((page) => page.repos),
+    repos,
     loadingMore,
     // More repos than the list loads.
     truncated: hasNextPage && pageCount >= MAX_REPO_PAGES,

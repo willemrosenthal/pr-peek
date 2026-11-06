@@ -8,7 +8,7 @@ import {
 } from "@pr-peek/core";
 import { useMutation } from "@tanstack/react-query";
 import Fuse, { type IFuseOptions, type RangeTuple } from "fuse.js";
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { api } from "../api";
 import { useDebounced } from "../hooks/useDebounced";
 import { useStoredState } from "../hooks/useStoredState";
@@ -192,9 +192,13 @@ function RepoResults({
 }) {
   const list = useRepoList(owner);
   const [showForks, setShowForks] = useState(false);
+  const isShown = useCallback(
+    (repo: RepoOption) => showForks || !repo.isFork,
+    [showForks],
+  );
   const repos = useMemo(
-    () => (list.repos ?? []).filter((repo) => showForks || !repo.isFork),
-    [list.repos, showForks],
+    () => (list.repos ?? []).filter(isShown),
+    [list.repos, isShown],
   );
   const fuse = useMemo(() => new Fuse(repos, FUSE_OPTIONS), [repos]);
 
@@ -219,7 +223,7 @@ function RepoResults({
   const searched = useRepoSearch(list.truncated ? owner : null, searchText);
   const shownIds = new Set(rows.map(({ repo }) => repo.githubRepoId));
   const extra = (searched.data?.repos ?? []).filter(
-    (repo) => !shownIds.has(repo.githubRepoId) && (showForks || !repo.isFork),
+    (repo) => !shownIds.has(repo.githubRepoId) && isShown(repo),
   );
 
   const repoList = useRepos();
@@ -228,6 +232,8 @@ function RepoResults({
   const isWatched = (repo: AddRepoBody) => watched.has(fullName(repo));
 
   if (list.isPending) return <p className={styles.hint}>Loading</p>;
+  // Like an unknown name in Other. A count and "no repos" would only repeat it.
+  if (!list.repos) return <Alert>{list.error?.message}</Alert>;
 
   // A typed owner/name is one repo, so a count would only confuse.
   const count = typedRepo
@@ -240,6 +246,7 @@ function RepoResults({
   return (
     <>
       {list.isError && <Alert>{list.error.message}</Alert>}
+      {searched.isError && <Alert>{searched.error.message}</Alert>}
       <div className={styles.listInfo}>
         <p className={styles.hint} aria-live="polite">
           {count && list.loadingMore ? `${count}, loading more` : count}
@@ -288,7 +295,12 @@ function RepoResults({
       )}
       {list.truncated && (
         <p className={styles.hint}>
-          {truncatedHint(owner, filter, searched.isFetching)}
+          {truncatedHint(
+            owner,
+            filter,
+            // Also while typing, before the search starts.
+            searched.isFetching || searchText !== filter,
+          )}
         </p>
       )}
     </>

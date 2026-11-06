@@ -69,7 +69,7 @@ Both release a minor version and deploy.
 ### 18.2 The picker
 
 - [x] Owner `<select>`, the "Other…" box, and the remembered pick. A remembered owner that's no longer listed falls back to All my repos.
-- [x] Load every page of an owner's list in the background, up to 10. Lists stay fresh for 5 minutes, and don't reload when the window gets focus, since that would reload every page.
+- [x] Load every page of an owner's list in the background, up to 10. Lists stay fresh for 5 minutes, and don't reload when the window gets focus, since that would reload every page. An error, like too many asks, stops the loading and says why.
 - [x] Fuse.js filter with highlights, a count, and **Show forks** (only when the list has forks). At most 50 rows show at once.
 - [x] Search fallback for owners with over 1,000 repos. Not for All my repos, where it would search all of GitHub again: the picker asks you to pick an owner instead.
 - [x] `owner/name` and repo links still offered from any owner.
