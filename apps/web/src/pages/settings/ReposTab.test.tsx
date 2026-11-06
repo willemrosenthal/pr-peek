@@ -271,12 +271,13 @@ describe("adding repos", () => {
     expect(callsTo(fetch, "/api/github/repos")).toHaveLength(1);
   });
 
+  const HOUR_MS = 3_600_000;
   it.each([
-    [3 / 24, "Public · pushed 3h ago"],
-    [65, "Public · pushed 2mo ago"],
-    [400, "Public · pushed 1y ago"],
-  ])("says when a repo was pushed, %s days ago", async (days, details) => {
-    const pushedAt = new Date(Date.now() - days * 86_400_000).toISOString();
+    ["hours", 3 * HOUR_MS, "Public · pushed 3h ago"],
+    ["months", 65 * 24 * HOUR_MS, "Public · pushed 2mo ago"],
+    ["years", 400 * 24 * HOUR_MS, "Public · pushed 1y ago"],
+  ])("says when a repo was pushed, in %s", async (_, ageMs, details) => {
+    const pushedAt = new Date(Date.now() - ageMs).toISOString();
     reposApi([], [repoOption({ pushedAt })]);
     renderApp("/settings/repos");
     expect(within(await optionList()).getByText(details)).toBeTruthy();

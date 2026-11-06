@@ -101,7 +101,7 @@ export function RepoPicker() {
         <RepoResults
           owner={owner}
           list={list}
-          filter={filter}
+          filterText={filter}
           onFilterChange={setFilter}
         />
       )}
@@ -148,15 +148,16 @@ function OtherOwner({
 function RepoResults({
   owner,
   list,
-  filter: typedFilter,
+  filterText,
   onFilterChange,
 }: {
   owner: string | null;
   list: ReturnType<typeof useRepoList>;
-  filter: string;
-  onFilterChange: (filter: string) => void;
+  // The filter box's text, as typed.
+  filterText: string;
+  onFilterChange: (filterText: string) => void;
 }) {
-  const filter = typedFilter.trim();
+  const filter = filterText.trim();
   const now = useNow(60_000);
   const [showForks, setShowForks] = useState(false);
   const isShown = useCallback(
@@ -202,7 +203,7 @@ function RepoResults({
   const filterBox = (
     <FilterBox
       owner={owner}
-      value={typedFilter}
+      value={filterText}
       onChange={onFilterChange}
       // A typed owner/name is one repo, so a count would only confuse.
       count={list.repos && !typedRepo ? rows.length + extra.length : undefined}
