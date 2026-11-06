@@ -219,7 +219,16 @@ function repoPages(count: number, owner?: string): Handlers {
   return handlers;
 }
 
-const ownerMenu = () => screen.findByLabelText("Add a repo from");
+const ownerMenu = () =>
+  screen.findByRole("combobox", { name: "Add a repo from" });
+// Opens the owner menu and picks `name`.
+async function pickOwner(name: string) {
+  await userEvent.click(await ownerMenu());
+  await userEvent.click(await screen.findByRole("option", { name }));
+}
+// The number in the filter box, with the words a screen reader hears.
+const filterCount = async () =>
+  (await filterBox()).closest("label")?.textContent;
 const filterBox = () => screen.findByLabelText("Filter repos");
 const addButton = (name: string) =>
   screen.findByRole("button", { name: `Add ${name}` });
@@ -246,7 +255,9 @@ describe("adding repos", () => {
     renderApp("/settings/repos");
 
     const options = await optionList();
-    expect(within(options).getByText("Private")).toBeTruthy();
+    expect(
+      within(options).getByText(/^Private · pushed \d+d ago$/),
+    ).toBeTruthy();
     await userEvent.click(
       within(options).getByRole("button", { name: "Add acme/api" }),
     );
@@ -316,7 +327,9 @@ describe("adding repos", () => {
     renderApp("/settings/repos");
 
     expect(await addButton(`acme/p${MAX_REPO_PAGES - 1}`)).toBeTruthy();
-    expect(screen.getByText(`${MAX_REPO_PAGES} repos`)).toBeTruthy();
+    expect((await ownerMenu()).textContent).toContain(
+      `${MAX_REPO_PAGES} repos`,
+    );
     expect(
       screen.getByText(
         "Showing your 1,000 most recently pushed repos. Pick an owner to search all of theirs.",
@@ -335,14 +348,16 @@ describe("adding repos", () => {
     });
     renderApp("/settings/repos");
 
-    const menu = await ownerMenu();
+    await userEvent.click(await ownerMenu());
+    const menu = await screen.findByRole("listbox");
     await within(menu).findByRole("group", { name: "Your orgs" });
     expect(within(menu).getByRole("group", { name: "You" })).toBeTruthy();
     expect(
       within(menu).getByRole("group", { name: "Shared with you" }),
     ).toBeTruthy();
-    await userEvent.selectOptions(menu, "acme");
+    await userEvent.click(within(menu).getByRole("option", { name: "acme" }));
     expect(await addButton("acme/web")).toBeTruthy();
+    expect((await ownerMenu()).textContent).toContain("acme");
     expect(localStorage.getItem("pr-peek:repo-owner")).toBe('"acme"');
   });
 
@@ -382,9 +397,7 @@ describe("adding repos", () => {
     renderApp("/settings/repos");
 
     expect(await addButton("acme/mine")).toBeTruthy();
-    expect(
-      (await ownerMenu()).querySelector("option:checked")?.textContent,
-    ).toBe("All my repos");
+    expect((await ownerMenu()).textContent).toContain("All my repos");
   });
 
   it("filters as you type, forgiving typos, and marks what matched", async () => {
@@ -398,7 +411,7 @@ describe("adding repos", () => {
     await userEvent.type(await filterBox(), "wbapp");
     expect(await addButton("acme/web-app")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add acme/docs" })).toBe(null);
-    expect(screen.getByText("1 of 3 repos")).toBeTruthy();
+    expect(await filterCount()).toBe("1 repo");
 
     await userEvent.clear(await filterBox());
     await userEvent.type(await filterBox(), "doc");
@@ -440,9 +453,11 @@ describe("adding repos", () => {
 
     await addButton("acme/own");
     expect(screen.queryByRole("button", { name: "Add acme/copy" })).toBe(null);
-    await userEvent.click(screen.getByRole("switch", { name: "Show forks" }));
+    const forks = screen.getByRole("button", { name: "Show forks" });
+    await userEvent.click(forks);
+    expect(forks.getAttribute("aria-pressed")).toBe("true");
     expect(await addButton("acme/copy")).toBeTruthy();
-    expect(screen.getByText("Fork")).toBeTruthy();
+    expect(screen.getByText(/^Public · Fork · pushed/)).toBeTruthy();
   });
 
   it("lists any user or org's repos from Other, and remembers the name", async () => {
@@ -452,7 +467,7 @@ describe("adding repos", () => {
     });
     renderApp("/settings/repos");
 
-    await userEvent.selectOptions(await ownerMenu(), "Other…");
+    await pickOwner("Other…");
     expect(screen.queryByLabelText("Filter repos")).toBe(null);
     await userEvent.type(
       screen.getByLabelText("GitHub user or org"),
@@ -470,7 +485,7 @@ describe("adding repos", () => {
     });
     renderApp("/settings/repos");
 
-    await userEvent.selectOptions(await ownerMenu(), "Other…");
+    await pickOwner("Other…");
     const box = screen.getByLabelText("GitHub user or org");
     await userEvent.type(box, "not a name");
     expect(
@@ -495,9 +510,7 @@ describe("adding repos", () => {
     });
     renderApp("/settings/repos");
 
-    const menu = await ownerMenu();
-    await within(menu).findByRole("option", { name: "acme" });
-    await userEvent.selectOptions(menu, "acme");
+    await pickOwner("acme");
     expect(
       await screen.findByText(
         "Showing the 1,000 most recently pushed. Type a name to search all of acme's repos.",

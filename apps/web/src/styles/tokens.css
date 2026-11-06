@@ -19,6 +19,8 @@
   --color-important: #e8b81c;
   --color-on-important: #1d1d1f;
   --color-focus: #0b57d0;
+  /* Text for something done, like a repo being watched. */
+  --color-success: #1a7f37;
   --color-danger: #b42318;
   --color-danger-bg: #fde7e7;
   --color-warning: #8a4b00;
@@ -85,6 +87,7 @@
     --color-accent-hover: #b0ccff;
     --color-on-accent: #0b1a33;
     --color-focus: #8ab4ff;
+    --color-success: #4ac26b;
     --color-danger: #ff8a80;
     --color-danger-bg: #3a1d1b;
     --color-warning: #f5b453;

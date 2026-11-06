@@ -87,25 +87,124 @@
   flex: 1 1 12rem;
 }
 
-/* The count, and the forks switch on the right. */
-.listInfo {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.listInfo .hint {
-  margin: 0;
-}
-
-.forks {
+/* The filter, styled like the owner menu above it, with the match count inside. */
+.filter {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--text-sm);
+  min-height: 48px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: text;
+}
+
+.filter:focus-within {
+  border-color: var(--color-accent);
+}
+
+.filterInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  /* 16px, so iPhones don't zoom in on focus. */
+  font-size: var(--text-lg);
+}
+
+.filterInput::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.filterCount {
+  flex: none;
+  font-size: var(--text-md);
   color: var(--color-text-secondary);
+}
+
+/* A round toggle button, like the forks one. */
+.pill {
+  align-self: flex-start;
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .pill:hover {
+    background: var(--color-hover);
+  }
+}
+
+.pill[data-pressed] {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+@media (pointer: coarse) {
+  .pill {
+    min-height: 36px;
+  }
+}
+
+/* A repo to add. It lights up under the pointer. */
+.addRow {
+  flex-wrap: nowrap;
+  padding-block: 10px;
+}
+
+@media (hover: hover) {
+  .addRow:hover {
+    background: var(--color-hover);
+  }
+}
+
+/* The card's rounded corners, inside its border. */
+.addRow:first-child {
+  border-top-left-radius: calc(var(--radius-md) - 1px);
+  border-top-right-radius: calc(var(--radius-md) - 1px);
+}
+
+.addRow:last-child {
+  border-bottom-left-radius: calc(var(--radius-md) - 1px);
+  border-bottom-right-radius: calc(var(--radius-md) - 1px);
+}
+
+/* The repo's name, with its details on a second line. */
+.repo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.repoName {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.watching {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--touch-target);
+  font-weight: 600;
+  color: var(--color-success);
 }
 
 /* The letters a filter matched. */

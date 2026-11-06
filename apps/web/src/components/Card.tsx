@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cx } from "../cx";
 import styles from "./Card.module.css";
 
 // A box of rows with dividers, as in the settings mockup.
@@ -16,6 +17,12 @@ export function Card({
   );
 }
 
-export function CardRow({ children }: { children: ReactNode }) {
-  return <li className={styles.row}>{children}</li>;
+export function CardRow({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string | undefined;
+}) {
+  return <li className={cx(styles.row, className)}>{children}</li>;
 }
