@@ -84,6 +84,7 @@ PRs 2 and 3 were one PR in the first draft of this plan. Together they're over 4
 - [x] An Admin tab in Settings (`/settings/admin`), shown only to admins. The mockup's sections. Small hand-made charts (`BarChart`), no chart library.
 - [x] Fetched once on open: 5 minutes fresh, no refetch on focus.
 - [x] The readings and their rules are worked out in `admin.ts`, apart from the page. "On pace for" waits a day into the month before guessing.
+- [x] GitHub requests per sync count only the worker's requests. The web service's, like the repo picker, aren't syncs. The API gives them apart (`syncRequests`).
 - [x] Tests: each section, the tab for admins only, a non-admin's message, the test alert button, and the readings' rules.
 
 ## Done when

@@ -245,7 +245,12 @@ export const adminOverview = (
       },
     ],
   },
-  github: { requests: 288, lowestBudget: 4610, rateLimited: 0 },
+  github: {
+    requests: 300,
+    syncRequests: 288,
+    lowestBudget: 4610,
+    rateLimited: 0,
+  },
   people: {
     users: 21,
     activeDay: 9,

@@ -98,7 +98,12 @@ describe("readings", () => {
             failingUsers: 6,
           },
           egress: { ...base.egress, thisMonth: 3 * GB },
-          github: { requests: 9, lowestBudget: 800, rateLimited: 1 },
+          github: {
+            requests: 9,
+            syncRequests: 9,
+            lowestBudget: 800,
+            rateLimited: 1,
+          },
         }),
       ),
     ).toEqual([

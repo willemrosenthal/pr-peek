@@ -185,7 +185,12 @@ describe("GET /api/admin/overview", () => {
         },
       ],
     });
-    expect(github).toEqual({ requests: 8, lowestBudget: 4500, rateLimited: 1 });
+    expect(github).toEqual({
+      requests: 8,
+      syncRequests: 6,
+      lowestBudget: 4500,
+      rateLimited: 1,
+    });
   });
 
   it("counts people, and pushes per day", async () => {

@@ -55,7 +55,7 @@ describe("the Admin tab", () => {
     }
     expect(screen.getByText("PullRequest select")).toBeTruthy();
     expect(screen.getByText("sync-user")).toBeTruthy();
-    // 288 requests over 120 syncs.
+    // The worker's 288 requests over 120 syncs. The web service's 12 aren't syncs.
     expect(screen.getByText("2.4")).toBeTruthy();
     // 30,240 calls over the 24 hours since the stats started.
     expect(screen.getByText("1,260")).toBeTruthy();

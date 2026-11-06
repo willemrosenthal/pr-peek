@@ -12,6 +12,7 @@ import {
   readings,
   startOfDay,
   startOfHour,
+  sum,
   type Reading,
 } from "../../admin";
 import { api, ApiError } from "../../api";
@@ -193,7 +194,7 @@ function Egress({ overview }: { overview: AdminOverviewResponse }) {
     label: i % 7 === 0 ? dayLabel(d.at) : "",
     tip: `${dayLabel(d.at)}: ${formatBytes(d.value)}`,
   }));
-  const total = days.reduce((sum, d) => sum + d.value, 0);
+  const total = sum(days.map((d) => d.value));
   return (
     <Section
       title="Database egress per day"
@@ -296,8 +297,8 @@ function Worker({ overview }: { overview: AdminOverviewResponse }) {
     label: i === 0 ? "24 hours ago" : i === 23 ? "Now" : "",
     tip: `${h.at.getUTCHours()}:00: ${formatCount(h.value)} jobs`,
   }));
-  const jobs = worker.queues.reduce((sum, q) => sum + q.jobs, 0);
-  const failed = worker.queues.reduce((sum, q) => sum + q.failed, 0);
+  const jobs = sum(worker.queues.map((q) => q.jobs));
+  const failed = sum(worker.queues.map((q) => q.failed));
   return (
     <Section
       title="Worker"
@@ -314,7 +315,7 @@ function Worker({ overview }: { overview: AdminOverviewResponse }) {
         bars={bars}
         height={120}
         format={formatCount}
-        summary={`Jobs per hour for the last 24 hours, ${formatCount(hours.reduce((s, h) => s + h.value, 0))} in all.`}
+        summary={`Jobs per hour for the last 24 hours, ${formatCount(sum(hours.map((h) => h.value)))} in all.`}
       />
       {worker.queues.length > 0 && (
         <Table
@@ -341,7 +342,7 @@ function GitHubAndPeople({ overview }: { overview: AdminOverviewResponse }) {
     14,
     DAY_MS,
   );
-  const failed = people.pushes.reduce((sum, p) => sum + p.failed, 0);
+  const failed = sum(people.pushes.map((p) => p.failed));
   return (
     <div className={styles.pair}>
       <Section
@@ -353,7 +354,7 @@ function GitHubAndPeople({ overview }: { overview: AdminOverviewResponse }) {
             ["Requests", formatCount(github.requests)],
             [
               "Per sync",
-              syncs ? (github.requests / syncs).toFixed(1) : "None yet",
+              syncs ? (github.syncRequests / syncs).toFixed(1) : "None yet",
             ],
             ["Rate limited", formatCount(github.rateLimited)],
           ]}
@@ -379,7 +380,7 @@ function GitHubAndPeople({ overview }: { overview: AdminOverviewResponse }) {
           }))}
           height={64}
           format={formatCount}
-          summary={`Pushes sent per day for the last 14 days, ${formatCount(pushes.reduce((s, p) => s + p.value, 0))} in all.`}
+          summary={`Pushes sent per day for the last 14 days, ${formatCount(sum(pushes.map((p) => p.value)))} in all.`}
         />
       </Section>
     </div>

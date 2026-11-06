@@ -29,6 +29,8 @@ export const formatMs = (ms: number) =>
 
 export const formatCount = (n: number) => n.toLocaleString("en-US");
 
+export const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+
 const formatShare = (share: number) => `${Math.round(share * 100)}%`;
 
 export interface Point {

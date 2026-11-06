@@ -53,6 +53,8 @@ export interface AdminOverviewResponse {
   // Today.
   github: {
     requests: number;
+    // Made by the worker's syncs, without the web service's, like the repo picker.
+    syncRequests: number;
     // The lowest budget left on any request. Null before any request today.
     lowestBudget: number | null;
     rateLimited: number;
