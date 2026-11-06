@@ -45,10 +45,11 @@ Supabase has no API for egress, so this is the only way to see it in the app. It
 
 ## PRs
 
-1. **Counting** (19.1, 19.2): `feat(server): an admin role, and hourly usage counts`. Has a migration. Counting starts as soon as it's live, so the page has history when it lands.
-2. **The page** (19.3, 19.4): `feat(web): an admin page`.
+1. **Counting** (19.1, 19.2): `feat(server): an admin role, and hourly usage counts`. Has a migration. Counting starts as soon as it's live, so the page has history when it lands. Merged (#144).
+2. **The admin API** (19.3): `feat(server): the admin API`.
+3. **The page** (19.4): `feat(web): the admin page`.
 
-Both release a minor version and deploy.
+PRs 2 and 3 were one PR in the first draft of this plan. Together they're over 400 lines, so they're split. Each releases a minor version and deploys.
 
 ## Steps
 
@@ -72,10 +73,11 @@ Both release a minor version and deploy.
 
 ### 19.3 The admin API
 
-- [ ] `GET /api/admin/overview`: everything the page shows, in one answer. Admins only, rate limited.
-- [ ] `POST /api/admin/test-alert`: a test push to the admin's devices.
-- [ ] `isAdmin` in `/api/me`.
-- [ ] Tests: each part of the answer, admins only, and its size stays small.
+- [x] `GET /api/admin/overview`: everything the page shows, in one answer. Admins only (others get a 404), rate limited to 20 a minute. About 10 small queries, each grouped and limited in SQL.
+- [x] The busiest queries come from `pg_stat_statements`, tried on the search path and then in `extensions`, where Supabase keeps it. Null when neither can be read.
+- [x] `POST /api/admin/test-alert`: a test push to the admin's own devices. 503 when push is off.
+- [x] `isAdmin` in `/api/me`.
+- [x] Tests: each part of the answer, admins only, the test alert, and that 30 days of 200 kinds of read still answers in under 50 KB.
 
 ### 19.4 The page
 
@@ -87,6 +89,6 @@ Both release a minor version and deploy.
 
 - [ ] The admin page shows each section with real numbers (You).
 - [ ] Its egress for a day is within about 20% of Supabase's for that day (You).
-- [ ] Opening the page makes one request, and its answer is under 50 KB.
+- [ ] Opening the page makes one request, and its answer is under 50 KB. The server half: the test "stays small with 30 days of many kinds of read".
 - [ ] A day of counting adds about 150 rows to `UsageStat`.
 - [ ] The test alert reaches your phone (You).

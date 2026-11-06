@@ -1,6 +1,7 @@
 export const APP_NAME = "Git Buddy";
 
 export * from "./api/added-prs";
+export * from "./api/admin";
 export * from "./api/auth";
 export * from "./api/items";
 export * from "./api/preview";

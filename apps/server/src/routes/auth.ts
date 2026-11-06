@@ -132,6 +132,7 @@ export function authRouter(deps: AuthDeps): Router {
       },
       githubToken: personalTokenDto(user),
       needsReauth: user.syncError === "reauth",
+      isAdmin: user.role === "admin",
     };
     res.json(body);
   });

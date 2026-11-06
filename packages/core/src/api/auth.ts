@@ -36,4 +36,6 @@ export interface MeResponse {
   githubToken: GitHubTokenDto | null;
   // The GitHub sign in stopped working. Sign in again.
   needsReauth: boolean;
+  // Can open the admin page.
+  isAdmin: boolean;
 }
