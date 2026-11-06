@@ -20,9 +20,9 @@ const logger = createLogger({ LOG_LEVEL: "silent" });
 afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
-// The day NOW falls on. NOW is 12:00 UTC on 21 October 2026.
+// NOW is 12:00 UTC on 21 October 2026. The day and hour it falls in.
 const DAY = new Date("2026-10-21T00:00:00Z");
-const HOUR = new Date("2026-03-02T12:00:00Z");
+const HOUR = new Date("2026-10-21T12:00:00Z");
 const usageAt = (now = NOW) => new Usage("web", () => now);
 
 describe("Usage", () => {
@@ -67,7 +67,7 @@ describe("Usage", () => {
   });
 
   it("keeps hourly counts by the hour", async () => {
-    const usage = usageAt(new Date("2026-03-02T12:34:56Z"));
+    const usage = usageAt(new Date("2026-10-21T12:34:56Z"));
     usage.add("jobs", "all", {}, "hour");
 
     const [row] = await savedUsage(db, usage);
