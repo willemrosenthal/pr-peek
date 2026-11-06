@@ -4,6 +4,7 @@ import {
   searchReposQuery,
   updateRepoBody,
   type AddRepoResponse,
+  type RepoOwnersResponse,
   type WatchedRepoDto,
   type WatchedReposResponse,
 } from "@pr-peek/core";
@@ -11,7 +12,7 @@ import express, { type Router } from "express";
 import type { Octokit } from "octokit";
 import type { Db } from "../db";
 import { Prisma, type WatchedRepo } from "../generated/prisma/client";
-import { findRepo, searchRepos } from "../github/repos";
+import { findRepo, listOwners, listRepos, searchRepos } from "../github/repos";
 import { HttpError, parseInput, sentFields } from "../http-error";
 import { currentUser, requireUser } from "./auth";
 
@@ -42,13 +43,35 @@ const isUniqueViolation = (err: unknown) =>
 
 export function reposRouter(deps: RepoDeps): Router {
   const router = express.Router();
-  router.use(["/github/repos", "/repos"], requireUser(deps.db));
+  router.use(
+    ["/github/repos", "/github/owners", "/repos"],
+    requireUser(deps.db),
+  );
 
-  // Repos the user could add, for the picker.
+  // Repos the user could add, for the picker: a list, or a search with `query`.
   router.get("/github/repos", async (req, res) => {
-    const { query, cursor } = parseInput(searchReposQuery, req.query);
+    const { query, owner, cursor } = parseInput(searchReposQuery, req.query);
     const octokit = await deps.github(currentUser(res).id);
-    res.json(await searchRepos(octokit, { query, cursor }));
+    if (query) {
+      res.json(await searchRepos(octokit, { query, owner, cursor }));
+      return;
+    }
+    const list = await listRepos(octokit, { owner, cursor });
+    if (!list) {
+      throw new HttpError(
+        404,
+        "not_found",
+        "No GitHub user or org has that name",
+      );
+    }
+    res.json(list);
+  });
+
+  // The owners the picker offers.
+  router.get("/github/owners", async (_req, res) => {
+    const octokit = await deps.github(currentUser(res).id);
+    const body: RepoOwnersResponse = { owners: await listOwners(octokit) };
+    res.json(body);
   });
 
   router.get("/repos", async (_req, res) => {

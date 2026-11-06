@@ -29,6 +29,8 @@ export type UpdateRepoBody = z.infer<typeof updateRepoBody>;
 
 export const searchReposQuery = z.object({
   query: z.string().trim().max(100).optional(),
+  // Only this user's or org's repos.
+  owner: githubName.optional(),
   cursor: z.string().max(200).optional(),
 });
 
@@ -38,12 +40,28 @@ export interface RepoOption {
   owner: string;
   name: string;
   isPrivate: boolean;
+  isFork: boolean;
+  // ISO time of the last push. Null for an empty repo.
+  pushedAt: string | null;
 }
 
 export interface SearchReposResponse {
   repos: RepoOption[];
   // Pass back as `cursor` to get the next page. Null when there are no more.
   nextCursor: string | null;
+}
+
+// Where a repo owner in the picker comes from.
+export type RepoOwnerKind = "you" | "org" | "shared";
+
+export interface RepoOwner {
+  login: string;
+  kind: RepoOwnerKind;
+}
+
+// From GET /api/github/owners: you, then your orgs, then owners who share repos with you.
+export interface RepoOwnersResponse {
+  owners: RepoOwner[];
 }
 
 export interface WatchedRepoDto {

@@ -27,15 +27,58 @@ const repo = (id: number, name: string, extra: object = {}) => ({
   owner: { login: "acme" },
   isPrivate: false,
   isArchived: false,
+  isFork: false,
+  pushedAt: "2026-11-01T00:00:00Z",
   ...extra,
 });
 
-// Answers like GitHub: the repo list, search, and single repo lookups.
+const option = (id: number, name: string, extra: object = {}) => ({
+  githubRepoId: id,
+  owner: "acme",
+  name,
+  isPrivate: false,
+  isFork: false,
+  pushedAt: "2026-11-01T00:00:00Z",
+  ...extra,
+});
+
+// Answers like GitHub: the repo lists, owners, search, and single repo lookups.
 function github(request: GraphQLRequest) {
   const page = (nodes: unknown[]) => ({
     nodes,
     pageInfo: { hasNextPage: true, endCursor: "cursor-2" },
   });
+  if (request.query.includes("organizations")) {
+    return {
+      data: {
+        viewer: {
+          login: "octocat",
+          organizations: { nodes: [{ login: "zeta" }, { login: "Acme" }] },
+          repositories: {
+            nodes: [
+              { owner: { login: "octocat" } },
+              { owner: { login: "acme" } },
+              { owner: { login: "dana" } },
+              { owner: { login: "bo" } },
+              { owner: { login: "dana" } },
+            ],
+          },
+        },
+      },
+    };
+  }
+  if (request.query.includes("repositoryOwner")) {
+    if (request.variables.owner === "nobody") {
+      return { data: { repositoryOwner: null } };
+    }
+    return {
+      data: {
+        repositoryOwner: {
+          repositories: page([repo(4, "fork", { isFork: true })]),
+        },
+      },
+    };
+  }
   if (request.query.includes("viewer")) {
     return {
       data: {
@@ -75,12 +118,51 @@ describe("GET /api/github/repos", () => {
     const res = await agent.get("/api/github/repos");
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      repos: [
-        { githubRepoId: 1, owner: "acme", name: "web-app", isPrivate: false },
-        { githubRepoId: 3, owner: "acme", name: "api", isPrivate: true },
-      ],
+      repos: [option(1, "web-app"), option(3, "api", { isPrivate: true })],
       nextCursor: "cursor-2",
     });
+  });
+
+  it("asks only by owner affiliation, so org members' own repos stay out", async () => {
+    const { agent, requests } = await setup();
+    await agent.get("/api/github/repos");
+
+    const query = requests.at(-1)?.query ?? "";
+    expect(query).toContain(
+      "ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]",
+    );
+    expect(query).not.toMatch(/\baffiliations:/);
+    expect(query).toContain("first: 100");
+  });
+
+  it("lists one owner's repos, and passes the cursor along", async () => {
+    const { agent, requests } = await setup();
+
+    const res = await agent.get("/api/github/repos?owner=acme&cursor=abc");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      repos: [option(4, "fork", { isFork: true })],
+      nextCursor: "cursor-2",
+    });
+    expect(requests.at(-1)?.variables).toEqual({
+      owner: "acme",
+      cursor: "abc",
+    });
+  });
+
+  it("answers 404 for an owner GitHub doesn't know", async () => {
+    const { agent } = await setup();
+
+    const res = await agent.get("/api/github/repos?owner=nobody");
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ error: { code: "not_found" } });
+  });
+
+  it("refuses an owner that isn't a valid GitHub name", async () => {
+    const { agent } = await setup();
+
+    const res = await agent.get("/api/github/repos?owner=a%20b");
+    expect(res.status).toBe(400);
   });
 
   it("searches by name when given a query, and passes the cursor along", async () => {
@@ -91,6 +173,16 @@ describe("GET /api/github/repos", () => {
     expect(requests.at(-1)?.variables).toEqual({
       q: "web in:name archived:false",
       cursor: "abc",
+    });
+  });
+
+  it("searches only one owner's repos when given an owner", async () => {
+    const { agent, requests } = await setup();
+    await agent.get("/api/github/repos?query=web&owner=acme");
+
+    expect(requests.at(-1)?.variables).toEqual({
+      q: "web in:name archived:false user:acme",
+      cursor: null,
     });
   });
 
@@ -108,6 +200,24 @@ describe("GET /api/github/repos", () => {
     const res = await agent.get("/api/github/repos");
     expect(res.status).toBe(401);
     expect(res.body).toMatchObject({ error: { code: "reauth" } });
+  });
+});
+
+describe("GET /api/github/owners", () => {
+  it("lists the user, their orgs, then owners who share repos, each by name", async () => {
+    const { agent } = await setup();
+
+    const res = await agent.get("/api/github/owners");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      owners: [
+        { login: "octocat", kind: "you" },
+        { login: "Acme", kind: "org" },
+        { login: "zeta", kind: "org" },
+        { login: "bo", kind: "shared" },
+        { login: "dana", kind: "shared" },
+      ],
+    });
   });
 });
 
@@ -259,7 +369,11 @@ describe("signed out", () => {
         reposRouter({ db, github: () => Promise.reject(new Error("unused")) }),
       ],
     });
-    for (const path of ["/api/repos", "/api/github/repos"]) {
+    for (const path of [
+      "/api/repos",
+      "/api/github/repos",
+      "/api/github/owners",
+    ]) {
       expect((await agent.get(path)).status).toBe(401);
     }
   });

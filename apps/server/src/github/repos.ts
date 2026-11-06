@@ -1,11 +1,13 @@
-import type { RepoOption, SearchReposResponse } from "@pr-peek/core";
+import type { RepoOption, RepoOwner, SearchReposResponse } from "@pr-peek/core";
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import { isNotFound } from "./errors";
 
-const PAGE_SIZE = 20;
+// Lists are filtered in the browser, so they come in big pages. Search shows a few.
+const LIST_PAGE_SIZE = 100;
+const SEARCH_PAGE_SIZE = 20;
 
-const REPO_FIELDS = `databaseId name owner { login } isPrivate isArchived`;
+const REPO_FIELDS = `databaseId name owner { login } isPrivate isArchived isFork pushedAt`;
 
 const repoNode = z.object({
   databaseId: z.number(),
@@ -13,6 +15,8 @@ const repoNode = z.object({
   owner: z.object({ login: z.string() }),
   isPrivate: z.boolean(),
   isArchived: z.boolean(),
+  isFork: z.boolean(),
+  pushedAt: z.string().nullable(),
 });
 
 const page = z.object({
@@ -32,6 +36,8 @@ function toRepoOption(node: RepoNode): RepoOption {
     owner: node.owner.login,
     name: node.name,
     isPrivate: node.isPrivate,
+    isFork: node.isFork,
+    pushedAt: node.pushedAt,
   };
 }
 
@@ -46,25 +52,23 @@ function toPage(raw: z.infer<typeof page>): SearchReposResponse {
   };
 }
 
-// The user's repos, most recently pushed first. With a query, searches repos they can see by name.
-export async function searchRepos(
+// Repos the user can add, most recently pushed first. With an owner, only theirs.
+// Null if no user or org has that name.
+export async function listRepos(
   octokit: Octokit,
-  options: { query?: string | undefined; cursor?: string | undefined },
-): Promise<SearchReposResponse> {
+  options: { owner?: string | undefined; cursor?: string | undefined },
+): Promise<SearchReposResponse | null> {
   const cursor = options.cursor ?? null;
+  const args = `first: ${LIST_PAGE_SIZE}, after: $cursor, isArchived: false,
+    orderBy: { field: PUSHED_AT, direction: DESC }`;
 
-  if (!options.query) {
+  if (!options.owner) {
+    // Only ownerAffiliations. Adding `affiliations` makes GitHub return the personal
+    // repos of everyone in the user's orgs, which can be over 100,000.
     const data = await octokit.graphql(
       `query ($cursor: String) {
         viewer {
-          repositories(
-            first: ${PAGE_SIZE}
-            after: $cursor
-            affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]
-            # Without this, GitHub can leave out repos owned by the user's orgs.
-            ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]
-            orderBy: { field: PUSHED_AT, direction: DESC }
-          ) {
+          repositories(${args}, ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
             nodes { ${REPO_FIELDS} }
             pageInfo { hasNextPage endCursor }
           }
@@ -79,15 +83,100 @@ export async function searchRepos(
   }
 
   const data = await octokit.graphql(
+    `query ($owner: String!, $cursor: String) {
+      repositoryOwner(login: $owner) {
+        repositories(${args}, ownerAffiliations: [OWNER]) {
+          nodes { ${REPO_FIELDS} }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }`,
+    { owner: options.owner, cursor },
+  );
+  const { repositoryOwner } = z
+    .object({
+      repositoryOwner: z.object({ repositories: page }).nullable(),
+    })
+    .parse(data);
+  return repositoryOwner && toPage(repositoryOwner.repositories);
+}
+
+// Searches repos the user can see by name. With an owner, only theirs.
+export async function searchRepos(
+  octokit: Octokit,
+  options: {
+    query: string;
+    owner?: string | undefined;
+    cursor?: string | undefined;
+  },
+): Promise<SearchReposResponse> {
+  // `user:` matches orgs too.
+  const owner = options.owner ? ` user:${options.owner}` : "";
+  const data = await octokit.graphql(
     `query ($q: String!, $cursor: String) {
-      search(type: REPOSITORY, query: $q, first: ${PAGE_SIZE}, after: $cursor) {
+      search(type: REPOSITORY, query: $q, first: ${SEARCH_PAGE_SIZE}, after: $cursor) {
         nodes { ... on Repository { ${REPO_FIELDS} } }
         pageInfo { hasNextPage endCursor }
       }
     }`,
-    { q: `${options.query} in:name archived:false`, cursor },
+    {
+      q: `${options.query} in:name archived:false${owner}`,
+      cursor: options.cursor ?? null,
+    },
   );
   return toPage(z.object({ search: page }).parse(data).search);
+}
+
+const login = z.object({ login: z.string() });
+
+// The owners to pick from: the user, their orgs, then owners of repos shared with them.
+export async function listOwners(octokit: Octokit): Promise<RepoOwner[]> {
+  // Shared owners come from the first 100 shared repos, which covers nearly everyone.
+  const data = await octokit.graphql(
+    `query {
+      viewer {
+        login
+        organizations(first: 100) { nodes { login } }
+        repositories(first: 100, ownerAffiliations: [COLLABORATOR]) {
+          nodes { owner { login } }
+        }
+      }
+    }`,
+  );
+  const { viewer } = z
+    .object({
+      viewer: z.object({
+        login: z.string(),
+        organizations: z.object({ nodes: z.array(login.nullable()) }),
+        repositories: z.object({
+          nodes: z.array(z.object({ owner: login }).nullable()),
+        }),
+      }),
+    })
+    .parse(data);
+
+  const byName = (a: string, b: string) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" });
+  const orgs = viewer.organizations.nodes
+    .flatMap((org) => (org ? [org.login] : []))
+    .sort(byName);
+  // GitHub logins ignore case.
+  const seen = new Set([viewer.login, ...orgs].map((l) => l.toLowerCase()));
+  const shared = [
+    ...new Set(
+      viewer.repositories.nodes.flatMap((repo) =>
+        repo ? [repo.owner.login] : [],
+      ),
+    ),
+  ]
+    .filter((l) => !seen.has(l.toLowerCase()))
+    .sort(byName);
+
+  return [
+    { login: viewer.login, kind: "you" },
+    ...orgs.map((l): RepoOwner => ({ login: l, kind: "org" })),
+    ...shared.map((l): RepoOwner => ({ login: l, kind: "shared" })),
+  ];
 }
 
 // Looks up one repo. Null if it doesn't exist or the user can't see it.

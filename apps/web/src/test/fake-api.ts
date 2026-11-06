@@ -163,6 +163,8 @@ export const repoOption = (fields: Partial<RepoOption> = {}): RepoOption => {
     owner: "acme",
     name: `repo-${repoCount}`,
     isPrivate: false,
+    isFork: false,
+    pushedAt: "2026-11-01T00:00:00Z",
     ...fields,
   };
 };
