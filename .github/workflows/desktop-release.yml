@@ -91,7 +91,7 @@ jobs:
       # The version comes from the tag. createUpdaterArtifacts is on only here, so local
       # builds don't need the key. signingIdentity "-" is a free stand-in signature until
       # Apple signing is set up. Without any, Apple Silicon Macs call the app damaged.
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
