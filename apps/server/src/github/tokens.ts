@@ -118,8 +118,8 @@ export const newestToken = (db: Db, userId: string) =>
     orderBy: { createdAt: "desc" },
   });
 
-// Which token a GitHub client uses. With none, the newest personal access token, else the
-// sign in. `owner`: the token that reaches that user or org (see pickToken). `tokenId`:
+// Which token a GitHub client uses. With none, the newest working personal access token,
+// else the newest stopped one (so its error shows), else the sign in. `owner`: the token that reaches that user or org (see pickToken). `tokenId`:
 // that personal access token, or the sign in when null.
 export type TokenChoice = { owner: string } | { tokenId: string | null };
 
@@ -149,7 +149,14 @@ async function chosenToken(
   userId: string,
   choice: TokenChoice | undefined,
 ): Promise<GitHubToken | null> {
-  if (!choice) return newestToken(db, userId);
+  if (!choice) {
+    return (
+      (await db.gitHubToken.findFirst({
+        where: { userId, status: "working" },
+        orderBy: { createdAt: "desc" },
+      })) ?? newestToken(db, userId)
+    );
+  }
   if ("owner" in choice) {
     const tokens = await db.gitHubToken.findMany({ where: { userId } });
     const id = pickToken(tokens, choice.owner);

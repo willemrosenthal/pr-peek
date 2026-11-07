@@ -224,6 +224,19 @@ describe("getAccessToken", () => {
   });
 
   describe("choosing a token", () => {
+    it("by default, skips a stopped token for a working one", async () => {
+      const user = await userWith();
+      const older = await addToken(db, user.id, "github_pat_older", {
+        createdAt: hours(-2),
+      });
+      await addToken(db, user.id, "github_pat_newer", { status: "stopped" });
+
+      expect(await getAccessToken(deps(), user.id)).toEqual({
+        token: "github_pat_older",
+        tokenId: older.id,
+      });
+    });
+
     it("uses the token that reaches the owner, else the sign in", async () => {
       const user = await userWith();
       const acme = await addToken(db, user.id, "github_pat_acme", {
