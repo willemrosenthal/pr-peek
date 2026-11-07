@@ -141,7 +141,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 
   The updater and the download link both use GitHub's "latest release". Only the Mac app should publish non-draft releases from this repo, or installed apps stop finding updates.
 
-- [ ] Apple signing and notarization (Apple's automated malware check, needed so other people's Macs open the app without warnings):
+- [ ] Apple signing and notarization (Apple's automated malware check, needed so other people's Macs open the app without warnings). Step by step: [09-apple-signing.md](09-apple-signing.md).
   - **(You)** Join the Apple Developer Program.
   - **(You)** Create a "Developer ID Application" certificate and an App Store Connect API key.
   - **(You)** Add them as GitHub secrets.
