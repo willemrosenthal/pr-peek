@@ -46,6 +46,8 @@ The Job table reading showed 8,000 rows on a local database with one user, again
 - **pg-boss's own queue (`__pgboss__send-it`)** handles every scheduled run, about 3,300 a day, and kept its finished jobs 7 days. By the schedules, about 23,000 rows in production at any time. The admin page will show the real number. Our summary, reminder, and health-check queues kept theirs 7 days too. All of them now keep finished jobs an hour.
 - **pg-boss cleans up once a day** by default, so an hour's keep could be 25 hours. It now cleans up every hour: a few small queries per queue.
 
+The first day of real numbers showed one more: "pgboss.queue select" was the third biggest read, about a fifth of egress. Each process re-read every queue's settings every minute, about 3 KB each time. They only change when we deploy, so they're re-read hourly now.
+
 pg-boss copies the keep time onto each job when it's made. Jobs made before a change keep the old time, and leave on their own within 7 days. The reading now expects 600 rows, plus 100 per user.
 
 ### Not in this plan
@@ -58,6 +60,7 @@ pg-boss copies the keep time onto each job when it's made. Jobs made before a ch
 2. **The admin API** (19.3): `feat(server): the admin API`.
 3. **The page** (19.4): `feat(web): the admin page`.
 4. **pg-boss's own jobs** (19.5): `fix(server): keep pg-boss's own finished jobs an hour, not 7 days`. Found while building (#147).
+5. **pg-boss's queue reads** (19.6): `fix(server): read pg-boss's queue settings hourly, not every minute`. Found with the page.
 
 PRs 2 and 3 were one PR in the first draft of this plan. Together they're over 400 lines, so they're split. Each releases a minor version and deploys.
 
@@ -103,6 +106,11 @@ PRs 2 and 3 were one PR in the first draft of this plan. Together they're over 4
 - [x] pg-boss cleans up every hour, not once a day.
 - [x] The Job table reading expects 600 rows, plus 100 per user.
 - [x] Tests: the queues' keep times, and that cleanup runs hourly and deletes old finished jobs in every queue, through `createBoss`. The hourly part fails with pg-boss's daily default.
+
+### 19.6 pg-boss's queue reads
+
+- [x] Each process re-reads pg-boss's queue settings every hour, not every minute.
+- [x] Tests: no re-reads in 2 minutes. With pg-boss's default it re-reads twice.
 
 ## Done when
 
