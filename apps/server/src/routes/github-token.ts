@@ -2,7 +2,12 @@ import { githubTokenBody, type GitHubTokenResponse } from "@pr-peek/core";
 import express, { type Router } from "express";
 import type { Db } from "../db";
 import { GitHubAuthError, type GitHubOAuth } from "../github/oauth";
-import { encryptPersonalToken, personalTokenDto } from "../github/tokens";
+import {
+  encryptPersonalToken,
+  personalTokenDto,
+  removePersonalTokens,
+  savePersonalToken,
+} from "../github/tokens";
 import { HttpError, parseInput } from "../http-error";
 import { attemptLimiter } from "../rate-limit";
 import { currentUser, requireUser } from "./auth";
@@ -52,20 +57,17 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
     }
 
     // A new token fixes any stopped sync, so the next dispatch picks the user up.
-    const updated = await deps.db.user.update({
-      where: { id: user.id },
-      data: {
-        ...encryptPersonalToken(
-          { token, expiresAt: checked.expiresAt, scopes: scopes ?? [] },
-          deps.key,
-        ),
-        syncError: null,
-        syncFailures: 0,
-        syncRetryAt: null,
-      },
-    });
+    const saved = await savePersonalToken(
+      deps.db,
+      user.id,
+      encryptPersonalToken(
+        { token, expiresAt: checked.expiresAt, scopes: scopes ?? [] },
+        deps.key,
+      ),
+      { syncError: null, syncFailures: 0, syncRetryAt: null },
+    );
     const body: GitHubTokenResponse = {
-      githubToken: personalTokenDto(updated)!,
+      githubToken: personalTokenDto(saved, null)!,
     };
     res.json(body);
   });
@@ -73,15 +75,11 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
   // Syncs go back to the sign in token.
   router.delete("/github-token", async (_req, res) => {
     const user = currentUser(res);
-    await deps.db.user.update({
-      where: { id: user.id },
-      data: {
-        patEnc: null,
-        patExpiresAt: null,
-        patScopes: [],
-        ...(user.syncError === "token" && { syncError: null }),
-      },
-    });
+    await removePersonalTokens(
+      deps.db,
+      user.id,
+      user.syncError === "token" ? { syncError: null } : {},
+    );
     res.sendStatus(204);
   });
 

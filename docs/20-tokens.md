@@ -35,11 +35,15 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 
 ### 20.1 The table
 
-- [ ] A `GitHubToken` table: `id`, `userId`, `name`, `tokenEnc`, `tokenHash`, `kind` (classic or fine-grained, from the `ghp_` or `github_pat_` prefix), `scopes`, `expiresAt`, `owners` (string list), `ownersCheckedAt`, `status` (working or stopped), `stoppedAt`, `expiryRemindedAt`, `lastUsedAt`, `createdAt`. Unique on `userId` and `tokenHash`.
-- [ ] Copy each user's `patEnc`, `patExpiresAt`, and `patScopes` into a row. The encrypted text copies as is.
-- [ ] The current `/github-token` routes and the sync read and write the table, as a list of one. So nothing changes for users yet, and nothing is lost after the deploy.
-- [ ] Keep the old columns for one release, so the running version still works during the deploy (10.6). Drop them in a later PR.
-- [ ] `tokens:reencrypt` also covers the new table. Update [security.md](security.md).
+- [x] A `GitHubToken` table: `id`, `userId`, `name`, `tokenEnc`, `tokenHash`, `kind` (classic or fine-grained, from the `ghp_` or `github_pat_` prefix), `scopes`, `expiresAt`, `owners` (string list), `ownersCheckedAt`, `status` (working or stopped), `stoppedAt`, `expiryRemindedAt`, `lastUsedAt`, `createdAt`. Unique on `userId` and `tokenHash`.
+- [x] Copy each user's `patEnc`, `patExpiresAt`, and `patScopes` into a row. The encrypted text copies as is.
+  - Learned while building: SQL can't decrypt the token, so the migration can't hash it or read its prefix. `tokenHash` is nullable, and the kind is guessed from the scopes (only classic tokens list them). The first time a sync reads the token, it fills in both.
+  - Names start as "Personal access token". Names from the org come with 20.2, once we know what a token reaches.
+  - When GitHub rejects the token, it's marked `stopped` too, ready for 20.5.
+- [x] The current `/github-token` routes and the sync read and write the table, as a list of one. So nothing changes for users yet, and nothing is lost after the deploy.
+- [x] Keep the old columns for one release, so the running version still works during the deploy (10.6). Drop them in a later PR.
+  - The new version still writes them when a token is saved or removed. A token saved on the old version during the few minutes of a deploy isn't copied: the user would add it again.
+- [x] `tokens:reencrypt` also covers the new table. Update [security.md](security.md).
 
 ### 20.2 Syncs use them
 

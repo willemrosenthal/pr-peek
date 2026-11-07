@@ -1,6 +1,6 @@
 import type { Octokit } from "octokit";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTestDb, resetDb } from "../test/db";
+import { addPersonalToken, createTestDb, resetDb } from "../test/db";
 import {
   githubTokens,
   githubUser,
@@ -16,11 +16,7 @@ import {
   searchHit,
   type FakePrGitHub,
 } from "../test/pulls";
-import {
-  encryptPersonalToken,
-  NeedsReauthError,
-  STOP_REASONS,
-} from "./github/tokens";
+import { NeedsReauthError, STOP_REASONS } from "./github/tokens";
 import { createLogger } from "./logger";
 import {
   backoffMs,
@@ -347,12 +343,8 @@ describe("runSync", () => {
     });
 
     it("asks for a new token when the user added one", async () => {
-      const user = await makeUser(
-        encryptPersonalToken(
-          { token: "ghp_token", expiresAt: null, scopes: ["repo"] },
-          TEST_KEY,
-        ),
-      );
+      const user = await makeUser();
+      await addPersonalToken(db, user.id);
       await run(user.id, badCredentials);
       expect((await reload(user.id)).syncError).toBe("token");
     });

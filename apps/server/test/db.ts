@@ -1,4 +1,6 @@
 import { createDb, createPool, type Db } from "../src/db";
+import { encryptPersonalToken, savePersonalToken } from "../src/github/tokens";
+import { TEST_KEY } from "./fakes";
 
 export const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ??
@@ -14,3 +16,16 @@ export function createTestDb(): Db {
 export async function resetDb(db: Db): Promise<void> {
   await db.$executeRaw`TRUNCATE "User", "session", "AdminAlert", "UsageStat" CASCADE`;
 }
+
+// Gives the user a personal access token, saved like adding one in Settings.
+export const addPersonalToken = (
+  db: Db,
+  userId: string,
+  token = "ghp_token",
+  expiresAt: Date | null = null,
+) =>
+  savePersonalToken(
+    db,
+    userId,
+    encryptPersonalToken({ token, expiresAt, scopes: ["repo"] }, TEST_KEY),
+  );

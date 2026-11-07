@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { createTestDb, resetDb } from "../../test/db";
+import { addPersonalToken, createTestDb, resetDb } from "../../test/db";
 import {
   fakeOAuth,
   githubTokens,
@@ -15,6 +15,7 @@ import { GitHubAuthError } from "./oauth";
 import {
   encryptPersonalToken,
   getAccessToken,
+  markNeedsReauth,
   NeedsReauthError,
   reencryptTokens,
 } from "./tokens";
@@ -107,13 +108,7 @@ describe("getAccessToken", () => {
       const user = await userWith(
         githubTokens({ accessTokenExpiresAt: hours(-1) }),
       );
-      await db.user.update({
-        where: { id: user.id },
-        data: encryptPersonalToken(
-          { token: "ghp_token", expiresAt, scopes: ["repo"] },
-          TEST_KEY,
-        ),
-      });
+      await addPersonalToken(db, user.id, "ghp_token", expiresAt);
       return user;
     }
 
@@ -136,6 +131,52 @@ describe("getAccessToken", () => {
       expect(
         (await db.user.findUniqueOrThrow({ where: { id: user.id } })).syncError,
       ).toBe("token");
+      const token = await db.gitHubToken.findFirstOrThrow();
+      expect(token.status).toBe("stopped");
+      expect(token.stoppedAt).toBeInstanceOf(Date);
+    });
+
+    it("fills in the hash and kind of a token copied from the User row", async () => {
+      const user = await userWith(
+        githubTokens({ accessTokenExpiresAt: hours(-1) }),
+      );
+      // As the migration copies it: no hash, and the kind guessed from no scopes.
+      const { tokenHash: _, ...copied } = encryptPersonalToken(
+        { token: "ghp_token", expiresAt: null, scopes: [] },
+        TEST_KEY,
+      );
+      await db.gitHubToken.create({
+        data: {
+          ...copied,
+          userId: user.id,
+          name: "Personal access token",
+          kind: "fine_grained",
+        },
+      });
+
+      expect(await getAccessToken(deps(), user.id)).toBe("ghp_token");
+      const saved = await db.gitHubToken.findFirstOrThrow();
+      expect(saved.kind).toBe("classic");
+      expect(saved.tokenHash).toBe(
+        encryptPersonalToken(
+          { token: "ghp_token", expiresAt: null, scopes: [] },
+          TEST_KEY,
+        ).tokenHash,
+      );
+    });
+  });
+
+  describe("markNeedsReauth", () => {
+    it("blames the sign in when there's no personal access token", async () => {
+      const user = await userWith();
+      expect(await markNeedsReauth(db, user.id)).toBe("reauth");
+    });
+
+    it("blames the personal access token, and marks it stopped", async () => {
+      const user = await userWith();
+      await addPersonalToken(db, user.id);
+      expect(await markNeedsReauth(db, user.id)).toBe("token");
+      expect((await db.gitHubToken.findFirstOrThrow()).status).toBe("stopped");
     });
   });
 
@@ -200,13 +241,7 @@ describe("changing the encryption key", () => {
       where: { id: other.id },
       data: { accessTokenEnc: null, refreshTokenEnc: null },
     });
-    await db.user.update({
-      where: { id: user.id },
-      data: encryptPersonalToken(
-        { token: "ghp_personal", expiresAt: null, scopes: ["repo"] },
-        TEST_KEY,
-      ),
-    });
+    await addPersonalToken(db, user.id, "ghp_personal");
 
     expect(
       await reencryptTokens(db, { key: NEW_KEY, previousKey: TEST_KEY }),
@@ -216,5 +251,7 @@ describe("changing the encryption key", () => {
     expect(decrypt(saved.accessTokenEnc!, NEW_KEY)).toBe("ghu_access");
     expect(decrypt(saved.refreshTokenEnc!, NEW_KEY)).toBe("ghr_refresh");
     expect(decrypt(saved.patEnc!, NEW_KEY)).toBe("ghp_personal");
+    const token = await db.gitHubToken.findFirstOrThrow();
+    expect(decrypt(token.tokenEnc, NEW_KEY)).toBe("ghp_personal");
   });
 });

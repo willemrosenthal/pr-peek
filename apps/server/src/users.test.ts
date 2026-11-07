@@ -1,8 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { createTestDb, resetDb } from "../test/db";
+import { addPersonalToken, createTestDb, resetDb } from "../test/db";
 import { githubTokens, githubUser, TEST_KEY } from "../test/fakes";
 import { decrypt } from "./crypto";
-import { encryptPersonalToken } from "./github/tokens";
 import { upsertGitHubUser } from "./users";
 
 const db = createTestDb();
@@ -103,15 +102,10 @@ describe("upsertGitHubUser", () => {
       githubTokens(),
       TEST_KEY,
     );
+    await addPersonalToken(db, first.user.id);
     await db.user.update({
       where: { id: first.user.id },
-      data: {
-        ...encryptPersonalToken(
-          { token: "ghp_token", expiresAt: null, scopes: ["repo"] },
-          TEST_KEY,
-        ),
-        syncError: "token",
-      },
+      data: { syncError: "token" },
     });
 
     const { user } = await upsertGitHubUser(
@@ -120,7 +114,8 @@ describe("upsertGitHubUser", () => {
       githubTokens(),
       TEST_KEY,
     );
-    expect(decrypt(user.patEnc ?? "", TEST_KEY)).toBe("ghp_token");
+    const token = await db.gitHubToken.findFirstOrThrow();
+    expect(decrypt(token.tokenEnc, TEST_KEY)).toBe("ghp_token");
     // The token is still broken, so syncs wait for a new one.
     expect(user.syncError).toBe("token");
   });
