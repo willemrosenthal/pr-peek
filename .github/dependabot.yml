@@ -21,6 +21,10 @@ updates:
           - version-update:semver-major
           - version-update:semver-minor
           - version-update:semver-patch
+      # Its types follow the Node version we run (.nvmrc), so a new major waits for that.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
     groups:
       production:
         dependency-type: production
@@ -64,6 +68,11 @@ updates:
       interval: monthly
     commit-message:
       prefix: ci(deps)
+    # It builds the Mac release, which only a real release can test. Majors by hand.
+    ignore:
+      - dependency-name: "tauri-apps/tauri-action"
+        update-types:
+          - version-update:semver-major
     groups:
       actions:
         update-types: [minor, patch]
