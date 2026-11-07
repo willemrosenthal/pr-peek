@@ -137,12 +137,12 @@ The Mac browser may also have a push subscription, so the same alert could arriv
      - Turn on `bundle.createUpdaterArtifacts` only in this workflow (for example with `--config`). In `tauri.conf.json` it would make every local `pnpm desktop:build` need the private key.
   4. The workflow stops if the tag doesn't match `version` in `tauri.conf.json`, since that's the version `latest.json` gives.
 
-  **Changed by [plan 15](completed/15-auto-release.md):** `release.yml` now calls `desktop-release.yml` with a `v1.2.3` tag when a `feat` or `fix` lands and `apps/desktop` changed. The version comes from the tag at build time, and `tauri.conf.json` holds `0.0.0`. Step 4 is gone.
+  **Changed by [plan 15](15-auto-release.md):** `release.yml` now calls `desktop-release.yml` with a `v1.2.3` tag when a `feat` or `fix` lands and `apps/desktop` changed. The version comes from the tag at build time, and `tauri.conf.json` holds `0.0.0`. Step 4 is gone.
 
   The updater and the download link both use GitHub's "latest release". Only the Mac app should publish non-draft releases from this repo, or installed apps stop finding updates.
 
-- [ ] Move `tauri-apps/tauri-action` from v0 to v1 by hand, with the next Mac release. Dependabot skips its majors. v1 renames the update file (`.app.tar.gz`) to include the version, changes the links in `latest.json`, and rewrites an existing release's title and notes. Pass `releaseName` and `releaseBody`, or check ours survive. Then check the release page, and that an installed app updates.
-- [x] Apple signing and notarization (Apple's automated malware check, needed so other people's Macs open the app without warnings). Step by step: [09-apple-signing.md](09-apple-signing.md).
+- [x] ~~Move `tauri-apps/tauri-action` from v0 to v1.~~ Moved to [plan 10](../10-launch-readiness.md), 10.3, so this plan could finish.
+- [x] Apple signing and notarization (Apple's automated malware check, needed so other people's Macs open the app without warnings). Step by step: [09-apple-signing.md](09-apple-signing.md). First signed build: 1.19.0, on 7 November 2026.
   - **(You)** Join the Apple Developer Program. Done.
   - **(You)** Create a "Developer ID Application" certificate and an App Store Connect API key. Done.
   - **(You)** Add them as GitHub secrets. Done: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_API_ISSUER`, `APPLE_API_KEY`, `APPLE_API_PRIVATE_KEY`, and `KEYCHAIN_PASSWORD`.
@@ -150,7 +150,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
     - As built: Tauri needs the `.p8` key as a file, so a step writes `APPLE_API_PRIVATE_KEY` to one and sets `APPLE_API_KEY_PATH`.
     - Tauri skips notarizing with only a warning if a value is missing, so a step checks the app is signed and notarized before the release is published.
   - Then remove `"signingIdentity":"-"` from the workflow's `--config`. Done, and the "Open Anyway" note is gone from the release notes.
-  - **(You)** The first signed build comes with the next release that changes `apps/desktop`. Check it opens with no warning ([09-apple-signing.md](09-apple-signing.md), part 9).
+  - **(You)** Check the first signed build opens with no warning ([09-apple-signing.md](09-apple-signing.md), part 9). Done: 1.19.0 opened on a fresh Mac.
 - [x] Before signing was set up, builds worked for you. The first time, macOS blocks the app: open System Settings, Privacy & Security, and choose Open Anyway. The release notes said so. (Newer macOS dropped right click, Open.)
   - Builds get a free stand-in signature (`signingIdentity` `-`). With no signature at all, Apple Silicon Macs call a downloaded app damaged.
 - [x] Add a "Download for Mac" link on the `/install` page that points at the latest release.
@@ -184,8 +184,8 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 
 ## Done when
 
-- [ ] The menu bar shows the icon and live count, and the color changes when something goes stale or a check fails.
-- [ ] Clicking opens the list under the icon. Clicking away hides it. The global shortcut works.
-- [ ] A GitHub event produces one native Mac alert (not two) while the app is running, and the phone still gets its push.
-- [ ] Launch at login works after a restart.
-- [ ] Merging a `feat` or `fix` PR that changes `apps/desktop` builds a release, and an installed older version offers the update and installs it.
+- [x] The menu bar shows the icon and live count, and the color changes when something goes stale or a check fails.
+- [x] Clicking opens the list under the icon. Clicking away hides it. The global shortcut works.
+- [x] A GitHub event produces one native Mac alert (not two) while the app is running, and the phone still gets its push.
+- [x] Launch at login works after a restart.
+- [x] Merging a `feat` or `fix` PR that changes `apps/desktop` builds a release, and an installed older version offers the update and installs it. Checked with 1.10.0 and 1.13.0, and 1.13.0 updated to the first signed build, 1.19.0.
