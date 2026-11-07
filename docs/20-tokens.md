@@ -86,6 +86,6 @@ Most people make a token on GitHub and paste it on the same phone, so this has t
 ## Done when
 
 - [ ] A user in two orgs that only allow fine-grained tokens adds a token for each, and PRs from both show up.
-- [ ] Removing or revoking one token stops only its org's PRs, with a banner saying so.
+- [ ] Removing or revoking one token affects only its org. Those repos fall back to the GitHub sign in, and a banner says so. The other tokens keep syncing.
 - [ ] A push arrives 7 days before a token expires.
 - [ ] Each extra token adds no more than 2 or 3 GitHub calls per sync.
