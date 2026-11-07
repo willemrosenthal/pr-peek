@@ -11,6 +11,7 @@ import type {
   RepoOwnersResponse,
   SearchReposResponse,
   SettingsResponse,
+  SignUpRequestsResponse,
   SummaryResponse,
   SyncStatusResponse,
   WatchedReposResponse,
@@ -39,6 +40,7 @@ export const queryKeys = {
   githubRepos: ["github-repos"],
   githubOwners: ["github-owners"],
   adminOverview: ["admin-overview"],
+  signUpRequests: ["sign-up-requests"],
   settings: ["settings"],
   pushKey: ["push-key"],
   devices: ["devices"],
@@ -372,5 +374,16 @@ export function useSyncStatus(
     queryFn: () => api<SyncStatusResponse>("/sync/status"),
     refetchInterval,
     enabled,
+  });
+}
+
+// Sign-up requests waiting for an admin. Asked when the admin page opens, like the
+// overview. The push for a new request opens the page.
+export function useSignUpRequests() {
+  return useQuery({
+    queryKey: queryKeys.signUpRequests,
+    queryFn: () => api<SignUpRequestsResponse>("/admin/requests"),
+    refetchOnWindowFocus: false,
+    retry: retryServerErrors,
   });
 }

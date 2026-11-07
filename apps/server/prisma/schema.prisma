@@ -118,6 +118,9 @@ model User {
   // notifications instead of the browsers on that Mac.
   desktopSeenAt         DateTime?
   role                  Role       @default(user)
+  // When an admin approved the sign-up request. Null while it waits: every route but /me
+  // answers 403, and nothing syncs. Declining deletes the user.
+  approvedAt            DateTime?
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 

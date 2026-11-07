@@ -33,8 +33,10 @@ export function activityRouter(deps: ActivityDeps): Router {
       saved.lastSyncedAt !== null &&
       at.getTime() - saved.lastSyncedAt.getTime() <=
         SYNC_TIMING.activeEveryMinutes * MINUTE_MS;
-    // Leaves users alone who must sign in again, or whose syncs are backing off.
+    // Leaves users alone who must sign in again, whose syncs are backing off, or whose
+    // sign-up request waits for an admin.
     const waiting =
+      !saved.approvedAt ||
       STOP_REASONS.some((reason) => reason === saved.syncError) ||
       (saved.syncRetryAt !== null && saved.syncRetryAt > at);
     if (!fresh && !waiting) {
