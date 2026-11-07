@@ -142,13 +142,16 @@ The Mac browser may also have a push subscription, so the same alert could arriv
   The updater and the download link both use GitHub's "latest release". Only the Mac app should publish non-draft releases from this repo, or installed apps stop finding updates.
 
 - [ ] Move `tauri-apps/tauri-action` from v0 to v1 by hand, with the next Mac release. Dependabot skips its majors. v1 renames the update file (`.app.tar.gz`) to include the version, changes the links in `latest.json`, and rewrites an existing release's title and notes. Pass `releaseName` and `releaseBody`, or check ours survive. Then check the release page, and that an installed app updates.
-- [ ] Apple signing and notarization (Apple's automated malware check, needed so other people's Macs open the app without warnings). Step by step: [09-apple-signing.md](09-apple-signing.md).
-  - **(You)** Join the Apple Developer Program.
-  - **(You)** Create a "Developer ID Application" certificate and an App Store Connect API key.
-  - **(You)** Add them as GitHub secrets.
+- [x] Apple signing and notarization (Apple's automated malware check, needed so other people's Macs open the app without warnings). Step by step: [09-apple-signing.md](09-apple-signing.md).
+  - **(You)** Join the Apple Developer Program. Done.
+  - **(You)** Create a "Developer ID Application" certificate and an App Store Connect API key. Done.
+  - **(You)** Add them as GitHub secrets. Done: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_API_ISSUER`, `APPLE_API_KEY`, `APPLE_API_PRIVATE_KEY`, and `KEYCHAIN_PASSWORD`.
   - `tauri-action` reads them from its environment. Pass them by name from `release.yml` to `desktop-release.yml`, and into the `tauri-action` step's `env`, like the updater secrets.
-  - Then remove `"signingIdentity":"-"` from the workflow's `--config`.
-- [x] Until signing is set up, builds work for you. The first time, macOS blocks the app: open System Settings, Privacy & Security, and choose Open Anyway. The release notes say so. (Newer macOS dropped right click, Open.)
+    - As built: Tauri needs the `.p8` key as a file, so a step writes `APPLE_API_PRIVATE_KEY` to one and sets `APPLE_API_KEY_PATH`.
+    - Tauri skips notarizing with only a warning if a value is missing, so a step checks the app is signed and notarized before the release is published.
+  - Then remove `"signingIdentity":"-"` from the workflow's `--config`. Done, and the "Open Anyway" note is gone from the release notes.
+  - **(You)** The first signed build comes with the next release that changes `apps/desktop`. Check it opens with no warning ([09-apple-signing.md](09-apple-signing.md), part 9).
+- [x] Before signing was set up, builds worked for you. The first time, macOS blocks the app: open System Settings, Privacy & Security, and choose Open Anyway. The release notes said so. (Newer macOS dropped right click, Open.)
   - Builds get a free stand-in signature (`signingIdentity` `-`). With no signature at all, Apple Silicon Macs call a downloaded app damaged.
 - [x] Add a "Download for Mac" link on the `/install` page that points at the latest release.
   - It opens the release page, since the `.dmg` name has the version in it. Hidden inside the Mac app.
