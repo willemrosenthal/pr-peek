@@ -1,4 +1,8 @@
-import type { AdminOverviewResponse, TestAlertResponse } from "@pr-peek/core";
+import type {
+  AdminOverviewResponse,
+  SignUpRequestsResponse,
+  TestAlertResponse,
+} from "@pr-peek/core";
 import express, { type RequestHandler, type Router } from "express";
 import type { Logger } from "pino";
 import { readOverview } from "../admin";
@@ -8,8 +12,11 @@ import { deliver, NOTIFY_TTL_SECONDS, type SendPush } from "../push";
 import { userLimiter } from "../rate-limit";
 import { currentUser, requireUser } from "./auth";
 
-// The page asks once when it opens. This leaves room for reloads, and no more.
-const ASKS_PER_MINUTE = 20;
+// The page asks once when it opens. This leaves room for reloads, approving and
+// declining a few requests, and no more.
+const ASKS_PER_MINUTE = 30;
+// Requests shown at once. More waiting means something's wrong.
+const MAX_REQUESTS = 100;
 
 export interface AdminDeps {
   db: Db;
@@ -43,6 +50,48 @@ export function adminRouter(deps: AdminDeps): Router {
     res.json(body);
   });
 
+  // Sign-up requests waiting for an admin, oldest first.
+  router.get("/admin/requests", async (_req, res) => {
+    const users = await deps.db.user.findMany({
+      where: { approvedAt: null },
+      orderBy: { createdAt: "asc" },
+      take: MAX_REQUESTS,
+      select: {
+        id: true,
+        login: true,
+        name: true,
+        avatarUrl: true,
+        createdAt: true,
+      },
+    });
+    const body: SignUpRequestsResponse = {
+      requests: users.map(({ createdAt, ...user }) => ({
+        ...user,
+        askedAt: createdAt.toISOString(),
+      })),
+    };
+    res.json(body);
+  });
+
+  // Lets them in. Their next request opens their list.
+  router.post("/admin/requests/:id/approve", async (req, res) => {
+    const { count } = await deps.db.user.updateMany({
+      where: { id: req.params.id, approvedAt: null },
+      data: { approvedAt: now() },
+    });
+    if (count === 0) throw requestGone();
+    res.sendStatus(204);
+  });
+
+  // Deletes what we have on them. They can ask again by signing in.
+  router.delete("/admin/requests/:id", async (req, res) => {
+    const { count } = await deps.db.user.deleteMany({
+      where: { id: req.params.id, approvedAt: null },
+    });
+    if (count === 0) throw requestGone();
+    res.sendStatus(204);
+  });
+
   // A test push to the admin's own devices, like a health alert.
   router.post("/admin/test-alert", async (_req, res) => {
     if (!deps.send) {
@@ -74,3 +123,7 @@ export function adminRouter(deps: AdminDeps): Router {
 
   return router;
 }
+
+// Already approved, declined, or withdrawn.
+const requestGone = () =>
+  new HttpError(404, "not_found", "That request is no longer waiting");

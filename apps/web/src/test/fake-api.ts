@@ -12,6 +12,7 @@ import {
   type RepoOwnersResponse,
   type SearchReposResponse,
   type SettingsResponse,
+  type SignUpRequestDto,
   type SummaryResponse,
   type SyncStatusResponse,
   type UserSettingsDto,
@@ -261,6 +262,17 @@ export const adminOverview = (
   ...fields,
 });
 
+export const signUpRequest = (
+  fields: Partial<SignUpRequestDto> = {},
+): SignUpRequestDto => ({
+  id: "r1",
+  login: "dana-k",
+  name: "Dana Kim",
+  avatarUrl: null,
+  askedAt: "2026-10-21T10:00:00.000Z",
+  ...fields,
+});
+
 export const repoOwners = (
   owners: RepoOwner[] = [{ login: "octocat", kind: "you" }],
 ): RepoOwnersResponse => ({ owners });
@@ -361,5 +373,6 @@ export const me = (
   githubToken: null,
   needsReauth: false,
   isAdmin: false,
+  pending: false,
   ...fields,
 });

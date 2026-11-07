@@ -1,10 +1,17 @@
 import type {
   AdminOverviewResponse,
   MeResponse,
+  SignUpRequestsResponse,
   TestAlertResponse,
 } from "@pr-peek/core";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { APP_URL, bodyOf, makeTestApp, signIn } from "../../test/app";
+import {
+  type Agent,
+  APP_URL,
+  bodyOf,
+  makeTestApp,
+  signIn,
+} from "../../test/app";
 import { createTestDb, resetDb } from "../../test/db";
 import {
   githubTokens,
@@ -327,5 +334,92 @@ describe("POST /api/admin/test-alert", () => {
       .post("/api/admin/test-alert")
       .set("Origin", APP_URL);
     expect(res.status).toBe(503);
+  });
+});
+
+describe("sign-up requests", () => {
+  // Someone who signed in and waits, `hoursAgo` hours back.
+  async function waiting(id: number, login: string, hoursAgo: number) {
+    const { user } = await upsertGitHubUser(
+      db,
+      githubUser({ id, login }),
+      githubTokens(),
+      TEST_KEY,
+    );
+    return db.user.update({
+      where: { id: user.id },
+      data: { createdAt: hours(-hoursAgo) },
+    });
+  }
+  const requests = async (agent: Agent) =>
+    bodyOf<SignUpRequestsResponse>(await agent.get("/api/admin/requests"))
+      .requests;
+
+  it("lists waiting requests, oldest first", async () => {
+    const { agent } = await setup();
+    await waiting(7, "newer", 1);
+    const older = await waiting(8, "older", 30);
+
+    expect(await requests(agent)).toEqual([
+      {
+        id: older.id,
+        login: "older",
+        name: "The Octocat",
+        avatarUrl: "https://avatars.example/42",
+        askedAt: hours(-30).toISOString(),
+      },
+      expect.objectContaining({ login: "newer" }),
+    ]);
+  });
+
+  it("approves a request once", async () => {
+    const { agent } = await setup();
+    const user = await waiting(7, "dana", 1);
+    const approve = () =>
+      agent
+        .post(`/api/admin/requests/${user.id}/approve`)
+        .set("Origin", APP_URL);
+
+    expect((await approve()).status).toBe(204);
+    expect(
+      (await db.user.findUniqueOrThrow({ where: { id: user.id } })).approvedAt,
+    ).toEqual(NOW);
+    expect(await requests(agent)).toEqual([]);
+    expect((await approve()).status).toBe(404);
+  });
+
+  it("declines a request by deleting the user", async () => {
+    const { agent } = await setup();
+    const user = await waiting(7, "dana", 1);
+
+    const res = await agent
+      .delete(`/api/admin/requests/${user.id}`)
+      .set("Origin", APP_URL);
+    expect(res.status).toBe(204);
+    expect(await db.user.findUnique({ where: { id: user.id } })).toBeNull();
+  });
+
+  it("never declines an approved user", async () => {
+    const { agent, me } = await setup();
+
+    const res = await agent
+      .delete(`/api/admin/requests/${me.id}`)
+      .set("Origin", APP_URL);
+    expect(res.status).toBe(404);
+    expect(await db.user.findUnique({ where: { id: me.id } })).not.toBeNull();
+  });
+
+  it("is for admins only", async () => {
+    const { agent } = await setup({ admin: false });
+    const user = await waiting(7, "dana", 1);
+
+    expect((await agent.get("/api/admin/requests")).status).toBe(404);
+    expect(
+      (
+        await agent
+          .post(`/api/admin/requests/${user.id}/approve`)
+          .set("Origin", APP_URL)
+      ).status,
+    ).toBe(404);
   });
 });

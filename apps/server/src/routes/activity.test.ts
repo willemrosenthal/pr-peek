@@ -65,6 +65,21 @@ describe("activityRouter", () => {
     expect(requestSync).toHaveBeenCalledOnce();
   });
 
+  it("doesn't sync someone whose sign-up request waits", async () => {
+    const { agent, requestSync } = await makeApp();
+    await db.user.updateMany({
+      data: {
+        lastActiveAt: minutes(-60),
+        lastSyncedAt: null,
+        approvedAt: null,
+      },
+    });
+
+    await openApp(agent);
+    expect(await lastActiveAt()).toEqual(NOW);
+    expect(requestSync).not.toHaveBeenCalled();
+  });
+
   it("doesn't sync when the list is fresh", async () => {
     const { agent, requestSync } = await makeApp();
     await db.user.updateMany({

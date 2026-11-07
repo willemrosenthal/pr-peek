@@ -61,11 +61,12 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 
 - [x] Caps per user: watched repos (50), devices (10), manual refreshes (once per 30 seconds). Done in plans 06 and 08.
 - [x] A worker concurrency setting, and a log or metric for "sync queue lag" (how far behind schedule syncs are). If it grows, raise concurrency or upgrade the worker plan. Done in [plan 16](16-efficiency.md), step 16.4: `SYNC_CONCURRENCY`, and `lagging` in the "sync dispatch" log.
-- [ ] Sign-up requests, approved by an admin, in place of invite codes or an allow list. See Decisions.
-  - A user is pending, approved, or declined. Everyone signed up before this is approved.
-  - A pending user sees "Your request is in", with Check again, Sign out, and Withdraw. Every other route answers 403, and the sync skips them.
-  - Each new request pushes to the admins.
-  - The admin page lists pending requests, with Approve and Decline. Declining or withdrawing deletes the user.
+- [x] Sign-up requests, approved by an admin, in place of invite codes or an allow list. See Decisions.
+  - [x] A user is waiting or approved: `User.approvedAt`, empty while waiting. Declining deletes the user, so "declined" is never stored. Everyone signed up before this is approved.
+  - [x] A waiting user sees "Your request is in", with Check again, Sign out, and Withdraw. Every other route answers 403 (code `pending`), and opening the app doesn't sync them.
+  - [x] Each new request pushes to the admins who aren't in quiet hours.
+  - [x] The admin page lists waiting requests, with Approve and Decline. Declining or withdrawing deletes the user.
+  - [ ] Declining and withdrawing delete our data, but don't revoke the GitHub grant yet. PR 3's "Delete my account" adds that, for all three.
 
 ### 10.5 Monitoring
 

@@ -76,3 +76,18 @@ export interface TestAlertResponse {
   // Whether any of the admin's devices, or the Mac app, got it.
   sent: boolean;
 }
+
+// A sign-up request waiting for an admin, from GET /api/admin/requests.
+export interface SignUpRequestDto {
+  id: string;
+  login: string;
+  name: string | null;
+  avatarUrl: string | null;
+  // When they first signed in. An ISO string.
+  askedAt: string;
+}
+
+export interface SignUpRequestsResponse {
+  // Oldest first.
+  requests: SignUpRequestDto[];
+}

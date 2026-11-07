@@ -28,6 +28,7 @@ try {
     data: {
       githubId: 42,
       login: "octocat",
+      approvedAt: new Date(now),
       lastSyncedAt: new Date(now),
       settings: { create: {} },
       watchedRepos: {

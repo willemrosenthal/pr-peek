@@ -12,7 +12,10 @@ export async function markActive(
   db: Db,
   userId: string,
   now = new Date(),
-): Promise<Pick<User, "lastSyncedAt" | "syncError" | "syncRetryAt"> | null> {
+): Promise<Pick<
+  User,
+  "lastSyncedAt" | "syncError" | "syncRetryAt" | "approvedAt"
+> | null> {
   const savedBefore = new Date(
     now.getTime() - SYNC_TIMING.activeSaveEveryMinutes * MINUTE_MS,
   );
@@ -23,7 +26,12 @@ export async function markActive(
   if (count === 0) return null;
   return db.user.findUnique({
     where: { id: userId },
-    select: { lastSyncedAt: true, syncError: true, syncRetryAt: true },
+    select: {
+      lastSyncedAt: true,
+      syncError: true,
+      syncRetryAt: true,
+      approvedAt: true,
+    },
   });
 }
 

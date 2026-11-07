@@ -1,9 +1,26 @@
+import type { MeResponse } from "@pr-peek/core";
+import express from "express";
 import type request from "supertest";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { APP_URL, makeTestApp, signIn, startSignIn } from "../../test/app";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  APP_URL,
+  bodyOf,
+  makeTestApp,
+  signIn,
+  startSignIn,
+} from "../../test/app";
 import { createTestDb, resetDb } from "../../test/db";
-import { fakeOAuth } from "../../test/fakes";
+import {
+  fakeOAuth,
+  githubTokens,
+  githubUser,
+  NOW,
+  TEST_KEY,
+} from "../../test/fakes";
 import { GitHubAuthError } from "../github/oauth";
+import type { SendPush } from "../push";
+import { upsertGitHubUser } from "../users";
+import { requireUser } from "./auth";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
@@ -182,5 +199,122 @@ describe("POST /api/auth/signout", () => {
       .set("Origin", "https://evil.example");
     expect(res.status).toBe(403);
     expect((await agent.get("/api/me")).status).toBe(200);
+  });
+});
+
+describe("sign-up requests", () => {
+  // A route behind the usual sign in check.
+  const guarded = () => {
+    const router = express.Router();
+    router.get("/guarded", requireUser(db), (_req, res) => {
+      res.sendStatus(204);
+    });
+    return router;
+  };
+
+  it("lets a new user wait, with 403 everywhere but /me", async () => {
+    const { agent } = makeTestApp(db, { routers: [guarded()] });
+    await signIn(agent, { pending: true });
+
+    expect(bodyOf<MeResponse>(await agent.get("/api/me")).pending).toBe(true);
+    const res = await agent.get("/api/guarded");
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: { code: "pending" } });
+  });
+
+  it("lets an approved user in", async () => {
+    const { agent } = makeTestApp(db, { routers: [guarded()] });
+    await signIn(agent);
+
+    expect(bodyOf<MeResponse>(await agent.get("/api/me")).pending).toBe(false);
+    expect((await agent.get("/api/guarded")).status).toBe(204);
+  });
+
+  it("pushes each new request to the admins, once", async () => {
+    const send = vi.fn<SendPush>(() => Promise.resolve());
+    const { user: admin } = await upsertGitHubUser(
+      db,
+      githubUser({ id: 7, login: "admin" }),
+      githubTokens(),
+      TEST_KEY,
+    );
+    await db.user.update({
+      where: { id: admin.id },
+      data: {
+        role: "admin",
+        approvedAt: NOW,
+        pushSubscriptions: {
+          create: {
+            endpoint: "https://push.example/a",
+            p256dh: "k",
+            auth: "a",
+          },
+        },
+      },
+    });
+    const { agent } = makeTestApp(db, { send });
+
+    await signIn(agent, { pending: true });
+    expect(send).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ endpoint: "https://push.example/a" }),
+      expect.objectContaining({
+        body: "octocat asked to use Git Buddy.",
+        url: "/settings/admin",
+      }),
+      expect.anything(),
+    );
+
+    // Signing in again while waiting isn't a new request.
+    await signIn(agent, { pending: true });
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it("still signs in when the push fails", async () => {
+    const send = vi.fn<SendPush>(() => Promise.reject(new Error("down")));
+    const { user: admin } = await upsertGitHubUser(
+      db,
+      githubUser({ id: 7, login: "admin" }),
+      githubTokens(),
+      TEST_KEY,
+    );
+    await db.user.update({
+      where: { id: admin.id },
+      data: {
+        role: "admin",
+        pushSubscriptions: {
+          create: {
+            endpoint: "https://push.example/a",
+            p256dh: "k",
+            auth: "a",
+          },
+        },
+      },
+    });
+    const { agent } = makeTestApp(db, { send });
+
+    const res = await signIn(agent, { pending: true });
+    expect(res.headers.location).toBe("/onboarding");
+    expect((await agent.get("/api/me")).status).toBe(200);
+  });
+});
+
+describe("DELETE /api/me", () => {
+  it("withdraws a waiting request: deletes the user and signs out", async () => {
+    const { agent } = makeApp();
+    await signIn(agent, { pending: true });
+
+    const res = await agent.delete("/api/me").set("Origin", APP_URL);
+    expect(res.status).toBe(204);
+    expect(await db.user.count()).toBe(0);
+    expect((await agent.get("/api/me")).status).toBe(401);
+  });
+
+  it("leaves an approved user alone", async () => {
+    const { agent } = makeApp();
+    await signIn(agent);
+
+    const res = await agent.delete("/api/me").set("Origin", APP_URL);
+    expect(res.status).toBe(409);
+    expect(await db.user.count()).toBe(1);
   });
 });
