@@ -49,6 +49,7 @@ describe("a sign-up request that waits", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Withdraw your request" }),
     );
+    // Only the first GET so far: nothing is deleted before they confirm.
     expect(callsTo(fetch, "/api/me").length).toBe(1);
     await userEvent.click(screen.getByRole("button", { name: "Withdraw" }));
     expect(

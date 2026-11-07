@@ -154,4 +154,14 @@ describe("the Admin tab", () => {
     expect(await screen.findByText("Declined dana-k.")).toBeTruthy();
     expect(callsTo(fetch, "/api/admin/requests/r1")).toHaveLength(1);
   });
+
+  it("says so when the requests can't load", async () => {
+    adminApi({
+      "GET /api/admin/requests": () =>
+        apiError(500, "server_error", "Something went wrong"),
+    });
+    renderApp("/settings/admin");
+
+    expect(await screen.findByText("Something went wrong")).toBeTruthy();
+  });
 });

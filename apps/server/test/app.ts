@@ -1,3 +1,4 @@
+import type { MeResponse } from "@pr-peek/core";
 import type { Router } from "express";
 import { pino } from "pino";
 import request from "supertest";
@@ -70,9 +71,11 @@ export async function signIn(agent: Agent, { pending = false } = {}) {
     `/api/auth/github/callback?code=the-code&state=${state}`,
   );
   const db = databases.get(agent);
-  if (!pending && db) {
-    await db.user.updateMany({
-      where: { approvedAt: null },
+  const me = await agent.get("/api/me");
+  const userId = me.ok ? bodyOf<MeResponse>(me).user.id : undefined;
+  if (!pending && db && userId) {
+    await db.user.update({
+      where: { id: userId },
       data: { approvedAt: new Date() },
     });
   }

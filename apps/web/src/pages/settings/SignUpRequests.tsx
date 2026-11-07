@@ -1,15 +1,14 @@
 import { formatAge, type SignUpRequestDto } from "@pr-peek/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { api } from "../../api";
+import { api, ApiError } from "../../api";
 import { Alert } from "../../components/Alert";
 import { Button } from "../../components/Button";
 import { useNow } from "../../hooks/useNow";
 import { queryKeys, useSignUpRequests } from "../../queries";
 import styles from "./SignUpRequests.module.css";
 
-// People waiting to use Git Buddy, with Approve and Decline. Hidden until the list loads,
-// so someone who isn't an admin sees only the admin page's own message.
+// People waiting to use Git Buddy, with Approve and Decline. Hidden until the list loads.
 export function SignUpRequests() {
   const requests = useSignUpRequests();
   const queryClient = useQueryClient();
@@ -31,6 +30,10 @@ export function SignUpRequests() {
       queryClient.invalidateQueries({ queryKey: queryKeys.signUpRequests }),
   });
 
+  // A 404 means this isn't an admin. The page says so already.
+  if (requests.error && !isNotFound(requests.error)) {
+    return <Alert>{requests.error.message}</Alert>;
+  }
   if (!requests.data) return null;
   const list = requests.data.requests;
   return (
@@ -124,3 +127,6 @@ function Row({
     </li>
   );
 }
+
+const isNotFound = (err: Error) =>
+  err instanceof ApiError && err.status === 404;

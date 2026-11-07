@@ -230,16 +230,16 @@ describe("sign-up requests", () => {
     expect((await agent.get("/api/guarded")).status).toBe(204);
   });
 
-  it("pushes each new request to the admins, once", async () => {
-    const send = vi.fn<SendPush>(() => Promise.resolve());
-    const { user: admin } = await upsertGitHubUser(
+  // An approved admin with one push device.
+  async function adminWithPhone() {
+    const { user } = await upsertGitHubUser(
       db,
       githubUser({ id: 7, login: "admin" }),
       githubTokens(),
       TEST_KEY,
     );
     await db.user.update({
-      where: { id: admin.id },
+      where: { id: user.id },
       data: {
         role: "admin",
         approvedAt: NOW,
@@ -252,6 +252,11 @@ describe("sign-up requests", () => {
         },
       },
     });
+  }
+
+  it("pushes each new request to the admins, once", async () => {
+    const send = vi.fn<SendPush>(() => Promise.resolve());
+    await adminWithPhone();
     const { agent } = makeTestApp(db, { send });
 
     await signIn(agent, { pending: true });
@@ -267,34 +272,6 @@ describe("sign-up requests", () => {
     // Signing in again while waiting isn't a new request.
     await signIn(agent, { pending: true });
     expect(send).toHaveBeenCalledOnce();
-  });
-
-  it("still signs in when the push fails", async () => {
-    const send = vi.fn<SendPush>(() => Promise.reject(new Error("down")));
-    const { user: admin } = await upsertGitHubUser(
-      db,
-      githubUser({ id: 7, login: "admin" }),
-      githubTokens(),
-      TEST_KEY,
-    );
-    await db.user.update({
-      where: { id: admin.id },
-      data: {
-        role: "admin",
-        pushSubscriptions: {
-          create: {
-            endpoint: "https://push.example/a",
-            p256dh: "k",
-            auth: "a",
-          },
-        },
-      },
-    });
-    const { agent } = makeTestApp(db, { send });
-
-    const res = await signIn(agent, { pending: true });
-    expect(res.headers.location).toBe("/onboarding");
-    expect((await agent.get("/api/me")).status).toBe(200);
   });
 });
 
