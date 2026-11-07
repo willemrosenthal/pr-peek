@@ -34,6 +34,10 @@ export const SEND_IT = "__pgboss__send-it";
 // How often pg-boss deletes finished jobs past their time. Its default is once a day, so
 // an hour's keep would really be up to 25 hours.
 const CLEANUP_EVERY_SECONDS = 60 * 60;
+// How often each process re-reads every queue's settings, about 3 KB each time. They only
+// change when we deploy, and pg-boss forgets a queue's when we change it. pg-boss's 60
+// seconds made these reads about a fifth of all egress.
+const QUEUE_CACHE_SECONDS = 60 * 60;
 
 // pg-boss, sharing the pool with Prisma to keep connection counts low.
 export function createBoss(
@@ -46,6 +50,7 @@ export function createBoss(
     supervise: options.worker,
     schedule: options.worker,
     maintenanceIntervalSeconds: CLEANUP_EVERY_SECONDS,
+    queueCacheIntervalSeconds: QUEUE_CACHE_SECONDS,
     ...(options.schema && { schema: options.schema }),
   });
 }

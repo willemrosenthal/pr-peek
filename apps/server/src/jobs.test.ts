@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { TEST_DATABASE_URL } from "../test/db";
 import { createPool } from "./db";
 import {
@@ -81,4 +81,34 @@ it("cleans up every hour, deleting finished jobs past their time in every queue"
   }
   expect(await boss.getJobById(HEARTBEAT, recent.id)).not.toBeNull();
   expect(errors).toEqual([]);
+});
+
+it("re-reads the queues' settings hourly, not every minute", async () => {
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  let reads = 0;
+  const watched = createPool({
+    DATABASE_URL: TEST_DATABASE_URL,
+    DB_POOL_MAX: 1,
+  });
+  const query = watched.query.bind(watched);
+  watched.query = ((text: string, values?: unknown[]) => {
+    if (typeof text === "string" && text.includes(`FROM ${SCHEMA}.queue q`)) {
+      reads += 1;
+    }
+    return query(text, values);
+  }) as typeof watched.query;
+  const other = createBoss(watched, { worker: false, schema: SCHEMA });
+  try {
+    await other.start();
+    const atStart = reads;
+    // pg-boss reads them once at start, so the test spots its reads at all.
+    expect(atStart).toBeGreaterThan(0);
+    // pg-boss's default would read twice in 2 minutes.
+    await vi.advanceTimersByTimeAsync(2 * 60 * 1000);
+    expect(reads).toBe(atStart);
+  } finally {
+    vi.useRealTimers();
+    await other.stop({ graceful: false });
+    await watched.end();
+  }
 });
