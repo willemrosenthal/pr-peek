@@ -250,5 +250,7 @@ describe("changing the encryption key", () => {
     expect(decrypt(saved.patEnc!, NEW_KEY)).toBe("ghp_personal");
     const token = await db.gitHubToken.findFirstOrThrow();
     expect(decrypt(token.tokenEnc, NEW_KEY)).toBe("ghp_personal");
+    // Still the same text, so dropping the old column can compare them.
+    expect(saved.patEnc).toBe(token.tokenEnc);
   });
 });

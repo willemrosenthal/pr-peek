@@ -149,13 +149,15 @@ export async function removePersonalTokens(
   userId: string,
   userData: Prisma.UserUpdateInput = {},
 ): Promise<void> {
-  await db.$transaction([
-    db.gitHubToken.deleteMany({ where: { userId } }),
-    db.user.update({
+  // Locked like a save, so one running at the same time can't leave the two apart.
+  await db.$transaction(async (tx) => {
+    await lockUser(tx, userId);
+    await tx.gitHubToken.deleteMany({ where: { userId } });
+    await tx.user.update({
       where: { id: userId },
       data: { ...userData, patEnc: null, patExpiresAt: null, patScopes: [] },
-    }),
-  ]);
+    });
+  });
 }
 
 // What the app shows about the user's personal access token. Null when they have none.
@@ -328,10 +330,14 @@ export async function reencryptTokens(
         where: { userId: id },
         select: { id: true, tokenEnc: true },
       });
+      // patEnc keeps the same text as its token in the table, so the two still match.
+      let patEnc = again(user.patEnc);
       for (const token of tokens) {
+        const tokenEnc = again(token.tokenEnc)!;
+        if (token.tokenEnc === user.patEnc) patEnc = tokenEnc;
         await tx.gitHubToken.update({
           where: { id: token.id },
-          data: { tokenEnc: again(token.tokenEnc)! },
+          data: { tokenEnc },
         });
       }
       await tx.user.update({
@@ -339,7 +345,7 @@ export async function reencryptTokens(
         data: {
           accessTokenEnc: again(user.accessTokenEnc),
           refreshTokenEnc: again(user.refreshTokenEnc),
-          patEnc: again(user.patEnc),
+          patEnc,
         },
       });
       saved++;
