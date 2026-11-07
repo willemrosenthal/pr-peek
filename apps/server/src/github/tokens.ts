@@ -110,12 +110,13 @@ export function encryptPersonalToken(
   };
 }
 
-// The user's newest personal access token, or null. Until plan 20's settings page, a
-// user has at most one: saving a token replaces the last.
+// What the app shows about the user's newest personal access token, or null. Until plan
+// 20's settings page, a user has at most one: saving a token replaces the last.
 export const newestToken = (db: Db, userId: string) =>
   db.gitHubToken.findFirst({
     where: { userId },
     orderBy: { createdAt: "desc" },
+    select: { expiresAt: true, scopes: true },
   });
 
 // Which token a GitHub client uses. With none, the newest working personal access token,
@@ -127,6 +128,18 @@ type PickableToken = Pick<
   GitHubToken,
   "id" | "kind" | "owners" | "status" | "createdAt"
 >;
+
+// What picking and using a token reads. The rest stays in the database.
+const TOKEN_ROW = {
+  id: true,
+  tokenEnc: true,
+  tokenHash: true,
+  expiresAt: true,
+  kind: true,
+  owners: true,
+  status: true,
+  createdAt: true,
+} as const;
 
 // The token for an owner's repos: the newest working token that reaches it. A classic
 // token reaches every owner. Null means the GitHub sign in. Logins ignore case on GitHub.
@@ -144,27 +157,26 @@ export function pickToken(
   return newest?.id ?? null;
 }
 
+// The personal access token for a choice of none or an owner, from all the user's tokens
+// in one query.
 async function chosenToken(
   db: Db,
   userId: string,
-  choice: TokenChoice | undefined,
-): Promise<GitHubToken | null> {
-  if (!choice) {
-    return (
-      (await db.gitHubToken.findFirst({
-        where: { userId, status: "working" },
-        orderBy: { createdAt: "desc" },
-      })) ?? newestToken(db, userId)
-    );
-  }
-  if ("owner" in choice) {
-    const tokens = await db.gitHubToken.findMany({ where: { userId } });
+  choice: { owner: string } | undefined,
+) {
+  const tokens = await db.gitHubToken.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    select: TOKEN_ROW,
+  });
+  if (choice) {
     const id = pickToken(tokens, choice.owner);
     return tokens.find((token) => token.id === id) ?? null;
   }
-  return choice.tokenId
-    ? db.gitHubToken.findFirst({ where: { id: choice.tokenId, userId } })
-    : null;
+  // The newest working token, else the newest stopped one, so its error shows.
+  return (
+    tokens.find((token) => token.status === "working") ?? tokens[0] ?? null
+  );
 }
 
 // Saves the user's personal access token in place of any they had. Also writes the old
@@ -287,7 +299,27 @@ export async function getAccessToken(
       ? decrypt(t.accessTokenEnc, keysOf(deps))
       : null;
 
-  const personal = await chosenToken(deps.db, userId, choice);
+  // One query for the usual case, a user with no personal access token: the sign in
+  // tokens, and whether they have any.
+  let stored: StoredTokens | null = null;
+  let personal = null;
+  if (choice && "tokenId" in choice) {
+    personal = choice.tokenId
+      ? await deps.db.gitHubToken.findFirst({
+          where: { id: choice.tokenId, userId },
+          select: TOKEN_ROW,
+        })
+      : null;
+  } else {
+    const user = await deps.db.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { ...TOKEN_FIELDS, _count: { select: { githubTokens: true } } },
+    });
+    stored = user;
+    if (user._count.githubTokens > 0) {
+      personal = await chosenToken(deps.db, userId, choice);
+    }
+  }
   // A chosen personal access token never falls back to the sign in token. It may not
   // see the user's org repos.
   if (personal) {
@@ -305,7 +337,7 @@ export async function getAccessToken(
     }
     return { token, tokenId: personal.id };
   }
-  const stored = await deps.db.user.findUniqueOrThrow({
+  stored ??= await deps.db.user.findUniqueOrThrow({
     where: { id: userId },
     select: TOKEN_FIELDS,
   });

@@ -229,6 +229,8 @@ async function fetchFromGitHub(
         rulesStaleAt: true,
         teams: true,
         teamsCheckedAt: true,
+        // In the same query, to skip checking tokens' owners for users with none.
+        _count: { select: { githubTokens: true } },
       },
     }),
     db.userSettings.findUnique({
@@ -291,7 +293,9 @@ async function fetchFromGitHub(
     };
   }
 
-  await refreshTokenOwners(deps, userId, now);
+  if (user._count.githubTokens > 0) {
+    await refreshTokenOwners(deps, userId, now);
+  }
   const octokit = await deps.github(userId);
   const teams = includeTeamRequests
     ? await currentTeams(octokit, user, now)
