@@ -20,6 +20,8 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 - **Expiry reminders:** a push and a banner 7 days before a token expires, and a push on the day it stops.
 - **Names:** a token starts named after the org it reaches. The user can change it when adding or replacing the token. No separate rename, to keep the screen simple.
 - **Duplicates:** the same token can't be added twice. We keep a SHA-256 hash of it to check. A hash can't be turned back into the token.
+- **Replace** shows only on a token that expires within 7 days or has stopped. A working token has just Remove. Replacing swaps the token in one step, so its repos never fall back to the sign in, and it works at the cap.
+- **Same orgs:** adding a token that reaches the same orgs as one you have asks "Replace that one?". This covers a leaked token or the wrong permissions, without a Replace button on every card.
 - **Classic tokens** are still allowed. They reach everything the account can, so most people need only one.
 
 ## PRs
@@ -51,8 +53,9 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 
 ### 20.3 The settings page
 
-- [ ] Settings, General, "GitHub tokens": each token's name, kind, owners, expiry, and status, with Replace and Remove. See the mockup.
+- [ ] Settings, General, "GitHub tokens": each token's name, kind, owners, expiry, and status, with Remove. Replace shows too when the token expires within 7 days or has stopped. See the mockup.
 - [ ] Add a token: paste, check, then see what it reaches before saving. Name it, starting as its org.
+- [ ] If the new token reaches the same orgs as one you have, ask: "Replace that one?" Replace swaps it with no gap. Keep both saves it as a new token.
 - [ ] Messages for: not accepted, another account's token, already added, reaches no watched repo (can still save), and the cap.
 - [ ] "Which token syncs each owner": the owners of watched repos and what syncs each. An owner nothing reaches links to adding a token.
 
@@ -62,7 +65,7 @@ Most people make a token on GitHub and paste it on the same phone, so this has t
 
 - [ ] Buttons that open GitHub's new token pages. The classic one ticks `repo` and `read:org` already (`/settings/tokens/new?scopes=repo,read:org`).
 - [ ] A Paste button next to the token field. Inputs use 16px text, so iPhones don't zoom in.
-- [ ] Token cards stack, with Replace and Remove side by side at full width. Every target is at least 44px.
+- [ ] Token cards stack, with full-width buttons. Every target is at least 44px.
 - [ ] Remove asks first, and says which repos fall back to the sign in.
 - [ ] "Which token syncs each owner" is a list, not a table, so nothing scrolls sideways.
 - [ ] Adding a token is its own screen on phones, in two steps: make one on GitHub, then paste and check.
