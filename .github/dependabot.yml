@@ -12,6 +12,10 @@ updates:
     commit-message:
       prefix: fix(deps)
       prefix-development: chore(deps)
+    # Tauri's npm package and Rust crate must match, so we update them together by hand.
+    # Security fixes still come.
+    ignore:
+      - dependency-name: "@tauri-apps/*"
     groups:
       production:
         dependency-type: production
@@ -28,6 +32,10 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: fix(deps)
+    ignore:
+      - dependency-name: "tauri"
+      - dependency-name: "tauri-build"
+      - dependency-name: "tauri-plugin-*"
     groups:
       desktop:
         update-types: [minor, patch]
