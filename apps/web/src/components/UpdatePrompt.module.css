@@ -1,7 +1,9 @@
+/* Above the list, which pull to refresh puts on its own layer. Like the toast. */
 .prompt {
   position: fixed;
   bottom: var(--space-4);
   left: 50%;
+  z-index: 90;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
