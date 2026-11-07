@@ -38,9 +38,12 @@ export interface AuthDeps {
 }
 
 // Loads the signed in user, or answers 401. A user whose sign-up request waits for an
-// admin gets 403, unless the route passes `{ pending: true }`. Use `currentUser(res)` in
+// admin gets 403, unless the route passes `{ allowPending: true }`. Use `currentUser(res)` in
 // the route after it.
-export function requireUser(db: Db, { pending = false } = {}): RequestHandler {
+export function requireUser(
+  db: Db,
+  { allowPending = false } = {},
+): RequestHandler {
   return async (req, res, next) => {
     const userId = req.session.userId;
     const user =
@@ -51,7 +54,7 @@ export function requireUser(db: Db, { pending = false } = {}): RequestHandler {
       });
       return;
     }
-    if (!user.approvedAt && !pending) {
+    if (!user.approvedAt && !allowPending) {
       res.status(403).json({
         error: { code: "pending", message: "Your sign-up request is waiting" },
       });
@@ -74,7 +77,7 @@ export function currentUser(res: Response): User {
 export function authRouter(deps: AuthDeps): Router {
   const router = express.Router();
   const now = () => (deps.now ?? (() => new Date()))();
-  const signedIn = requireUser(deps.db, { pending: true });
+  const signedIn = requireUser(deps.db, { allowPending: true });
   const callbackUrl = new URL(
     "/api/auth/github/callback",
     deps.appUrl,

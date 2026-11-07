@@ -71,11 +71,11 @@ export async function signIn(agent: Agent, { pending = false } = {}) {
     `/api/auth/github/callback?code=the-code&state=${state}`,
   );
   const db = databases.get(agent);
+  if (pending || !db) return res;
   const me = await agent.get("/api/me");
-  const userId = me.ok ? bodyOf<MeResponse>(me).user.id : undefined;
-  if (!pending && db && userId) {
+  if (me.ok) {
     await db.user.update({
-      where: { id: userId },
+      where: { id: bodyOf<MeResponse>(me).user.id },
       data: { approvedAt: new Date() },
     });
   }

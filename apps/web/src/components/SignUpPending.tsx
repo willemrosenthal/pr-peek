@@ -53,7 +53,7 @@ export function SignUpPending({
         </div>
         <p>
           Git Buddy is invite only for now. You'll get in once your request is
-          approved. Come back to this page then: it opens your list.
+          approved. Come back to this page then to set up your list.
         </p>
         <p>Until then, Git Buddy doesn't look at any of your repos.</p>
         {error && <Alert>{error.message}</Alert>}
