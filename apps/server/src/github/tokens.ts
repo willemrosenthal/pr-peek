@@ -120,8 +120,9 @@ export const newestToken = (db: Db, userId: string) =>
   });
 
 // Which token a GitHub client uses. With none, the newest working personal access token,
-// else the newest stopped one (so its error shows), else the sign in. `owner`: the token that reaches that user or org (see pickToken). `tokenId`:
-// that personal access token, or the sign in when null.
+// else the newest stopped one (so its error shows), else the sign in. `owner`: the token
+// that reaches that user or org (see pickToken). `tokenId`: that personal access token,
+// or the sign in when null or when the token is gone.
 export type TokenChoice = { owner: string } | { tokenId: string | null };
 
 type PickableToken = Pick<
@@ -157,8 +158,8 @@ export function pickToken(
   return newest?.id ?? null;
 }
 
-// The personal access token for a choice of none or an owner, from all the user's tokens
-// in one query.
+// The personal access token for no choice or an owner (see TokenChoice), from all the
+// user's tokens in one query.
 async function chosenToken(
   db: Db,
   userId: string,

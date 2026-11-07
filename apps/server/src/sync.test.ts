@@ -1299,6 +1299,30 @@ describe("full passes", () => {
 });
 
 describe("refreshTokenOwners", () => {
+  it("runs at the start of a sync, for users with a token", async () => {
+    const user = await makeUser();
+    const token = await addToken(db, user.id, "github_pat_acme");
+    const { octokit } = fakeGraphQL(prGitHub({}));
+    const github = vi.fn((_userId: string, choice?: TokenChoice) =>
+      Promise.resolve(choice ? reposGitHub([["acme"]]).octokit : octokit),
+    );
+
+    await syncUser({ db, github, now: () => NOW }, user.id);
+
+    expect(github).toHaveBeenCalledWith(user.id, { tokenId: token.id });
+    expect(
+      (await db.gitHubToken.findUniqueOrThrow({ where: { id: token.id } }))
+        .owners,
+    ).toEqual(["acme"]);
+  });
+
+  it("isn't asked for by a sync of a user with no token", async () => {
+    const user = await makeUser();
+    const { github } = await sync(user.id, {});
+    expect(github).toHaveBeenCalledTimes(1);
+    expect(github).toHaveBeenCalledWith(user.id);
+  });
+
   it("saves the owners of fine-grained tokens never checked or a day old", async () => {
     const user = await makeUser();
     const fresh = await addToken(db, user.id, "github_pat_fresh", {
