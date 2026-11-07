@@ -2,7 +2,7 @@ import type { GitHubTokenDto } from "@pr-peek/core";
 import type { Config } from "../config";
 import { decrypt, encrypt } from "../crypto";
 import type { Db } from "../db";
-import type { SyncError, User } from "../generated/prisma/client";
+import type { Prisma, SyncError, User } from "../generated/prisma/client";
 import { HttpError } from "../http-error";
 import { GitHubAuthError, type GitHubOAuth, type GitHubTokens } from "./oauth";
 
@@ -26,6 +26,10 @@ export const tokenKeys = (
   key: config.TOKEN_ENC_KEY,
   previousKey: config.TOKEN_ENC_KEY_PREVIOUS,
 });
+
+// Locks the user's row until the transaction ends, so two token writes never cross.
+const lockUser = (tx: Prisma.TransactionClient, userId: string) =>
+  tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
 
 // The keys to read tokens with: the current one, then the previous.
 const keysOf = (keys: TokenKeys) =>
@@ -169,7 +173,7 @@ export async function getAccessToken(
   // GitHub only accepts each refresh token once, so a second refresh would fail.
   const result = await deps.db.$transaction(
     async (tx) => {
-      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+      await lockUser(tx, userId);
       const locked = await tx.user.findUniqueOrThrow({
         where: { id: userId },
         select: TOKEN_FIELDS,
@@ -211,7 +215,7 @@ export async function getAccessToken(
 }
 
 // Encrypts every stored token again with `key`, after a key change. Tokens the previous
-// key encrypted read with either. Returns how many users it changed.
+// key encrypted read with either. Returns how many users it saved.
 export async function reencryptTokens(
   db: Db,
   keys: TokenKeys,
@@ -228,12 +232,12 @@ export async function reencryptTokens(
     },
     select: { id: true },
   });
-  let changed = 0;
+  let saved = 0;
   for (const { id } of users) {
     // Locked like a refresh, so a token refreshed meanwhile is never overwritten with
     // the old one. GitHub only accepts each refresh token once.
     await db.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${id} FOR UPDATE`;
+      await lockUser(tx, id);
       const user = await tx.user.findUnique({
         where: { id },
         select: { accessTokenEnc: true, refreshTokenEnc: true, patEnc: true },
@@ -248,8 +252,8 @@ export async function reencryptTokens(
           patEnc: again(user.patEnc),
         },
       });
-      changed++;
+      saved++;
     });
   }
-  return changed;
+  return saved;
 }

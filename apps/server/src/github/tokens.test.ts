@@ -189,6 +189,17 @@ describe("changing the encryption key", () => {
 
   it("encrypts every token again with the new key", async () => {
     const user = await userWith();
+    // No tokens, so not counted.
+    const { user: other } = await upsertGitHubUser(
+      db,
+      githubUser({ id: 7, login: "other" }),
+      githubTokens(),
+      TEST_KEY,
+    );
+    await db.user.update({
+      where: { id: other.id },
+      data: { accessTokenEnc: null, refreshTokenEnc: null },
+    });
     await db.user.update({
       where: { id: user.id },
       data: encryptPersonalToken(

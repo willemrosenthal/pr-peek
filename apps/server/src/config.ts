@@ -34,7 +34,7 @@ const schema = z
     // Encrypts GitHub tokens. Generate with: openssl rand -base64 32
     TOKEN_ENC_KEY: encryptionKey,
     // The key before TOKEN_ENC_KEY, while changing it. Tokens it encrypted still read.
-    // Remove it after running `pnpm --filter @pr-peek/server tokens:reencrypt`.
+    // See docs/security.md, "Change the key".
     TOKEN_ENC_KEY_PREVIOUS: optional(encryptionKey),
     // The GitHub OAuth App ("git-buddy (dev)" locally, "git-buddy" in production).
     GITHUB_CLIENT_ID: z.string().min(1),
