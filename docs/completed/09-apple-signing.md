@@ -90,9 +90,9 @@ Tell Claude the secrets are in. Claude opens a PR that:
 
 ## 9. Test it
 
-- [ ] A Mac build only runs when `apps/desktop` changed. Wait for the next `feat` or `fix` that touches it, or ask Claude for a small `fix(desktop)` change.
-- [ ] Download the new `.dmg` on a Mac that has never run Git Buddy, or ask a friend. It opens with no warning.
-- [ ] Check in Terminal: `spctl -a -vv "/Applications/Git Buddy.app"` says `accepted` and `Notarized Developer ID`.
-- [ ] Your current copy still updates. Updates are checked with Tauri's own key, not Apple's. macOS may ask once more for notification or login item permission, since the app's signature changed.
+- [x] A Mac build only runs when `apps/desktop` changed. Wait for the next `feat` or `fix` that touches it, or ask Claude for a small `fix(desktop)` change. Done: a hand run of **Desktop release** for `v1.19.0`.
+- [x] Download the new `.dmg` on a Mac that has never run Git Buddy, or ask a friend. It opens with no warning.
+- [x] Check in Terminal: `spctl -a -vv "/Applications/Git Buddy.app"` says `accepted` and `Notarized Developer ID`. The release build runs this check too, before it publishes.
+- [x] Your current copy still updates. Updates are checked with Tauri's own key, not Apple's. macOS may ask once more for notification or login item permission, since the app's signature changed.
 
-Then finish plan 09's [Done when](09-desktop-tauri.md#done-when) checks, and Claude moves both files to `docs/completed/`.
+Then finish plan 09's [Done when](09-desktop-tauri.md#done-when) checks, and Claude moves both files to `docs/completed/`. Done on 7 November 2026.

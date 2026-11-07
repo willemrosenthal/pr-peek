@@ -56,6 +56,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 - [x] Use Supabase Pro's limits (8 GB of database, 250 GB of egress) on the admin page and in health alerts.
 - [x] Encryption key rotation: `TOKEN_ENC_KEY_PREVIOUS`. Tokens read with either key, and are written with the new one. `pnpm --filter @pr-peek/server tokens:reencrypt` encrypts them all again with the new key.
 - [ ] Run the `/security-review` command on the main branch before launch.
+- [ ] Move `tauri-apps/tauri-action` from v0 to v1 by hand, with a Mac release of its own, not mixed with other Mac changes. Dependabot skips its majors. v1 renames the update file (`.app.tar.gz`) to include the version, changes the links in `latest.json`, and rewrites an existing release's title and notes. Pass `releaseName` and `releaseBody`, or check ours survive. Then check the release page, and that an installed app updates. Moved here from [plan 09](completed/09-desktop-tauri.md).
 
 ### 10.4 Limits and cost control
 
@@ -76,7 +77,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 
 ### 10.6 Data safety
 
-- [ ] **Backups before other people sign in.** The project is on Supabase Pro, which has daily backups kept 7 days. **(You)** Check they show under Database, Backups.
+- [x] **Backups before other people sign in.** The project is on Supabase Pro, which has daily backups kept 7 days. **(You)** Check they show under Database, Backups. Checked on 7 November 2026.
 - [ ] **(You)** Test restoring a backup into a fresh database once.
 - [ ] Prisma migrations only add or change in ways that work with the version currently running. Render runs migrations before swapping versions, so for a short time the old code runs against the new schema.
 
