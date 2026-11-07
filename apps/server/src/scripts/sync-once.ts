@@ -28,7 +28,15 @@ try {
       {
         db,
         github: (userId) =>
-          getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY }, userId),
+          getOctokit(
+            {
+              db,
+              oauth,
+              key: config.TOKEN_ENC_KEY,
+              previousKey: config.TOKEN_ENC_KEY_PREVIOUS,
+            },
+            userId,
+          ),
       },
       user.id,
     );

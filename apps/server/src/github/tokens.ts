@@ -12,8 +12,14 @@ export interface TokenDeps {
   db: Db;
   oauth: GitHubOAuth;
   key: Buffer;
+  // The key before `key`, while changing it (TOKEN_ENC_KEY_PREVIOUS).
+  previousKey?: Buffer | undefined;
   now?: () => Date;
 }
+
+// The keys to read tokens with: the current one, then the previous.
+const keysOf = (deps: Pick<TokenDeps, "key" | "previousKey">) =>
+  deps.previousKey ? [deps.key, deps.previousKey] : [deps.key];
 
 // Sync errors that stop syncs until the user acts. "reauth": sign in with GitHub again.
 // "token": add a new personal access token.
@@ -129,7 +135,7 @@ export async function getAccessToken(
   // The decrypted access token, or null if it's missing or about to expire.
   const freshToken = (t: StoredTokens): string | null =>
     t.accessTokenEnc && !expiresSoon(t.accessTokenExpiresAt)
-      ? decrypt(t.accessTokenEnc, deps.key)
+      ? decrypt(t.accessTokenEnc, keysOf(deps))
       : null;
 
   const stored = await deps.db.user.findUniqueOrThrow({
@@ -144,7 +150,7 @@ export async function getAccessToken(
         await markNeedsReauth(deps.db, userId),
       );
     }
-    return decrypt(stored.patEnc, deps.key);
+    return decrypt(stored.patEnc, keysOf(deps));
   }
   const current = freshToken(stored);
   if (current) return current;
@@ -172,7 +178,7 @@ export async function getAccessToken(
 
       try {
         const tokens = await deps.oauth.refresh(
-          decrypt(refreshTokenEnc, deps.key),
+          decrypt(refreshTokenEnc, keysOf(deps)),
         );
         await tx.user.update({
           where: { id: userId },
@@ -192,4 +198,42 @@ export async function getAccessToken(
     throw new NeedsReauthError(userId, await markNeedsReauth(deps.db, userId));
   }
   return result.token;
+}
+
+// Encrypts every stored token again with `key`, after a key change. Tokens the previous
+// key encrypted read with either. Returns how many users it changed.
+export async function reencryptTokens(
+  db: Db,
+  key: Buffer,
+  previousKey: Buffer | undefined,
+): Promise<number> {
+  const keys = keysOf({ key, previousKey });
+  const again = (blob: string | null) =>
+    blob === null ? null : encrypt(decrypt(blob, keys), key);
+  const users = await db.user.findMany({
+    where: {
+      OR: [
+        { accessTokenEnc: { not: null } },
+        { refreshTokenEnc: { not: null } },
+        { patEnc: { not: null } },
+      ],
+    },
+    select: {
+      id: true,
+      accessTokenEnc: true,
+      refreshTokenEnc: true,
+      patEnc: true,
+    },
+  });
+  for (const user of users) {
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        accessTokenEnc: again(user.accessTokenEnc),
+        refreshTokenEnc: again(user.refreshTokenEnc),
+        patEnc: again(user.patEnc),
+      },
+    });
+  }
+  return users.length;
 }

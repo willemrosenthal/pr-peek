@@ -6,11 +6,12 @@ import { dueUsers, QUIET_SETTINGS, SYNCING_USERS } from "./sync-schedule";
 import { MINUTE_MS } from "./sync-timing";
 
 export const MB = 1024 * 1024;
+export const GB = 1024 * MB;
 export const DAY_MS = 24 * 60 * MINUTE_MS;
-// Supabase's free plan has 500 MB. Alerts at 70% of it.
-export const DB_LIMIT_MB = 500;
+// Supabase Pro includes 8 GB. Alerts at 70% of it.
+export const DB_LIMIT_BYTES = 8 * GB;
 export const DB_WARN_SHARE = 0.7;
-const DB_WARN_BYTES = DB_WARN_SHARE * DB_LIMIT_MB * MB;
+const DB_WARN_BYTES = DB_WARN_SHARE * DB_LIMIT_BYTES;
 // A due sync this late means the worker has stopped keeping up.
 const LATE_MS = 15 * MINUTE_MS;
 // Syncs failed this many times in a row, so more than a passing GitHub hiccup.
@@ -71,10 +72,10 @@ export async function readHealth(db: Db, now: Date): Promise<Health> {
 export function alertsFor(health: Health): Alert[] {
   const alerts: Alert[] = [];
   if (health.dbBytes > DB_WARN_BYTES) {
-    const mb = Math.round(health.dbBytes / MB);
+    const gb = (health.dbBytes / GB).toFixed(1);
     alerts.push({
       kind: "database",
-      body: `The database is at ${mb} MB of the free plan's ${DB_LIMIT_MB} MB.`,
+      body: `The database is at ${gb} GB of the ${DB_LIMIT_BYTES / GB} GB in Supabase Pro.`,
     });
   }
   if (health.lateUsers > 0) {

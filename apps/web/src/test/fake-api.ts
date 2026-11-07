@@ -204,9 +204,9 @@ export const adminOverview = (
     failingUsers: 1,
   },
   limits: {
-    dbBytes: 500 * 1024 * 1024,
+    dbBytes: 8 * GB,
     dbWatchShare: 0.7,
-    egressBytesPerMonth: 5 * GB,
+    egressBytesPerMonth: 250 * GB,
     egressWatchShare: 0.8,
     jobRowsBase: 600,
     jobRowsPerUser: 100,

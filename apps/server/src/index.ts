@@ -39,7 +39,16 @@ const oauth = createGitHubOAuth({
   clientSecret: config.GITHUB_CLIENT_SECRET,
 });
 const github = (userId: string) =>
-  getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY, usage }, userId);
+  getOctokit(
+    {
+      db,
+      oauth,
+      key: config.TOKEN_ENC_KEY,
+      previousKey: config.TOKEN_ENC_KEY_PREVIOUS,
+      usage,
+    },
+    userId,
+  );
 const vapid = vapidFrom(config);
 if (!vapid) logger.warn("VAPID keys not set, so push notifications are off");
 const send = vapid ? webPushSender(vapid) : null;

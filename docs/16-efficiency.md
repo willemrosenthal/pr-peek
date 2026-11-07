@@ -241,4 +241,4 @@ PR 5b-3, Settings:
 - [x] Opening the app after an hour away shows a fresh list within seconds (You). Checked on 6 November 2026.
 - [ ] Supabase egress drops by at least 10 times, compared to 16.0 (You).
 - [ ] The pg-boss job table stays near 600 rows plus 100 per user (You). The admin page's "Job table" reading checks it. The first rule, 60 per user, left out pg-boss's own queue: see [plan 19](19-admin.md), "Found while building".
-- [ ] A test alert reaches your phone (You). Use the admin page's "Send a test alert" button, from [plan 19](19-admin.md). `ADMIN_LOGIN` is gone: alerts go to users with the admin role.
+- [x] A test alert reaches your phone (You). Checked on 7 November 2026. Use the admin page's "Send a test alert" button, from [plan 19](19-admin.md). `ADMIN_LOGIN` is gone: alerts go to users with the admin role.

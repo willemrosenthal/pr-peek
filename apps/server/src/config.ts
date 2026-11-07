@@ -5,6 +5,14 @@ import { KEY_BYTES } from "./crypto";
 const optional = <T extends z.ZodType>(type: T) =>
   z.preprocess((value) => (value === "" ? undefined : value), type.optional());
 
+// 32 bytes, base64 encoded.
+const encryptionKey = z
+  .base64()
+  .transform((value) => Buffer.from(value, "base64"))
+  .refine((key) => key.length === KEY_BYTES, {
+    message: `Must be ${KEY_BYTES} bytes, base64 encoded`,
+  });
+
 const schema = z
   .object({
     NODE_ENV: z
@@ -24,12 +32,10 @@ const schema = z
     // Signs the session cookie. Generate with: openssl rand -base64 32
     SESSION_SECRET: z.string().min(32),
     // Encrypts GitHub tokens. Generate with: openssl rand -base64 32
-    TOKEN_ENC_KEY: z
-      .base64()
-      .transform((value) => Buffer.from(value, "base64"))
-      .refine((key) => key.length === KEY_BYTES, {
-        message: `Must be ${KEY_BYTES} bytes, base64 encoded`,
-      }),
+    TOKEN_ENC_KEY: encryptionKey,
+    // The key before TOKEN_ENC_KEY, while changing it. Tokens it encrypted still read.
+    // Remove it after running `pnpm --filter @pr-peek/server tokens:reencrypt`.
+    TOKEN_ENC_KEY_PREVIOUS: optional(encryptionKey),
     // The GitHub OAuth App ("git-buddy (dev)" locally, "git-buddy" in production).
     GITHUB_CLIENT_ID: z.string().min(1),
     GITHUB_CLIENT_SECRET: z.string().min(1),

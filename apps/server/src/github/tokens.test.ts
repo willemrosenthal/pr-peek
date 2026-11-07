@@ -8,12 +8,15 @@ import {
   NOW,
   TEST_KEY,
 } from "../../test/fakes";
+import { randomBytes } from "node:crypto";
+import { decrypt, KEY_BYTES } from "../crypto";
 import { upsertGitHubUser } from "../users";
 import { GitHubAuthError } from "./oauth";
 import {
   encryptPersonalToken,
   getAccessToken,
   NeedsReauthError,
+  reencryptTokens,
 } from "./tokens";
 
 const db = createTestDb();
@@ -167,5 +170,38 @@ describe("getAccessToken", () => {
     expect(
       (await db.user.findUniqueOrThrow({ where: { id: user.id } })).syncError,
     ).toBeNull();
+  });
+});
+
+describe("changing the encryption key", () => {
+  const NEW_KEY = randomBytes(KEY_BYTES);
+
+  it("reads tokens saved with the previous key", async () => {
+    // Saved before the change, with TEST_KEY.
+    const user = await userWith();
+    expect(
+      await getAccessToken(
+        { ...deps(), key: NEW_KEY, previousKey: TEST_KEY },
+        user.id,
+      ),
+    ).toBe("ghu_access");
+  });
+
+  it("encrypts every token again with the new key", async () => {
+    const user = await userWith();
+    await db.user.update({
+      where: { id: user.id },
+      data: encryptPersonalToken(
+        { token: "ghp_personal", expiresAt: null, scopes: ["repo"] },
+        TEST_KEY,
+      ),
+    });
+
+    expect(await reencryptTokens(db, NEW_KEY, TEST_KEY)).toBe(1);
+    const saved = await db.user.findUniqueOrThrow({ where: { id: user.id } });
+    // The new key alone reads them now.
+    expect(decrypt(saved.accessTokenEnc!, NEW_KEY)).toBe("ghu_access");
+    expect(decrypt(saved.refreshTokenEnc!, NEW_KEY)).toBe("ghr_refresh");
+    expect(decrypt(saved.patEnc!, NEW_KEY)).toBe("ghp_personal");
   });
 });
