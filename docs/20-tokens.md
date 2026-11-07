@@ -18,7 +18,7 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 
 - **Cap:** 5 tokens per user. Each adds about 2 GitHub calls per sync (plan 16).
 - **Expiry reminders:** a push and a banner 7 days before a token expires, and a push on the day it stops.
-- **Names:** a token starts named after the org it reaches. The user can rename it.
+- **Names:** a token starts named after the org it reaches. The user can change it when adding or replacing the token. No separate rename, to keep the screen simple.
 - **Duplicates:** the same token can't be added twice. We keep a SHA-256 hash of it to check. A hash can't be turned back into the token.
 - **Classic tokens** are still allowed. They reach everything the account can, so most people need only one.
 
@@ -69,7 +69,7 @@ Most people make a token on GitHub and paste it on the same phone, so this has t
 
 ### 20.4 The API
 
-- [ ] `GET /github-tokens`, `POST /github-tokens`, `PATCH /github-tokens/:id` (rename), `PUT /github-tokens/:id` (replace), `DELETE /github-tokens/:id`. Each checks the token belongs to the user.
+- [ ] `GET /github-tokens`, `POST /github-tokens`, `PUT /github-tokens/:id` (replace, with a new name if given), `DELETE /github-tokens/:id`. Each checks the token belongs to the user.
 - [ ] `/me` returns the list, without the tokens themselves.
 - [ ] Remove the old `/github-token` routes once the web app stops calling them.
 
