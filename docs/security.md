@@ -49,6 +49,7 @@ Dependabot opens PRs that update our dependencies. The setup is in `.github/depe
 - Major versions come one PR each, since they can break things.
 - The title decides the release. `fix(deps)` changes what ships, so merging it releases. `chore(deps)` and `ci(deps)` don't.
 - A Mac app (`cargo`) update also builds a new Mac release.
+- It skips new major versions of `@types/node` (they follow the Node version in `.nvmrc`) and of `tauri-action` (only a real Mac release can test it).
 - It skips Tauri, the Mac app's framework. Its npm package (`@tauri-apps/*`) and Rust crates (`tauri*`) must be on the same version, so update them together by hand. Security fixes for them still come.
 
 Review them like any PR: check CI passes, then merge.

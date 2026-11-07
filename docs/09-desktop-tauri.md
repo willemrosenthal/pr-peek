@@ -141,6 +141,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 
   The updater and the download link both use GitHub's "latest release". Only the Mac app should publish non-draft releases from this repo, or installed apps stop finding updates.
 
+- [ ] Move `tauri-apps/tauri-action` from v0 to v1 by hand, with the next Mac release. Dependabot skips its majors. v1 renames the update file (`.app.tar.gz`) to include the version, changes the links in `latest.json`, and rewrites an existing release's title and notes. Pass `releaseName` and `releaseBody`, or check ours survive. Then check the release page, and that an installed app updates.
 - [ ] Apple signing and notarization (Apple's automated malware check, needed so other people's Macs open the app without warnings). Step by step: [09-apple-signing.md](09-apple-signing.md).
   - **(You)** Join the Apple Developer Program.
   - **(You)** Create a "Developer ID Application" certificate and an App Store Connect API key.
