@@ -52,7 +52,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 - [x] No tokens in logs: the logger also hides GitHub client errors' request headers and body, and any field named like a token (`token`, `accessToken`, `refresh_token`, …).
 - [x] A dependency audit (`pnpm audit --prod --audit-level high`) on each PR and weekly, in its own workflow, so a new advisory never blocks an unrelated PR. It found two: `body-parser` (a denial of service, through Express) and `lodash` (through Prisma Studio). Both updated.
 - [x] Dependabot (`.github/dependabot.yml`): monthly grouped updates, and security fixes as they come. App and Mac app updates are `fix(deps)`, so they release.
-- [ ] **(You)** Turn on Dependabot alerts and security updates: the repo's Settings, Advanced Security (or Code security).
+- [x] **(You)** Turn on Dependabot alerts and security updates: the repo's Settings, Advanced Security. Done 7 November 2026.
 - [x] Use Supabase Pro's limits (8 GB of database, 250 GB of egress) on the admin page and in health alerts.
 - [x] Encryption key rotation: `TOKEN_ENC_KEY_PREVIOUS`. Tokens read with either key, and are written with the new one. `pnpm --filter @pr-peek/server tokens:reencrypt` encrypts them all again with the new key.
 - [ ] Run the `/security-review` command on the main branch before launch.
