@@ -15,14 +15,29 @@ import { GitHubAuthError } from "./oauth";
 import {
   encryptPersonalToken,
   getAccessToken,
-  markNeedsReauth,
+  markRejected,
   NeedsReauthError,
+  pickToken,
   reencryptTokens,
 } from "./tokens";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
+
+const reload = (id: string) => db.user.findUniqueOrThrow({ where: { id } });
+
+// Adds a token next to the user's others. Saving one in Settings replaces the last,
+// until plan 20's settings page.
+const addToken = (userId: string, token: string, extra = {}) =>
+  db.gitHubToken.create({
+    data: {
+      userId,
+      name: token,
+      ...encryptPersonalToken({ token, expiresAt: null, scopes: [] }, TEST_KEY),
+      ...extra,
+    },
+  });
 
 async function userWith(tokens = githubTokens()) {
   const { user } = await upsertGitHubUser(db, githubUser(), tokens, TEST_KEY);
@@ -33,17 +48,60 @@ function deps(oauth = fakeOAuth()) {
   return { db, oauth, key: TEST_KEY, now: () => NOW };
 }
 
+describe("pickToken", () => {
+  const token = (
+    id: string,
+    extra: Partial<Parameters<typeof pickToken>[0][number]> = {},
+  ) => ({
+    id,
+    kind: "fine_grained" as const,
+    owners: [],
+    status: "working" as const,
+    createdAt: hours(-1),
+    ...extra,
+  });
+
+  it("picks the token that reaches the owner, ignoring case", () => {
+    const tokens = [
+      token("acme", { owners: ["Acme"] }),
+      token("globex", { owners: ["globex"] }),
+    ];
+    expect(pickToken(tokens, "acme")).toBe("acme");
+    expect(pickToken(tokens, "GLOBEX")).toBe("globex");
+  });
+
+  it("uses the sign in when no working token reaches the owner", () => {
+    const tokens = [
+      token("acme", { owners: ["acme"], status: "stopped" }),
+      token("globex", { owners: ["globex"] }),
+    ];
+    expect(pickToken(tokens, "acme")).toBeNull();
+    expect(pickToken([], "acme")).toBeNull();
+  });
+
+  it("counts a classic token as reaching every owner, and prefers the newest", () => {
+    const tokens = [
+      token("old", { kind: "classic", createdAt: hours(-2) }),
+      token("new", { owners: ["acme"], createdAt: hours(-1) }),
+    ];
+    expect(pickToken(tokens, "acme")).toBe("new");
+    expect(pickToken(tokens, "initech")).toBe("old");
+  });
+});
+
 describe("getAccessToken", () => {
   it("returns the stored token while it's fresh", async () => {
     const user = await userWith();
     const oauth = fakeOAuth();
-    expect(await getAccessToken(deps(oauth), user.id)).toBe("ghu_access");
+    expect((await getAccessToken(deps(oauth), user.id)).token).toBe(
+      "ghu_access",
+    );
     expect(oauth.refresh).not.toHaveBeenCalled();
   });
 
   it("returns tokens that never expire", async () => {
     const user = await userWith(githubTokens({ accessTokenExpiresAt: null }));
-    expect(await getAccessToken(deps(), user.id)).toBe("ghu_access");
+    expect((await getAccessToken(deps(), user.id)).token).toBe("ghu_access");
   });
 
   it("refreshes a token that's about to expire, and saves the new one", async () => {
@@ -52,11 +110,15 @@ describe("getAccessToken", () => {
     );
     const oauth = fakeOAuth();
 
-    expect(await getAccessToken(deps(oauth), user.id)).toBe("ghu_refreshed");
+    expect((await getAccessToken(deps(oauth), user.id)).token).toBe(
+      "ghu_refreshed",
+    );
     expect(oauth.refresh).toHaveBeenCalledWith("ghr_refresh");
 
     // The next call uses the saved token instead of refreshing again.
-    expect(await getAccessToken(deps(oauth), user.id)).toBe("ghu_refreshed");
+    expect((await getAccessToken(deps(oauth), user.id)).token).toBe(
+      "ghu_refreshed",
+    );
     expect(oauth.refresh).toHaveBeenCalledTimes(1);
   });
 
@@ -80,7 +142,10 @@ describe("getAccessToken", () => {
       getAccessToken(deps(oauth), user.id),
     ]);
 
-    expect(tokens).toEqual(["ghu_refreshed", "ghu_refreshed"]);
+    expect(tokens.map((t) => t.token)).toEqual([
+      "ghu_refreshed",
+      "ghu_refreshed",
+    ]);
     expect(oauth.refresh).toHaveBeenCalledTimes(1);
   });
 
@@ -115,7 +180,9 @@ describe("getAccessToken", () => {
     it("uses it instead of the sign in token", async () => {
       const user = await userWithPat(null);
       const oauth = fakeOAuth();
-      expect(await getAccessToken(deps(oauth), user.id)).toBe("ghp_token");
+      expect((await getAccessToken(deps(oauth), user.id)).token).toBe(
+        "ghp_token",
+      );
       expect(oauth.refresh).not.toHaveBeenCalled();
     });
 
@@ -155,7 +222,7 @@ describe("getAccessToken", () => {
         },
       });
 
-      expect(await getAccessToken(deps(), user.id)).toBe("ghp_token");
+      expect((await getAccessToken(deps(), user.id)).token).toBe("ghp_token");
       expect(await db.gitHubToken.findFirstOrThrow()).toMatchObject({
         tokenHash: fields.tokenHash,
         kind: "classic",
@@ -163,17 +230,67 @@ describe("getAccessToken", () => {
     });
   });
 
-  describe("markNeedsReauth", () => {
-    it("blames the sign in when there's no personal access token", async () => {
+  describe("choosing a token", () => {
+    it("uses the token that reaches the owner, else the sign in", async () => {
       const user = await userWith();
-      expect(await markNeedsReauth(db, user.id)).toBe("reauth");
+      const acme = await addToken(user.id, "github_pat_acme", {
+        owners: ["acme"],
+      });
+
+      expect(await getAccessToken(deps(), user.id, { owner: "acme" })).toEqual({
+        token: "github_pat_acme",
+        tokenId: acme.id,
+      });
+      expect(
+        await getAccessToken(deps(), user.id, { owner: "globex" }),
+      ).toEqual({ token: "ghu_access", tokenId: null });
     });
 
-    it("blames the personal access token, and marks it stopped", async () => {
+    it("uses the token asked for, or the sign in for null", async () => {
+      const user = await userWith();
+      const acme = await addToken(user.id, "github_pat_acme");
+
+      expect(
+        await getAccessToken(deps(), user.id, { tokenId: acme.id }),
+      ).toEqual({ token: "github_pat_acme", tokenId: acme.id });
+      expect(await getAccessToken(deps(), user.id, { tokenId: null })).toEqual({
+        token: "ghu_access",
+        tokenId: null,
+      });
+    });
+  });
+
+  describe("markRejected", () => {
+    it("asks to sign in again when the user has no personal access token", async () => {
+      const user = await userWith();
+      expect(await markRejected(db, user.id, null)).toBe("reauth");
+      expect((await reload(user.id)).syncError).toBe("reauth");
+    });
+
+    it("asks for a new token when the last working one stops", async () => {
+      const user = await userWith();
+      const token = await addPersonalToken(db, user.id);
+      expect(await markRejected(db, user.id, token.id)).toBe("token");
+      expect((await db.gitHubToken.findFirstOrThrow()).status).toBe("stopped");
+      expect((await reload(user.id)).syncError).toBe("token");
+    });
+
+    it("stops only that token while another still works", async () => {
+      const user = await userWith();
+      const first = await addToken(user.id, "github_pat_first");
+      const second = await addToken(user.id, "github_pat_second");
+      expect(await markRejected(db, user.id, first.id)).toBeNull();
+      expect(
+        await db.gitHubToken.findUniqueOrThrow({ where: { id: second.id } }),
+      ).toMatchObject({ status: "working" });
+      expect((await reload(user.id)).syncError).toBeNull();
+    });
+
+    it("leaves syncs alone when the sign in fails but a token works", async () => {
       const user = await userWith();
       await addPersonalToken(db, user.id);
-      expect(await markNeedsReauth(db, user.id)).toBe("token");
-      expect((await db.gitHubToken.findFirstOrThrow()).status).toBe("stopped");
+      expect(await markRejected(db, user.id, null)).toBeNull();
+      expect((await reload(user.id)).syncError).toBeNull();
     });
   });
 
@@ -217,12 +334,11 @@ describe("changing the encryption key", () => {
   it("reads tokens saved with the previous key", async () => {
     // Saved before the change, with TEST_KEY.
     const user = await userWith();
-    expect(
-      await getAccessToken(
-        { ...deps(), key: NEW_KEY, previousKey: TEST_KEY },
-        user.id,
-      ),
-    ).toBe("ghu_access");
+    const { token } = await getAccessToken(
+      { ...deps(), key: NEW_KEY, previousKey: TEST_KEY },
+      user.id,
+    );
+    expect(token).toBe("ghu_access");
   });
 
   it("encrypts every token again with the new key", async () => {

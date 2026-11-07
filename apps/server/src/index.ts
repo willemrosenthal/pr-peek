@@ -7,7 +7,7 @@ import { loadConfig } from "./config";
 import { checkDb, createDb, createPool } from "./db";
 import { createGitHubOAuth } from "./github/oauth";
 import { createLogger } from "./logger";
-import { getOctokit } from "./github/client";
+import { getOctokit, type GitHubFor } from "./github/client";
 import { tokenKeys } from "./github/tokens";
 import { listenForItemChanges } from "./items-listener";
 import { createBoss, createQueues, queueSync } from "./jobs";
@@ -39,8 +39,8 @@ const oauth = createGitHubOAuth({
   clientId: config.GITHUB_CLIENT_ID,
   clientSecret: config.GITHUB_CLIENT_SECRET,
 });
-const github = (userId: string) =>
-  getOctokit({ db, oauth, ...tokenKeys(config), usage }, userId);
+const github: GitHubFor = (userId, choice) =>
+  getOctokit({ db, oauth, ...tokenKeys(config), usage }, userId, choice);
 const vapid = vapidFrom(config);
 if (!vapid) logger.warn("VAPID keys not set, so push notifications are off");
 const send = vapid ? webPushSender(vapid) : null;

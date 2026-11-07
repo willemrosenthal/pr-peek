@@ -1,3 +1,4 @@
+import { RequestError } from "octokit";
 import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, resetDb, TEST_DATABASE_URL } from "../test/db";
@@ -9,7 +10,7 @@ import {
   NOW,
   TEST_KEY,
 } from "../test/fakes";
-import { fakeGraphQL } from "../test/github";
+import { fakeGraphQL, reposGitHub } from "../test/github";
 import { itemRows } from "../test/items";
 import {
   checkContexts,
@@ -25,7 +26,8 @@ import {
   withHeadChecks,
 } from "../test/pulls";
 import { ITEMS_CHANNEL } from "./items";
-import { syncUser } from "./sync";
+import { encryptPersonalToken, type TokenChoice } from "./github/tokens";
+import { refreshTokenOwners, syncUser } from "./sync";
 import { upsertGitHubUser } from "./users";
 
 const db = createTestDb();
@@ -1293,5 +1295,75 @@ describe("full passes", () => {
 
     await sync(user.id, {}, hours(2));
     expect(await openItemCount()).toBe(0);
+  });
+});
+
+describe("refreshTokenOwners", () => {
+  const addToken = (userId: string, token: string, extra = {}) =>
+    db.gitHubToken.create({
+      data: {
+        userId,
+        name: token,
+        ...encryptPersonalToken(
+          { token, expiresAt: null, scopes: [] },
+          TEST_KEY,
+        ),
+        ...extra,
+      },
+    });
+
+  it("saves the owners of fine-grained tokens never checked or a day old", async () => {
+    const user = await makeUser();
+    const fresh = await addToken(user.id, "github_pat_fresh", {
+      owners: ["kept"],
+      ownersCheckedAt: hours(-1),
+    });
+    const stale = await addToken(user.id, "github_pat_stale", {
+      ownersCheckedAt: hours(-25),
+    });
+    const copied = await addToken(user.id, "github_pat_copied", { kind: null });
+    await addToken(user.id, "ghp_classic");
+    await addToken(user.id, "github_pat_stopped", { status: "stopped" });
+    const github = vi.fn(() =>
+      Promise.resolve(reposGitHub([["acme"]]).octokit),
+    );
+
+    await refreshTokenOwners({ db, github }, user.id, NOW);
+
+    expect(github.mock.calls).toEqual(
+      expect.arrayContaining([
+        [user.id, { tokenId: stale.id }],
+        [user.id, { tokenId: copied.id }],
+      ]),
+    );
+    expect(github).toHaveBeenCalledTimes(2);
+    const byId = async (id: string) =>
+      db.gitHubToken.findUniqueOrThrow({ where: { id } });
+    expect(await byId(stale.id)).toMatchObject({
+      owners: ["acme"],
+      ownersCheckedAt: NOW,
+    });
+    expect((await byId(fresh.id)).owners).toEqual(["kept"]);
+  });
+
+  it("skips a token GitHub rejects, and keeps going", async () => {
+    const user = await makeUser();
+    const bad = await addToken(user.id, "github_pat_bad");
+    const good = await addToken(user.id, "github_pat_good");
+    const rejected = new RequestError("Bad credentials", 401, {
+      request: { method: "GET", url: "/user/repos", headers: {} },
+    });
+    const github = vi.fn((_userId: string, choice?: TokenChoice) =>
+      choice && "tokenId" in choice && choice.tokenId === bad.id
+        ? Promise.reject(rejected)
+        : Promise.resolve(reposGitHub([["acme"]]).octokit),
+    );
+
+    await refreshTokenOwners({ db, github }, user.id, NOW);
+
+    expect(
+      (await db.gitHubToken.findUniqueOrThrow({ where: { id: good.id } }))
+        .owners,
+    ).toEqual(["acme"]);
   });
 });

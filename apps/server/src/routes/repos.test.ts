@@ -3,7 +3,7 @@ import {
   type SearchReposResponse,
   type WatchedRepoDto,
 } from "@pr-peek/core";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { APP_URL, bodyOf, makeTestApp, signIn } from "../../test/app";
 import { createTestDb, resetDb } from "../../test/db";
 import {
@@ -102,11 +102,12 @@ async function setup(
   delayMs = 0,
 ) {
   const fake = fakeGraphQL(answer, delayMs);
+  const githubFor = vi.fn(() => Promise.resolve(fake.octokit));
   const { agent } = makeTestApp(db, {
-    routers: [reposRouter({ db, github: () => Promise.resolve(fake.octokit) })],
+    routers: [reposRouter({ db, github: githubFor })],
   });
   await signIn(agent);
-  return { agent, requests: fake.requests };
+  return { agent, githubFor, requests: fake.requests };
 }
 
 const add = (agent: Awaited<ReturnType<typeof setup>>["agent"], name: string) =>
@@ -138,10 +139,14 @@ describe("GET /api/github/repos", () => {
   });
 
   it("lists one owner's repos, and passes the cursor along", async () => {
-    const { agent, requests } = await setup();
+    const { agent, githubFor, requests } = await setup();
 
     const res = await agent.get("/api/github/repos?owner=acme&cursor=abc");
     expect(res.status).toBe(200);
+    // With the token that reaches that owner.
+    expect(githubFor).toHaveBeenCalledWith(expect.any(String), {
+      owner: "acme",
+    });
     expect(res.body).toEqual({
       repos: [option(4, "fork", { isFork: true })],
       nextCursor: "cursor-2",

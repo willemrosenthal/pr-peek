@@ -28,8 +28,8 @@ try {
     const result = await syncUser(
       {
         db,
-        github: (userId) =>
-          getOctokit({ db, oauth, ...tokenKeys(config) }, userId),
+        github: (userId, choice) =>
+          getOctokit({ db, oauth, ...tokenKeys(config) }, userId, choice),
       },
       user.id,
     );

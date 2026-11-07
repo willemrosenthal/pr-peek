@@ -46,12 +46,14 @@ const keysOf = (keys: TokenKeys) =>
 export type StopReason = Exclude<SyncError, "failed">;
 export const STOP_REASONS: StopReason[] = ["reauth", "token"];
 
-// GitHub stopped accepting the user's token: it expired, or they revoked it.
+// GitHub stopped accepting the user's token: it expired, or they revoked it. `reason`
+// says which kind, and `tokenId` which personal access token, if it was one.
 // In a request it becomes a 401 with code "reauth" or "token_invalid".
 export class NeedsReauthError extends HttpError {
   constructor(
     readonly userId: string,
     readonly reason: StopReason = "reauth",
+    readonly tokenId: string | null = null,
   ) {
     super(
       401,
@@ -108,13 +110,55 @@ export function encryptPersonalToken(
   };
 }
 
-// The user's newest personal access token, or null. Until plan 20's next PR, a user has
-// at most one: saving a token replaces the last.
+// The user's newest personal access token, or null. Until plan 20's settings page, a
+// user has at most one: saving a token replaces the last.
 export const newestToken = (db: Db, userId: string) =>
   db.gitHubToken.findFirst({
     where: { userId },
     orderBy: { createdAt: "desc" },
   });
+
+// Which token a GitHub client uses. With none, the newest personal access token, else the
+// sign in. `owner`: the token that reaches that user or org (see pickToken). `tokenId`:
+// that personal access token, or the sign in when null.
+export type TokenChoice = { owner: string } | { tokenId: string | null };
+
+type PickableToken = Pick<
+  GitHubToken,
+  "id" | "kind" | "owners" | "status" | "createdAt"
+>;
+
+// The token for an owner's repos: the newest working token that reaches it. A classic
+// token reaches every owner. Null means the GitHub sign in. Logins ignore case on GitHub.
+export function pickToken(
+  tokens: PickableToken[],
+  owner: string,
+): string | null {
+  const wanted = owner.toLowerCase();
+  const reaches = (token: PickableToken) =>
+    token.kind === "classic" ||
+    token.owners.some((o) => o.toLowerCase() === wanted);
+  const [newest] = tokens
+    .filter((token) => token.status === "working" && reaches(token))
+    .toSorted((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return newest?.id ?? null;
+}
+
+async function chosenToken(
+  db: Db,
+  userId: string,
+  choice: TokenChoice | undefined,
+): Promise<GitHubToken | null> {
+  if (!choice) return newestToken(db, userId);
+  if ("owner" in choice) {
+    const tokens = await db.gitHubToken.findMany({ where: { userId } });
+    const id = pickToken(tokens, choice.owner);
+    return tokens.find((token) => token.id === id) ?? null;
+  }
+  return choice.tokenId
+    ? db.gitHubToken.findFirst({ where: { id: choice.tokenId, userId } })
+    : null;
+}
 
 // Saves the user's personal access token in place of any they had. Also writes the old
 // User columns, which the running version reads during a deploy.
@@ -173,24 +217,35 @@ export function personalTokenDto(
   };
 }
 
-// Stops syncs until the user acts. Blames the personal access tokens when there are
-// any, since syncs use them first, and marks them stopped.
-export async function markNeedsReauth(
+// GitHub rejected a token. Marks that personal access token stopped (`tokenId`; null for
+// the sign in, or when it's not known). Syncs stop only when no personal access token
+// works: "token" if the user has any, else "reauth". Returns why syncs stopped, or null.
+export async function markRejected(
   db: Db,
   userId: string,
-): Promise<StopReason> {
-  const hasTokens = (await db.gitHubToken.count({ where: { userId } })) > 0;
-  if (hasTokens) {
+  tokenId: string | null,
+): Promise<StopReason | null> {
+  if (tokenId) {
     await db.gitHubToken.updateMany({
-      where: { userId, status: "working" },
+      where: { id: tokenId, userId, status: "working" },
       data: { status: "stopped", stoppedAt: new Date() },
     });
   }
-  const reason: StopReason = hasTokens ? "token" : "reauth";
-  await db.user.updateMany({
-    where: { id: userId },
-    data: { syncError: reason },
+  const tokens = await db.gitHubToken.findMany({
+    where: { userId },
+    select: { status: true },
   });
+  const reason: StopReason | null = tokens.some((t) => t.status === "working")
+    ? null
+    : tokens.length > 0
+      ? "token"
+      : "reauth";
+  if (reason) {
+    await db.user.updateMany({
+      where: { id: userId },
+      data: { syncError: reason },
+    });
+  }
   return reason;
 }
 
@@ -208,12 +263,13 @@ const TOKEN_FIELDS = {
   refreshTokenExpiresAt: true,
 } as const;
 
-// Returns a working token. Prefers the user's personal access token. Otherwise uses the
-// sign in token, refreshing it first if it's about to expire.
+// A working token, and which personal access token it is (null for the sign in). The
+// sign in token is refreshed first if it's about to expire. See TokenChoice for `choice`.
 export async function getAccessToken(
   deps: TokenDeps,
   userId: string,
-): Promise<string> {
+  choice?: TokenChoice,
+): Promise<{ token: string; tokenId: string | null }> {
   const now = (deps.now ?? (() => new Date()))();
   const expiresSoon = (expiresAt: Date | null) =>
     expiresAt !== null &&
@@ -224,14 +280,13 @@ export async function getAccessToken(
       ? decrypt(t.accessTokenEnc, keysOf(deps))
       : null;
 
-  const personal = await newestToken(deps.db, userId);
-  // Never falls back to the sign in token. It may not see the user's org repos.
+  const personal = await chosenToken(deps.db, userId, choice);
+  // A chosen personal access token never falls back to the sign in token. It may not
+  // see the user's org repos.
   if (personal) {
     if (expiresSoon(personal.expiresAt)) {
-      throw new NeedsReauthError(
-        userId,
-        await markNeedsReauth(deps.db, userId),
-      );
+      await markRejected(deps.db, userId, personal.id);
+      throw new NeedsReauthError(userId, "token", personal.id);
     }
     const token = decrypt(personal.tokenEnc, keysOf(deps));
     // Copied from the User row, where SQL couldn't read it. Fill in what needed it.
@@ -241,14 +296,14 @@ export async function getAccessToken(
         data: { tokenHash: hashToken(token), kind: tokenKind(token) },
       });
     }
-    return token;
+    return { token, tokenId: personal.id };
   }
   const stored = await deps.db.user.findUniqueOrThrow({
     where: { id: userId },
     select: TOKEN_FIELDS,
   });
   const current = freshToken(stored);
-  if (current) return current;
+  if (current) return { token: current, tokenId: null };
 
   // Lock the user's row so the web service and worker never refresh at the same time.
   // GitHub only accepts each refresh token once, so a second refresh would fail.
@@ -290,9 +345,10 @@ export async function getAccessToken(
 
   // Marked after the transaction, so it isn't rolled back with it.
   if ("reauth" in result) {
-    throw new NeedsReauthError(userId, await markNeedsReauth(deps.db, userId));
+    await markRejected(deps.db, userId, null);
+    throw new NeedsReauthError(userId);
   }
-  return result.token;
+  return { token: result.token, tokenId: null };
 }
 
 // Encrypts every stored token again with `key`, after a key change. Tokens the previous
