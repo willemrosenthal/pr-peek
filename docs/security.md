@@ -40,6 +40,18 @@ The **Audit** workflow checks our dependencies for known security problems. It r
 - It isn't a required check, so it never blocks an unrelated PR.
 - If it fails, update the package it names. Run it yourself with `pnpm audit --prod --audit-level high`.
 
+## Dependabot
+
+Dependabot opens PRs that update our dependencies. The setup is in `.github/dependabot.yml`.
+
+- Once a month, grouped: one PR for app packages, one for dev tools, one for the Mac app, and one for GitHub Actions.
+- Security fixes come sooner, one PR each.
+- Major versions come one PR each, since they can break things.
+- The title decides the release. `fix(deps)` changes what ships, so merging it releases. `chore(deps)` and `ci(deps)` don't.
+- A Mac app (`cargo`) update also builds a new Mac release.
+
+Review them like any PR: check CI passes, then merge.
+
 ## Supabase limits
 
 We're on Supabase Pro. It includes:

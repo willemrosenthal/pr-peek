@@ -1,0 +1,43 @@
+# Dependabot opens PRs that update our dependencies, monthly, grouped to keep them few.
+# Security fixes come sooner, as their own PRs (turned on in the repo's settings).
+# The title decides the release (docs/completed/15-auto-release.md): what ships is
+# fix(deps), so merging it releases. Dev tools and CI are chore and ci, so they don't.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: fix(deps)
+      prefix-development: chore(deps)
+    groups:
+      production:
+        dependency-type: production
+        update-types: [minor, patch]
+      development:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  # The Mac app. Merging one also builds a new Mac release.
+  - package-ecosystem: cargo
+    directory: /apps/desktop/src-tauri
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: fix(deps)
+    groups:
+      desktop:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directories: [/, /.github/actions/setup]
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci(deps)
+    groups:
+      actions:
+        update-types: [minor, patch]
