@@ -1,7 +1,10 @@
+/* Above the list, which pull to refresh puts on its own layer. Below the toast (90),
+   so its Undo button stays tappable. Clear of the iPhone's home bar, like the toast. */
 .prompt {
   position: fixed;
-  bottom: var(--space-4);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-4));
   left: 50%;
+  z-index: 80;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
