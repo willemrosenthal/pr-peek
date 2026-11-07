@@ -140,29 +140,26 @@ describe("getAccessToken", () => {
       const user = await userWith(
         githubTokens({ accessTokenExpiresAt: hours(-1) }),
       );
-      // As the migration copies it: no hash, and the kind guessed from no scopes.
-      const { tokenHash: _, ...copied } = encryptPersonalToken(
-        { token: "ghp_token", expiresAt: null, scopes: [] },
+      const fields = encryptPersonalToken(
+        { token: "ghp_token", expiresAt: null, scopes: ["repo"] },
         TEST_KEY,
       );
+      // As the migration copies it: no hash or kind yet.
       await db.gitHubToken.create({
         data: {
-          ...copied,
+          ...fields,
+          tokenHash: null,
+          kind: null,
           userId: user.id,
           name: "Personal access token",
-          kind: "fine_grained",
         },
       });
 
       expect(await getAccessToken(deps(), user.id)).toBe("ghp_token");
-      const saved = await db.gitHubToken.findFirstOrThrow();
-      expect(saved.kind).toBe("classic");
-      expect(saved.tokenHash).toBe(
-        encryptPersonalToken(
-          { token: "ghp_token", expiresAt: null, scopes: [] },
-          TEST_KEY,
-        ).tokenHash,
-      );
+      expect(await db.gitHubToken.findFirstOrThrow()).toMatchObject({
+        tokenHash: fields.tokenHash,
+        kind: "classic",
+      });
     });
   });
 

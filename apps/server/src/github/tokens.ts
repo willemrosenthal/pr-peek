@@ -144,12 +144,12 @@ export function savePersonalToken(
 }
 
 // Removes the user's personal access tokens, and the old User columns.
-export function removePersonalTokens(
+export async function removePersonalTokens(
   db: Db,
   userId: string,
   userData: Prisma.UserUpdateInput = {},
-): Promise<unknown> {
-  return db.$transaction([
+): Promise<void> {
+  await db.$transaction([
     db.gitHubToken.deleteMany({ where: { userId } }),
     db.user.update({
       where: { id: userId },
@@ -222,13 +222,7 @@ export async function getAccessToken(
       ? decrypt(t.accessTokenEnc, keysOf(deps))
       : null;
 
-  const [stored, personal] = await Promise.all([
-    deps.db.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: TOKEN_FIELDS,
-    }),
-    newestToken(deps.db, userId),
-  ]);
+  const personal = await newestToken(deps.db, userId);
   // Never falls back to the sign in token. It may not see the user's org repos.
   if (personal) {
     if (expiresSoon(personal.expiresAt)) {
@@ -247,6 +241,10 @@ export async function getAccessToken(
     }
     return token;
   }
+  const stored = await deps.db.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: TOKEN_FIELDS,
+  });
   const current = freshToken(stored);
   if (current) return current;
 

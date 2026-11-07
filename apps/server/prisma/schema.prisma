@@ -304,10 +304,11 @@ model GitHubToken {
   name             String
   // Encrypted (see crypto.ts).
   tokenEnc         String
-  // SHA-256 of the token, so the same one can't be added twice. Null for tokens copied
-  // from User.patEnc until they're next read: the copy couldn't decrypt them.
+  // SHA-256 of the token, so the same one can't be added twice. This and the kind (from
+  // the token's prefix) are null for tokens copied from User.patEnc until they're next
+  // read: the copy couldn't decrypt them.
   tokenHash        String?
-  kind             TokenKind
+  kind             TokenKind?
   // Classic tokens list them. Fine-grained ones have none.
   scopes           String[]
   expiresAt        DateTime?

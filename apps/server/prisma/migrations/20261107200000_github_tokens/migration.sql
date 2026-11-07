@@ -1,6 +1,5 @@
 -- Plan 20: personal access tokens move out of the User row, one row per token.
 
-
 -- CreateEnum
 CREATE TYPE "TokenKind" AS ENUM ('classic', 'fine_grained');
 
@@ -14,7 +13,7 @@ CREATE TABLE "GitHubToken" (
     "name" TEXT NOT NULL,
     "tokenEnc" TEXT NOT NULL,
     "tokenHash" TEXT,
-    "kind" "TokenKind" NOT NULL,
+    "kind" "TokenKind",
     "scopes" TEXT[],
     "expiresAt" TIMESTAMP(3),
     "owners" TEXT[] DEFAULT ARRAY[]::TEXT[],
@@ -34,17 +33,15 @@ CREATE UNIQUE INDEX "GitHubToken_userId_tokenHash_key" ON "GitHubToken"("userId"
 -- AddForeignKey
 ALTER TABLE "GitHubToken" ADD CONSTRAINT "GitHubToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-
 -- Copy each user's token. The encrypted text copies as is. SQL can't decrypt it, so the
--- hash waits for the token's next read, and the kind comes from the scopes: only classic
--- tokens list them. The User columns stay for one release (see schema.prisma).
-INSERT INTO "GitHubToken" ("id", "userId", "name", "tokenEnc", "kind", "scopes", "expiresAt", "status", "stoppedAt")
+-- hash and kind wait for the token's next read. The User columns stay for one release
+-- (see schema.prisma).
+INSERT INTO "GitHubToken" ("id", "userId", "name", "tokenEnc", "scopes", "expiresAt", "status", "stoppedAt")
 SELECT
   gen_random_uuid()::text,
   "id",
   'Personal access token',
   "patEnc",
-  CASE WHEN cardinality("patScopes") > 0 THEN 'classic' ELSE 'fine_grained' END::"TokenKind",
   "patScopes",
   "patExpiresAt",
   CASE WHEN "syncError" = 'token' THEN 'stopped' ELSE 'working' END::"TokenStatus",
