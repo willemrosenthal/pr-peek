@@ -151,7 +151,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
     - Tauri skips notarizing with only a warning if a value is missing, so a step checks the app is signed and notarized before the release is published.
   - Then remove `"signingIdentity":"-"` from the workflow's `--config`. Done, and the "Open Anyway" note is gone from the release notes.
   - **(You)** The first signed build comes with the next release that changes `apps/desktop`. Check it opens with no warning ([09-apple-signing.md](09-apple-signing.md), part 9).
-- [x] Before signing was set up, builds worked for you. The first time, macOS blocks the app: open System Settings, Privacy & Security, and choose Open Anyway. The release notes say so. (Newer macOS dropped right click, Open.)
+- [x] Before signing was set up, builds worked for you. The first time, macOS blocks the app: open System Settings, Privacy & Security, and choose Open Anyway. The release notes said so. (Newer macOS dropped right click, Open.)
   - Builds get a free stand-in signature (`signingIdentity` `-`). With no signature at all, Apple Silicon Macs call a downloaded app damaged.
 - [x] Add a "Download for Mac" link on the `/install` page that points at the latest release.
   - It opens the release page, since the `.dmg` name has the version in it. Hidden inside the Mac app.
