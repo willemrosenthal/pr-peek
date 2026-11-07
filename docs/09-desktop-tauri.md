@@ -148,6 +148,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
   - **(You)** Add them as GitHub secrets. Done: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_API_ISSUER`, `APPLE_API_KEY`, `APPLE_API_PRIVATE_KEY`, and `KEYCHAIN_PASSWORD`.
   - `tauri-action` reads them from its environment. Pass them by name from `release.yml` to `desktop-release.yml`, and into the `tauri-action` step's `env`, like the updater secrets.
     - As built: Tauri needs the `.p8` key as a file, so a step writes `APPLE_API_PRIVATE_KEY` to one and sets `APPLE_API_KEY_PATH`.
+    - Tauri skips notarizing with only a warning if a value is missing, so a step checks the app is signed and notarized before the release is published.
   - Then remove `"signingIdentity":"-"` from the workflow's `--config`. Done, and the "Open Anyway" note is gone from the release notes.
   - **(You)** The first signed build comes with the next release that changes `apps/desktop`. Check it opens with no warning ([09-apple-signing.md](09-apple-signing.md), part 9).
 - [x] Before signing was set up, builds worked for you. The first time, macOS blocks the app: open System Settings, Privacy & Security, and choose Open Anyway. The release notes say so. (Newer macOS dropped right click, Open.)

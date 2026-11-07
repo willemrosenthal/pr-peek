@@ -75,8 +75,8 @@ gh secret set KEYCHAIN_PASSWORD               # any long random string, used onl
 
 ## 7. Clean up
 
-- [ ] Put the `.p12`, its password, and the `.p8` in your password manager.
-- [ ] Delete the loose files: the request file, the `.cer`, the `.p12`, and the `.p8`.
+- [x] Put the `.p12`, its password, and the `.p8` in your password manager.
+- [x] Delete the loose files: the request file, the `.cer`, the `.p12`, and the `.p8`.
 
 ## 8. Claude: the workflow change
 

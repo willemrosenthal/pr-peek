@@ -136,6 +136,16 @@ jobs:
             --target universal-apple-darwin
             --config '{"version":"${{ env.VERSION }}","bundle":{"createUpdaterArtifacts":true}}'
 
+      # Tauri skips notarizing with only a warning if an Apple value is missing. Stop here
+      # instead, while the release is still a draft. stapler checks Apple's ticket is
+      # attached, so the app opens with no warning even offline.
+      - name: Check the app is signed and notarized
+        run: |
+          app="apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/Git Buddy.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          xcrun stapler validate "$app"
+          spctl --assess --type execute -vv "$app"
+
       # Only the newest version becomes latest. GitHub would otherwise mark any newly
       # published release latest, and a re-run of an old one would send the updater back.
       - name: Publish the release
