@@ -1,6 +1,11 @@
 import { Octokit } from "octokit";
 import type { Usage } from "../usage";
-import { getAccessToken, markNeedsReauth, type TokenDeps } from "./tokens";
+import {
+  getAccessToken,
+  markRejected,
+  type TokenChoice,
+  type TokenDeps,
+} from "./tokens";
 
 // Longer waits fail the request instead, and the sync tries again later.
 const MAX_RATE_LIMIT_WAIT_S = 60;
@@ -51,14 +56,23 @@ function countRequests(octokit: Octokit, usage: Usage) {
   });
 }
 
+// Makes GitHub clients acting as a user, like getOctokit with its deps filled in.
+export type GitHubFor = (
+  userId: string,
+  choice?: TokenChoice,
+) => Promise<Octokit>;
+
 // A GitHub API client acting as the user. It comes with retries and rate limit handling.
 // Create one per sync: the token is checked, and refreshed if needed, when it's made.
+// `choice` picks the token (see TokenChoice).
 export async function getOctokit(
   deps: ClientDeps,
   userId: string,
+  choice?: TokenChoice,
 ): Promise<Octokit> {
+  const { token, tokenId } = await getAccessToken(deps, userId, choice);
   const octokit = new Octokit({
-    auth: await getAccessToken(deps, userId),
+    auth: token,
     throttle: {
       onRateLimit: retryIfShort,
       onSecondaryRateLimit: retryIfShort,
@@ -66,10 +80,10 @@ export async function getOctokit(
     ...(deps.fetch && { request: { fetch: deps.fetch } }),
   });
 
-  // 401 means GitHub no longer accepts the token (the user revoked the app).
+  // 401 means GitHub no longer accepts the token: it expired, or the user revoked it.
   octokit.hook.error("request", async (error) => {
     if ("status" in error && error.status === 401) {
-      await markNeedsReauth(deps.db, userId);
+      await markRejected(deps.db, userId, tokenId);
     }
     throw error;
   });

@@ -79,9 +79,10 @@ function github(pr = lookedUp(), sync: FakePrGitHub = {}) {
 async function setup(answer = github()) {
   const fake = fakeGraphQL(answer);
   const requestSync = vi.fn(() => Promise.resolve(true));
+  const githubFor = vi.fn(() => Promise.resolve(fake.octokit));
   const deps = {
     db,
-    github: () => Promise.resolve(fake.octokit),
+    github: githubFor,
     requestSync,
     now: () => NOW,
   };
@@ -90,7 +91,7 @@ async function setup(answer = github()) {
   });
   await signIn(agent);
   const user = await db.user.findFirstOrThrow();
-  return { agent, user, requestSync, requests: fake.requests };
+  return { agent, user, requestSync, githubFor, requests: fake.requests };
 }
 
 const lookUp = (agent: Agent, link: string) =>
@@ -133,6 +134,12 @@ describe("GET /api/prs/lookup", () => {
         flagged: false,
       });
     }
+  });
+
+  it("asks GitHub with the token that reaches the link's owner", async () => {
+    const { agent, user, githubFor } = await setup();
+    await lookUp(agent, LINK);
+    expect(githubFor).toHaveBeenCalledWith(user.id, { owner: "other" });
   });
 
   it("says when it's on the user's list, and whether it's flagged", async () => {

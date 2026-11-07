@@ -35,3 +35,27 @@ export const notFoundError = {
   data: null,
   errors: [{ type: "NOT_FOUND", message: "Could not resolve to a Repository" }],
 };
+
+// An Octokit whose GET /user/repos answers with `pages`, linked like GitHub links them.
+export function reposGitHub(pages: string[][]) {
+  const fetch = vi.fn<typeof globalThis.fetch>((input) => {
+    const url = new URL(input);
+    const page = Number(url.searchParams.get("page") ?? "1");
+    const next = new URL(url);
+    next.searchParams.set("page", String(page + 1));
+    return Promise.resolve(
+      Response.json(
+        (pages[page - 1] ?? []).map((owner) => ({ owner: { login: owner } })),
+        page < pages.length
+          ? { headers: { link: `<${next.href}>; rel="next"` } }
+          : {},
+      ),
+    );
+  });
+  const octokit = new Octokit({
+    auth: "test-token",
+    request: { fetch },
+    throttle: { enabled: false },
+  });
+  return { octokit, fetch };
+}

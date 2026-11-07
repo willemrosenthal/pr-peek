@@ -1,5 +1,5 @@
 import type { PrPreviewResponse } from "@pr-peek/core";
-import { afterAll, beforeEach, expect, it } from "vitest";
+import { afterAll, beforeEach, expect, it, vi } from "vitest";
 import { bodyOf, makeTestApp, signIn } from "../../test/app";
 import { createTestDb, resetDb } from "../../test/db";
 import {
@@ -84,18 +84,13 @@ function github(request: GraphQLRequest) {
 
 async function setup() {
   const fake = fakeGraphQL(github);
+  const githubFor = vi.fn(() => Promise.resolve(fake.octokit));
   const { agent } = makeTestApp(db, {
-    routers: [
-      previewRouter({
-        db,
-        github: () => Promise.resolve(fake.octokit),
-        now: () => NOW,
-      }),
-    ],
+    routers: [previewRouter({ db, github: githubFor, now: () => NOW })],
   });
   await signIn(agent);
   const user = await db.user.findFirstOrThrow();
-  return { agent, user, requests: fake.requests };
+  return { agent, user, githubFor, requests: fake.requests };
 }
 
 it("needs sign in", async () => {
@@ -103,6 +98,13 @@ it("needs sign in", async () => {
     routers: [previewRouter({ db, github: () => Promise.reject(new Error()) })],
   });
   expect((await agent.get("/api/prs/x/preview")).status).toBe(401);
+});
+
+it("asks GitHub with the token that reaches the PR's owner", async () => {
+  const { agent, user, githubFor } = await setup();
+  const pr = await makePr(user.id, 7);
+  await agent.get(`/api/prs/${pr.id}/preview`);
+  expect(githubFor).toHaveBeenCalledWith(user.id, { owner: pr.repoOwner });
 });
 
 it("answers with the description, checks, reviewers, and comments, marking the item's", async () => {

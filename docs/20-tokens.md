@@ -26,8 +26,10 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 
 ## PRs
 
-1. **The table** (20.1): `feat(server): store personal access tokens in their own table`. Has a migration. No change on screen yet.
-2. **Syncs use them** (20.2): `feat(server): sync each owner with the token that reaches it`.
+1. **The table** (20.1): `feat(server): store personal access tokens in their own table`. Has a migration. No change on screen yet. Merged (#163).
+2. **Syncs use them** (20.2), split in two since it's big:
+   - 2a: `feat(server): find which orgs each token reaches`. Finding owners, picking a token per owner, the repo picker, preview, and add by link, and a rejected token stopping alone.
+   - 2b: `feat(server): sync each owner with the token that reaches it`. Searches per token, details per owner, and the tests with several tokens.
 3. **The settings page** (20.3, 20.4): `feat(web): add several personal access tokens`.
 4. **Reminders and key checks** (20.5, 20.6): `feat(server): remind before a token expires, and check the key on start`.
 
@@ -48,12 +50,18 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 
 ### 20.2 Syncs use them
 
-- [ ] When a token is added, and once a day, list the repos it can reach (`GET /user/repos`, at most 10 pages) and save their owners.
-- [ ] First, check with a real fine-grained token what `/user/repos` returns. If it also lists public repos outside the token's org, count only owners whose private repos it lists, or find another way. Update this plan with what you learn.
-- [ ] Pick a token per owner: a working token that reaches it, newest first, else the sign in.
+- [x] When a token is added, and once a day, list the repos it can reach (`GET /user/repos`, at most 10 pages) and save their owners.
+  - As built (2a): each sync first checks fine-grained tokens whose owners are a day old or never checked. A new token is checked by the next sync, a minute or two later. Checking it before saving comes with the settings page (20.3).
+- [x] First, check with a real fine-grained token what `/user/repos` returns. If it also lists public repos outside the token's org, count only owners whose private repos it lists, or find another way. Update this plan with what you learn.
+  - Checked on 7 November 2026, with a fine-grained token for `willemrosenthal` on all repos. Its private repos were all `willemrosenthal`'s. Its public repos came from other owners too, since any token reads public repos.
+  - So: ask for private repos only (`GET /user/repos?visibility=private`), and save their owners. Public repos need no particular token: any works, including the sign in.
+  - A classic token reaches everything the account can, so it counts as reaching every owner.
+- [x] Pick a token per owner: a working token that reaches it, newest first, else the sign in. `pickToken` in `tokens.ts`. Clients take a `TokenChoice`: an owner, or a token id (null for the sign in).
 - [ ] Run the searches once per token in use, then merge by PR id. Fetch each PR's details with its owner's token.
-- [ ] The repo picker, the PR preview, and add by link use the owner's token too.
-- [ ] When GitHub rejects a token, mark only that token stopped. Its owners fall back to the sign in. `syncError: "token"` is only for when nothing works.
+- [x] The repo picker, the PR preview, and add by link use the owner's token too.
+  - The picker's list of owners (`/github/owners`) still asks with the default token. The settings page (20.3) can add the owners each token reaches.
+- [x] When GitHub rejects a token, mark only that token stopped. Its owners fall back to the sign in. `syncError: "token"` is only for when nothing works.
+  - `markRejected` replaces `markNeedsReauth`. A rejected sign in also stops syncs only when no personal access token works.
 - [ ] Tests: two fine-grained tokens for two orgs, one stopped token, an owner nothing reaches, and the GitHub call count per sync.
 
 ### 20.3 The settings page

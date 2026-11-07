@@ -3,11 +3,8 @@ import { RequestError, type Octokit } from "octokit";
 import type { Logger } from "pino";
 import type { Db } from "./db";
 import type { Prisma } from "./generated/prisma/client";
-import {
-  markNeedsReauth,
-  NeedsReauthError,
-  STOP_REASONS,
-} from "./github/tokens";
+import { markRejected, NeedsReauthError, STOP_REASONS } from "./github/tokens";
+import type { GitHubFor } from "./github/client";
 import { POLL_JOBS_SECONDS, POLL_SCHEDULED_SECONDS } from "./jobs";
 import { isDesktopOnline } from "./push";
 import { syncUser, type SyncDeps } from "./sync";
@@ -170,8 +167,8 @@ async function syncAndSchedule(
   const started = Date.now();
   const log = deps.logger.child({ userId });
   let rateLimit: RateLimit | undefined;
-  const github = async (id: string) => {
-    const octokit = await deps.github(id);
+  const github: GitHubFor = async (id, choice) => {
+    const octokit = await deps.github(id, choice);
     watchRateLimit(octokit, (limit) => (rateLimit = limit));
     return octokit;
   };
@@ -201,9 +198,17 @@ async function syncAndSchedule(
     }
     log.info({ ...result, rateLimit, ms: Date.now() - started }, "sync done");
   } catch (err) {
-    // Dispatch skips these users until they sign in again or add a new token.
-    if (needsReauth(err)) {
-      const reason = await markNeedsReauth(db, userId);
+    // GitHub rejected a token, which is marked stopped already. Dispatch skips these
+    // users until they sign in again or add a new token, but only when nothing works.
+    // Otherwise it's a failed sync, tried again soon with the tokens left.
+    const reason =
+      needsReauth(err) &&
+      (await markRejected(
+        db,
+        userId,
+        err instanceof NeedsReauthError ? err.tokenId : null,
+      ));
+    if (reason) {
       await db.user.updateMany({
         where: { id: userId },
         data: { syncStartedAt: null },

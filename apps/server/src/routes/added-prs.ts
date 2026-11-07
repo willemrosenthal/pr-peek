@@ -8,7 +8,7 @@ import {
   type PrLookupResponse,
 } from "@pr-peek/core";
 import express, { type Router } from "express";
-import type { Octokit } from "octokit";
+import type { GitHubFor } from "../github/client";
 import type { Db } from "../db";
 import { lookUpPr, type LookedUpPr } from "../github/pull-lookup";
 import { HttpError, parseInput } from "../http-error";
@@ -21,7 +21,7 @@ import { updatePr } from "./items";
 export interface AddedPrDeps {
   db: Db;
   // A GitHub client acting as the user (see github/client.ts).
-  github: (userId: string) => Promise<Octokit>;
+  github: GitHubFor;
   // Queues a sync for the user. False if one was already queued or running.
   requestSync: (userId: string) => Promise<boolean>;
   now?: () => Date;
@@ -49,7 +49,10 @@ export function addedPrsRouter(deps: AddedPrDeps): Router {
     if (!ref) {
       throw fail(400, "not_a_pr_link", "That doesn't look like a PR link.");
     }
-    const pr = await lookUpPr(await deps.github(userId), ref);
+    const pr = await lookUpPr(
+      await deps.github(userId, { owner: ref.owner }),
+      ref,
+    );
     if (pr === "issue") {
       throw fail(422, "not_a_pr", "That's an issue, not a pull request.");
     }

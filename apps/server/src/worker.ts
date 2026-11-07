@@ -92,8 +92,12 @@ await work<{ userId: string }>(
         db,
         logger,
         rulesChangedAt: startedAt,
-        github: (userId) =>
-          getOctokit({ db, oauth, ...tokenKeys(config), usage }, userId),
+        github: (userId, choice) =>
+          getOctokit(
+            { db, oauth, ...tokenKeys(config), usage },
+            userId,
+            choice,
+          ),
         notifyItems: async (itemIds) => {
           await boss.send(NOTIFY_ITEMS, { itemIds });
         },

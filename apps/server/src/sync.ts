@@ -1,5 +1,6 @@
 import { assignedState, lastPushSha, type PrSnapshot } from "@pr-peek/core";
-import type { Octokit } from "octokit";
+import { RequestError, type Octokit } from "octokit";
+import type { GitHubFor } from "./github/client";
 import type { Db } from "./db";
 import type { PrState } from "./generated/prisma/client";
 import { fetchPrDetails, type PrDetails } from "./github/pull-details";
@@ -8,7 +9,9 @@ import {
   findRelevantPrs,
   type PrStatus,
 } from "./github/pull-search";
+import { listTokenOwners } from "./github/repos";
 import { fetchViewerTeams } from "./github/teams";
+import { NeedsReauthError } from "./github/tokens";
 import { idleGroup } from "./item-list";
 import {
   ITEMS_TX,
@@ -31,6 +34,8 @@ const LAST_SEEN_EVERY_MS = 60 * 60 * 1000;
 export const NEVER_SYNCED = new Date(0);
 // How long the user's team list is kept. Joining a team takes up to this long to show.
 const TEAMS_KEPT_MS = 60 * 60 * 1000;
+// How long a token's owners are kept before they're checked again.
+const OWNERS_KEPT_MS = 24 * 60 * 60 * 1000;
 
 // Why a stored PR stopped being tracked. Its items are resolved.
 type EndedState = Exclude<PrState, "open">;
@@ -38,7 +43,7 @@ type EndedState = Exclude<PrState, "open">;
 export interface SyncDeps {
   db: Db;
   // A GitHub client acting as the user (see github/client.ts).
-  github: (userId: string) => Promise<Octokit>;
+  github: GitHubFor;
   now?: () => Date;
   // When the rules' code last changed: the worker's start. A user whose last full pass is
   // older gets one, so new or fixed rules reach every PR.
@@ -163,6 +168,48 @@ interface FromGitHub {
   firstSyncIds: Set<string>;
 }
 
+// Saves which owners each working personal access token reaches, if they were never
+// checked or are a day old. Classic tokens reach every owner, so they're skipped. GitHub
+// errors skip the token until the next sync. One it rejects is marked stopped by its
+// client.
+export async function refreshTokenOwners(
+  deps: SyncDeps,
+  userId: string,
+  now: Date,
+): Promise<void> {
+  const tokens = await deps.db.gitHubToken.findMany({
+    where: {
+      userId,
+      status: "working",
+      // Null until the token is first read: it may be fine-grained.
+      OR: [{ kind: "fine_grained" }, { kind: null }],
+      AND: {
+        OR: [
+          { ownersCheckedAt: null },
+          { ownersCheckedAt: { lt: new Date(now.getTime() - OWNERS_KEPT_MS) } },
+        ],
+      },
+    },
+    select: { id: true },
+  });
+  for (const { id } of tokens) {
+    try {
+      const owners = await listTokenOwners(
+        await deps.github(userId, { tokenId: id }),
+      );
+      await deps.db.gitHubToken.updateMany({
+        where: { id },
+        data: { owners, ownersCheckedAt: now },
+      });
+    } catch (err) {
+      if (err instanceof RequestError || err instanceof NeedsReauthError) {
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 // Searches find new PRs. Tracked PRs the searches missed are checked by id, since the
 // search index lags, so a missed PR only ends when it's really merged, closed, or gone.
 // PRs the user added by their link are tracked whatever their repo.
@@ -182,6 +229,8 @@ async function fetchFromGitHub(
         rulesStaleAt: true,
         teams: true,
         teamsCheckedAt: true,
+        // In the same query, to skip checking tokens' owners for users with none.
+        _count: { select: { githubTokens: true } },
       },
     }),
     db.userSettings.findUnique({
@@ -244,6 +293,9 @@ async function fetchFromGitHub(
     };
   }
 
+  if (user._count.githubTokens > 0) {
+    await refreshTokenOwners(deps, userId, now);
+  }
   const octokit = await deps.github(userId);
   const teams = includeTeamRequests
     ? await currentTeams(octokit, user, now)

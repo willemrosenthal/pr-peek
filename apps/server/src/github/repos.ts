@@ -195,6 +195,24 @@ export async function listOwners(octokit: Octokit): Promise<RepoOwner[]> {
   ];
 }
 
+// Pages of 100 repos read when finding a token's owners. 1,000 private repos is plenty.
+const OWNER_PAGES = 10;
+
+// The users and orgs whose private repos the client's token reaches. Private only: any
+// token reads public repos, so those say nothing about what it was made for.
+export async function listTokenOwners(octokit: Octokit): Promise<string[]> {
+  const owners = new Set<string>();
+  let pages = 0;
+  for await (const { data } of octokit.paginate.iterator("GET /user/repos", {
+    visibility: "private",
+    per_page: 100,
+  })) {
+    for (const repo of data) owners.add(repo.owner.login);
+    if (++pages >= OWNER_PAGES) break;
+  }
+  return [...owners].sort();
+}
+
 // Looks up one repo. Null if it doesn't exist or the user can't see it.
 export async function findRepo(
   octokit: Octokit,

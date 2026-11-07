@@ -9,7 +9,7 @@ import {
   type WatchedReposResponse,
 } from "@pr-peek/core";
 import express, { type Router } from "express";
-import type { Octokit } from "octokit";
+import type { GitHubFor } from "../github/client";
 import type { Db } from "../db";
 import { Prisma, type WatchedRepo } from "../generated/prisma/client";
 import { findRepo, listOwners, listRepos, searchRepos } from "../github/repos";
@@ -20,7 +20,7 @@ import { currentUser, requireUser } from "./auth";
 export interface RepoDeps {
   db: Db;
   // A GitHub client acting as the user (see github/client.ts).
-  github: (userId: string) => Promise<Octokit>;
+  github: GitHubFor;
 }
 
 function toDto(repo: WatchedRepo): WatchedRepoDto {
@@ -60,7 +60,11 @@ export function reposRouter(deps: RepoDeps): Router {
   // Repos the user could add, for the picker: a list, or a search with `query`.
   router.get("/github/repos", async (req, res) => {
     const { query, owner, cursor } = parseInput(searchReposQuery, req.query);
-    const octokit = await deps.github(currentUser(res).id);
+    // An owner's repos list with the token that reaches it.
+    const octokit = await deps.github(
+      currentUser(res).id,
+      owner ? { owner } : undefined,
+    );
     if (query) {
       res.json(await searchRepos(octokit, { query, owner, cursor }));
       return;

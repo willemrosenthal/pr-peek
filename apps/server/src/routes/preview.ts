@@ -1,6 +1,6 @@
 import { formatAge, previewQuery, type PrPreviewResponse } from "@pr-peek/core";
 import express, { type Router } from "express";
-import type { Octokit } from "octokit";
+import type { GitHubFor } from "../github/client";
 import type { Db } from "../db";
 import { fetchPrPreview } from "../github/pull-preview";
 import { HttpError, parseInput } from "../http-error";
@@ -14,7 +14,7 @@ const PREVIEWS_PER_MINUTE = 30;
 export interface PreviewDeps {
   db: Db;
   // A GitHub client acting as the user (see github/client.ts).
-  github: (userId: string) => Promise<Octokit>;
+  github: GitHubFor;
   now?: () => Date;
 }
 
@@ -34,13 +34,14 @@ export function previewRouter(deps: PreviewDeps): Router {
       where: { id: req.params.id, userId: user.id },
       select: {
         githubNodeId: true,
+        repoOwner: true,
         // No item id matches "".
         items: { where: { id: item ?? "" }, select: { latestEventId: true } },
       },
     });
     if (!pr) throw notFound();
 
-    const octokit = await deps.github(user.id);
+    const octokit = await deps.github(user.id, { owner: pr.repoOwner });
     const preview = await fetchPrPreview(
       octokit,
       pr.githubNodeId,
