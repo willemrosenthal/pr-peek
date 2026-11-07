@@ -33,6 +33,7 @@ export function itemRows(db: Db) {
       Pick<
         Prisma.PullRequestUncheckedCreateInput,
         | "githubRepoId"
+        | "repoOwner"
         | "authorLogin"
         | "isDraft"
         | "state"

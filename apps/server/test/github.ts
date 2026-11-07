@@ -8,14 +8,21 @@ export interface GraphQLRequest {
 
 // An Octokit whose GraphQL calls are answered by `answer`, which returns the whole
 // response body: `{ data }` for success, or `{ errors }` like GitHub sends.
-// It can also return a Response, to set the status or headers.
+// It can also return a Response, to set the status or headers. GET /user/repos lists
+// private repos of `repoOwners`, one each, for finding a token's owners.
 export function fakeGraphQL(
   answer: (request: GraphQLRequest) => unknown,
   // Delay before each answer, to make requests overlap in race tests.
   delayMs = 0,
+  repoOwners: string[] = [],
 ) {
   const requests: GraphQLRequest[] = [];
-  const fetch = vi.fn<typeof globalThis.fetch>(async (_url, init) => {
+  const fetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
+    if (new URL(url).pathname === "/user/repos") {
+      return Response.json(
+        repoOwners.map((owner) => ({ owner: { login: owner } })),
+      );
+    }
     const request = JSON.parse(init?.body as string) as GraphQLRequest;
     requests.push(request);
     if (delayMs) await new Promise((done) => setTimeout(done, delayMs));

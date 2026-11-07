@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { RequestError } from "octokit";
 import type { GitHubTokenDto } from "@pr-peek/core";
 import type { Config } from "../config";
 import { decrypt, encrypt } from "../crypto";
@@ -32,6 +33,11 @@ export const tokenKeys = (
   key: config.TOKEN_ENC_KEY,
   previousKey: config.TOKEN_ENC_KEY_PREVIOUS,
 });
+
+// GitHub stopped accepting a token: while making the client, or answering a request.
+export const isRejection = (err: unknown) =>
+  err instanceof NeedsReauthError ||
+  (err instanceof RequestError && err.status === 401);
 
 // Locks the user's row until the transaction ends, so two token writes never cross.
 const lockUser = (tx: Prisma.TransactionClient, userId: string) =>
@@ -125,7 +131,7 @@ export const newestToken = (db: Db, userId: string) =>
 // or the sign in when null or when the token is gone.
 export type TokenChoice = { owner: string } | { tokenId: string | null };
 
-type PickableToken = Pick<
+export type PickableToken = Pick<
   GitHubToken,
   "id" | "kind" | "owners" | "status" | "createdAt"
 >;
