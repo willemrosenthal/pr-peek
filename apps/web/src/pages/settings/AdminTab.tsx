@@ -22,6 +22,7 @@ import { Button } from "../../components/Button";
 import { cx } from "../../cx";
 import { useAdminOverview } from "../../queries";
 import styles from "./AdminTab.module.css";
+import { SignUpRequests } from "./SignUpRequests";
 import { TabHeading } from "./SettingsLayout";
 
 const MONTHS = [
@@ -49,6 +50,7 @@ export function AdminTab() {
       <TabHeading title="Admin">
         How Git Buddy is running, and what it costs. Days and hours are UTC.
       </TabHeading>
+      <SignUpRequests />
       <TestAlert />
       {overview.isPending && <p className={styles.hint}>Loading</p>}
       {overview.isError && (

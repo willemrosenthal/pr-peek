@@ -5,6 +5,8 @@ import express, {
   type Response,
   type Router,
 } from "express";
+import type { Logger } from "pino";
+import { awakeAdmins, pushToAdmins } from "../admin-push";
 import type { Db } from "../db";
 import type { User } from "../generated/prisma/client";
 import {
@@ -13,6 +15,8 @@ import {
   type ScopeChoice,
 } from "../github/oauth";
 import { personalTokenDto } from "../github/tokens";
+import { HttpError } from "../http-error";
+import type { SendPush } from "../push";
 import { attemptLimiter } from "../rate-limit";
 import {
   destroySession,
@@ -27,10 +31,19 @@ export interface AuthDeps {
   oauth: GitHubOAuth;
   key: Buffer;
   appUrl: string;
+  // Null when push is off, because the VAPID keys aren't set.
+  send: SendPush | null;
+  logger: Logger;
+  now?: () => Date;
 }
 
-// Loads the signed in user, or answers 401. Use `currentUser(res)` in the route after it.
-export function requireUser(db: Db): RequestHandler {
+// Loads the signed in user, or answers 401. A user whose sign-up request waits for an
+// admin gets 403, unless the route passes `{ allowPending: true }`. Use `currentUser(res)` in
+// the route after it.
+export function requireUser(
+  db: Db,
+  { allowPending = false } = {},
+): RequestHandler {
   return async (req, res, next) => {
     const userId = req.session.userId;
     const user =
@@ -38,6 +51,12 @@ export function requireUser(db: Db): RequestHandler {
     if (!user) {
       res.status(401).json({
         error: { code: "unauthorized", message: "Sign in required" },
+      });
+      return;
+    }
+    if (!user.approvedAt && !allowPending) {
+      res.status(403).json({
+        error: { code: "pending", message: "Your sign-up request is waiting" },
       });
       return;
     }
@@ -57,6 +76,8 @@ export function currentUser(res: Response): User {
 
 export function authRouter(deps: AuthDeps): Router {
   const router = express.Router();
+  const now = () => (deps.now ?? (() => new Date()))();
+  const signedIn = requireUser(deps.db, { allowPending: true });
   const callbackUrl = new URL(
     "/api/auth/github/callback",
     deps.appUrl,
@@ -105,6 +126,12 @@ export function authRouter(deps: AuthDeps): Router {
       await regenerateSession(req);
       req.session.userId = user.id;
       await saveSession(req);
+      // A failed push shouldn't fail sign in. The request still shows on the admin page.
+      if (isNew) {
+        await askAdmins(user).catch((err: unknown) => {
+          req.log.warn({ err }, "sign-up request push failed");
+        });
+      }
       res.redirect(isNew ? "/onboarding" : "/");
     } catch (err) {
       req.log.warn({ err }, "GitHub sign in failed");
@@ -120,7 +147,25 @@ export function authRouter(deps: AuthDeps): Router {
     res.sendStatus(204);
   });
 
-  router.get("/me", requireUser(deps.db), (_req, res) => {
+  // Pushes a new sign-up request to the admins.
+  async function askAdmins(user: User) {
+    if (!deps.send) return;
+    const at = now();
+    const admins = await awakeAdmins(deps.db, deps.logger, at);
+    await pushToAdmins(
+      { db: deps.db, send: deps.send, logger: deps.logger },
+      admins,
+      {
+        title: "Git Buddy sign-up request",
+        body: `${user.login} asked to use Git Buddy.`,
+        url: "/settings/admin",
+        tag: `signup-${user.id}`,
+      },
+      at,
+    );
+  }
+
+  router.get("/me", signedIn, (_req, res) => {
     const user = currentUser(res);
     const body: MeResponse = {
       user: {
@@ -133,8 +178,22 @@ export function authRouter(deps: AuthDeps): Router {
       githubToken: personalTokenDto(user),
       needsReauth: user.syncError === "reauth",
       isAdmin: user.role === "admin",
+      pending: !user.approvedAt,
     };
     res.json(body);
+  });
+
+  // Withdraws a waiting sign-up request: deletes the user, and signs them out. Plan 10
+  // PR 3 opens this to everyone, as "Delete my account".
+  router.delete("/me", signedIn, async (req, res) => {
+    const user = currentUser(res);
+    if (user.approvedAt) {
+      throw new HttpError(409, "not_pending", "There's no request to withdraw");
+    }
+    await deps.db.user.deleteMany({ where: { id: user.id, approvedAt: null } });
+    await destroySession(req);
+    res.clearCookie(SESSION_COOKIE);
+    res.sendStatus(204);
   });
 
   return router;

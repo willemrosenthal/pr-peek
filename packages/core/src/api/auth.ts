@@ -38,4 +38,7 @@ export interface MeResponse {
   needsReauth: boolean;
   // Can open the admin page.
   isAdmin: boolean;
+  // The sign-up request waits for an admin. Every route but this one, sign out, and
+  // withdrawing the request answers 403 with code "pending".
+  pending: boolean;
 }

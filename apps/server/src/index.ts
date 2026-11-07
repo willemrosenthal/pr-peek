@@ -81,6 +81,8 @@ const app = createApp({
       oauth,
       key: config.TOKEN_ENC_KEY,
       appUrl: config.APP_URL,
+      send,
+      logger,
     }),
     githubTokenRouter({ db, oauth, key: config.TOKEN_ENC_KEY }),
     reposRouter({ db, github }),

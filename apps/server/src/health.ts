@@ -1,8 +1,8 @@
-import { isQuiet } from "@pr-peek/core";
 import type { Logger } from "pino";
+import { awakeAdmins, pushToAdmins } from "./admin-push";
 import type { Db } from "./db";
-import { deliver, NOTIFY_TTL_SECONDS, type SendPush } from "./push";
-import { dueUsers, QUIET_SETTINGS, SYNCING_USERS } from "./sync-schedule";
+import type { SendPush } from "./push";
+import { dueUsers, SYNCING_USERS } from "./sync-schedule";
 import { MINUTE_MS } from "./sync-timing";
 
 export const MB = 1024 * 1024;
@@ -126,41 +126,18 @@ export async function checkHealth(
   );
   if (alerts.length === 0 || !send) return [];
 
-  const admins = await db.user.findMany({
-    where: { role: "admin" },
-    select: {
-      id: true,
-      desktopSeenAt: true,
-      pushSubscriptions: true,
-      settings: { select: QUIET_SETTINGS },
-    },
-  });
-  if (admins.length === 0) {
-    logger.warn("no admins, so no alerts");
-    return [];
-  }
-  const awake = admins.filter(
-    (admin) => !(admin.settings && isQuiet(admin.settings, now)),
-  );
+  const awake = await awakeAdmins(db, logger, now);
   if (awake.length === 0) return [];
 
   const sent: AlertKind[] = [];
   for (const { kind, body } of alerts) {
     if (!(await claimAlert(db, kind, now))) continue;
-    for (const admin of awake) {
-      await deliver(
-        { ...deps, send },
-        admin,
-        admin.pushSubscriptions,
-        {
-          title: "Git Buddy needs a look",
-          body,
-          url: "/",
-          tag: `alert-${kind}`,
-        },
-        { ttlSeconds: NOTIFY_TTL_SECONDS, urgency: "normal", now },
-      );
-    }
+    await pushToAdmins(
+      { ...deps, send },
+      awake,
+      { title: "Git Buddy needs a look", body, url: "/", tag: `alert-${kind}` },
+      now,
+    );
     sent.push(kind);
   }
   return sent;

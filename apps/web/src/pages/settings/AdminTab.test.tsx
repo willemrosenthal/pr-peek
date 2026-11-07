@@ -8,7 +8,9 @@ import {
   fakeApi,
   json,
   me,
+  noContent,
   signedInApi,
+  signUpRequest,
   type Handlers,
 } from "../../test/fake-api";
 import { renderApp } from "../../test/render";
@@ -18,6 +20,7 @@ function adminApi(overrides: Handlers = {}) {
     signedInApi({
       "GET /api/me": () => json(me({ isAdmin: true })),
       "GET /api/admin/overview": () => json(adminOverview()),
+      "GET /api/admin/requests": () => json({ requests: [] }),
       ...overrides,
     }),
   );
@@ -81,6 +84,8 @@ describe("the Admin tab", () => {
       signedInApi({
         "GET /api/admin/overview": () =>
           apiError(404, "not_found", "Not found"),
+        "GET /api/admin/requests": () =>
+          apiError(404, "not_found", "Not found"),
       }),
     );
     renderApp("/settings/admin");
@@ -101,5 +106,62 @@ describe("the Admin tab", () => {
       await screen.findByRole("button", { name: "Send a test alert" }),
     );
     expect(await screen.findByText(message)).toBeTruthy();
+  });
+
+  it("approves a request, then shows the list without it", async () => {
+    let waiting = [signUpRequest()];
+    const fetch = adminApi({
+      "GET /api/admin/requests": () => json({ requests: waiting }),
+      "POST /api/admin/requests/r1/approve": () => {
+        waiting = [];
+        return noContent();
+      },
+    });
+    renderApp("/settings/admin");
+
+    const section = await screen.findByRole("region", {
+      name: "Sign-up requests",
+    });
+    expect(within(section).getByText("dana-k")).toBeTruthy();
+    expect(within(section).getByText("1 waiting")).toBeTruthy();
+
+    await userEvent.click(
+      within(section).getByRole("button", { name: "Approve dana-k" }),
+    );
+    expect(
+      await within(section).findByText("No requests waiting."),
+    ).toBeTruthy();
+    expect(within(section).getByRole("status").textContent).toBe(
+      "Approved dana-k. They can come in now.",
+    );
+    expect(callsTo(fetch, "/api/admin/requests/r1/approve")).toHaveLength(1);
+  });
+
+  it("declines a request", async () => {
+    let waiting = [signUpRequest()];
+    const fetch = adminApi({
+      "GET /api/admin/requests": () => json({ requests: waiting }),
+      "DELETE /api/admin/requests/r1": () => {
+        waiting = [];
+        return noContent();
+      },
+    });
+    renderApp("/settings/admin");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Decline dana-k" }),
+    );
+    expect(await screen.findByText("Declined dana-k.")).toBeTruthy();
+    expect(callsTo(fetch, "/api/admin/requests/r1")).toHaveLength(1);
+  });
+
+  it("says so when the requests can't load", async () => {
+    adminApi({
+      "GET /api/admin/requests": () =>
+        apiError(500, "server_error", "Something went wrong"),
+    });
+    renderApp("/settings/admin");
+
+    expect(await screen.findByText("Something went wrong")).toBeTruthy();
   });
 });

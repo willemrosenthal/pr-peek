@@ -4,8 +4,10 @@ import { useMe } from "../queries";
 import { Button } from "./Button";
 import { PageMessage } from "./PageMessage";
 import { SignedIn } from "./SignedIn";
+import { SignUpPending } from "./SignUpPending";
 
-// Shows its child routes only when signed in. Otherwise goes to sign in.
+// Shows its child routes only when signed in and approved. Otherwise goes to sign in,
+// or shows the waiting screen.
 export function RequireAuth() {
   const me = useMe();
 
@@ -18,6 +20,16 @@ export function RequireAuth() {
         <p>{me.error.message}</p>
         <Button onClick={() => void me.refetch()}>Try again</Button>
       </PageMessage>
+    );
+  }
+  // Waiting for an admin: the only page they can use.
+  if (me.data.pending) {
+    return (
+      <SignUpPending
+        user={me.data.user}
+        checking={me.isFetching}
+        onCheck={() => void me.refetch()}
+      />
     );
   }
   return <SignedIn />;

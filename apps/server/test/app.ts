@@ -1,9 +1,11 @@
+import type { MeResponse } from "@pr-peek/core";
 import type { Router } from "express";
 import { pino } from "pino";
 import request from "supertest";
 import { expect } from "vitest";
 import { createApp } from "../src/app";
 import type { Db } from "../src/db";
+import type { SendPush } from "../src/push";
 import { authRouter } from "../src/routes/auth";
 import { sessionMiddleware } from "../src/session";
 import { fakeOAuth, TEST_KEY } from "./fakes";
@@ -13,7 +15,11 @@ export const APP_URL = "https://git-buddy.example";
 // The app with sign in, plus any extra routers. Returns a cookie-keeping test client.
 export function makeTestApp(
   db: Db,
-  options: { oauth?: ReturnType<typeof fakeOAuth>; routers?: Router[] } = {},
+  options: {
+    oauth?: ReturnType<typeof fakeOAuth>;
+    routers?: Router[];
+    send?: SendPush | null;
+  } = {},
 ) {
   const oauth = options.oauth ?? fakeOAuth();
   const app = createApp({
@@ -23,12 +29,24 @@ export function makeTestApp(
     appUrl: APP_URL,
     session: sessionMiddleware({ secret: "x".repeat(32), secure: false }),
     routers: [
-      authRouter({ db, oauth, key: TEST_KEY, appUrl: APP_URL }),
+      authRouter({
+        db,
+        oauth,
+        key: TEST_KEY,
+        appUrl: APP_URL,
+        send: options.send ?? null,
+        logger: pino({ level: "silent" }),
+      }),
       ...(options.routers ?? []),
     ],
   });
-  return { app, agent: request.agent(app), oauth };
+  const agent = request.agent(app);
+  databases.set(agent, db);
+  return { app, agent, oauth };
 }
+
+// Each test client's database, so `signIn` can approve the user.
+const databases = new WeakMap<object, Db>();
 
 export type Agent = ReturnType<typeof makeTestApp>["agent"];
 
@@ -46,8 +64,20 @@ export async function startSignIn(agent: Agent, query = ""): Promise<string> {
   );
 }
 
-// Signs in as the fake GitHub user (octocat).
-export async function signIn(agent: Agent) {
+// Signs in as the fake GitHub user (octocat), approved unless `pending`.
+export async function signIn(agent: Agent, { pending = false } = {}) {
   const state = await startSignIn(agent);
-  return agent.get(`/api/auth/github/callback?code=the-code&state=${state}`);
+  const res = await agent.get(
+    `/api/auth/github/callback?code=the-code&state=${state}`,
+  );
+  const db = databases.get(agent);
+  if (pending || !db) return res;
+  const me = await agent.get("/api/me");
+  if (me.ok) {
+    await db.user.update({
+      where: { id: bodyOf<MeResponse>(me).user.id },
+      data: { approvedAt: new Date() },
+    });
+  }
+  return res;
 }
