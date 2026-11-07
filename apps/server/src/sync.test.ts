@@ -1,7 +1,7 @@
 import { RequestError } from "octokit";
 import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTestDb, resetDb, TEST_DATABASE_URL } from "../test/db";
+import { addToken, createTestDb, resetDb, TEST_DATABASE_URL } from "../test/db";
 import {
   githubTokens,
   githubUser,
@@ -26,7 +26,7 @@ import {
   withHeadChecks,
 } from "../test/pulls";
 import { ITEMS_CHANNEL } from "./items";
-import { encryptPersonalToken, type TokenChoice } from "./github/tokens";
+import type { TokenChoice } from "./github/tokens";
 import { refreshTokenOwners, syncUser } from "./sync";
 import { upsertGitHubUser } from "./users";
 
@@ -1299,31 +1299,20 @@ describe("full passes", () => {
 });
 
 describe("refreshTokenOwners", () => {
-  const addToken = (userId: string, token: string, extra = {}) =>
-    db.gitHubToken.create({
-      data: {
-        userId,
-        name: token,
-        ...encryptPersonalToken(
-          { token, expiresAt: null, scopes: [] },
-          TEST_KEY,
-        ),
-        ...extra,
-      },
-    });
-
   it("saves the owners of fine-grained tokens never checked or a day old", async () => {
     const user = await makeUser();
-    const fresh = await addToken(user.id, "github_pat_fresh", {
+    const fresh = await addToken(db, user.id, "github_pat_fresh", {
       owners: ["kept"],
       ownersCheckedAt: hours(-1),
     });
-    const stale = await addToken(user.id, "github_pat_stale", {
+    const stale = await addToken(db, user.id, "github_pat_stale", {
       ownersCheckedAt: hours(-25),
     });
-    const copied = await addToken(user.id, "github_pat_copied", { kind: null });
-    await addToken(user.id, "ghp_classic");
-    await addToken(user.id, "github_pat_stopped", { status: "stopped" });
+    const copied = await addToken(db, user.id, "github_pat_copied", {
+      kind: null,
+    });
+    await addToken(db, user.id, "ghp_classic");
+    await addToken(db, user.id, "github_pat_stopped", { status: "stopped" });
     const github = vi.fn(() =>
       Promise.resolve(reposGitHub([["acme"]]).octokit),
     );
@@ -1348,8 +1337,8 @@ describe("refreshTokenOwners", () => {
 
   it("skips a token GitHub rejects, and keeps going", async () => {
     const user = await makeUser();
-    const bad = await addToken(user.id, "github_pat_bad");
-    const good = await addToken(user.id, "github_pat_good");
+    const bad = await addToken(db, user.id, "github_pat_bad");
+    const good = await addToken(db, user.id, "github_pat_good");
     const rejected = new RequestError("Bad credentials", 401, {
       request: { method: "GET", url: "/user/repos", headers: {} },
     });

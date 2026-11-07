@@ -1,5 +1,10 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { addPersonalToken, createTestDb, resetDb } from "../../test/db";
+import {
+  addPersonalToken,
+  addToken,
+  createTestDb,
+  resetDb,
+} from "../../test/db";
 import {
   fakeOAuth,
   githubTokens,
@@ -26,18 +31,6 @@ afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
 const reload = (id: string) => db.user.findUniqueOrThrow({ where: { id } });
-
-// Adds a token next to the user's others. Saving one in Settings replaces the last,
-// until plan 20's settings page.
-const addToken = (userId: string, token: string, extra = {}) =>
-  db.gitHubToken.create({
-    data: {
-      userId,
-      name: token,
-      ...encryptPersonalToken({ token, expiresAt: null, scopes: [] }, TEST_KEY),
-      ...extra,
-    },
-  });
 
 async function userWith(tokens = githubTokens()) {
   const { user } = await upsertGitHubUser(db, githubUser(), tokens, TEST_KEY);
@@ -233,7 +226,7 @@ describe("getAccessToken", () => {
   describe("choosing a token", () => {
     it("uses the token that reaches the owner, else the sign in", async () => {
       const user = await userWith();
-      const acme = await addToken(user.id, "github_pat_acme", {
+      const acme = await addToken(db, user.id, "github_pat_acme", {
         owners: ["acme"],
       });
 
@@ -248,7 +241,7 @@ describe("getAccessToken", () => {
 
     it("uses the token asked for, or the sign in for null", async () => {
       const user = await userWith();
-      const acme = await addToken(user.id, "github_pat_acme");
+      const acme = await addToken(db, user.id, "github_pat_acme");
 
       expect(
         await getAccessToken(deps(), user.id, { tokenId: acme.id }),
@@ -277,8 +270,8 @@ describe("getAccessToken", () => {
 
     it("stops only that token while another still works", async () => {
       const user = await userWith();
-      const first = await addToken(user.id, "github_pat_first");
-      const second = await addToken(user.id, "github_pat_second");
+      const first = await addToken(db, user.id, "github_pat_first");
+      const second = await addToken(db, user.id, "github_pat_second");
       expect(await markRejected(db, user.id, first.id)).toBeNull();
       expect(
         await db.gitHubToken.findUniqueOrThrow({ where: { id: second.id } }),

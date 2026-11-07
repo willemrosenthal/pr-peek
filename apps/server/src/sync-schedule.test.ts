@@ -1,7 +1,8 @@
 import type { Octokit } from "octokit";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { addPersonalToken, createTestDb, resetDb } from "../test/db";
+import { addPersonalToken, addToken, createTestDb, resetDb } from "../test/db";
 import {
+  fakeOAuth,
   githubTokens,
   githubUser,
   hours,
@@ -16,6 +17,7 @@ import {
   searchHit,
   type FakePrGitHub,
 } from "../test/pulls";
+import { getOctokit } from "./github/client";
 import { NeedsReauthError, STOP_REASONS } from "./github/tokens";
 import { createLogger } from "./logger";
 import {
@@ -328,12 +330,39 @@ describe("runSync", () => {
   });
 
   describe("when GitHub answers 401", () => {
-    const badCredentials = () =>
-      Response.json({ message: "Bad credentials" }, { status: 401 });
+    // Real clients, so a rejected token is marked like in production. GitHub answers
+    // every request with 401.
+    const rejectAll = (userId: string) =>
+      runSync(
+        {
+          db,
+          logger,
+          github: (id, choice) =>
+            getOctokit(
+              {
+                db,
+                oauth: fakeOAuth(),
+                key: TEST_KEY,
+                now: () => NOW,
+                fetch: () =>
+                  Promise.resolve(
+                    Response.json(
+                      { message: "Bad credentials" },
+                      { status: 401 },
+                    ),
+                  ),
+              },
+              id,
+              choice,
+            ),
+          now: () => NOW,
+        },
+        userId,
+      );
 
     it("asks the user to sign in again", async () => {
       const user = await makeUser();
-      await run(user.id, badCredentials);
+      await rejectAll(user.id);
 
       expect(await reload(user.id)).toMatchObject({
         syncError: "reauth",
@@ -345,8 +374,26 @@ describe("runSync", () => {
     it("asks for a new token when the user added one", async () => {
       const user = await makeUser();
       await addPersonalToken(db, user.id);
-      await run(user.id, badCredentials);
+      await rejectAll(user.id);
       expect((await reload(user.id)).syncError).toBe("token");
+    });
+
+    it("tries again soon, with the tokens left, when one of several stops", async () => {
+      const user = await makeUser();
+      const older = await addToken(db, user.id, "ghp_older", {
+        createdAt: hours(-2),
+      });
+      const newer = await addToken(db, user.id, "ghp_newer");
+      await rejectAll(user.id);
+
+      expect(await reload(user.id)).toMatchObject({
+        syncError: "failed",
+        syncFailures: 1,
+      });
+      const status = async (id: string) =>
+        (await db.gitHubToken.findUniqueOrThrow({ where: { id } })).status;
+      expect(await status(newer.id)).toBe("stopped");
+      expect(await status(older.id)).toBe("working");
     });
   });
 
