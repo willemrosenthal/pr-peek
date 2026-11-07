@@ -6,39 +6,39 @@ Do parts 1 to 7. Then tell Claude, who does part 8. Part 9 is testing together.
 
 ## 1. Join the Apple Developer Program
 
-- [ ] Go to https://developer.apple.com/programs/enroll and sign in with your Apple ID. It needs two-factor sign in.
-- [ ] Enroll as an **Individual**. Your name shows as the developer. (Organization needs a D-U-N-S number, a business ID, and takes longer.)
-- [ ] Pay the $99 a year. Approval is usually a few hours, up to 2 days.
+- [x] Go to https://developer.apple.com/programs/enroll and sign in with your Apple ID. It needs two-factor sign in.
+- [x] Enroll as an **Individual**. Your name shows as the developer. (Organization needs a D-U-N-S number, a business ID, and takes longer.)
+- [x] Pay the $99 a year. Approval is usually a few hours, up to 2 days.
 
 ## 2. Make a certificate request on your Mac
 
-- [ ] Open **Keychain Access**.
-- [ ] Menu: **Keychain Access > Certificate Assistant > Request a Certificate From a Certificate Authority**.
-- [ ] Fill it in:
+- [x] Open **Keychain Access**.
+- [x] Menu: **Keychain Access > Certificate Assistant > Request a Certificate From a Certificate Authority**.
+- [x] Fill it in:
   - **User Email Address:** your email.
   - **Common Name:** anything, like `Git Buddy Code Signing`. Apple ignores it. It only labels the private key in your keychain.
   - **CA Email Address:** leave empty.
   - **Request is:** choose **Saved to disk**.
   - **Let me specify key pair information:** leave unticked.
-- [ ] Click Continue and save the file to your Desktop.
+- [x] Click Continue and save the file to your Desktop.
 
 The private key stays in your keychain, not in this file. You only need the file once, in part 3. Delete it after.
 
 ## 3. Create the "Developer ID Application" certificate
 
-- [ ] Go to https://developer.apple.com/account/resources/certificates and click **+**.
-- [ ] Choose **Developer ID Application**. Not "Apple Development" or "Mac App Distribution".
-- [ ] If it asks for a profile type, pick **G2 Sub-CA**.
-- [ ] Upload the request file from part 2. Download the `.cer` file.
-- [ ] Double click the `.cer` to add it to your login keychain.
+- [x] Go to https://developer.apple.com/account/resources/certificates and click **+**.
+- [x] Choose **Developer ID Application**. Not "Apple Development" or "Mac App Distribution".
+- [x] Upload the request file from part 2. Download the `.cer` file.
+- [x] Double click the `.cer`. In the Add Certificates window, set **Keychain** to **login**, not iCloud, then click Add. The private key from part 2 is in login, so the certificate must go there too. iCloud fails with error -25294.
+- [x] If Keychain Access says the certificate is "not trusted", Apple's middle certificate is missing. Download https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer (also linked as **Developer ID - G2** at the bottom of the Create a New Certificate page), double click it, and add it to **login** too.
 
 ## 4. Export it as a .p12 file
 
-- [ ] In Keychain Access, open **login > My Certificates**.
-- [ ] Find **Developer ID Application: Your Name (TEAMID)**. Expand it and check there's a private key under it. If not, the request was made on another Mac.
-- [ ] Right click it, choose **Export**, and save it as `git-buddy.p12`.
-- [ ] Set a strong password. Save it in your password manager.
-- [ ] Get the exact signing name, needed in part 6:
+- [x] In Keychain Access, open **login > My Certificates**.
+- [x] Find **Developer ID Application: Your Name (TEAMID)**. Expand it and check there's a private key under it. If not, the request was made on another Mac.
+- [x] Right click it, choose **Export**, and save it as `git-buddy.p12`.
+- [x] Set a strong password. Save it in your password manager.
+- [x] Check it, and get the exact signing name, needed in part 6. It should say `1 valid identities found`:
 
   ```sh
   security find-identity -v -p codesigning
@@ -50,11 +50,11 @@ The private key stays in your keychain, not in this file. You only need the file
 
 This key lets CI send the app to Apple's notarization.
 
-- [ ] Go to https://appstoreconnect.apple.com, then **Users and Access > Integrations > App Store Connect API > Team Keys**.
-- [ ] If asked, request access first. Then click **+** (Generate API Key).
-- [ ] Name it `Git Buddy CI`, role **Developer**.
-- [ ] Download the `.p8` file. **You can only download it once.**
-- [ ] Note the **Key ID** (on the key's row) and the **Issuer ID** (above the table).
+- [x] Go to https://appstoreconnect.apple.com, then **Users and Access > Integrations > App Store Connect API > Team Keys**.
+- [x] If asked, request access first. Then click **+** (Generate API Key).
+- [x] Name it `Git Buddy CI`, role **Developer**.
+- [x] Download the `.p8` file. **You can only download it once.**
+- [x] Note the **Key ID** (on the key's row) and the **Issuer ID** (above the table).
 
 ## 6. Add the GitHub secrets
 
@@ -70,8 +70,8 @@ gh secret set APPLE_API_PRIVATE_KEY < ~/Downloads/AuthKey_XXXX.p8
 gh secret set KEYCHAIN_PASSWORD               # any long random string, used only on the CI machine
 ```
 
-- [ ] All seven set.
-- [ ] `gh secret list` shows 10 secrets (these 7, plus `RELEASE_DEPLOY_KEY` and the two `TAURI_SIGNING_...` ones).
+- [x] All seven set.
+- [x] `gh secret list` shows 10 secrets (these 7, plus `RELEASE_DEPLOY_KEY` and the two `TAURI_SIGNING_...` ones).
 
 ## 7. Clean up
 
@@ -82,11 +82,11 @@ gh secret set KEYCHAIN_PASSWORD               # any long random string, used onl
 
 Tell Claude the secrets are in. Claude opens a PR that:
 
-- [ ] Passes the new secrets from `release.yml` to `desktop-release.yml`, then into the `tauri-action` step.
-- [ ] Writes the `.p8` to a file on the CI machine and sets `APPLE_API_KEY_PATH` to it. Tauri needs a file path.
-- [ ] Removes `"signingIdentity":"-"` from the workflow's `--config`.
-- [ ] Removes the "Open Anyway" note from the release notes.
-- [ ] Ticks the signing step in [plan 09](09-desktop-tauri.md) and updates the Status table.
+- [x] Passes the new secrets from `release.yml` to `desktop-release.yml`, then into the `tauri-action` step.
+- [x] Writes the `.p8` to a file on the CI machine and sets `APPLE_API_KEY_PATH` to it. Tauri needs a file path.
+- [x] Removes `"signingIdentity":"-"` from the workflow's `--config`.
+- [x] Removes the "Open Anyway" note from the release notes.
+- [x] Ticks the signing step in [plan 09](09-desktop-tauri.md) and updates the Status table.
 
 ## 9. Test it
 
