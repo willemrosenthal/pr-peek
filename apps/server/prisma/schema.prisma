@@ -93,7 +93,8 @@ model User {
   refreshTokenEnc       String?
   refreshTokenExpiresAt DateTime?
   tokenScopes           String[]
-  // A personal access token the user added, encrypted. Syncs use it instead when set.
+  // Unused since plan 20 moved tokens to GitHubToken. Still written, so the running
+  // version works during a deploy. Drop them in a later release.
   patEnc                String?
   patExpiresAt          DateTime?
   patScopes             String[]
@@ -131,6 +132,7 @@ model User {
   ruleSettings      RuleSetting[]
   pushSubscriptions PushSubscription[]
   notificationLogs  NotificationLog[]
+  githubTokens      GitHubToken[]
 }
 
 model UserSettings {
@@ -176,44 +178,44 @@ model WatchedRepo {
 }
 
 model PullRequest {
-  id              String    @id @default(cuid())
-  userId          String
-  githubNodeId    String
-  githubRepoId    Int
-  repoOwner       String
-  repoName        String
-  number          Int
-  title           String
-  url             String
-  authorLogin     String
-  isDraft         Boolean
-  state           PrState
-  headSha         String
+  id               String    @id @default(cuid())
+  userId           String
+  githubNodeId     String
+  githubRepoId     Int
+  repoOwner        String
+  repoName         String
+  number           Int
+  title            String
+  url              String
+  authorLogin      String
+  isDraft          Boolean
+  state            PrState
+  headSha          String
   // The latest commit's runs counted by state (`checksFingerprint`), to notice when its
   // checks change. The column kept its old name.
-  checkFingerprint String? @map("checkState")
-  githubUpdatedAt DateTime
+  checkFingerprint String?   @map("checkState")
+  githubUpdatedAt  DateTime
   // The last sync whose searches found this PR. Deleted after 7 days with no open items.
-  lastSeenAt      DateTime  @default(now())
+  lastSeenAt       DateTime  @default(now())
   // When the user swiped it to quiet. Cleared when something new happens on it.
-  quietAt         DateTime?
+  quietAt          DateTime?
   // When the user marked it important, as a reminder. Stays until they unmark it.
-  importantAt     DateTime?
+  importantAt      DateTime?
   // When the user added it by its link. Tracked whatever its repo, until unflagged.
-  addedAt         DateTime?
+  addedAt          DateTime?
   // When a sync saw it merged. Important PRs stay on the list after, until unmarked.
-  mergedAt        DateTime?
+  mergedAt         DateTime?
   // When the push saying an important PR merged went out, so it goes once.
-  mergeNotifiedAt DateTime?
+  mergeNotifiedAt  DateTime?
   // Worked out from the PR's details when a sync saves them (see sync.ts).
   // The latest real push, so a quiet PR wakes on new commits.
-  lastPushSha     String?
+  lastPushSha      String?
   // The list section it shows in with no open items (`ListSection`).
-  listGroup       String?
+  listGroup        String?
   // What an assigned PR needs next (`AssignedState`).
-  assignedState   String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  assignedState    String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   items Item[]
@@ -282,6 +284,46 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+enum TokenKind {
+  classic
+  fine_grained
+}
+
+enum TokenStatus {
+  working
+  stopped
+}
+
+// A personal access token the user added, for orgs that block our OAuth App. Syncs use
+// it instead of the sign in. Plan 20 allows several: a fine-grained one reaches one org.
+model GitHubToken {
+  id               String      @id @default(cuid())
+  userId           String
+  name             String
+  // Encrypted (see crypto.ts).
+  tokenEnc         String
+  // SHA-256 of the token, so the same one can't be added twice. This and the kind (from
+  // the token's prefix) are null for tokens copied from User.patEnc until they're next
+  // read: the copy couldn't decrypt them.
+  tokenHash        String?
+  kind             TokenKind?
+  // Classic tokens list them. Fine-grained ones have none.
+  scopes           String[]
+  expiresAt        DateTime?
+  // The users and orgs whose repos it reaches, and when that was checked.
+  owners           String[]    @default([])
+  ownersCheckedAt  DateTime?
+  status           TokenStatus @default(working)
+  stoppedAt        DateTime?
+  expiryRemindedAt DateTime?
+  lastUsedAt       DateTime?
+  createdAt        DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tokenHash])
 }
 
 model NotificationLog {

@@ -1,8 +1,14 @@
+import { createHash } from "node:crypto";
 import type { GitHubTokenDto } from "@pr-peek/core";
 import type { Config } from "../config";
 import { decrypt, encrypt } from "../crypto";
 import type { Db } from "../db";
-import type { Prisma, SyncError, User } from "../generated/prisma/client";
+import type {
+  GitHubToken,
+  Prisma,
+  SyncError,
+  TokenKind,
+} from "../generated/prisma/client";
 import { HttpError } from "../http-error";
 import { GitHubAuthError, type GitHubOAuth, type GitHubTokens } from "./oauth";
 
@@ -80,41 +86,107 @@ export function encryptTokens(
   };
 }
 
-// The User columns for a personal access token, ready to save.
+// SHA-256 of a token, to spot the same one added twice. It can't be turned back into
+// the token.
+const hashToken = (token: string) =>
+  createHash("sha256").update(token).digest("hex");
+
+const tokenKind = (token: string): TokenKind =>
+  token.startsWith("github_pat_") ? "fine_grained" : "classic";
+
+// The GitHubToken columns for a personal access token, ready to save.
 export function encryptPersonalToken(
   token: { token: string; expiresAt: Date | null; scopes: string[] },
   key: Buffer,
 ) {
   return {
-    patEnc: encrypt(token.token, key),
-    patExpiresAt: token.expiresAt,
-    patScopes: token.scopes,
+    tokenEnc: encrypt(token.token, key),
+    tokenHash: hashToken(token.token),
+    kind: tokenKind(token.token),
+    scopes: token.scopes,
+    expiresAt: token.expiresAt,
   };
+}
+
+// The user's newest personal access token, or null. Until plan 20's next PR, a user has
+// at most one: saving a token replaces the last.
+export const newestToken = (db: Db, userId: string) =>
+  db.gitHubToken.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+
+// Saves the user's personal access token in place of any they had. Also writes the old
+// User columns, which the running version reads during a deploy.
+export function savePersonalToken(
+  db: Db,
+  userId: string,
+  token: ReturnType<typeof encryptPersonalToken>,
+  userData: Prisma.UserUpdateInput = {},
+): Promise<GitHubToken> {
+  return db.$transaction(async (tx) => {
+    await lockUser(tx, userId);
+    await tx.gitHubToken.deleteMany({ where: { userId } });
+    const saved = await tx.gitHubToken.create({
+      data: { userId, name: "Personal access token", ...token },
+    });
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        ...userData,
+        patEnc: token.tokenEnc,
+        patExpiresAt: token.expiresAt,
+        patScopes: token.scopes,
+      },
+    });
+    return saved;
+  });
+}
+
+// Removes the user's personal access tokens, and the old User columns.
+export async function removePersonalTokens(
+  db: Db,
+  userId: string,
+  userData: Prisma.UserUpdateInput = {},
+): Promise<void> {
+  // Locked like a save, so one running at the same time can't leave the two apart.
+  await db.$transaction(async (tx) => {
+    await lockUser(tx, userId);
+    await tx.gitHubToken.deleteMany({ where: { userId } });
+    await tx.user.update({
+      where: { id: userId },
+      data: { ...userData, patEnc: null, patExpiresAt: null, patScopes: [] },
+    });
+  });
 }
 
 // What the app shows about the user's personal access token. Null when they have none.
 export function personalTokenDto(
-  user: Pick<User, "patEnc" | "patExpiresAt" | "patScopes" | "syncError">,
+  token: Pick<GitHubToken, "expiresAt" | "scopes"> | null,
+  syncError: SyncError | null,
 ): GitHubTokenDto | null {
-  if (!user.patEnc) return null;
+  if (!token) return null;
   return {
-    expiresAt: user.patExpiresAt?.toISOString() ?? null,
-    scopes: user.patScopes,
-    invalid: user.syncError === "token",
+    expiresAt: token.expiresAt?.toISOString() ?? null,
+    scopes: token.scopes,
+    invalid: syncError === "token",
   };
 }
 
-// Stops syncs until the user acts. Blames the personal access token when there is one,
-// since syncs use it first.
+// Stops syncs until the user acts. Blames the personal access tokens when there are
+// any, since syncs use them first, and marks them stopped.
 export async function markNeedsReauth(
   db: Db,
   userId: string,
 ): Promise<StopReason> {
-  const { patEnc } = await db.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { patEnc: true },
-  });
-  const reason: StopReason = patEnc ? "token" : "reauth";
+  const hasTokens = (await db.gitHubToken.count({ where: { userId } })) > 0;
+  if (hasTokens) {
+    await db.gitHubToken.updateMany({
+      where: { userId, status: "working" },
+      data: { status: "stopped", stoppedAt: new Date() },
+    });
+  }
+  const reason: StopReason = hasTokens ? "token" : "reauth";
   await db.user.updateMany({
     where: { id: userId },
     data: { syncError: reason },
@@ -152,20 +224,29 @@ export async function getAccessToken(
       ? decrypt(t.accessTokenEnc, keysOf(deps))
       : null;
 
-  const stored = await deps.db.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { ...TOKEN_FIELDS, patEnc: true, patExpiresAt: true },
-  });
+  const personal = await newestToken(deps.db, userId);
   // Never falls back to the sign in token. It may not see the user's org repos.
-  if (stored.patEnc) {
-    if (expiresSoon(stored.patExpiresAt)) {
+  if (personal) {
+    if (expiresSoon(personal.expiresAt)) {
       throw new NeedsReauthError(
         userId,
         await markNeedsReauth(deps.db, userId),
       );
     }
-    return decrypt(stored.patEnc, keysOf(deps));
+    const token = decrypt(personal.tokenEnc, keysOf(deps));
+    // Copied from the User row, where SQL couldn't read it. Fill in what needed it.
+    if (personal.tokenHash === null) {
+      await deps.db.gitHubToken.updateMany({
+        where: { id: personal.id, tokenHash: null },
+        data: { tokenHash: hashToken(token), kind: tokenKind(token) },
+      });
+    }
+    return token;
   }
+  const stored = await deps.db.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: TOKEN_FIELDS,
+  });
   const current = freshToken(stored);
   if (current) return current;
 
@@ -228,6 +309,7 @@ export async function reencryptTokens(
         { accessTokenEnc: { not: null } },
         { refreshTokenEnc: { not: null } },
         { patEnc: { not: null } },
+        { githubTokens: { some: {} } },
       ],
     },
     select: { id: true },
@@ -244,12 +326,26 @@ export async function reencryptTokens(
       });
       // Deleted meanwhile.
       if (!user) return;
+      const tokens = await tx.gitHubToken.findMany({
+        where: { userId: id },
+        select: { id: true, tokenEnc: true },
+      });
+      // patEnc keeps the same text as its token in the table, so the two still match.
+      let patEnc = again(user.patEnc);
+      for (const token of tokens) {
+        const tokenEnc = again(token.tokenEnc)!;
+        if (token.tokenEnc === user.patEnc) patEnc = tokenEnc;
+        await tx.gitHubToken.update({
+          where: { id: token.id },
+          data: { tokenEnc },
+        });
+      }
       await tx.user.update({
         where: { id },
         data: {
           accessTokenEnc: again(user.accessTokenEnc),
           refreshTokenEnc: again(user.refreshTokenEnc),
-          patEnc: again(user.patEnc),
+          patEnc,
         },
       });
       saved++;

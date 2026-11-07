@@ -52,6 +52,7 @@ const putToken = (agent: Agent, token = "ghp_token") =>
 const deleteToken = (agent: Agent) =>
   agent.delete("/api/github-token").set("Origin", APP_URL);
 const user = () => db.user.findFirstOrThrow();
+const token = () => db.gitHubToken.findFirstOrThrow();
 
 it("needs sign in", async () => {
   const { agent, oauth } = makeApp();
@@ -74,13 +75,29 @@ describe("PUT /api/github-token", () => {
     expect(res.body).toEqual({ githubToken });
     expect(oauth.checkToken).toHaveBeenCalledWith("ghp_token");
 
-    const saved = await user();
-    expect(saved.patEnc).not.toContain("ghp_token");
-    expect(decrypt(saved.patEnc ?? "", TEST_KEY)).toBe("ghp_token");
+    const saved = await token();
+    expect(saved.tokenEnc).not.toContain("ghp_token");
+    expect(decrypt(saved.tokenEnc, TEST_KEY)).toBe("ghp_token");
+    expect(saved).toMatchObject({ kind: "classic", status: "working" });
+    // The old column too, for the version still running during a deploy.
+    expect((await user()).patEnc).toBe(saved.tokenEnc);
     // The sign in token stays.
-    expect(decrypt(saved.accessTokenEnc ?? "", TEST_KEY)).toBe("ghu_access");
+    expect(decrypt((await user()).accessTokenEnc ?? "", TEST_KEY)).toBe(
+      "ghu_access",
+    );
     const me = bodyOf<MeResponse>(await agent.get("/api/me"));
     expect(me.githubToken).toEqual(githubToken);
+  });
+
+  it("replaces the token the user had", async () => {
+    const { agent } = await setup();
+    await putToken(agent, "ghp_first");
+    await putToken(agent, "github_pat_second");
+
+    const tokens = await db.gitHubToken.findMany();
+    expect(tokens).toHaveLength(1);
+    expect(decrypt(tokens[0]!.tokenEnc, TEST_KEY)).toBe("github_pat_second");
+    expect(tokens[0]!.kind).toBe("fine_grained");
   });
 
   it("restarts syncs that were stopped", async () => {
@@ -104,7 +121,7 @@ describe("PUT /api/github-token", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: { code: "wrong_account" } });
-    expect((await user()).patEnc).toBeNull();
+    expect(await db.gitHubToken.count()).toBe(0);
   });
 
   it("rejects a token GitHub doesn't accept", async () => {
@@ -167,6 +184,7 @@ describe("DELETE /api/github-token", () => {
     await db.user.updateMany({ data: { syncError: "token" } });
 
     expect((await deleteToken(agent)).status).toBe(204);
+    expect(await db.gitHubToken.count()).toBe(0);
     expect(await user()).toMatchObject({
       patEnc: null,
       patExpiresAt: null,

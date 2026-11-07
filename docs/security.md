@@ -6,6 +6,9 @@ How Git Buddy keeps tokens safe, and the limits it watches.
 
 We store each user's GitHub tokens encrypted with `TOKEN_ENC_KEY`. It's AES-256-GCM: a standard cipher that also catches changed data.
 
+- The sign in tokens live on the `User` row.
+- Personal access tokens live in the `GitHubToken` table, one row per token (plan 20). Each also keeps a SHA-256 hash of the token, to spot one added twice. A hash can't be turned back into the token.
+
 ### Change the key
 
 Do this if the key may have leaked.
@@ -17,7 +20,7 @@ Do this if the key may have leaked.
 3. Wait for both to deploy. Tokens now read with either key.
 4. Open a Render shell on the web service and run:
    `pnpm --filter @pr-peek/server tokens:reencrypt`
-   It encrypts every token again with the new key, and logs how many users it changed.
+   It encrypts every token again with the new key, in both places, and logs how many users it changed.
 5. Remove `TOKEN_ENC_KEY_PREVIOUS` from both services.
 
 The script is safe to run twice, and safe to run while the app is live.
