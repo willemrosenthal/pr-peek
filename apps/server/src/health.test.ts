@@ -25,6 +25,7 @@ beforeEach(() => resetDb(db));
 
 const logger = createLogger({ LOG_LEVEL: "silent" });
 const MB = 1024 * 1024;
+const GB = 1024 * MB;
 const PHONE = "https://fcm.googleapis.com/fcm/send/phone";
 
 let nextId = 1;
@@ -92,7 +93,7 @@ describe("alertsFor", () => {
   });
 
   it("alerts past each limit", () => {
-    expect(kinds({ dbBytes: 6 * 1024 * MB })).toEqual(["database"]);
+    expect(kinds({ dbBytes: 6 * GB })).toEqual(["database"]);
     expect(kinds({ lateUsers: 1 })).toEqual(["late"]);
     expect(kinds({ failingUsers: 2 })).toEqual(["failing"]);
   });
@@ -104,7 +105,7 @@ describe("alertsFor", () => {
   });
 
   it("says the numbers", () => {
-    expect(alertsFor({ ...fine, dbBytes: 6 * 1024 * MB })[0]?.body).toBe(
+    expect(alertsFor({ ...fine, dbBytes: 6 * GB })[0]?.body).toBe(
       "The database is at 6.0 GB of the 8 GB in Supabase Pro.",
     );
   });

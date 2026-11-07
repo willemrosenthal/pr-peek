@@ -6,6 +6,7 @@ The code still uses its first name, `pr-peek`, for package names and the repo.
 
 - What we're building: [docs/overview.md](docs/overview.md)
 - Build plans and status: [docs/README.md](docs/README.md)
+- Security and limits (tokens, logs, audits, Supabase): [docs/security.md](docs/security.md)
 
 ## Run it locally
 

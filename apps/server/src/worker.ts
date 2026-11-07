@@ -2,6 +2,7 @@ import type { WorkHandler, WorkOptions } from "pg-boss";
 import { loadConfig } from "./config";
 import { createDb, createPool } from "./db";
 import { getOctokit } from "./github/client";
+import { tokenKeys } from "./github/tokens";
 import { createGitHubOAuth } from "./github/oauth";
 import { checkHealth } from "./health";
 import {
@@ -92,16 +93,7 @@ await work<{ userId: string }>(
         logger,
         rulesChangedAt: startedAt,
         github: (userId) =>
-          getOctokit(
-            {
-              db,
-              oauth,
-              key: config.TOKEN_ENC_KEY,
-              previousKey: config.TOKEN_ENC_KEY_PREVIOUS,
-              usage,
-            },
-            userId,
-          ),
+          getOctokit({ db, oauth, ...tokenKeys(config), usage }, userId),
         notifyItems: async (itemIds) => {
           await boss.send(NOTIFY_ITEMS, { itemIds });
         },

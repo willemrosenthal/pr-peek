@@ -18,7 +18,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 
 ## PRs
 
-1. **Limits and security** (10.3, the Pro limits): `feat(server): Supabase Pro limits, key rotation, and safer logs`.
+1. **Limits and security** (10.3, the Pro limits): `feat(server): use Supabase Pro limits, rotate keys, and hide more in logs`.
 2. **Sign-up requests** (10.4): `feat(web): sign-up requests, approved from the admin page`. Has a migration.
 3. **Account controls** (10.2): `feat(web): delete my account, and clean up old data`.
 4. **Privacy and the landing section** (10.1, 10.7): `feat(web): a privacy page, and a landing section on sign in`.

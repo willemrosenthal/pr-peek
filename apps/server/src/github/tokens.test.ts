@@ -197,7 +197,9 @@ describe("changing the encryption key", () => {
       ),
     });
 
-    expect(await reencryptTokens(db, NEW_KEY, TEST_KEY)).toBe(1);
+    expect(
+      await reencryptTokens(db, { key: NEW_KEY, previousKey: TEST_KEY }),
+    ).toBe(1);
     const saved = await db.user.findUniqueOrThrow({ where: { id: user.id } });
     // The new key alone reads them now.
     expect(decrypt(saved.accessTokenEnc!, NEW_KEY)).toBe("ghu_access");
