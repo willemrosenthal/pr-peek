@@ -11,7 +11,7 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 - Tokens move out of the `User` row into their own table, one row per token.
 - Each token knows which owners (users or orgs) it reaches. We find out by listing its repos when it's added, and once a day.
 - Each sync picks a token for each owner of a watched repo: a working token that reaches it, else the GitHub sign in.
-- The searches run once per token in use, and the results are merged. So each token adds a search to every sync. That's why there's a cap.
+- The searches run once per token in use (the sign in counts, when an owner falls back to it), and the results are merged. So each token adds a search to every sync. That's why there's a cap.
 - One token failing no longer stops every sync. Only its owners fall back to the sign in, and the user gets a banner and a push.
 
 ## Decisions (7 November 2026)
@@ -33,14 +33,16 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 
 ### 20.1 The table
 
-- [ ] A `GitHubToken` table: `id`, `userId`, `name`, `tokenEnc`, `tokenHash`, `kind` (classic or fine-grained, from the `ghp_` or `github_pat_` prefix), `scopes`, `expiresAt`, `owners` (string list), `ownersCheckedAt`, `status` (working or stopped), `stoppedAt`, `lastUsedAt`, `createdAt`. Unique on `userId` and `tokenHash`.
+- [ ] A `GitHubToken` table: `id`, `userId`, `name`, `tokenEnc`, `tokenHash`, `kind` (classic or fine-grained, from the `ghp_` or `github_pat_` prefix), `scopes`, `expiresAt`, `owners` (string list), `ownersCheckedAt`, `status` (working or stopped), `stoppedAt`, `expiryRemindedAt`, `lastUsedAt`, `createdAt`. Unique on `userId` and `tokenHash`.
 - [ ] Copy each user's `patEnc`, `patExpiresAt`, and `patScopes` into a row. The encrypted text copies as is.
+- [ ] The current `/github-token` routes and the sync read and write the table, as a list of one. So nothing changes for users yet, and nothing is lost after the deploy.
 - [ ] Keep the old columns for one release, so the running version still works during the deploy (10.6). Drop them in a later PR.
 - [ ] `tokens:reencrypt` also covers the new table. Update [security.md](security.md).
 
 ### 20.2 Syncs use them
 
 - [ ] When a token is added, and once a day, list the repos it can reach (`GET /user/repos`, at most 10 pages) and save their owners.
+- [ ] First, check with a real fine-grained token what `/user/repos` returns. If it also lists public repos outside the token's org, count only owners whose private repos it lists, or find another way. Update this plan with what you learn.
 - [ ] Pick a token per owner: a working token that reaches it, newest first, else the sign in.
 - [ ] Run the searches once per token in use, then merge by PR id. Fetch each PR's details with its owner's token.
 - [ ] The repo picker, the PR preview, and add by link use the owner's token too.
@@ -54,7 +56,7 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 - [ ] Messages for: not accepted, another account's token, already added, reaches no watched repo (can still save), and the cap.
 - [ ] "Which token syncs each owner": the owners of watched repos and what syncs each. An owner nothing reaches links to adding a token.
 
-### On phones
+#### On phones
 
 Most people make a token on GitHub and paste it on the same phone, so this has to be easy there.
 
