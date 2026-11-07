@@ -60,7 +60,7 @@ pg-boss copies the keep time onto each job when it's made. Jobs made before a ch
 2. **The admin API** (19.3): `feat(server): the admin API`.
 3. **The page** (19.4): `feat(web): the admin page`.
 4. **pg-boss's own jobs** (19.5): `fix(server): keep pg-boss's own finished jobs an hour, not 7 days`. Found while building (#147).
-5. **pg-boss's queue reads** (19.6): `fix(server): read pg-boss's queue settings hourly, not every minute`. Found with the page.
+5. **pg-boss's queue reads** (19.6): `fix(server): read pg-boss's queue settings hourly, not every minute`. Found with the page (#148).
 
 PRs 2 and 3 were one PR in the first draft of this plan. Together they're over 400 lines, so they're split. Each releases a minor version and deploys.
 
