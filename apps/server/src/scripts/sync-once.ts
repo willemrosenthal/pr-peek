@@ -3,6 +3,7 @@
 import { loadConfig } from "../config";
 import { createDb, createPool } from "../db";
 import { getOctokit } from "../github/client";
+import { tokenKeys } from "../github/tokens";
 import { createGitHubOAuth } from "../github/oauth";
 import { createLogger } from "../logger";
 import { syncUser } from "../sync";
@@ -28,7 +29,7 @@ try {
       {
         db,
         github: (userId) =>
-          getOctokit({ db, oauth, key: config.TOKEN_ENC_KEY }, userId),
+          getOctokit({ db, oauth, ...tokenKeys(config) }, userId),
       },
       user.id,
     );

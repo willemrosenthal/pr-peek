@@ -1,0 +1,26 @@
+name: Audit
+
+# Checks the app's dependencies for known security problems: on each PR, and weekly,
+# since new problems are found in old versions. Not a required check, so a new advisory
+# never blocks an unrelated PR. A failure here means: update the package.
+on:
+  pull_request:
+  schedule:
+    - cron: "0 8 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      # The audit reads the lockfile, so nothing needs installing.
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      # Only what ships, and only high or critical problems.
+      - run: pnpm audit --prod --audit-level high

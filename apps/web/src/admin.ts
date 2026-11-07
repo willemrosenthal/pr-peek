@@ -104,7 +104,7 @@ export function readings(overview: AdminOverviewResponse): Reading[] {
     {
       label: "Database size",
       value: formatBytes(health.dbBytes),
-      detail: `of the ${formatBytes(limits.dbBytes)} free plan`,
+      detail: `of the ${formatBytes(limits.dbBytes)} in the plan`,
       rule: `Worth a look past ${formatShare(limits.dbWatchShare)}.`,
       share: clamp(health.dbBytes / limits.dbBytes),
       watch: health.dbBytes > limits.dbBytes * limits.dbWatchShare,

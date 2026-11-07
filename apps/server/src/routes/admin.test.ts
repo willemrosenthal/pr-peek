@@ -252,9 +252,9 @@ describe("GET /api/admin/overview", () => {
       failingUsers: 0,
     });
     expect(limits).toEqual({
-      dbBytes: 500 * 1024 * 1024,
+      dbBytes: 8 * 1024 * 1024 * 1024,
       dbWatchShare: 0.7,
-      egressBytesPerMonth: 5 * 1024 * 1024 * 1024,
+      egressBytesPerMonth: 250 * 1024 * 1024 * 1024,
       egressWatchShare: 0.8,
       jobRowsBase: 600,
       jobRowsPerUser: 100,

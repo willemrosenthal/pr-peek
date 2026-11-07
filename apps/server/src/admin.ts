@@ -3,18 +3,18 @@ import type { Db } from "./db";
 import { Prisma } from "./generated/prisma/client";
 import {
   DAY_MS,
-  DB_LIMIT_MB,
+  DB_LIMIT_BYTES,
   DB_WARN_SHARE,
   FAILING_SHARE,
-  MB,
+  GB,
   readHealth,
 } from "./health";
 
 // What the admin page shows. Read only when it opens, and every query groups and limits
 // in SQL, so the answer is tens of rows. See docs/19-admin.md, "Cost rules".
 
-// Supabase's free plan includes 5 GB of egress a month.
-const EGRESS_LIMIT_BYTES = 5 * 1024 * MB;
+// Supabase Pro includes 250 GB of egress a month.
+const EGRESS_LIMIT_BYTES = 250 * GB;
 const EGRESS_WATCH_SHARE = 0.8;
 // pg-boss keeps finished jobs an hour and cleans up hourly, so up to 2 hours of each. The
 // schedules alone make about 550: the heartbeat and sync dispatch every minute (120
@@ -196,7 +196,7 @@ export async function readOverview(
       failingUsers: health.failingUsers,
     },
     limits: {
-      dbBytes: DB_LIMIT_MB * MB,
+      dbBytes: DB_LIMIT_BYTES,
       dbWatchShare: DB_WARN_SHARE,
       egressBytesPerMonth: EGRESS_LIMIT_BYTES,
       egressWatchShare: EGRESS_WATCH_SHARE,

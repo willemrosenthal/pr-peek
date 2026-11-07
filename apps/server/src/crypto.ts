@@ -18,8 +18,24 @@ export function encrypt(plaintext: string, key: Buffer): string {
   return [VERSION, ...parts].join(":");
 }
 
-// Throws if the data was changed or the key is wrong.
-export function decrypt(blob: string, key: Buffer): string {
+// Throws if the data was changed or no key fits. With several keys, tries each in turn,
+// so tokens encrypted before a key change still read.
+export function decrypt(
+  blob: string,
+  keys: Buffer | readonly Buffer[],
+): string {
+  const list: readonly Buffer[] = Buffer.isBuffer(keys) ? [keys] : keys;
+  const [first, ...rest] = list;
+  if (!first) throw new Error("No key to decrypt with");
+  try {
+    return decryptWith(blob, first);
+  } catch (err) {
+    if (rest.length === 0) throw err;
+    return decrypt(blob, rest);
+  }
+}
+
+function decryptWith(blob: string, key: Buffer): string {
   const [version, iv, authTag, ciphertext, ...rest] = blob.split(":");
   if (version !== VERSION || !iv || !authTag || !ciphertext || rest.length) {
     throw new Error("Unrecognized encrypted value");

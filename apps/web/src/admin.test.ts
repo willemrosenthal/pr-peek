@@ -91,13 +91,13 @@ describe("readings", () => {
       watched(
         adminOverview({
           health: {
-            dbBytes: 400 * 1024 * 1024,
+            dbBytes: 6 * GB,
             jobRows: 6000,
             syncingUsers: 20,
             lateUsers: 2,
             failingUsers: 6,
           },
-          egress: { ...base.egress, thisMonth: 3 * GB },
+          egress: { ...base.egress, thisMonth: 150 * GB },
           github: {
             requests: 9,
             syncRequests: 9,

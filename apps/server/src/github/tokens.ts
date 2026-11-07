@@ -1,7 +1,8 @@
 import type { GitHubTokenDto } from "@pr-peek/core";
+import type { Config } from "../config";
 import { decrypt, encrypt } from "../crypto";
 import type { Db } from "../db";
-import type { SyncError, User } from "../generated/prisma/client";
+import type { Prisma, SyncError, User } from "../generated/prisma/client";
 import { HttpError } from "../http-error";
 import { GitHubAuthError, type GitHubOAuth, type GitHubTokens } from "./oauth";
 
@@ -12,8 +13,27 @@ export interface TokenDeps {
   db: Db;
   oauth: GitHubOAuth;
   key: Buffer;
+  // The key before `key`, while changing it (TOKEN_ENC_KEY_PREVIOUS).
+  previousKey?: Buffer | undefined;
   now?: () => Date;
 }
+
+type TokenKeys = Pick<TokenDeps, "key" | "previousKey">;
+
+export const tokenKeys = (
+  config: Pick<Config, "TOKEN_ENC_KEY" | "TOKEN_ENC_KEY_PREVIOUS">,
+): TokenKeys => ({
+  key: config.TOKEN_ENC_KEY,
+  previousKey: config.TOKEN_ENC_KEY_PREVIOUS,
+});
+
+// Locks the user's row until the transaction ends, so two token writes never cross.
+const lockUser = (tx: Prisma.TransactionClient, userId: string) =>
+  tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+
+// The keys to read tokens with: the current one, then the previous.
+const keysOf = (keys: TokenKeys) =>
+  keys.previousKey ? [keys.key, keys.previousKey] : [keys.key];
 
 // Sync errors that stop syncs until the user acts. "reauth": sign in with GitHub again.
 // "token": add a new personal access token.
@@ -129,7 +149,7 @@ export async function getAccessToken(
   // The decrypted access token, or null if it's missing or about to expire.
   const freshToken = (t: StoredTokens): string | null =>
     t.accessTokenEnc && !expiresSoon(t.accessTokenExpiresAt)
-      ? decrypt(t.accessTokenEnc, deps.key)
+      ? decrypt(t.accessTokenEnc, keysOf(deps))
       : null;
 
   const stored = await deps.db.user.findUniqueOrThrow({
@@ -144,7 +164,7 @@ export async function getAccessToken(
         await markNeedsReauth(deps.db, userId),
       );
     }
-    return decrypt(stored.patEnc, deps.key);
+    return decrypt(stored.patEnc, keysOf(deps));
   }
   const current = freshToken(stored);
   if (current) return current;
@@ -153,7 +173,7 @@ export async function getAccessToken(
   // GitHub only accepts each refresh token once, so a second refresh would fail.
   const result = await deps.db.$transaction(
     async (tx) => {
-      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+      await lockUser(tx, userId);
       const locked = await tx.user.findUniqueOrThrow({
         where: { id: userId },
         select: TOKEN_FIELDS,
@@ -172,7 +192,7 @@ export async function getAccessToken(
 
       try {
         const tokens = await deps.oauth.refresh(
-          decrypt(refreshTokenEnc, deps.key),
+          decrypt(refreshTokenEnc, keysOf(deps)),
         );
         await tx.user.update({
           where: { id: userId },
@@ -192,4 +212,48 @@ export async function getAccessToken(
     throw new NeedsReauthError(userId, await markNeedsReauth(deps.db, userId));
   }
   return result.token;
+}
+
+// Encrypts every stored token again with `key`, after a key change. Tokens the previous
+// key encrypted read with either. Returns how many users it saved.
+export async function reencryptTokens(
+  db: Db,
+  keys: TokenKeys,
+): Promise<number> {
+  const again = (blob: string | null) =>
+    blob === null ? null : encrypt(decrypt(blob, keysOf(keys)), keys.key);
+  const users = await db.user.findMany({
+    where: {
+      OR: [
+        { accessTokenEnc: { not: null } },
+        { refreshTokenEnc: { not: null } },
+        { patEnc: { not: null } },
+      ],
+    },
+    select: { id: true },
+  });
+  let saved = 0;
+  for (const { id } of users) {
+    // Locked like a refresh, so a token refreshed meanwhile is never overwritten with
+    // the old one. GitHub only accepts each refresh token once.
+    await db.$transaction(async (tx) => {
+      await lockUser(tx, id);
+      const user = await tx.user.findUnique({
+        where: { id },
+        select: { accessTokenEnc: true, refreshTokenEnc: true, patEnc: true },
+      });
+      // Deleted meanwhile.
+      if (!user) return;
+      await tx.user.update({
+        where: { id },
+        data: {
+          accessTokenEnc: again(user.accessTokenEnc),
+          refreshTokenEnc: again(user.refreshTokenEnc),
+          patEnc: again(user.patEnc),
+        },
+      });
+      saved++;
+    });
+  }
+  return saved;
 }

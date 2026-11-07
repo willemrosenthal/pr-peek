@@ -35,4 +35,12 @@ describe("encrypt and decrypt", () => {
     expect(() => decrypt("not-encrypted", key)).toThrow(/Unrecognized/);
     expect(() => decrypt("v2:a:b:c", key)).toThrow(/Unrecognized/);
   });
+
+  it("tries each key in turn, so values from a previous key still read", () => {
+    const previous = randomBytes(KEY_BYTES);
+    const old = encrypt(token, previous);
+
+    expect(decrypt(old, [key, previous])).toBe(token);
+    expect(() => decrypt(old, [key])).toThrow();
+  });
 });
