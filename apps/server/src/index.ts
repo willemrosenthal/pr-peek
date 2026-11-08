@@ -69,6 +69,7 @@ const app = createApp({
   version: config.RENDER_GIT_COMMIT ?? "dev",
   checkDb: () => checkDb(db),
   appUrl: config.APP_URL,
+  trustProxyHops: config.TRUST_PROXY_HOPS,
   session: sessionMiddleware({
     secret: config.SESSION_SECRET,
     secure: config.NODE_ENV === "production",

@@ -22,7 +22,7 @@ import {
   type CheckedPersonalToken,
 } from "../github/tokens";
 import { HttpError, parseInput } from "../http-error";
-import { attemptLimiter } from "../rate-limit";
+import { userLimiter } from "../rate-limit";
 import { currentUser, requireUser } from "./auth";
 
 export interface GitHubTokenDeps {
@@ -35,13 +35,18 @@ const sameOwners = (a: string[], b: string[]) =>
   a.length === b.length &&
   a.every((owner) => b.some((o) => sameLogin(o, owner)));
 
+// Checks, saves, and replacements each user can make in 15 minutes. Each asks GitHub.
+// Per user, not by IP: a company's people often share one.
+export const TOKEN_ASKS = 30;
+const TOKEN_ASKS_WINDOW_MS = 15 * 60 * 1000;
+
 // Personal access tokens the user adds for syncs, for orgs that block our OAuth App. A
 // fine-grained token reaches one org, so a user can add several.
 export function githubTokenRouter(deps: GitHubTokenDeps): Router {
   const router = express.Router();
   router.use("/github-tokens", requireUser(deps.db));
 
-  const limiter = attemptLimiter();
+  const limiter = userLimiter(TOKEN_ASKS_WINDOW_MS, TOKEN_ASKS);
 
   // Asks GitHub about a pasted token: that it works, is the user's, and what it reaches.
   // Classic tokens reach everything the account can, so their owners aren't listed.

@@ -2,7 +2,8 @@ import type { RequestHandler } from "express";
 import { rateLimit } from "express-rate-limit";
 import { currentUser } from "./routes/auth";
 
-// Slows down anyone hammering endpoints that call GitHub, like sign in.
+// Slows down anyone hammering sign in, by IP, since nobody is signed in yet. Needs
+// TRUST_PROXY_HOPS right (see docs/security.md).
 export const attemptLimiter = (): RequestHandler =>
   rateLimit({
     windowMs: 15 * 60 * 1000,

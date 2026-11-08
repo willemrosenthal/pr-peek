@@ -21,7 +21,7 @@ import {
   GitHubAuthError,
   type GitHubOAuth,
 } from "../github/oauth";
-import { githubTokenRouter } from "./github-token";
+import { githubTokenRouter, TOKEN_ASKS } from "./github-token";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
@@ -112,9 +112,9 @@ describe("a pasted token", () => {
     expect(oauth.checkToken).not.toHaveBeenCalled();
   });
 
-  it("is checked at most 30 times in a row", async () => {
+  it(`is checked at most ${TOKEN_ASKS} times in 15 minutes`, async () => {
     const { agent } = await setup();
-    for (let i = 0; i < 30; i++) await check(agent);
+    for (let i = 0; i < TOKEN_ASKS; i++) await check(agent);
     expect((await check(agent)).status).toBe(429);
   });
 });

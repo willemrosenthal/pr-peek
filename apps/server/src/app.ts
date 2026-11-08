@@ -38,12 +38,15 @@ export interface AppDeps {
   routers?: Router[];
   // Folder with the built PWA. Skipped if it has no index.html.
   webDir?: string;
+  // Proxies in front of us (TRUST_PROXY_HOPS). Defaults to 1.
+  trustProxyHops?: number;
 }
 
 export function createApp(deps: AppDeps): Express {
   const app = express();
-  // Render sits in front of us as a proxy. This lets secure cookies work.
-  app.set("trust proxy", 1);
+  // Render sits in front of us as a proxy. This lets secure cookies work, and gives
+  // `req.ip` the user's IP for rate limits.
+  app.set("trust proxy", deps.trustProxyHops ?? 1);
 
   app.use(
     pinoHttp({

@@ -100,10 +100,8 @@ export function reposRouter(deps: RepoDeps): Router {
     requireUser(deps.db),
   );
   // These spend the user's GitHub budget, which their sync needs too.
-  router.use(
-    ["/github/repos", "/github/owners"],
-    userLimiter(60 * 1000, PICKER_ASKS_PER_MINUTE),
-  );
+  const githubLimit = userLimiter(60 * 1000, PICKER_ASKS_PER_MINUTE);
+  router.use(["/github/repos", "/github/owners"], githubLimit);
 
   // Repos the user could add, for the picker: a list, or a search with `query`.
   router.get("/github/repos", async (req, res) => {
@@ -194,7 +192,7 @@ export function reposRouter(deps: RepoDeps): Router {
     res.json(body);
   });
 
-  router.post("/repos", async (req, res) => {
+  router.post("/repos", githubLimit, async (req, res) => {
     const user = currentUser(res);
     const { owner, name } = parseInput(addRepoBody, req.body);
 

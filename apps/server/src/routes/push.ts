@@ -14,6 +14,7 @@ import type { Db } from "../db";
 import type { PushSubscription } from "../generated/prisma/client";
 import { HttpError, parseInput, sentFields } from "../http-error";
 import { pushToDevice, type SendPush } from "../push";
+import { userLimiter } from "../rate-limit";
 import { currentUser, requireUser } from "./auth";
 
 export interface PushRouteDeps {
@@ -33,6 +34,10 @@ function toDto(row: PushSubscription): PushSubscriptionDto {
   };
 }
 
+// Test pushes each user can send a minute. Enough to click through every sample, but a
+// loop can't get our push key throttled by Apple or Google.
+export const TEST_PUSHES_PER_MINUTE = 20;
+
 const notFound = () => new HttpError(404, "not_found", "Device not found");
 const pushOff = () =>
   new HttpError(503, "push_off", "Push notifications aren't set up");
@@ -41,6 +46,10 @@ export function pushRouter(deps: PushRouteDeps): Router {
   const router = express.Router();
   const { db } = deps;
   router.use("/push/subscriptions", requireUser(db));
+  router.use(
+    "/push/subscriptions/:id/test",
+    userLimiter(60 * 1000, TEST_PUSHES_PER_MINUTE),
+  );
 
   router.get("/push/key", (_req, res) => {
     if (!deps.push) throw pushOff();

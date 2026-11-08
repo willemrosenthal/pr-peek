@@ -16,7 +16,7 @@ import {
 } from "../../test/app";
 import { createTestDb, resetDb } from "../../test/db";
 import { MAX_PUSH_FAILURES, type SendPush } from "../push";
-import { pushRouter } from "./push";
+import { pushRouter, TEST_PUSHES_PER_MINUTE } from "./push";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
@@ -314,6 +314,17 @@ describe("POST /api/push/subscriptions/:id/test", () => {
       }),
       expect.anything(),
     );
+  });
+
+  it(`allows ${TEST_PUSHES_PER_MINUTE} tests a minute`, async () => {
+    const { agent, send } = await setup();
+    const { id } = deviceOf(await subscribe(agent));
+    for (let i = 0; i < TEST_PUSHES_PER_MINUTE; i++) await sendTest(agent, id);
+
+    const res = await sendTest(agent, id);
+    expect(res.status).toBe(429);
+    expect(res.body).toMatchObject({ error: { code: "rate_limited" } });
+    expect(send).toHaveBeenCalledTimes(TEST_PUSHES_PER_MINUTE);
   });
 
   it.each([-1, TEST_PUSHES.length, 1.5, "2"])(
