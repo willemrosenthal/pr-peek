@@ -257,3 +257,55 @@ it("stops offering Add at 5 tokens", async () => {
   expect(await screen.findByText(/You have 5 tokens/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Add a token" })).toBe(null);
 });
+
+it("opens the sheet on the recommended fine-grained tab, with a tab for classic tokens", async () => {
+  settingsApi({
+    "GET /api/github-tokens": () =>
+      json(
+        tokensResponse([
+          githubToken({
+            id: "old",
+            name: "Everything",
+            kind: "classic",
+            status: "stopped",
+          }),
+        ]),
+      ),
+  });
+  renderApp("/settings");
+
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add a token" }),
+  );
+  const sheet = await screen.findByRole("dialog");
+  const fineGrained = within(sheet).getByRole("tab", { name: /Fine-grained/ });
+  expect(fineGrained.textContent).toContain("Recommended");
+  expect(fineGrained.getAttribute("aria-selected")).toBe("true");
+  expect(
+    within(sheet)
+      .getByRole("link", { name: "Make a fine-grained token on GitHub" })
+      .getAttribute("href"),
+  ).toBe("https://github.com/settings/personal-access-tokens/new");
+
+  await userEvent.click(
+    within(sheet).getByRole("tab", { name: "Classic token" }),
+  );
+  expect(
+    within(sheet)
+      .getByRole("link", { name: "Make a classic token on GitHub" })
+      .getAttribute("href"),
+  ).toContain("scopes=repo,read:org");
+
+  // Replacing a classic token opens on its tab.
+  await userEvent.click(within(sheet).getByRole("button", { name: "Cancel" }));
+  await userEvent.click(
+    within(await cardFor("Everything")).getByRole("button", {
+      name: "Replace",
+    }),
+  );
+  expect(
+    within(await screen.findByRole("dialog"))
+      .getByRole("tab", { name: "Classic token" })
+      .getAttribute("aria-selected"),
+  ).toBe("true");
+});

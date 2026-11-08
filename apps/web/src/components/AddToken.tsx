@@ -1,11 +1,15 @@
+import { Drawer } from "@base-ui/react/drawer";
+import { Tabs } from "@base-ui/react/tabs";
 import type {
   CheckTokenResponse,
   TokenDto,
+  TokenKind,
   TokenResponse,
   TokensResponse,
 } from "@pr-peek/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { X } from "lucide-react";
+import { useState, type FormEvent } from "react";
 import { api } from "../api";
 import { queryKeys } from "../queries";
 import { formatDate, kindLabel, reachText } from "../tokens";
@@ -23,31 +27,81 @@ const CLASSIC_URL =
 const canPaste = () =>
   typeof navigator !== "undefined" && "readText" in (navigator.clipboard ?? {});
 
-// Adds a token in two steps, make one on GitHub then paste and check it, or replaces
-// `replacing`. A checked token shows what it reaches, and gets a name, before it's saved.
-export function AddToken({
-  replacing,
+export interface Adding {
+  // The token being replaced, or null to add one.
+  replacing: TokenDto | null;
+}
+
+// A sheet that adds a token, or replaces one. Null `adding` closes it.
+export function AddTokenSheet({
+  adding,
   tokens,
   syncedBy,
   onSaved,
-  onCancel,
+  onClose,
 }: {
-  replacing: TokenDto | null;
+  adding: Adding | null;
   tokens: TokenDto[];
   syncedBy: TokensResponse["syncedBy"];
   // With a line saying what changed.
   onSaved: (message: string) => void;
-  onCancel: () => void;
+  onClose: () => void;
+}) {
+  // The form keeps showing while the sheet slides away. Each opening starts a fresh one.
+  const [shown, setShown] = useState({ adding, count: 0 });
+  if (adding && adding !== shown.adding) {
+    setShown({ adding, count: shown.count + 1 });
+  }
+  return (
+    <Drawer.Root
+      open={adding !== null}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <Drawer.Portal>
+        <Drawer.Backdrop className={styles.backdrop} />
+        <Drawer.Viewport className={styles.viewport}>
+          <Drawer.Popup className={styles.sheet}>
+            {shown.adding && (
+              <AddToken
+                key={shown.count}
+                replacing={shown.adding.replacing}
+                tokens={tokens}
+                syncedBy={syncedBy}
+                onSaved={onSaved}
+                onClose={onClose}
+              />
+            )}
+          </Drawer.Popup>
+        </Drawer.Viewport>
+      </Drawer.Portal>
+    </Drawer.Root>
+  );
+}
+
+// Make a token on GitHub (a tab for each kind), paste and check it, then see what it
+// reaches and name it before it's saved.
+function AddToken({
+  replacing,
+  tokens,
+  syncedBy,
+  onSaved,
+  onClose,
+}: {
+  replacing: TokenDto | null;
+  tokens: TokenDto[];
+  syncedBy: TokensResponse["syncedBy"];
+  onSaved: (message: string) => void;
+  onClose: () => void;
 }) {
   const queryClient = useQueryClient();
   const [token, setToken] = useState("");
   const [name, setName] = useState("");
-  const panel = useRef<HTMLElement>(null);
-
-  // On a phone the panel takes the place of the list, so bring it into view.
-  useEffect(() => {
-    panel.current?.scrollIntoView?.({ block: "start" });
-  }, []);
+  // Replacing a classic token opens on its tab. Else fine-grained, the safer kind.
+  const [kind, setKind] = useState<TokenKind>(
+    replacing?.kind === "classic" ? "classic" : "fine_grained",
+  );
 
   const check = useMutation({
     mutationFn: () =>
@@ -96,33 +150,38 @@ export function AddToken({
     );
 
   return (
-    <section
-      ref={panel}
-      className={styles.panel}
-      aria-labelledby="add-token-heading"
-    >
-      <h3 id="add-token-heading" className={styles.heading}>
-        {replacing ? `Replace ${replacing.name}` : "Add a token"}
-      </h3>
+    <div className={styles.sheetBody}>
+      <div className={styles.sheetTop}>
+        <Drawer.Title className={styles.heading}>
+          {replacing ? `Replace ${replacing.name}` : "Add a token"}
+        </Drawer.Title>
+        <Drawer.Close className={styles.close} aria-label="Close">
+          <X aria-hidden="true" />
+        </Drawer.Close>
+      </div>
 
       {!checked ? (
         <>
-          <div className={styles.step}>
-            <strong>1. Make one on GitHub</strong>
-            <div className={styles.links}>
-              <ButtonLink
-                href={FINE_GRAINED_URL}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Fine-grained token, for one org
-              </ButtonLink>
-              <ButtonLink href={CLASSIC_URL} target="_blank" rel="noreferrer">
-                Classic token, for everything
-              </ButtonLink>
-            </div>
-            <TokenSteps />
-          </div>
+          <Tabs.Root
+            value={kind}
+            onValueChange={(value: TokenKind) => setKind(value)}
+          >
+            <Tabs.List className={styles.tabs}>
+              <Tabs.Tab value="fine_grained" className={styles.tab}>
+                Fine-grained{" "}
+                <span className={styles.recommended}>Recommended</span>
+              </Tabs.Tab>
+              <Tabs.Tab value="classic" className={styles.tab}>
+                Classic token
+              </Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="fine_grained" className={styles.step}>
+              <FineGrainedSteps />
+            </Tabs.Panel>
+            <Tabs.Panel value="classic" className={styles.step}>
+              <ClassicSteps />
+            </Tabs.Panel>
+          </Tabs.Root>
           <form className={styles.step} onSubmit={submitToken}>
             <label htmlFor="token-input" className={styles.label}>
               2. Copy it, then paste it here
@@ -135,7 +194,7 @@ export function AddToken({
                 autoComplete="off"
                 autoCapitalize="off"
                 spellCheck={false}
-                placeholder="github_pat_…"
+                placeholder={kind === "classic" ? "ghp_…" : "github_pat_…"}
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
@@ -152,7 +211,7 @@ export function AddToken({
               >
                 {check.isPending ? "Checking token" : "Check token"}
               </Button>
-              <Button onClick={onCancel}>Cancel</Button>
+              <Button onClick={onClose}>Cancel</Button>
             </div>
           </form>
         </>
@@ -216,78 +275,74 @@ export function AddToken({
               <Button onClick={startOver}>Use a different token</Button>
             </div>
           )}
-          <Button onClick={onCancel}>Cancel</Button>
         </form>
       )}
-    </section>
+    </div>
   );
 }
 
-// How to make each kind of token, each in a section that opens on click.
-function TokenSteps() {
+function FineGrainedSteps() {
   return (
-    <div className={styles.kinds}>
-      <details className={styles.kind}>
-        <summary className={styles.summary}>
-          What to tick for a classic token
-        </summary>
-        <div className={styles.kindBody}>
-          <p className={styles.hint}>
-            Easiest. Works for all your repos and orgs. The button above ticks
-            the scopes for you.
-          </p>
-          <ol className={styles.steps}>
-            <li>
-              Keep <code>repo</code> (its sub-boxes tick with it) and{" "}
-              <code>read:org</code> ticked. Leave the rest. For public repos
-              only, tick just <code>public_repo</code> instead of{" "}
-              <code>repo</code>. Pick an expiry you're happy with.
-            </li>
-            <li>
-              If your company uses single sign-on, click{" "}
-              <strong>Configure SSO</strong>, then <strong>Authorize</strong>{" "}
-              next to your org. Without this, work repos won't show up.
-            </li>
-            <li>Copy the token and paste it below.</li>
-          </ol>
-        </div>
-      </details>
-      <details className={styles.kind}>
-        <summary className={styles.summary}>
-          What to tick for a fine-grained token
-        </summary>
-        <div className={styles.kindBody}>
-          <p className={styles.hint}>
-            For orgs that only allow fine-grained tokens. Each one works for a
-            single org or account, so add one for each. GitHub doesn't let these
-            tokens read check runs, so failed checks from GitHub Actions and
-            similar tools aren't named. Whether checks passed still shows.
-          </p>
-          <ol className={styles.steps}>
-            <li>
-              Set <strong>Resource owner</strong> to your org. Set{" "}
-              <strong>Repository access</strong> to All repositories, or pick
-              the repos you watch here. Pick an expiry you're happy with.
-            </li>
-            <li>
-              Under <strong>Repository permissions</strong>, set these to
-              Read-only: <code>Commit statuses</code>, <code>Contents</code>,
-              and <code>Pull requests</code>. <code>Metadata</code> turns on by
-              itself.
-            </li>
-            <li>
-              Under <strong>Organization permissions</strong>, set{" "}
-              <code>Members</code> to Read-only. This finds your teams, for
-              review requests sent to them.
-            </li>
-            <li>
-              If your org has to approve tokens, wait for an org owner to
-              approve it. Syncs fail until then.
-            </li>
-            <li>Copy the token and paste it below.</li>
-          </ol>
-        </div>
-      </details>
-    </div>
+    <>
+      <p className={styles.hint}>
+        Reaches only the org you pick, with read-only access, so it's the safer
+        kind. Add one for each org. GitHub doesn't let these tokens read check
+        runs, so failed checks from GitHub Actions and similar tools aren't
+        named. Whether checks passed still shows.
+      </p>
+      <strong>1. Make one on GitHub</strong>
+      <ButtonLink href={FINE_GRAINED_URL} target="_blank" rel="noreferrer">
+        Make a fine-grained token on GitHub
+      </ButtonLink>
+      <ol className={styles.steps}>
+        <li>
+          Set <strong>Resource owner</strong> to your org. Set{" "}
+          <strong>Repository access</strong> to All repositories, or pick the
+          repos you watch here. Pick an expiry you're happy with.
+        </li>
+        <li>
+          Under <strong>Repository permissions</strong>, set these to Read-only:{" "}
+          <code>Commit statuses</code>, <code>Contents</code>, and{" "}
+          <code>Pull requests</code>. <code>Metadata</code> turns on by itself.
+        </li>
+        <li>
+          Under <strong>Organization permissions</strong>, set{" "}
+          <code>Members</code> to Read-only. This finds your teams, for review
+          requests sent to them.
+        </li>
+        <li>
+          If your org has to approve tokens, wait for an org owner to approve
+          it. Syncs fail until then.
+        </li>
+      </ol>
+    </>
+  );
+}
+
+function ClassicSteps() {
+  return (
+    <>
+      <p className={styles.hint}>
+        Easiest. One token reaches all your repos and orgs, but it can do
+        anything you can on GitHub. Some orgs don't allow them.
+      </p>
+      <strong>1. Make one on GitHub</strong>
+      <ButtonLink href={CLASSIC_URL} target="_blank" rel="noreferrer">
+        Make a classic token on GitHub
+      </ButtonLink>
+      <ol className={styles.steps}>
+        <li>
+          The link ticks <code>repo</code> (its sub-boxes tick with it) and{" "}
+          <code>read:org</code>. Leave the rest. For public repos only, tick
+          just <code>public_repo</code> instead of <code>repo</code>. Pick an
+          expiry you're happy with.
+        </li>
+        <li>
+          If your company uses single sign-on, click{" "}
+          <strong>Configure SSO</strong>, then <strong>Authorize</strong> next
+          to your org. Without this, work repos won't show up.
+        </li>
+      </ol>
+    </>
   );
 }

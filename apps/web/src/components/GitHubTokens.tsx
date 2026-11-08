@@ -13,7 +13,7 @@ import {
   reposSyncedBy,
   stateOf,
 } from "../tokens";
-import { AddToken } from "./AddToken";
+import { AddTokenSheet, type Adding } from "./AddToken";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import styles from "./GitHubTokens.module.css";
@@ -22,10 +22,8 @@ import styles from "./GitHubTokens.module.css";
 // each owner they watch.
 export function GitHubTokens() {
   const tokens = useGitHubTokens();
-  // Null while not adding. A token while replacing it.
-  const [adding, setAdding] = useState<{ replacing: TokenDto | null } | null>(
-    null,
-  );
+  // Null while the sheet is closed.
+  const [adding, setAdding] = useState<Adding | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
   if (!tokens.data) {
@@ -40,7 +38,7 @@ export function GitHubTokens() {
   };
 
   return (
-    <div className={cx(styles.tokens, adding && styles.adding)}>
+    <div className={styles.tokens}>
       <section className={styles.section} aria-labelledby="tokens-heading">
         <div className={styles.header}>
           <div className={styles.headerText}>
@@ -52,7 +50,7 @@ export function GitHubTokens() {
               covers one org, so add one for each.
             </p>
           </div>
-          {!adding && list.length < MAX_TOKENS && (
+          {list.length < MAX_TOKENS && (
             <Button variant="primary" onClick={() => startAdding()}>
               Add a token
             </Button>
@@ -75,18 +73,6 @@ export function GitHubTokens() {
             ))}
           </ul>
         )}
-        {adding && (
-          <AddToken
-            replacing={adding.replacing}
-            tokens={list}
-            syncedBy={syncedBy}
-            onSaved={(message) => {
-              setAdding(null);
-              setSaved(message);
-            }}
-            onCancel={() => setAdding(null)}
-          />
-        )}
         <p className={styles.hint}>
           {list.length >= MAX_TOKENS
             ? `You have ${MAX_TOKENS} tokens, the most Git Buddy allows. Remove one to add another.`
@@ -94,6 +80,17 @@ export function GitHubTokens() {
           Tokens are encrypted, and only ever read your repos.
         </p>
       </section>
+
+      <AddTokenSheet
+        adding={adding}
+        tokens={list}
+        syncedBy={syncedBy}
+        onSaved={(message) => {
+          setAdding(null);
+          setSaved(message);
+        }}
+        onClose={() => setAdding(null)}
+      />
 
       {syncedBy.length > 0 && (
         <section className={styles.section} aria-labelledby="owners-heading">
