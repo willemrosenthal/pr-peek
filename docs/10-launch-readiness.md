@@ -91,7 +91,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 ### 10.6 Data safety
 
 - [x] **Backups before other people sign in.** The project is on Supabase Pro, which has daily backups kept 7 days. **(You)** Check they show under Database, Backups. Checked on 7 November 2026.
-- [ ] **(You)** Test restoring a backup into a fresh database once.
+- [x] **(You)** Test restoring a backup into a fresh database once.
 - [ ] Prisma migrations only add or change in ways that work with the version currently running. Render runs migrations before swapping versions, so for a short time the old code runs against the new schema.
 
 ### 10.7 Polish for new users
