@@ -299,7 +299,7 @@ it("opens the sheet on the recommended fine-grained tab, with a tab for classic 
   ).toContain("scopes=repo,read:org");
 
   // Replacing a classic token opens on its tab.
-  await userEvent.click(within(sheet).getByRole("button", { name: "Cancel" }));
+  await userEvent.click(within(sheet).getByRole("button", { name: "Close" }));
   await userEvent.click(
     within(await cardFor("Everything")).getByRole("button", {
       name: "Replace",

@@ -24,8 +24,11 @@ const FINE_GRAINED_URL =
 const CLASSIC_URL =
   "https://github.com/settings/tokens/new?scopes=repo,read:org&description=Git%20Buddy";
 
-const canPaste = () =>
-  typeof navigator !== "undefined" && "readText" in (navigator.clipboard ?? {});
+// On touch screens only: pasting into a hidden field there takes a long press. A
+// keyboard has Cmd+V.
+const showPaste = () =>
+  "readText" in (navigator.clipboard ?? {}) &&
+  window.matchMedia("(pointer: coarse)").matches;
 
 export interface Adding {
   // The token being replaced, or null to add one.
@@ -70,7 +73,6 @@ export function AddTokenSheet({
                 tokens={tokens}
                 syncedBy={syncedBy}
                 onSaved={onSaved}
-                onClose={onClose}
               />
             )}
           </Drawer.Popup>
@@ -87,13 +89,11 @@ function AddToken({
   tokens,
   syncedBy,
   onSaved,
-  onClose,
 }: {
   replacing: TokenDto | null;
   tokens: TokenDto[];
   syncedBy: TokensResponse["syncedBy"];
   onSaved: (message: string) => void;
-  onClose: () => void;
 }) {
   const queryClient = useQueryClient();
   const [token, setToken] = useState("");
@@ -206,21 +206,19 @@ function AddToken({
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
-              {canPaste() && (
+              {showPaste() && (
                 <Button onClick={() => void paste()}>Paste</Button>
               )}
             </div>
             {check.isError && <Alert>{check.error.message}</Alert>}
-            <div className={styles.sheetActions}>
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={!token.trim() || check.isPending}
-              >
-                {check.isPending ? "Checking token" : "Check token"}
-              </Button>
-              <Button onClick={onClose}>Cancel</Button>
-            </div>
+            <Button
+              type="submit"
+              variant="primary"
+              wide
+              disabled={!token.trim() || check.isPending}
+            >
+              {check.isPending ? "Checking token" : "Check token"}
+            </Button>
           </form>
         </>
       ) : (
