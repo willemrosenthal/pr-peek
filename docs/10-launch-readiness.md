@@ -69,7 +69,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
   - The renamed `.app.tar.gz` needs nothing: only `latest.json` names it. Both Mac chips still get their entries for a universal build.
   - A change to `desktop-release.yml` now builds the Mac app on release too, so this ships as its own Mac release.
 - [x] After the release: the Mac release page keeps its title and notes. Checked 1.27.3: title "Git Buddy for Mac 1.27.3" and our notes kept, the files carry the version, `latest.json` links are API links, and every check passed.
-- [ ] **(You)** An installed Mac app updates to 1.27.3.
+- [x] **(You)** An installed Mac app updates to 1.27.3. Checked 8 November.
 
 ### 10.4 Limits and cost control
 

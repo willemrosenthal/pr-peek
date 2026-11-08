@@ -21,7 +21,7 @@ vi.mock("../haptics", async (importOriginal) => ({
 }));
 
 beforeAll(stubPointerCapture);
-// For the flicks, which use fake timers.
+// For the timed swipes, which use fake timers.
 afterEach(() => {
   vi.useRealTimers();
 });
@@ -40,6 +40,18 @@ function swipeTimed(link: Element, steps: [number, number][], pause = 0) {
   vi.advanceTimersByTime(pause);
   fireEvent.pointerUp(link, at(dx));
 }
+
+// Moves `dx` across, then holds still before letting go. Speed only counts the last 50ms,
+// so it's never a flick, however slow the machine running the test. Needs fake timers.
+const slowDrag = (link: Element, dx: number) =>
+  swipeTimed(
+    link,
+    [
+      [100, dx / 2],
+      [100, dx],
+    ],
+    100,
+  );
 
 // Short of `FAR_ENOUGH`, but quick: over 60ms, and about 1.9px per ms at the end.
 const flick = (dx: number): [number, number][] => [
@@ -85,22 +97,25 @@ describe("SwipeRow", () => {
   );
 
   it.each([-40, 120])("springs back from a %ipx swipe", async (dx) => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const { onToggle, link } = setup();
-    drag(link, dx);
-    await settle();
+    slowDrag(link, dx);
+    await vi.advanceTimersByTimeAsync(400);
     expect(onToggle).not.toHaveBeenCalled();
     expect(strip()).toBe(null);
   });
 
   it("needs a longer swipe on a wider row", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
     const { onToggle, link } = setup();
     // 45% of 600 is 270.
-    drag(link, -FAR_ENOUGH);
-    await settle();
+    slowDrag(link, -FAR_ENOUGH);
+    await vi.advanceTimersByTimeAsync(400);
     expect(onToggle).not.toHaveBeenCalled();
-    drag(link, -300);
-    await waitFor(() => expect(onToggle).toHaveBeenCalledTimes(1));
+    slowDrag(link, -300);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
   it("shows when the row has gone far enough to quiet it", () => {
@@ -176,9 +191,10 @@ describe("SwipeRow", () => {
   });
 
   it("ticks when a swipe acts, not when it springs back", () => {
+    vi.useFakeTimers();
     vi.mocked(haptic).mockClear();
     const { link } = setup();
-    drag(link, -40);
+    slowDrag(link, -40);
     expect(haptic).not.toHaveBeenCalled();
     drag(link, -FAR_ENOUGH);
     expect(haptic).toHaveBeenCalledTimes(1);
