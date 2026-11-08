@@ -14,11 +14,11 @@ import styles from "./PullToRefresh.module.css";
 // How far a finger moves before it counts as a pull, not a tap or a swipe.
 const START_PX = 8;
 // The furthest the page comes down.
-const MAX_PX = 160;
+export const MAX_PX = 160;
 // How far the page comes down before letting go refreshes. Room for the burst.
 const ARM_PX = 70;
 // How fast the page moves at first, for each px the finger moves.
-const RESISTANCE = 0.55;
+export const RESISTANCE = 0.55;
 
 // How far the page comes down for a finger `distance` past the start. About half as
 // far as the finger at first, then heavier the further it goes, and never past MAX_PX.

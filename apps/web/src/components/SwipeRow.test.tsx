@@ -11,8 +11,21 @@ import {
   vi,
 } from "vitest";
 import { haptic } from "../haptics";
-import { drag, FAR_ENOUGH, hold, stubPointerCapture } from "../test/swipe";
-import { rowOffset, SwipeRow } from "./SwipeRow";
+import {
+  drag,
+  FAR_ENOUGH,
+  hold,
+  NOT_FAR_ENOUGH,
+  stubPointerCapture,
+} from "../test/swipe";
+import {
+  PAST_ARMED_MAX_PX,
+  ROW_GIVE,
+  rowOffset,
+  SWIPE_MIN_PX,
+  SWIPE_SHARE,
+  SwipeRow,
+} from "./SwipeRow";
 import styles from "./SwipeRow.module.css";
 
 vi.mock("../haptics", async (importOriginal) => ({
@@ -98,31 +111,38 @@ describe("SwipeRow", () => {
     },
   );
 
-  it.each([-40, 120])("springs back from a %ipx swipe", async (dx) => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const { onToggle, link } = setup();
-    slowDrag(link, dx);
-    await settleTimed();
-    expect(onToggle).not.toHaveBeenCalled();
-    expect(strip()).toBe(null);
-  });
+  it.each([-40, NOT_FAR_ENOUGH])(
+    "springs back from a %ipx swipe",
+    async (dx) => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const { onToggle, link } = setup();
+      slowDrag(link, dx);
+      await settleTimed();
+      expect(onToggle).not.toHaveBeenCalled();
+      expect(strip()).toBe(null);
+    },
+  );
 
   it("needs a longer swipe on a wider row", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
+    const width = 600;
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(
+      width,
+    );
     const { onToggle, link } = setup();
-    // 45% of 600 is 270.
+    const acts = width * SWIPE_SHARE;
+    expect(acts).toBeGreaterThan(FAR_ENOUGH);
     slowDrag(link, -FAR_ENOUGH);
     await settleTimed();
     expect(onToggle).not.toHaveBeenCalled();
-    slowDrag(link, -300);
+    slowDrag(link, -(acts + 30));
     await settleTimed();
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
   it("shows when the row has gone far enough to quiet it", () => {
     const { link } = setup();
-    hold(link, -100);
+    hold(link, -NOT_FAR_ENOUGH);
     expect(strip()!.className).not.toContain(styles.armed);
     hold(link, -FAR_ENOUGH);
     expect(strip()!.className).toContain(styles.armed);
@@ -130,8 +150,10 @@ describe("SwipeRow", () => {
 
   it("trails the finger a little", () => {
     const { link } = setup();
-    hold(link, -100);
-    expect(link.parentElement!.style.transform).toBe("translateX(-90px)");
+    hold(link, -NOT_FAR_ENOUGH);
+    expect(link.parentElement!.style.transform).toBe(
+      `translateX(${-NOT_FAR_ENOUGH * ROW_GIVE}px)`,
+    );
   });
 
   it("doesn't open the link when a swipe ends", () => {
@@ -173,7 +195,7 @@ describe("SwipeRow", () => {
 
     it("quiets before it's gone far enough", async () => {
       const { onToggle, link } = setup();
-      swipeTimed(link, flick(-100));
+      swipeTimed(link, flick(-NOT_FAR_ENOUGH));
       await settleTimed();
       expect(onToggle).toHaveBeenCalledTimes(1);
     });
@@ -181,7 +203,7 @@ describe("SwipeRow", () => {
     // Over the whole swipe it's still fast enough, so only the last moments count.
     it("doesn't count if the finger stopped before letting go", async () => {
       const { onToggle, link } = setup();
-      swipeTimed(link, flick(-100), 60);
+      swipeTimed(link, flick(-NOT_FAR_ENOUGH), 60);
       await settleTimed();
       expect(onToggle).not.toHaveBeenCalled();
     });
@@ -224,7 +246,7 @@ describe("SwipeRow", () => {
 
   it("springs back from a short trackpad swipe", async () => {
     const { onToggle, link } = setup();
-    fireEvent.wheel(link, { deltaX: 120, deltaY: 0 });
+    fireEvent.wheel(link, { deltaX: NOT_FAR_ENOUGH, deltaY: 0 });
     await settle();
     expect(onToggle).not.toHaveBeenCalled();
   });
@@ -290,7 +312,7 @@ describe("SwipeRow right swipe", () => {
   it("marks the PR important on a quick flick right", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { onToggleImportant, link } = setupImportant();
-    swipeTimed(link, flick(100));
+    swipeTimed(link, flick(NOT_FAR_ENOUGH));
     expect(onToggleImportant).toHaveBeenCalledTimes(1);
   });
 
@@ -499,18 +521,21 @@ describe("SwipeRow long press", () => {
 });
 
 describe("rowOffset", () => {
-  it("moves 90% as far as the finger, either way", () => {
-    expect(rowOffset(100, 140)).toBeCloseTo(90);
-    expect(rowOffset(-100, 140)).toBeCloseTo(-90);
-    expect(rowOffset(0, 140)).toBe(0);
+  const acts = SWIPE_MIN_PX;
+
+  it("trails the finger by ROW_GIVE, either way", () => {
+    expect(rowOffset(100, acts)).toBeCloseTo(100 * ROW_GIVE);
+    expect(rowOffset(-100, acts)).toBeCloseTo(-100 * ROW_GIVE);
+    expect(rowOffset(0, acts)).toBe(0);
   });
 
   it("gets heavier past where letting go acts, with no jump", () => {
-    const armed = rowOffset(140, 140);
-    expect(rowOffset(141, 140) - armed).toBeCloseTo(0.9, 1);
-    const next = rowOffset(240, 140) - armed;
-    expect(next).toBeLessThan(90);
-    expect(rowOffset(340, 140) - armed - next).toBeLessThan(next);
-    expect(rowOffset(10_000, 140)).toBeLessThan(armed + 100);
+    const armed = rowOffset(acts, acts);
+    expect(armed).toBeCloseTo(acts * ROW_GIVE);
+    expect(rowOffset(acts + 1, acts) - armed).toBeCloseTo(ROW_GIVE, 1);
+    const next = rowOffset(acts + 100, acts) - armed;
+    expect(next).toBeLessThan(100 * ROW_GIVE);
+    expect(rowOffset(acts + 200, acts) - armed - next).toBeLessThan(next);
+    expect(rowOffset(10_000, acts)).toBeLessThan(armed + PAST_ARMED_MAX_PX);
   });
 });

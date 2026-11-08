@@ -1,7 +1,7 @@
 import { fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { holdPull, pull, PULL_FAR_ENOUGH } from "../test/swipe";
-import { PullToRefresh, pullOffset } from "./PullToRefresh";
+import { MAX_PX, PullToRefresh, pullOffset, RESISTANCE } from "./PullToRefresh";
 import styles from "./PullToRefresh.module.css";
 
 function setup() {
@@ -33,12 +33,12 @@ describe("pullOffset", () => {
     expect(first).toBeGreaterThan(0);
     expect(first).toBeLessThan(100);
     expect(second).toBeLessThan(first);
-    expect(pullOffset(10_000)).toBeLessThan(160);
+    expect(pullOffset(10_000)).toBeLessThan(MAX_PX);
     expect(pullOffset(-50)).toBe(0);
   });
 
   it("moves less than the finger, even at the start", () => {
-    expect(pullOffset(10)).toBeLessThan(6);
+    expect(pullOffset(10)).toBeLessThan(10 * RESISTANCE);
   });
 });
 

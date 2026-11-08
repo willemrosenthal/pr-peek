@@ -17,13 +17,13 @@ import styles from "./SwipeRow.module.css";
 
 // How far a row moves before letting go quiets it: a share of its width, but at least
 // `SWIPE_MIN_PX`.
-const SWIPE_SHARE = 0.45;
-const SWIPE_MIN_PX = 140;
+export const SWIPE_SHARE = 0.45;
+export const SWIPE_MIN_PX = 140;
 // The row moves this share of the finger's move, so a swipe has a little weight. Past
 // `swipePx` it gets heavier, and moves at most `PAST_ARMED_MAX_PX` more. Letting go
 // still counts how far the finger moved, so a swipe takes no more effort.
-const ROW_GIVE = 0.72;
-const PAST_ARMED_MAX_PX = 100;
+export const ROW_GIVE = 0.72;
+export const PAST_ARMED_MAX_PX = 100;
 // The row covers the action's circle until it has moved this far: the strip's padding
 // plus the circle (SwipeRow.module.css).
 const CIRCLE_SHOWN_PX = 51;

@@ -1,12 +1,14 @@
 import { fireEvent } from "@testing-library/react";
+import { SWIPE_MIN_PX } from "../components/SwipeRow";
 
 // jsdom has no pointer capture. Call before swiping.
 export function stubPointerCapture() {
   Element.prototype.setPointerCapture = () => {};
 }
 
-// Far enough to quiet a row in jsdom, where rows have no width.
-export const FAR_ENOUGH = 200;
+// Far enough to quiet a row in jsdom, where rows have no width, and short of it.
+export const FAR_ENOUGH = SWIPE_MIN_PX + 60;
+export const NOT_FAR_ENOUGH = SWIPE_MIN_PX - 40;
 
 const at = (dx: number, dy: number, share: number) => ({
   pointerId: 1,
