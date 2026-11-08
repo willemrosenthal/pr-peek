@@ -1,9 +1,9 @@
 import type { Logger } from "pino";
-import { awakeAdmins, pushToAdmins } from "./admin-push";
+import { awakeAdmins, pushToAdmins, type Admin } from "./admin-push";
 import { decrypt } from "./crypto";
 import type { Db } from "./db";
 import { keysOf, type TokenKeys } from "./github/tokens";
-import type { SendPush } from "./push";
+import type { PushDeps, SendPush } from "./push";
 import { dueUsers, SYNCING_USERS } from "./sync-schedule";
 import { MINUTE_MS } from "./sync-timing";
 
@@ -132,17 +132,30 @@ export async function checkHealth(
   if (awake.length === 0) return [];
 
   const sent: AlertKind[] = [];
-  for (const { kind, body } of alerts) {
-    if (!(await claimAlert(db, kind, now))) continue;
-    await pushToAdmins(
-      { ...deps, send },
-      awake,
-      { title: "Git Buddy needs a look", body, url: "/", tag: `alert-${kind}` },
-      now,
-    );
-    sent.push(kind);
+  for (const alert of alerts) {
+    if (await sendAlert({ ...deps, send }, awake, alert, now)) {
+      sent.push(alert.kind);
+    }
   }
   return sent;
+}
+
+// Pushes an alert to the admins awake now, at most once a day for each kind. Returns
+// whether it went out.
+async function sendAlert(
+  deps: PushDeps,
+  awake: Admin[],
+  { kind, body }: Alert,
+  now: Date,
+): Promise<boolean> {
+  if (!(await claimAlert(deps.db, kind, now))) return false;
+  await pushToAdmins(
+    deps,
+    awake,
+    { title: "Git Buddy needs a look", body, url: "/", tag: `alert-${kind}` },
+    now,
+  );
+  return true;
 }
 
 // Decrypts one stored token, to catch a wrong TOKEN_ENC_KEY right after a deploy. With
@@ -173,15 +186,13 @@ export async function checkTokenKey(
     );
     if (!send) return false;
     const awake = await awakeAdmins(db, logger, now);
-    if (awake.length > 0 && (await claimAlert(db, "key", now))) {
-      await pushToAdmins(
+    if (awake.length > 0) {
+      await sendAlert(
         { ...deps, send },
         awake,
         {
-          title: "Git Buddy needs a look",
+          kind: "key",
           body: "The encryption key can't read the stored GitHub tokens, so syncs fail. Check TOKEN_ENC_KEY in Render.",
-          url: "/",
-          tag: "alert-key",
         },
         now,
       );

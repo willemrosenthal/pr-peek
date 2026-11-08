@@ -1,4 +1,10 @@
-import { EXPIRING_DAYS, isQuiet, type PushPayload } from "@pr-peek/core";
+import {
+  daysLeft,
+  EXPIRING_DAYS,
+  isQuiet,
+  plural,
+  type PushPayload,
+} from "@pr-peek/core";
 import type { Logger } from "pino";
 import type { Db } from "./db";
 import {
@@ -17,17 +23,12 @@ export interface TokenReminderDeps {
   logger: Logger;
 }
 
-const plural = (count: number, word: string) =>
-  `${count} ${word}${count === 1 ? "" : "s"}`;
-
 // What a reminder says: a token about to expire, or one that stopped.
 function reminderFor(
   token: { id: string; name: string; status: string; expiresAt: Date | null },
   now: Date,
 ): PushPayload {
-  const days = token.expiresAt
-    ? Math.ceil((token.expiresAt.getTime() - now.getTime()) / DAY_MS)
-    : 0;
+  const days = token.expiresAt ? daysLeft(token.expiresAt, now) : 0;
   const body =
     token.status === "stopped"
       ? `Your ${token.name} token stopped working. Its repos sync with another token or your GitHub sign in for now. Replace it in Settings.`
@@ -42,9 +43,9 @@ function reminderFor(
   };
 }
 
-// Pushes, once each per token: when it expires within EXPIRING_DAYS, and when it stopped
-// working. A user in their quiet hours gets theirs after. Run every hour. Returns how
-// many went out.
+// Pushes, once each per token: when it expires within EXPIRING_DAYS, and on the day it
+// stopped working. A user in their quiet hours gets theirs after. Run every hour. Returns
+// how many went out.
 export async function sendTokenReminders(
   deps: TokenReminderDeps,
   now: Date,
@@ -59,7 +60,12 @@ export async function sendTokenReminders(
           expiryRemindedAt: null,
           expiresAt: { lte: new Date(now.getTime() + EXPIRING_DAYS * DAY_MS) },
         },
-        { status: "stopped", stopRemindedAt: null },
+        // On the day it stops, so a user who gets a device later isn't told of old ones.
+        {
+          status: "stopped",
+          stopRemindedAt: null,
+          stoppedAt: { gte: new Date(now.getTime() - DAY_MS) },
+        },
       ],
       user: reachableUsers(now),
     },

@@ -58,6 +58,12 @@ it("pushes once when a token stops working", async () => {
   await addToken(db, user.id, "github_pat_stopped", {
     name: "acme",
     status: "stopped",
+    stoppedAt: hours(-1),
+  });
+  // Stopped days ago: the banner says so, but it's too late for a push.
+  await addToken(db, user.id, "github_pat_old", {
+    status: "stopped",
+    stoppedAt: hours(-48),
   });
   const { send, run } = setup();
 
@@ -74,7 +80,10 @@ it("waits out the user's quiet hours", async () => {
     where: { userId: user.id },
     data: { quietStart: "11:00", quietEnd: "13:00" },
   });
-  await addToken(db, user.id, "github_pat_stopped", { status: "stopped" });
+  await addToken(db, user.id, "github_pat_stopped", {
+    status: "stopped",
+    stoppedAt: NOW,
+  });
   const { run } = setup();
 
   expect(await run()).toBe(0);
@@ -83,6 +92,9 @@ it("waits out the user's quiet hours", async () => {
 
 it("sends nothing when push is off", async () => {
   const user = await makeUser();
-  await addToken(db, user.id, "github_pat_stopped", { status: "stopped" });
+  await addToken(db, user.id, "github_pat_stopped", {
+    status: "stopped",
+    stoppedAt: NOW,
+  });
   expect(await sendTokenReminders({ db, send: null, logger }, NOW)).toBe(0);
 });

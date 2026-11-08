@@ -1,19 +1,14 @@
 import {
+  daysLeft,
   EXPIRING_DAYS,
+  plural,
   type TokenDto,
   type TokenKind,
   type TokensResponse,
 } from "@pr-peek/core";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 export const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
-
-export const daysLeft = (iso: string, now = Date.now()) =>
-  Math.ceil((Date.parse(iso) - now) / DAY_MS);
-
-export const plural = (count: number, word: string) =>
-  `${count} ${word}${count === 1 ? "" : "s"}`;
 
 // How many watched repos have one of `owners`. Logins ignore case on GitHub.
 export function watchedReposOf(
