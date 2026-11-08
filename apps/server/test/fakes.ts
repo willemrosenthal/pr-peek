@@ -68,5 +68,8 @@ export function fakeOAuth(overrides: Partial<GitHubOAuth> = {}) {
     tokenOwners: vi.fn<GitHubOAuth["tokenOwners"]>(
       overrides.tokenOwners ?? (() => Promise.resolve(["acme"])),
     ),
+    revokeGrant: vi.fn<GitHubOAuth["revokeGrant"]>(
+      overrides.revokeGrant ?? (() => Promise.resolve()),
+    ),
   };
 }

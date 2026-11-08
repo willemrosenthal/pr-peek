@@ -20,7 +20,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 
 1. **Limits and security** (10.3, the Pro limits): `feat(server): use Supabase Pro limits, rotate keys, and hide more in logs`.
 2. **Sign-up requests** (10.4): `feat(web): sign-up requests, approved from the admin page`. Has a migration.
-3. **Account controls** (10.2): `feat(web): delete my account, and clean up old data`.
+3. **Account controls** (10.2): `feat(web): delete my account, and clean up old data`. Open.
 4. **Privacy and the landing section** (10.1, 10.7): `feat(web): a privacy page, and a landing section on sign in`.
 5. **Monitoring** (10.5): `feat(server): Sentry, and an uptime check`. Needs accounts from you.
 
@@ -39,12 +39,14 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 
 ### 10.2 Account controls
 
-- [ ] Settings, General, "Delete my account":
+- [x] Settings, General, "Delete my account":
   1. Revoke the GitHub grant (`DELETE /applications/{client_id}/grant`).
   2. Delete all the user's rows.
   3. Destroy their sessions.
+  - As built (PR 3): `deleteAccount` in `account.ts`. It refreshes the sign in token if needed, then revokes the grant. If GitHub won't, it still deletes. Sessions on every device go, from the `session` table. The confirm says personal access tokens stay on GitHub, since only the user can delete those.
 - [x] ~~"Export my data" as JSON~~: dropped. See Decisions.
-- [ ] Clear old data on a schedule: resolved items after 30 days, notification logs after 30 days, closed PRs after 7 days.
+- [x] Clear old data on a schedule: resolved items after 30 days, closed PRs after 7 days. Push logs go with their items. Logs of open items stay, since reminders check them so each stage pushes once.
+  - As built: `cleanup.ts`, run by the worker's hourly job. "Closed PRs" uses the rule each sync already uses for its own user (`unseenPrs`): no search found it for 7 days and nothing is open, keeping important PRs. This also covers users who stopped syncing.
 
 ### 10.3 Security review
 
@@ -67,7 +69,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
   - [x] A waiting user sees "Your request is in", with Check again, Sign out, and Withdraw. Every other route answers 403 (code `pending`), and opening the app doesn't sync them.
   - [x] Each new request pushes to the admins who aren't in quiet hours.
   - [x] The admin page lists waiting requests, with Approve and Decline. Declining or withdrawing deletes the user.
-  - [ ] Declining and withdrawing delete our data, but don't revoke the GitHub grant yet. PR 3's "Delete my account" adds that, for all three.
+  - [x] Declining and withdrawing delete our data, but don't revoke the GitHub grant yet. PR 3's "Delete my account" adds that, for all three. Done: all three use `deleteAccount`.
 
 ### 10.5 Monitoring
 

@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GIVE_UP_MS, POLL_MS } from "../../hooks/useSync";
@@ -89,6 +89,44 @@ it("signs out and goes to sign in", async () => {
 
   await userEvent.click(
     await screen.findByRole("button", { name: "Sign out" }),
+  );
+  await screen.findByRole("link", { name: "Sign in with GitHub" });
+  expect(router.state.location.pathname).toBe("/signin");
+});
+
+it("asks before deleting the account, then deletes it and goes to sign in", async () => {
+  let signedIn = true;
+  const fetch = fakeApi(
+    signedInApi({
+      "GET /api/me": () => (signedIn ? json(me()) : signedOut()),
+      "DELETE /api/me": () => {
+        signedIn = false;
+        return noContent();
+      },
+    }),
+  );
+  const { router } = renderApp("/settings");
+
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Delete my account" }),
+  );
+  expect(screen.getByRole("alert").textContent).toContain(
+    "Personal access tokens you made stay on GitHub.",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Keep my account" }),
+  );
+  expect(
+    callsTo(fetch, "/api/me").filter((c) => c[1]?.method === "DELETE"),
+  ).toEqual([]);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Delete my account" }),
+  );
+  await userEvent.click(
+    within(screen.getByRole("alert")).getByRole("button", {
+      name: "Delete my account",
+    }),
   );
   await screen.findByRole("link", { name: "Sign in with GitHub" });
   expect(router.state.location.pathname).toBe("/signin");

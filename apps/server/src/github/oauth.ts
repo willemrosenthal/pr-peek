@@ -49,6 +49,8 @@ export interface GitHubOAuth {
   checkToken(token: string): Promise<CheckedToken>;
   // The owners of a personal access token's private repos (see listTokenOwners).
   tokenOwners(token: string): Promise<string[]>;
+  // Takes back the user's grant of Git Buddy on GitHub, so it can't act for them.
+  revokeGrant(accessToken: string): Promise<void>;
 }
 
 // GitHub said no: a bad or expired code or refresh token. The user has to sign in again.
@@ -183,6 +185,28 @@ export function createGitHubOAuth(options: Options): GitHubOAuth {
       const res = await fetchUser(accessToken);
       if (!res.ok) throw new Error(`GitHub user request failed: ${res.status}`);
       return toGitHubUser((await res.json()) as UserResponse);
+    },
+
+    async revokeGrant(accessToken) {
+      const basic = Buffer.from(
+        `${options.clientId}:${options.clientSecret}`,
+      ).toString("base64");
+      const res = await request(
+        `https://api.github.com/applications/${options.clientId}/grant`,
+        {
+          method: "DELETE",
+          headers: {
+            Accept: "application/vnd.github+json",
+            Authorization: `Basic ${basic}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ access_token: accessToken }),
+        },
+      );
+      // 404 or 422: the grant is gone already, or the token isn't valid.
+      if (!res.ok && res.status !== 404 && res.status !== 422) {
+        throw new Error(`GitHub grant revoke failed: ${res.status}`);
+      }
     },
 
     async tokenOwners(token) {

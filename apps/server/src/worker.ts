@@ -4,6 +4,7 @@ import { createDb, createPool } from "./db";
 import { getOctokit } from "./github/client";
 import { tokenKeys } from "./github/tokens";
 import { createGitHubOAuth } from "./github/oauth";
+import { cleanUpOldData } from "./cleanup";
 import { checkHealth, checkTokenKey } from "./health";
 import {
   createBoss,
@@ -148,6 +149,8 @@ await work(HEALTH_CHECK, scheduled, async () => {
   await checkHealth({ db, send, logger }, now);
   const reminded = await sendTokenReminders({ db, send, logger }, now);
   if (reminded > 0) logger.info({ reminded }, "token reminders sent");
+  const deleted = await cleanUpOldData(db, now);
+  if (deleted.items + deleted.prs > 0) logger.info(deleted, "old data deleted");
 });
 
 const stopSavingUsage = usage.saveHourly(db, logger);

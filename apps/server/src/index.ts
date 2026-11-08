@@ -80,7 +80,7 @@ const app = createApp({
     authRouter({
       db,
       oauth,
-      key: config.TOKEN_ENC_KEY,
+      ...tokenKeys(config),
       appUrl: config.APP_URL,
       send,
       logger,
@@ -89,7 +89,7 @@ const app = createApp({
     reposRouter({ db, github }),
     // Before itemsRouter, whose sign in check covers all of /prs.
     previewRouter({ db, github }),
-    adminRouter({ db, logger, send }),
+    adminRouter({ db, logger, send, oauth, ...tokenKeys(config) }),
     addedPrsRouter({ db, github, requestSync }),
     itemsRouter({ db, requestSync }),
     settingsRouter({ db, requestSync }),
