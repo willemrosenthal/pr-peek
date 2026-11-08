@@ -15,6 +15,7 @@ import { userEvent } from "@testing-library/user-event";
 import { beforeAll, describe, expect, it } from "vitest";
 import { sectionOrder } from "../sections";
 import {
+  githubToken,
   apiError,
   callsTo,
   fakeApi,
@@ -871,9 +872,7 @@ describe("banners", () => {
     [{ me: me({ needsReauth: true }) }, "Reconnect GitHub"],
     [
       {
-        me: me({
-          githubToken: { expiresAt: null, scopes: [], invalid: true },
-        }),
+        me: me({ githubTokens: [githubToken({ status: "stopped" })] }),
       },
       "Add a new token",
     ],
@@ -1010,9 +1009,9 @@ describe("the header", () => {
         "GET /api/me": () =>
           json(
             me({
-              githubToken: invalid
-                ? { expiresAt: null, scopes: [], invalid: true }
-                : null,
+              githubTokens: [
+                githubToken({ status: invalid ? "stopped" : "working" }),
+              ],
             }),
           ),
         "POST /api/sync": () => {

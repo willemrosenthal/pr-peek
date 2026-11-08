@@ -18,7 +18,9 @@ export function Banners({
       </p>
     );
   }
-  if (me?.githubToken?.invalid) {
+  // Syncs wait for a new token only when none works.
+  const tokens = me?.githubTokens ?? [];
+  if (tokens.length > 0 && tokens.every((t) => t.status === "stopped")) {
     return (
       <p className={styles.banner} role="status">
         Your token stopped working, so syncs are paused.{" "}

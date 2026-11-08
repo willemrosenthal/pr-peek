@@ -79,7 +79,7 @@ describe("the GitHub callback", () => {
         login: "octocat",
         scopes: ["repo", "read:org", "notifications"],
       },
-      githubToken: null,
+      githubTokens: [],
       needsReauth: false,
     });
   });

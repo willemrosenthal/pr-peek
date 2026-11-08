@@ -1,0 +1,453 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.heading {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Permission and scope names, so they stand out from the gray steps. */
+.steps code {
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 85%;
+  white-space: nowrap;
+}
+
+.tokens {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.muted {
+  color: var(--color-text-secondary);
+}
+
+.saved {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.list > li + li {
+  border-top: 1px solid var(--color-divider);
+}
+
+.card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 14px;
+}
+
+.cardText {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.status {
+  font-weight: 600;
+}
+
+.workingText {
+  color: var(--color-success);
+}
+
+.expiringText {
+  color: var(--color-warning);
+}
+
+.stoppedText {
+  color: var(--color-danger);
+}
+
+.ownerRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) 14px;
+  overflow-wrap: anywhere;
+}
+
+.confirm {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pasteRow {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* 16px, so iPhones don't zoom in when it's tapped. */
+.tokenInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 16px;
+}
+
+.accepted {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+
+.accepted > strong {
+  color: var(--color-success);
+}
+
+.warning {
+  padding: var(--space-3) 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+/* Phones: cards stack with full-width buttons. */
+@media (max-width: 600px) {
+  .card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* Its width share would turn into a height in a column. */
+  .cardText {
+    flex: none;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  }
+
+  .header > button {
+    width: 100%;
+  }
+}
+
+/* The add a token sheet, slid up from the bottom like the PR preview. */
+.backdrop,
+.viewport {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+
+.backdrop {
+  min-height: 100dvh;
+  background: rgb(0 0 0 / 40%);
+  opacity: calc(1 - var(--drawer-swipe-progress, 0));
+  transition: opacity 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.backdrop[data-starting-style],
+.backdrop[data-ending-style] {
+  opacity: 0;
+}
+
+.viewport {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Most of a phone's screen, and up to 820px tall on a computer, so the steps have
+   room. The app's gray, so each step's white card stands out, like in Settings. */
+.sheet {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 680px;
+  height: min(820px, 90dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--color-page);
+  box-shadow:
+    0 0 0 1px var(--color-border),
+    var(--shadow-panel);
+  transform: translateY(var(--drawer-swipe-movement-y, 0));
+  transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sheet[data-starting-style],
+.sheet[data-ending-style] {
+  transform: translateY(100%);
+}
+
+.sheet[data-swiping] {
+  transition-duration: 0ms;
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-2) var(--space-5)
+    calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Shows it's a sheet that swipes down, like the PR preview's. */
+.handle {
+  align-self: center;
+  width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--color-border);
+}
+
+.sheetTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.sheetTop .heading {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.kindHint {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.stepCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: var(--space-4) 18px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.stepTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.stepNumber {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.linkIcon {
+  width: 16px;
+  height: 16px;
+  margin-left: var(--space-2);
+}
+
+.sheetActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  margin: calc(-1 * var(--space-2));
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.close svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Two buttons in a gray track, so they read as choices. */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+  padding: var(--space-1);
+  font-size: var(--text-lg);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 56px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .tab:not([data-active]):hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
+}
+
+/* The picked tab in the accent color, so it's plain which one is showing. */
+.tab[data-active] {
+  background: var(--color-accent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  color: var(--color-on-accent);
+}
+
+/* Both panels share one spot, and the hidden one keeps its space, so switching tabs
+   doesn't move the paste step up or down. Hidden still hides it from screen readers. */
+.panels {
+  display: grid;
+}
+
+.panels > * {
+  grid-area: 1 / 1;
+}
+
+.panels > [hidden] {
+  display: flex;
+  visibility: hidden;
+}
+
+.recommended {
+  padding: 0 6px;
+  line-height: 18px;
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  color: var(--color-success);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+/* Phones: the sheet takes most of the screen, and its buttons stack. */
+@media (max-width: 600px) {
+  .sheet {
+    height: 92dvh;
+  }
+
+  .sheetBody {
+    padding-right: var(--space-4);
+    padding-left: var(--space-4);
+  }
+
+  .sheetActions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

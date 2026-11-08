@@ -1,6 +1,6 @@
 import { createDb, createPool, type Db } from "../src/db";
 import type { Prisma } from "../src/generated/prisma/client";
-import { encryptPersonalToken, savePersonalToken } from "../src/github/tokens";
+import { encryptPersonalToken } from "../src/github/tokens";
 import { TEST_KEY } from "./fakes";
 
 export const TEST_DATABASE_URL =
@@ -18,8 +18,7 @@ export async function resetDb(db: Db): Promise<void> {
   await db.$executeRaw`TRUNCATE "User", "session", "AdminAlert", "UsageStat" CASCADE`;
 }
 
-// Adds a personal access token next to the user's others. Saving one in Settings
-// replaces the last, until plan 20's settings page.
+// Adds a personal access token next to the user's others.
 export const addToken = (
   db: Db,
   userId: string,
@@ -35,15 +34,10 @@ export const addToken = (
     },
   });
 
-// Gives the user a personal access token, saved like adding one in Settings.
+// Gives the user a classic personal access token, with the repo scope.
 export const addPersonalToken = (
   db: Db,
   userId: string,
   token = "ghp_token",
   expiresAt: Date | null = null,
-) =>
-  savePersonalToken(
-    db,
-    userId,
-    encryptPersonalToken({ token, expiresAt, scopes: ["repo"] }, TEST_KEY),
-  );
+) => addToken(db, userId, token, { scopes: ["repo"], expiresAt });

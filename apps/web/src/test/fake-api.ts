@@ -15,6 +15,7 @@ import {
   type SignUpRequestDto,
   type SummaryResponse,
   type SyncStatusResponse,
+  type TokenDto,
   type UserSettingsDto,
   type WatchedRepoDto,
 } from "@pr-peek/core";
@@ -314,6 +315,7 @@ export const signedInApi = (overrides: Handlers = {}): Handlers => ({
   "GET /api/settings": () => json(settingsResponse()),
   "POST /api/desktop/heartbeat": () => noContent(),
   "GET /api/github/owners": () => json(repoOwners()),
+  "GET /api/github-tokens": () => json({ tokens: [], syncedBy: [] }),
   ...overrides,
 });
 
@@ -360,6 +362,18 @@ export const listApi = (overrides: Handlers = {}): Handlers => ({
   ...overrides,
 });
 
+export const githubToken = (fields: Partial<TokenDto> = {}): TokenDto => ({
+  id: "t1",
+  name: "acme",
+  kind: "fine_grained",
+  owners: ["acme"],
+  scopes: [],
+  expiresAt: null,
+  status: "working",
+  createdAt: "2026-11-01T12:00:00.000Z",
+  ...fields,
+});
+
 export const me = (
   fields: Partial<Omit<MeResponse, "user">> = {},
 ): MeResponse => ({
@@ -370,7 +384,6 @@ export const me = (
     avatarUrl: null,
     scopes: ["repo", "read:org"],
   },
-  githubToken: null,
   githubTokens: [],
   needsReauth: false,
   isAdmin: false,

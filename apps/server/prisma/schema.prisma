@@ -93,11 +93,6 @@ model User {
   refreshTokenEnc       String?
   refreshTokenExpiresAt DateTime?
   tokenScopes           String[]
-  // Unused since plan 20 moved tokens to GitHubToken, and no longer written. Drop them in
-  // a later release.
-  patEnc                String?
-  patExpiresAt          DateTime?
-  patScopes             String[]
   lastSyncedAt          DateTime?
   syncError             SyncError?
   // Failed syncs in a row, and when to try again (see sync-schedule.ts).

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { RequestError } from "octokit";
-import { MAX_TOKENS, type GitHubTokenDto, type TokenDto } from "@pr-peek/core";
+import { MAX_TOKENS, type TokenDto } from "@pr-peek/core";
 import type { Config } from "../config";
 import { decrypt, encrypt } from "../crypto";
 import type { Db } from "../db";
@@ -183,37 +183,6 @@ async function chosenToken(
   );
 }
 
-// Saves the user's personal access token in place of any they had. For the old
-// /github-token routes, until plan 20's settings page replaces them.
-export function savePersonalToken(
-  db: Db,
-  userId: string,
-  token: ReturnType<typeof encryptPersonalToken>,
-  userData: Prisma.UserUpdateInput = {},
-): Promise<GitHubToken> {
-  return db.$transaction(async (tx) => {
-    await lockUser(tx, userId);
-    await tx.gitHubToken.deleteMany({ where: { userId } });
-    const saved = await tx.gitHubToken.create({
-      data: { userId, name: "Personal access token", ...token },
-    });
-    await tx.user.update({ where: { id: userId }, data: userData });
-    return saved;
-  });
-}
-
-// Removes the user's personal access tokens.
-export async function removePersonalTokens(
-  db: Db,
-  userId: string,
-  userData: Prisma.UserUpdateInput = {},
-): Promise<void> {
-  await db.$transaction([
-    db.gitHubToken.deleteMany({ where: { userId } }),
-    db.user.update({ where: { id: userId }, data: userData }),
-  ]);
-}
-
 // What the API shows about a token. Never the token itself.
 const DTO_FIELDS = {
   id: true,
@@ -336,19 +305,6 @@ export async function removeToken(
       });
     }
   });
-}
-
-// What the app shows about the user's personal access token. Null when they have none.
-export function personalTokenDto(
-  token: Pick<GitHubToken, "expiresAt" | "scopes"> | null,
-  syncError: SyncError | null,
-): GitHubTokenDto | null {
-  if (!token) return null;
-  return {
-    expiresAt: token.expiresAt?.toISOString() ?? null,
-    scopes: token.scopes,
-    invalid: syncError === "token",
-  };
 }
 
 // GitHub rejected a token. Marks that personal access token stopped (`tokenId`; null for
@@ -518,7 +474,6 @@ export async function reencryptTokens(
       OR: [
         { accessTokenEnc: { not: null } },
         { refreshTokenEnc: { not: null } },
-        { patEnc: { not: null } },
         { githubTokens: { some: {} } },
       ],
     },
@@ -532,7 +487,7 @@ export async function reencryptTokens(
       await lockUser(tx, id);
       const user = await tx.user.findUnique({
         where: { id },
-        select: { accessTokenEnc: true, refreshTokenEnc: true, patEnc: true },
+        select: { accessTokenEnc: true, refreshTokenEnc: true },
       });
       // Deleted meanwhile.
       if (!user) return;
@@ -551,7 +506,6 @@ export async function reencryptTokens(
         data: {
           accessTokenEnc: again(user.accessTokenEnc),
           refreshTokenEnc: again(user.refreshTokenEnc),
-          patEnc: again(user.patEnc),
         },
       });
       saved++;

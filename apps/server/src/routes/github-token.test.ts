@@ -53,87 +53,33 @@ async function setup(checkToken?: GitHubOAuth["checkToken"]) {
   return app;
 }
 
-const putToken = (agent: Agent, token = "ghp_token") =>
-  agent.put("/api/github-token").set("Origin", APP_URL).send({ token });
-const deleteToken = (agent: Agent) =>
-  agent.delete("/api/github-token").set("Origin", APP_URL);
 const user = () => db.user.findFirstOrThrow();
-const token = () => db.gitHubToken.findFirstOrThrow();
+const check = (agent: Agent, token = "ghp_token") =>
+  agent.post("/api/github-tokens/check").set("Origin", APP_URL).send({ token });
 
 it("needs sign in", async () => {
   const { agent, oauth } = makeApp();
-  expect((await putToken(agent)).status).toBe(401);
-  expect((await deleteToken(agent)).status).toBe(401);
+  expect((await agent.get("/api/github-tokens")).status).toBe(401);
+  expect((await check(agent)).status).toBe(401);
   expect(oauth.checkToken).not.toHaveBeenCalled();
 });
 
-describe("PUT /api/github-token", () => {
-  it("adds the token, encrypted, next to the GitHub sign in", async () => {
-    const { agent, oauth } = await setup();
-    const res = await putToken(agent, "  ghp_token  ");
-
-    expect(res.status).toBe(200);
-    const githubToken = {
-      expiresAt: hours(24 * 30).toISOString(),
-      scopes: ["repo", "read:org"],
-      invalid: false,
-    };
-    expect(res.body).toEqual({ githubToken });
-    expect(oauth.checkToken).toHaveBeenCalledWith("ghp_token");
-
-    const saved = await token();
-    expect(saved.tokenEnc).not.toContain("ghp_token");
-    expect(decrypt(saved.tokenEnc, TEST_KEY)).toBe("ghp_token");
-    expect(saved).toMatchObject({ kind: "classic", status: "working" });
-    // The sign in token stays.
-    expect(decrypt((await user()).accessTokenEnc ?? "", TEST_KEY)).toBe(
-      "ghu_access",
-    );
-    const me = bodyOf<MeResponse>(await agent.get("/api/me"));
-    expect(me.githubToken).toEqual(githubToken);
-  });
-
-  it("replaces the token the user had", async () => {
-    const { agent } = await setup();
-    await putToken(agent, "ghp_first");
-    await putToken(agent, "github_pat_second");
-
-    const tokens = await db.gitHubToken.findMany();
-    expect(tokens).toHaveLength(1);
-    expect(decrypt(tokens[0]!.tokenEnc, TEST_KEY)).toBe("github_pat_second");
-    expect(tokens[0]!.kind).toBe("fine_grained");
-  });
-
-  it("restarts syncs that were stopped", async () => {
-    const { agent } = await setup();
-    await db.user.updateMany({
-      data: { syncError: "token", syncFailures: 2, syncRetryAt: hours(1) },
-    });
-    await putToken(agent);
-    expect(await user()).toMatchObject({
-      syncError: null,
-      syncFailures: 0,
-      syncRetryAt: null,
-    });
-  });
-
-  it("rejects a token from another GitHub account", async () => {
+// Checking, adding, and replacing all check the pasted token the same way.
+describe("a pasted token", () => {
+  it("is refused when it's from another GitHub account", async () => {
     const { agent } = await setup(
       tokenIs({ user: githubUser({ id: 99, login: "someone-else" }) }),
     );
-    const res = await putToken(agent);
-
+    const res = await check(agent);
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: { code: "wrong_account" } });
-    expect(await db.gitHubToken.count()).toBe(0);
   });
 
-  it("rejects a token GitHub doesn't accept", async () => {
+  it("is refused when GitHub doesn't accept it", async () => {
     const { agent } = await setup(() =>
       Promise.reject(new GitHubAuthError("bad_token", "Bad credentials")),
     );
-    const res = await putToken(agent);
-
+    const res = await check(agent);
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: { code: "bad_token" } });
   });
@@ -144,21 +90,13 @@ describe("PUT /api/github-token", () => {
     [["read:org"], 400],
   ])("with scopes %o answers %i", async (scopes, status) => {
     const { agent } = await setup(tokenIs({ scopes }));
-    expect((await putToken(agent)).status).toBe(status);
+    expect((await check(agent)).status).toBe(status);
   });
 
-  it("accepts a fine-grained token, which has no scopes", async () => {
-    const { agent } = await setup(tokenIs({ scopes: null, expiresAt: null }));
-    const res = await putToken(agent, "github_pat_token");
-    expect(res.body).toEqual({
-      githubToken: { expiresAt: null, scopes: [], invalid: false },
-    });
-  });
-
-  it("rejects input that isn't a token, without asking GitHub", async () => {
+  it("isn't asked about when it doesn't look like a token", async () => {
     const { agent, oauth } = await setup();
     for (const token of ["", "has spaces in it", "x".repeat(256)]) {
-      const res = await putToken(agent, token);
+      const res = await check(agent, token);
       expect(res.body).toMatchObject({ error: { code: "invalid_input" } });
     }
     expect(oauth.checkToken).not.toHaveBeenCalled();
@@ -167,45 +105,21 @@ describe("PUT /api/github-token", () => {
   it("is blocked from other sites", async () => {
     const { agent, oauth } = await setup();
     const res = await agent
-      .put("/api/github-token")
+      .post("/api/github-tokens/check")
       .set("Origin", "https://evil.example")
       .send({ token: "ghp_token" });
     expect(res.status).toBe(403);
     expect(oauth.checkToken).not.toHaveBeenCalled();
   });
 
-  it("slows down too many attempts", async () => {
+  it("is checked at most 30 times in a row", async () => {
     const { agent } = await setup();
-    for (let i = 0; i < 30; i++) await putToken(agent);
-    expect((await putToken(agent)).status).toBe(429);
-  });
-});
-
-describe("DELETE /api/github-token", () => {
-  it("removes the token and its error", async () => {
-    const { agent } = await setup();
-    await putToken(agent);
-    await db.user.updateMany({ data: { syncError: "token" } });
-
-    expect((await deleteToken(agent)).status).toBe(204);
-    expect(await db.gitHubToken.count()).toBe(0);
-    expect((await user()).syncError).toBeNull();
-    const me = bodyOf<MeResponse>(await agent.get("/api/me"));
-    expect(me.githubToken).toBeNull();
-  });
-
-  it("keeps other sync errors", async () => {
-    const { agent } = await setup();
-    await putToken(agent);
-    await db.user.updateMany({ data: { syncError: "failed" } });
-    await deleteToken(agent);
-    expect((await user()).syncError).toBe("failed");
+    for (let i = 0; i < 30; i++) await check(agent);
+    expect((await check(agent)).status).toBe(429);
   });
 });
 
 // The routes for several tokens.
-const checkToken = (agent: Agent, token: string) =>
-  agent.post("/api/github-tokens/check").set("Origin", APP_URL).send({ token });
 const addToken = (agent: Agent, token: string, name?: string) =>
   agent
     .post("/api/github-tokens")
@@ -261,8 +175,8 @@ describe("GET /api/github-tokens", () => {
       }),
     ]);
     expect(res.syncedBy).toEqual([
-      { owner: "acme", tokenId: id },
-      { owner: "globex", tokenId: null },
+      { owner: "acme", repos: 1, tokenId: id },
+      { owner: "globex", repos: 1, tokenId: null },
     ]);
   });
 });
@@ -270,7 +184,7 @@ describe("GET /api/github-tokens", () => {
 describe("POST /api/github-tokens/check", () => {
   it("says what a token reaches, without saving it", async () => {
     const { agent } = await setupWith(fineGrained(["acme"]));
-    const res = await checkToken(agent, "github_pat_acme");
+    const res = await check(agent, "github_pat_acme");
 
     expect(res.status).toBe(200);
     expect(bodyOf<CheckTokenResponse>(res)).toEqual({
@@ -291,7 +205,7 @@ describe("POST /api/github-tokens/check", () => {
       await addToken(agent, "github_pat_one"),
     );
     const res = bodyOf<CheckTokenResponse>(
-      await checkToken(agent, "github_pat_two"),
+      await check(agent, "github_pat_two"),
     );
     expect(res.sameOwnersAs).toBe(first.token.id);
   });
@@ -299,7 +213,7 @@ describe("POST /api/github-tokens/check", () => {
   it("says when it reaches no watched repo", async () => {
     const { agent } = await setupWith(fineGrained(["initech"]));
     const res = bodyOf<CheckTokenResponse>(
-      await checkToken(agent, "github_pat_initech"),
+      await check(agent, "github_pat_initech"),
     );
     expect(res.reachesWatched).toBe(false);
   });
@@ -307,7 +221,7 @@ describe("POST /api/github-tokens/check", () => {
   it("says when the token is already added", async () => {
     const { agent } = await setupWith(fineGrained(["acme"]));
     await addToken(agent, "github_pat_acme");
-    const res = await checkToken(agent, "github_pat_acme");
+    const res = await check(agent, "github_pat_acme");
     expect(res.status).toBe(409);
     expect(res.body).toMatchObject({ error: { code: "already_added" } });
   });
