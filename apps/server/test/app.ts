@@ -27,6 +27,7 @@ export function makeTestApp(
     version: "test",
     checkDb: () => Promise.resolve(),
     appUrl: APP_URL,
+    trustProxyHops: 1,
     session: sessionMiddleware({ secret: "x".repeat(32), secure: false }),
     routers: [
       authRouter({

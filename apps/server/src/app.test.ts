@@ -17,6 +17,7 @@ function makeApp(overrides: Partial<AppDeps> = {}) {
     version: "test",
     checkDb: () => Promise.resolve(),
     appUrl: APP_URL,
+    trustProxyHops: 1,
     session: sessionMiddleware({ secret: "x".repeat(32), secure: false }),
     ...overrides,
   });
@@ -26,19 +27,14 @@ it("reads the user's IP past TRUST_PROXY_HOPS proxies", async () => {
   const ipRouter = express.Router().get("/ip", (req, res) => {
     res.json({ ip: req.ip });
   });
-  const ipWith = async (trustProxyHops?: number) =>
+  const ipWith = async (trustProxyHops: number) =>
     (
-      await request(
-        makeApp({
-          routers: [ipRouter],
-          ...(trustProxyHops !== undefined && { trustProxyHops }),
-        }),
-      )
+      await request(makeApp({ routers: [ipRouter], trustProxyHops }))
         .get("/api/ip")
         .set("X-Forwarded-For", "203.0.113.7, 10.0.0.2")
     ).body as { ip: string };
 
-  expect(await ipWith()).toEqual({ ip: "10.0.0.2" });
+  expect(await ipWith(1)).toEqual({ ip: "10.0.0.2" });
   expect(await ipWith(2)).toEqual({ ip: "203.0.113.7" });
 });
 

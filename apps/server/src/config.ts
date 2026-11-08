@@ -49,9 +49,10 @@ const schema = z
         .string()
         .regex(/^(mailto:|https:)/, "Must start with mailto: or https:"),
     ),
-    // Proxies between users and us, so rate limits see each user's real IP. Check with
-    // GET /api/admin/ip (see docs/security.md, "Rate limits and IPs").
-    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(1),
+    // Proxies between users and us, so rate limits see each user's real IP. On Render,
+    // 2: Cloudflare, then Render's own. Check with GET /api/admin/ip (see
+    // docs/security.md, "Rate limits and IPs").
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(2),
     // Set by Render on every deploy.
     RENDER_GIT_COMMIT: z.string().optional(),
   })
