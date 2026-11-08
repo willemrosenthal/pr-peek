@@ -8,7 +8,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { queryKeys } from "../queries";
-import { formatDate, plural, watchedReposOf } from "../tokens";
+import { formatDate, kindLabel, reachText } from "../tokens";
 import { Alert } from "./Alert";
 import { Button, ButtonLink } from "./Button";
 import { Input, TextField } from "./Field";
@@ -88,9 +88,12 @@ export function AddToken({
     e.preventDefault();
     check.mutate();
   };
-  const paste = async () => {
-    setToken((await navigator.clipboard.readText()).trim());
-  };
+  // The browser may refuse. Then the field still takes a normal paste.
+  const paste = () =>
+    navigator.clipboard.readText().then(
+      (text) => setToken(text.trim()),
+      () => {},
+    );
 
   return (
     <section
@@ -164,24 +167,12 @@ export function AddToken({
           <div className={styles.accepted} role="status">
             <strong>GitHub accepted it.</strong>
             <span>
-              {checked.kind === "classic" ? "Classic" : "Fine-grained"}.{" "}
+              {kindLabel(checked.kind)}.{" "}
               {checked.expiresAt
                 ? `Expires ${formatDate(checked.expiresAt)}.`
                 : "Never expires."}
             </span>
-            <span>
-              {checked.kind === "classic" ? (
-                "It reaches every repo your account can see."
-              ) : checked.owners.length > 0 ? (
-                <>
-                  It reaches <strong>{checked.owners.join(", ")}</strong>:{" "}
-                  {plural(watchedReposOf(syncedBy, checked.owners), "repo")} you
-                  watch.
-                </>
-              ) : (
-                "It reaches no private repos."
-              )}
-            </span>
+            <span>It reaches {reachText(checked, syncedBy)}.</span>
           </div>
           {!checked.reachesWatched && (
             <p className={styles.warning}>

@@ -1,4 +1,4 @@
-import type { TokenDto, TokensResponse } from "@pr-peek/core";
+import type { TokenDto, TokenKind, TokensResponse } from "@pr-peek/core";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A token this close to expiring offers Replace, like one that stopped.
@@ -22,6 +22,20 @@ export function watchedReposOf(
   return syncedBy
     .filter((row) => wanted.has(row.owner.toLowerCase()))
     .reduce((sum, row) => sum + row.repos, 0);
+}
+
+export const kindLabel = (kind: TokenKind) =>
+  kind === "classic" ? "Classic" : "Fine-grained";
+
+// What a token reaches, to follow "Covers" or "It reaches".
+export function reachText(
+  token: { kind: TokenKind | null; owners: string[] },
+  syncedBy: TokensResponse["syncedBy"],
+) {
+  if (token.kind === "classic") return "every repo your account can see";
+  if (token.owners.length === 0) return "no private repos";
+  const repos = plural(watchedReposOf(syncedBy, token.owners), "repo");
+  return `${token.owners.join(", ")}: ${repos} you watch`;
 }
 
 // How many watched repos a token syncs now.

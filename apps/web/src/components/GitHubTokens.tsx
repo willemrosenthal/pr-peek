@@ -7,10 +7,11 @@ import { queryKeys, useGitHubTokens } from "../queries";
 import {
   daysLeft,
   formatDate,
+  kindLabel,
   plural,
+  reachText,
   reposSyncedBy,
   stateOf,
-  watchedReposOf,
 } from "../tokens";
 import { AddToken } from "./AddToken";
 import { Alert } from "./Alert";
@@ -124,6 +125,13 @@ export function GitHubTokens() {
   );
 }
 
+function expiringText(expiresAt: string) {
+  const days = daysLeft(expiresAt);
+  return days > 0
+    ? `Expires in ${plural(days, "day")}. Replace it to keep syncing.`
+    : "Expired. Replace it to keep syncing.";
+}
+
 function TokenCard({
   token,
   syncedBy,
@@ -146,12 +154,6 @@ function TokenCard({
   const state = stateOf(token);
   // The watched repos it syncs now, which move to another token or the sign in.
   const syncing = reposSyncedBy(syncedBy, token.id);
-  const covers =
-    token.kind === "classic"
-      ? "Covers every repo your account can see."
-      : token.owners.length > 0
-        ? `Covers ${token.owners.join(", ")}: ${plural(watchedReposOf(syncedBy, token.owners), "repo")} you watch.`
-        : "Reaches no private repos.";
   const expires = token.expiresAt
     ? `Expires ${formatDate(token.expiresAt)}.`
     : "Never expires.";
@@ -162,19 +164,17 @@ function TokenCard({
         <span className={styles.cardTitle}>
           <strong>{token.name}</strong>
           {token.kind && (
-            <span className={styles.badge}>
-              {token.kind === "classic" ? "Classic" : "Fine-grained"}
-            </span>
+            <span className={styles.badge}>{kindLabel(token.kind)}</span>
           )}
         </span>
         <span className={styles.muted}>
-          {covers} {expires}
+          Covers {reachText(token, syncedBy)}. {expires}
         </span>
         <span className={cx(styles.status, styles[`${state}Text`])}>
           {state === "stopped"
             ? "Stopped working. It may have expired, or been revoked. Its repos sync with another token or your GitHub sign in for now."
             : state === "expiring"
-              ? `Expires in ${plural(Math.max(daysLeft(token.expiresAt!), 0), "day")}. Replace it to keep syncing.`
+              ? expiringText(token.expiresAt!)
               : "Working."}
         </span>
       </div>
