@@ -40,14 +40,16 @@ export function GeneralTab() {
   const settings = useSettings();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  // After signing out or deleting the account: nothing of theirs stays on this device.
+  const leave = async () => {
+    queryClient.clear();
+    void setBadge(0);
+    clearTrayState();
+    await navigate("/signin", { replace: true });
+  };
   const signOut = useMutation({
     mutationFn: () => api("/auth/signout", { method: "POST" }),
-    onSuccess: async () => {
-      queryClient.clear();
-      void setBadge(0);
-      clearTrayState();
-      await navigate("/signin", { replace: true });
-    },
+    onSuccess: leave,
   });
 
   return (
@@ -89,8 +91,46 @@ export function GeneralTab() {
           Sign out
         </Button>
       </div>
+      <DeleteAccount onDeleted={leave} />
       <AppVersion />
     </>
+  );
+}
+
+// Deletes everything Git Buddy keeps about the user, after asking.
+function DeleteAccount({ onDeleted }: { onDeleted: () => Promise<void> }) {
+  const [asking, setAsking] = useState(false);
+  const remove = useMutation({
+    mutationFn: () => api("/me", { method: "DELETE" }),
+    onSuccess: onDeleted,
+  });
+  if (!asking) {
+    return (
+      <div>
+        <Button onClick={() => setAsking(true)}>Delete my account</Button>
+      </div>
+    );
+  }
+  return (
+    <div className={styles.confirm} role="alert">
+      <p>
+        Delete your account? Git Buddy deletes everything it keeps about you,
+        signs you out everywhere, and gives up its access to your GitHub
+        account. Personal access tokens you made stay on GitHub. Delete them
+        there if you like.
+      </p>
+      {remove.isError && <Alert>{remove.error.message}</Alert>}
+      <div className={styles.confirmActions}>
+        <Button onClick={() => setAsking(false)}>Keep my account</Button>
+        <Button
+          variant="primary"
+          onClick={() => remove.mutate()}
+          disabled={remove.isPending}
+        >
+          {remove.isPending ? "Deleting" : "Delete my account"}
+        </Button>
+      </div>
+    </div>
   );
 }
 

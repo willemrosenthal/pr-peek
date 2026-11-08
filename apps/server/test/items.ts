@@ -78,6 +78,7 @@ export function itemRows(db: Db) {
         | "waitingSince"
         | "waitingOnAuthor"
         | "status"
+        | "resolvedAt"
         | "seenAt"
         | "latestEventId"
       >

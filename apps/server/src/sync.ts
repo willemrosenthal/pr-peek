@@ -2,7 +2,7 @@ import { assignedState, lastPushSha, type PrSnapshot } from "@pr-peek/core";
 import { RequestError, type Octokit } from "octokit";
 import type { GitHubFor } from "./github/client";
 import type { Db } from "./db";
-import type { PrState } from "./generated/prisma/client";
+import type { PrState, Prisma } from "./generated/prisma/client";
 import { fetchPrDetails, type PrDetails } from "./github/pull-details";
 import {
   fetchPrStatuses,
@@ -27,6 +27,15 @@ import { quietPrs, wakeQuietPrs } from "./quiet";
 
 // PRs with no open items that no search has found for this long are deleted.
 export const KEEP_UNSEEN_MS = 7 * 24 * 60 * 60 * 1000;
+
+// PRs to delete: none of their items are open, and no search has found them for
+// KEEP_UNSEEN_MS. Important PRs stay while open, and once merged, until unmarked.
+export const unseenPrs = (now: Date) =>
+  ({
+    lastSeenAt: { lt: new Date(now.getTime() - KEEP_UNSEEN_MS) },
+    items: { none: { status: "open" } },
+    NOT: { importantAt: { not: null }, state: { in: ["open", "merged"] } },
+  }) satisfies Prisma.PullRequestWhereInput;
 // How often a found PR's `lastSeenAt` moves forward, at most.
 const LAST_SEEN_EVERY_MS = 60 * 60 * 1000;
 // `githubUpdatedAt` for a PR added by its link and not synced yet. Older than any real
@@ -563,13 +572,7 @@ export async function syncUser(
   }, ITEMS_TX);
 
   const { count: deleted } = await db.pullRequest.deleteMany({
-    where: {
-      userId,
-      lastSeenAt: { lt: new Date(now.getTime() - KEEP_UNSEEN_MS) },
-      items: { none: { status: "open" } },
-      // Important PRs stay while open, and once merged, until the user unmarks them.
-      NOT: { importantAt: { not: null }, state: { in: ["open", "merged"] } },
-    },
+    where: { userId, ...unseenPrs(now) },
   });
   await db.user.updateMany({
     where: { id: userId },

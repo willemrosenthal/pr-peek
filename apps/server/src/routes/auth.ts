@@ -15,7 +15,7 @@ import {
   type ScopeChoice,
 } from "../github/oauth";
 import { listTokens, tokenDto } from "../github/tokens";
-import { HttpError } from "../http-error";
+import { deleteAccount } from "../account";
 import type { SendPush } from "../push";
 import { attemptLimiter } from "../rate-limit";
 import {
@@ -30,6 +30,8 @@ export interface AuthDeps {
   db: Db;
   oauth: GitHubOAuth;
   key: Buffer;
+  // The key before `key`, while changing it (TOKEN_ENC_KEY_PREVIOUS).
+  previousKey?: Buffer | undefined;
   appUrl: string;
   // Null when push is off, because the VAPID keys aren't set.
   send: SendPush | null;
@@ -184,14 +186,10 @@ export function authRouter(deps: AuthDeps): Router {
     res.json(body);
   });
 
-  // Withdraws a waiting sign-up request: deletes the user, and signs them out. Plan 10
-  // PR 3 opens this to everyone, as "Delete my account".
+  // "Delete my account", or withdrawing a waiting sign-up request: takes back Git
+  // Buddy's grant on GitHub, deletes everything we have, and signs out everywhere.
   router.delete("/me", signedIn, async (req, res) => {
-    const user = currentUser(res);
-    if (user.approvedAt) {
-      throw new HttpError(409, "not_pending", "There's no request to withdraw");
-    }
-    await deps.db.user.deleteMany({ where: { id: user.id, approvedAt: null } });
+    await deleteAccount(deps, currentUser(res).id);
     await destroySession(req);
     res.clearCookie(SESSION_COOKIE);
     res.sendStatus(204);

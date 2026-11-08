@@ -295,12 +295,42 @@ describe("DELETE /api/me", () => {
     expect((await agent.get("/api/me")).status).toBe(401);
   });
 
-  it("leaves an approved user alone", async () => {
-    const { agent } = makeApp();
+  it("deletes an account: takes back the GitHub grant, and signs out everywhere", async () => {
+    const { agent, oauth } = makeApp();
     await signIn(agent);
+    const user = await db.user.findFirstOrThrow();
+    // Sessions saved like connect-pg-simple saves them: this user's other device, and
+    // someone else's.
+    const expire = new Date(Date.now() + 60 * 60 * 1000);
+    await db.session.createMany({
+      data: [
+        { sid: "other-device", sess: { userId: user.id }, expire },
+        { sid: "someone-else", sess: { userId: "someone-else" }, expire },
+      ],
+    });
 
     const res = await agent.delete("/api/me").set("Origin", APP_URL);
-    expect(res.status).toBe(409);
-    expect(await db.user.count()).toBe(1);
+    expect(res.status).toBe(204);
+    // With a fresh token: the stored one had expired, so it was refreshed first.
+    expect(oauth.revokeGrant).toHaveBeenCalledExactlyOnceWith("ghu_refreshed");
+    expect(await db.user.count()).toBe(0);
+    expect((await db.session.findMany()).map((s) => s.sid)).toEqual([
+      "someone-else",
+    ]);
+    expect((await agent.get("/api/me")).status).toBe(401);
+  });
+
+  it("still deletes the account when GitHub won't take back the grant", async () => {
+    const { agent } = makeApp(
+      fakeOAuth({
+        revokeGrant: () => Promise.reject(new Error("GitHub down")),
+      }),
+    );
+    await signIn(agent);
+
+    expect((await agent.delete("/api/me").set("Origin", APP_URL)).status).toBe(
+      204,
+    );
+    expect(await db.user.count()).toBe(0);
   });
 });

@@ -4,9 +4,8 @@ import type {
   TestAlertResponse,
 } from "@pr-peek/core";
 import express, { type RequestHandler, type Router } from "express";
-import type { Logger } from "pino";
 import { readOverview } from "../admin";
-import type { Db } from "../db";
+import { deleteAccount, type AccountDeps } from "../account";
 import { HttpError } from "../http-error";
 import { deliver, NOTIFY_TTL_SECONDS, type SendPush } from "../push";
 import { userLimiter } from "../rate-limit";
@@ -18,9 +17,8 @@ const ASKS_PER_MINUTE = 30;
 // Requests shown at once. More waiting means something's wrong.
 const MAX_REQUESTS = 100;
 
-export interface AdminDeps {
-  db: Db;
-  logger: Logger;
+// The database, logger, OAuth client, and keys, to delete a declined request's user.
+export interface AdminDeps extends AccountDeps {
   // Null when push is off, because the VAPID keys aren't set.
   send: SendPush | null;
   now?: () => Date;
@@ -83,12 +81,15 @@ export function adminRouter(deps: AdminDeps): Router {
     res.sendStatus(204);
   });
 
-  // Deletes what we have on them. They can ask again by signing in.
+  // Deletes what we have on them, like "Delete my account". They can ask again by
+  // signing in.
   router.delete("/admin/requests/:id", async (req, res) => {
-    const { count } = await deps.db.user.deleteMany({
+    const waiting = await deps.db.user.findFirst({
       where: { id: req.params.id, approvedAt: null },
+      select: { id: true },
     });
-    if (count === 0) throw requestGone();
+    if (!waiting) throw requestGone();
+    await deleteAccount(deps, waiting.id);
     res.sendStatus(204);
   });
 

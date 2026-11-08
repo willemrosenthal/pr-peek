@@ -14,6 +14,7 @@ import {
 } from "../../test/app";
 import { addToken, createTestDb, resetDb } from "../../test/db";
 import {
+  fakeOAuth,
   githubTokens,
   githubUser,
   hours,
@@ -36,9 +37,20 @@ const DAY = 24 * 60 * 60 * 1000;
 // NOW is 12:00 UTC on 21 October 2026.
 const day = (date: string) => new Date(`${date}T00:00:00Z`);
 
+const oauth = fakeOAuth();
+
 async function setup({ admin = true, send = null as SendPush | null } = {}) {
   const { agent } = makeTestApp(db, {
-    routers: [adminRouter({ db, logger, send, now: () => NOW })],
+    routers: [
+      adminRouter({
+        db,
+        logger,
+        send,
+        oauth,
+        key: TEST_KEY,
+        now: () => NOW,
+      }),
+    ],
   });
   await signIn(agent);
   const me = await db.user.findFirstOrThrow();
@@ -79,7 +91,7 @@ describe("who can see it", () => {
 
   it("needs signing in", async () => {
     const { agent } = makeTestApp(db, {
-      routers: [adminRouter({ db, logger, send: null })],
+      routers: [adminRouter({ db, logger, send: null, oauth, key: TEST_KEY })],
     });
     expect((await agent.get("/api/admin/overview")).status).toBe(401);
   });
@@ -398,25 +410,29 @@ describe("sign-up requests", () => {
     expect((await approve()).status).toBe(404);
   });
 
-  it("declines a request by deleting the user", async () => {
+  it("declines a request by deleting the user, and taking back their GitHub grant", async () => {
     const { agent } = await setup();
     const user = await waiting(7, "dana", 1);
+    oauth.revokeGrant.mockClear();
 
     const res = await agent
       .delete(`/api/admin/requests/${user.id}`)
       .set("Origin", APP_URL);
     expect(res.status).toBe(204);
     expect(await db.user.findUnique({ where: { id: user.id } })).toBeNull();
+    expect(oauth.revokeGrant).toHaveBeenCalledOnce();
   });
 
   it("never declines an approved user", async () => {
     const { agent, me } = await setup();
+    oauth.revokeGrant.mockClear();
 
     const res = await agent
       .delete(`/api/admin/requests/${me.id}`)
       .set("Origin", APP_URL);
     expect(res.status).toBe(404);
     expect(await db.user.findUnique({ where: { id: me.id } })).not.toBeNull();
+    expect(oauth.revokeGrant).not.toHaveBeenCalled();
   });
 
   it("is for admins only", async () => {
