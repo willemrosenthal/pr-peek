@@ -1,4 +1,8 @@
-import type { AdminOverviewResponse, TestAlertResponse } from "@pr-peek/core";
+import {
+  EXPIRING_DAYS,
+  type AdminOverviewResponse,
+  type TestAlertResponse,
+} from "@pr-peek/core";
 import { useMutation } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import {
@@ -336,7 +340,7 @@ function Worker({ overview }: { overview: AdminOverviewResponse }) {
 }
 
 function GitHubAndPeople({ overview }: { overview: AdminOverviewResponse }) {
-  const { github, people, worker } = overview;
+  const { github, people, tokens, worker } = overview;
   const syncs = worker.queues.find((q) => q.queue === "sync-user")?.jobs ?? 0;
   const pushes = fillSeries(
     people.pushes.map((p) => ({ at: p.day, value: p.sent })),
@@ -371,6 +375,16 @@ function GitHubAndPeople({ overview }: { overview: AdminOverviewResponse }) {
             ["Users", formatCount(people.users)],
             ["Active, last 24 hours", formatCount(people.activeDay)],
             ["Active, last 7 days", formatCount(people.activeWeek)],
+          ]}
+        />
+        <Stats
+          stats={[
+            ["Tokens working", formatCount(tokens.working)],
+            [
+              `Expiring within ${EXPIRING_DAYS} days`,
+              formatCount(tokens.expiring),
+            ],
+            ["Tokens stopped", formatCount(tokens.stopped)],
           ]}
         />
         <BarChart
