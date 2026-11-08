@@ -298,36 +298,62 @@
   height: 18px;
 }
 
-/* Underlined tabs, like Settings'. */
+/* Two buttons in a gray track, the picked one raised, so they read as choices. */
 .tabs {
-  display: flex;
-  margin-bottom: var(--space-3);
-  box-shadow: inset 0 -1px var(--color-border);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
 .tab {
   display: flex;
-  flex: 1 1 0;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   min-height: var(--touch-target);
   padding: 0 10px;
   border: 0;
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--color-text-secondary);
   font: inherit;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.tab:focus-visible {
-  outline-offset: -2px;
+@media (hover: hover) {
+  .tab:not([data-selected]):hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
 }
 
 .tab[data-selected] {
-  box-shadow: inset 0 -2px var(--color-accent);
+  background: var(--color-surface);
+  box-shadow:
+    0 0 0 1px var(--color-border),
+    0 1px 3px rgb(0 0 0 / 12%);
   color: var(--color-text);
-  font-weight: 600;
+}
+
+/* Both panels share one spot, and the hidden one keeps its space, so switching tabs
+   doesn't change the sheet's height. Hidden still hides it from screen readers. */
+.panels {
+  display: grid;
+}
+
+.panels > * {
+  grid-area: 1 / 1;
+}
+
+.panels > [hidden] {
+  display: flex;
+  visibility: hidden;
 }
 
 .recommended {
