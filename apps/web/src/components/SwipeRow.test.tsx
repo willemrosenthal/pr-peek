@@ -66,7 +66,7 @@ const slowDrag = (link: Element, dx: number) =>
     100,
   );
 
-// Short of `FAR_ENOUGH`, but quick: over 60ms, and about 1.9px per ms at the end.
+// Short of `FAR_ENOUGH`, but quick: over 60ms, and `dx` / 52 px per ms at the end.
 const flick = (dx: number): [number, number][] => [
   [30, (dx * 3) / 7],
   [30, dx],
@@ -212,8 +212,8 @@ describe("SwipeRow", () => {
       const { onToggle, link } = setup();
       swipeTimed(link, [
         [30, -30],
-        [300, -150],
-        [30, -100],
+        [300, -FAR_ENOUGH],
+        [30, -NOT_FAR_ENOUGH],
       ]);
       await settleTimed();
       expect(onToggle).not.toHaveBeenCalled();

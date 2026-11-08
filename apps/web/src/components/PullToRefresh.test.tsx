@@ -1,6 +1,11 @@
 import { fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { holdPull, pull, PULL_FAR_ENOUGH } from "../test/swipe";
+import {
+  holdPull,
+  pull,
+  PULL_FAR_ENOUGH,
+  PULL_NOT_FAR_ENOUGH,
+} from "../test/swipe";
 import { MAX_PX, PullToRefresh, pullOffset, RESISTANCE } from "./PullToRefresh";
 import styles from "./PullToRefresh.module.css";
 
@@ -52,7 +57,7 @@ describe("usePullToRefresh", () => {
     expect(pageAt(page)).toBe(0);
     expect(spinner.style.opacity).toBe("0");
 
-    holdPull(document.body, 100);
+    holdPull(document.body, PULL_NOT_FAR_ENOUGH);
     const partWay = pageAt(page);
     expect(partWay).toBeGreaterThan(0);
     expect(Number(spinner.style.opacity)).toBeLessThan(1);
@@ -64,7 +69,7 @@ describe("usePullToRefresh", () => {
 
   it("turns the gap rainbow once letting go would refresh", () => {
     const { rainbowShown } = setup();
-    holdPull(document.body, 100);
+    holdPull(document.body, PULL_NOT_FAR_ENOUGH);
     expect(rainbowShown()).toBe(false);
     holdPull(document.body, PULL_FAR_ENOUGH);
     expect(rainbowShown()).toBe(true);
@@ -85,7 +90,7 @@ describe("usePullToRefresh", () => {
 
   it("refreshes only once pulled far enough", () => {
     const { onRefresh } = setup();
-    pull(document.body, 100);
+    pull(document.body, PULL_NOT_FAR_ENOUGH);
     expect(onRefresh).not.toHaveBeenCalled();
     pull(document.body, PULL_FAR_ENOUGH);
     expect(onRefresh).toHaveBeenCalledTimes(1);
@@ -94,11 +99,11 @@ describe("usePullToRefresh", () => {
   it("hides the ring as the page goes up after refreshing, until the next pull", () => {
     const { spinner } = setup();
     const hidden = () => spinner.classList.contains(styles.fired!);
-    pull(document.body, 100);
+    pull(document.body, PULL_NOT_FAR_ENOUGH);
     expect(hidden()).toBe(false);
     pull(document.body, PULL_FAR_ENOUGH);
     expect(hidden()).toBe(true);
-    holdPull(document.body, 100);
+    holdPull(document.body, PULL_NOT_FAR_ENOUGH);
     expect(hidden()).toBe(false);
   });
 
