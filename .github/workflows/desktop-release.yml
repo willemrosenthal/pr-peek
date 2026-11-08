@@ -129,7 +129,7 @@ jobs:
           projectPath: apps/desktop
           tauriScript: pnpm tauri
           # Uploads to our draft, and leaves its title and notes alone. Links in
-          # latest.json point at each file by its id, so they work once it's published.
+          # latest.json point at each file by its id, not its tag.
           releaseId: ${{ steps.draft.outputs.id }}
           args: >-
             --target universal-apple-darwin
