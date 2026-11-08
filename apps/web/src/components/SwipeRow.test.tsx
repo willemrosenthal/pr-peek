@@ -12,7 +12,7 @@ import {
 } from "vitest";
 import { haptic } from "../haptics";
 import { drag, FAR_ENOUGH, hold, stubPointerCapture } from "../test/swipe";
-import { SwipeRow } from "./SwipeRow";
+import { rowOffset, SwipeRow } from "./SwipeRow";
 import styles from "./SwipeRow.module.css";
 
 vi.mock("../haptics", async (importOriginal) => ({
@@ -126,6 +126,12 @@ describe("SwipeRow", () => {
     expect(strip()!.className).not.toContain(styles.armed);
     hold(link, -FAR_ENOUGH);
     expect(strip()!.className).toContain(styles.armed);
+  });
+
+  it("trails the finger a little", () => {
+    const { link } = setup();
+    hold(link, -100);
+    expect(link.parentElement!.style.transform).toBe("translateX(-90px)");
   });
 
   it("doesn't open the link when a swipe ends", () => {
@@ -489,5 +495,22 @@ describe("SwipeRow long press", () => {
     setup();
     const link = screen.getByRole("link", { name: "Add login" });
     expect(fireEvent.contextMenu(link)).toBe(true);
+  });
+});
+
+describe("rowOffset", () => {
+  it("moves 90% as far as the finger, either way", () => {
+    expect(rowOffset(100, 140)).toBeCloseTo(90);
+    expect(rowOffset(-100, 140)).toBeCloseTo(-90);
+    expect(rowOffset(0, 140)).toBe(0);
+  });
+
+  it("gets heavier past where letting go acts, with no jump", () => {
+    const armed = rowOffset(140, 140);
+    expect(rowOffset(141, 140) - armed).toBeCloseTo(0.9, 1);
+    const next = rowOffset(240, 140) - armed;
+    expect(next).toBeLessThan(90);
+    expect(rowOffset(340, 140) - armed - next).toBeLessThan(next);
+    expect(rowOffset(10_000, 140)).toBeLessThan(armed + 100);
   });
 });

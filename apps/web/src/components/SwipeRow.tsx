@@ -12,12 +12,18 @@ import {
 import { cx } from "../cx";
 import { canVibrate, haptic } from "../haptics";
 import { unflagAction } from "../important";
+import { rubberBand } from "../rubber-band";
 import styles from "./SwipeRow.module.css";
 
 // How far a row moves before letting go quiets it: a share of its width, but at least
 // `SWIPE_MIN_PX`.
 const SWIPE_SHARE = 0.45;
 const SWIPE_MIN_PX = 140;
+// The row moves this share of the finger's move, so a swipe has a little weight. Past
+// `swipePx` it gets heavier, and moves at most `PAST_ARMED_MAX_PX` more. Letting go
+// still counts how far the finger moved, so a swipe takes no more effort.
+const ROW_GIVE = 0.9;
+const PAST_ARMED_MAX_PX = 100;
 // The row covers the action's circle until it has moved this far: the strip's padding
 // plus the circle (SwipeRow.module.css).
 const CIRCLE_SHOWN_PX = 51;
@@ -82,6 +88,16 @@ function blockSelection(onEnd: () => void): () => void {
   return stop;
 }
 
+// Where the row is when the finger has moved `moved` across, for a row that acts at
+// `swipePx`.
+export function rowOffset(moved: number, swipePx: number): number {
+  const distance = Math.abs(moved);
+  const at =
+    ROW_GIVE * Math.min(distance, swipePx) +
+    rubberBand(ROW_GIVE * (distance - swipePx), PAST_ARMED_MAX_PX);
+  return Math.sign(moved) * at;
+}
+
 type Point = { x: number; at: number };
 
 // How fast `trail` was moving across at `now`, in px per ms.
@@ -141,6 +157,7 @@ export function SwipeRow({
   onPressStart?: () => void;
   children: ReactNode;
 }) {
+  // Where the row is, a little behind the finger (`rowOffset`).
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   // -1 or 1 while the row slides out that way.
@@ -203,10 +220,11 @@ export function SwipeRow({
     setArmed(on);
   };
 
-  const move = (to: number) => {
+  // `moved` is how far the finger or trackpad has gone.
+  const move = (moved: number) => {
     setDragging(true);
-    setOffset(to);
-    arm(Math.abs(to) >= swipePx.current);
+    setOffset(rowOffset(moved, swipePx.current));
+    arm(Math.abs(moved) >= swipePx.current);
   };
 
   // Springs back to where it was.
@@ -384,7 +402,7 @@ export function SwipeRow({
         ? styles.back
         : styles.quiet;
   const pulled = Math.max(0, Math.abs(offset) - CIRCLE_SHOWN_PX);
-  const stretch = (pulled * STRETCH_MAX_PX) / (pulled + STRETCH_MAX_PX);
+  const stretch = rubberBand(pulled, STRETCH_MAX_PX);
   return (
     <div
       ref={rowRef}

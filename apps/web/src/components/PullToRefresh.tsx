@@ -8,6 +8,7 @@ import {
 } from "react";
 import { cx } from "../cx";
 import { canVibrate, haptic } from "../haptics";
+import { rubberBand } from "../rubber-band";
 import styles from "./PullToRefresh.module.css";
 
 // How far a finger moves before it counts as a pull, not a tap or a swipe.
@@ -22,7 +23,7 @@ const RESISTANCE = 0.55;
 // How far the page comes down for a finger `distance` past the start. About half as
 // far as the finger at first, then heavier the further it goes, and never past MAX_PX.
 export const pullOffset = (distance: number) =>
-  MAX_PX * (1 - 1 / (1 + (RESISTANCE * Math.max(0, distance)) / MAX_PX));
+  rubberBand(RESISTANCE * distance, MAX_PX);
 
 interface Options {
   refreshing: boolean;
