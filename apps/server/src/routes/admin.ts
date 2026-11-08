@@ -48,6 +48,12 @@ export function adminRouter(deps: AdminDeps): Router {
     res.json(body);
   });
 
+  // The IP the server sees for you, to check TRUST_PROXY_HOPS. It should match your own
+  // IP. If it's one of Render's, sign-in rate limits would lump everyone together.
+  router.get("/admin/ip", (req, res) => {
+    res.json({ ip: req.ip, forwardedFor: req.get("x-forwarded-for") ?? null });
+  });
+
   // Sign-up requests waiting for an admin, oldest first.
   router.get("/admin/requests", async (_req, res) => {
     const users = await deps.db.user.findMany({

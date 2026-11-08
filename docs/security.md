@@ -35,6 +35,18 @@ The logger hides secrets before they're written:
 
 The list is in `apps/server/src/logger.ts`. Add to it if you log something new that holds a secret.
 
+## Rate limits and IPs
+
+Sign in is rate limited by IP: 30 tries per 15 minutes. Everything else is limited per signed in user.
+
+The IP limit only works if the server sees each user's real IP. Render's proxies sit in front of us, and `TRUST_PROXY_HOPS` (default 1) says how many. To check it:
+
+1. Sign in as an admin and open `https://www.git-buddy.com/api/admin/ip`.
+2. `ip` should be your own IP (search "what is my IP" to compare).
+3. If it isn't, find your IP in `forwardedFor`. Count the entries after it, add 1, and set `TRUST_PROXY_HOPS` to that in Render (Environment). Then check again.
+
+Too low, and everyone shares one sign-in limit. Too high, and someone could fake their IP to skip it.
+
 ## Dependency audit
 
 The **Audit** workflow checks our dependencies for known security problems. It runs on every PR and every Monday.

@@ -79,10 +79,22 @@ const stat = (
   high: values.high === undefined ? null : BigInt(values.high),
 });
 
+it("shows the IP the server sees, one proxy in", async () => {
+  const { agent } = await setup();
+  const res = await agent
+    .get("/api/admin/ip")
+    .set("X-Forwarded-For", "203.0.113.7, 10.0.0.2");
+  expect(res.body).toEqual({
+    ip: "10.0.0.2",
+    forwardedFor: "203.0.113.7, 10.0.0.2",
+  });
+});
+
 describe("who can see it", () => {
   it("answers 404 to someone who isn't an admin", async () => {
     const { agent } = await setup({ admin: false });
     expect((await agent.get("/api/admin/overview")).status).toBe(404);
+    expect((await agent.get("/api/admin/ip")).status).toBe(404);
     expect(
       (await agent.post("/api/admin/test-alert").set("Origin", APP_URL)).status,
     ).toBe(404);

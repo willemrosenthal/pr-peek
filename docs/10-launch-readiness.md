@@ -50,14 +50,19 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 
 ### 10.3 Security review
 
-- [ ] Run through: CSRF origin check on all writes, every query scoped by `userId`, rate limits on auth and sync, `helmet` headers including a Content Security Policy. With `/security-review`, below.
+- [x] Run through: CSRF origin check on all writes, every query scoped by `userId`, rate limits on auth and sync, `helmet` headers including a Content Security Policy. With `/security-review`, below. As built (8 November), a pass over the whole server, web app, and Mac app:
+  - Fine already: the origin check covers every API write. Every route with an id checks it belongs to the user. Sign in checks a random state once and gets a new session id. Cookies are httpOnly, `SameSite=Lax`, and secure in production. Push endpoints must be a browser maker's push service, so the server can't be made to call other URLs. GitHub's HTML in previews goes through an allow list. The live stream only sends the user's own events. The Mac app gives its native commands to the hosted site only, and opens only http(s) links. The web app reads no env vars, so no secrets reach the browser.
+  - Fixed: test pushes had no limit, so a loop could get our push key throttled. Now 20 a minute. Adding a repo now counts toward the picker's limit of 60 GitHub asks a minute.
+  - Added: sign in is limited by IP, which depends on how many proxies Render puts in front of us. `TRUST_PROXY_HOPS` (default 1) sets it, and `GET /api/admin/ip` shows what the server sees. See [security.md](security.md), "Rate limits and IPs".
+  - Left as is: the Mac app also gives its commands to `http://localhost:5173`, for development. Only a program already running on the Mac could use that.
+- [ ] **(You)** Once it's live, check `GET /api/admin/ip` shows your own IP (steps in [security.md](security.md), "Rate limits and IPs").
 - [x] No tokens in logs: the logger also hides GitHub client errors' request headers and body, and any field named like a token (`token`, `accessToken`, `refresh_token`, …).
 - [x] A dependency audit (`pnpm audit --prod --audit-level high`) on each PR and weekly, in its own workflow, so a new advisory never blocks an unrelated PR. It found two: `body-parser` (a denial of service, through Express) and `lodash` (through Prisma Studio). Both updated.
 - [x] Dependabot (`.github/dependabot.yml`): monthly grouped updates, and security fixes as they come. App and Mac app updates are `fix(deps)`, so they release.
 - [ ] **(You)** Turn on Dependabot alerts and security updates: the repo's Settings, Advanced Security (or Code security).
 - [x] Use Supabase Pro's limits (8 GB of database, 250 GB of egress) on the admin page and in health alerts.
 - [x] Encryption key rotation: `TOKEN_ENC_KEY_PREVIOUS`. Tokens read with either key, and are written with the new one. `pnpm --filter @pr-peek/server tokens:reencrypt` encrypts them all again with the new key.
-- [ ] Run the `/security-review` command on the main branch before launch.
+- [x] Run the `/security-review` command on the main branch before launch. That command only reviews a branch's changes, so the whole-code pass above took its place.
 - [ ] Move `tauri-apps/tauri-action` from v0 to v1 by hand, with a Mac release of its own, not mixed with other Mac changes. Dependabot skips its majors. v1 renames the update file (`.app.tar.gz`) to include the version, changes the links in `latest.json`, and rewrites an existing release's title and notes. Pass `releaseName` and `releaseBody`, or check ours survive. Then check the release page, and that an installed app updates. Moved here from [plan 09](completed/09-desktop-tauri.md).
 
 ### 10.4 Limits and cost control

@@ -197,7 +197,7 @@ describe("GET /api/github/repos", () => {
     });
   });
 
-  it(`stops after ${PICKER_ASKS_PER_MINUTE} asks a minute, to save the user's GitHub budget`, async () => {
+  it(`stops after ${PICKER_ASKS_PER_MINUTE} asks a minute, adding a repo too, to save the user's GitHub budget`, async () => {
     const { agent, requests } = await setup();
     for (let i = 0; i < PICKER_ASKS_PER_MINUTE; i++) {
       await agent.get(i % 2 ? "/api/github/repos" : "/api/github/owners");
@@ -206,6 +206,7 @@ describe("GET /api/github/repos", () => {
     const res = await agent.get("/api/github/repos");
     expect(res.status).toBe(429);
     expect(res.body).toMatchObject({ error: { code: "rate_limited" } });
+    expect((await add(agent, "widgets")).status).toBe(429);
     expect(requests).toHaveLength(PICKER_ASKS_PER_MINUTE);
   });
 
