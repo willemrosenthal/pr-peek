@@ -68,7 +68,8 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
   - Links: `latest.json` now points at GitHub API links (`api.github.com/.../releases/assets/<id>`). Those only send the file when asked for `application/octet-stream`, which Tauri's updater does when it downloads (tauri-plugin-updater 2.14.1). Before publishing, the release now downloads the update from the draft's `latest.json` the same way, for both Mac chips, and checks it's an archive.
   - The renamed `.app.tar.gz` needs nothing: only `latest.json` names it. Both Mac chips still get their entries for a universal build.
   - A change to `desktop-release.yml` now builds the Mac app on release too, so this ships as its own Mac release.
-- [ ] **(You)** After the release: check the Mac release page keeps its title and notes, and that an installed app updates to it.
+- [x] After the release: the Mac release page keeps its title and notes. Checked 1.27.3: title "Git Buddy for Mac 1.27.3" and our notes kept, the files carry the version, `latest.json` links are API links, and every check passed.
+- [ ] **(You)** An installed Mac app updates to 1.27.3.
 
 ### 10.4 Limits and cost control
 
