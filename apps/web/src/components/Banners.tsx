@@ -1,5 +1,6 @@
 import {
   daysLeft,
+  EXPIRING_DAYS,
   plural,
   type MeResponse,
   type SyncStatusResponse,
@@ -18,13 +19,18 @@ interface Banner {
   content: ReactNode;
 }
 
-const TOKENS_LINK = "/settings/general";
+// Settings, where tokens are added and replaced.
+const TOKENS_PAGE = "/settings/general";
+
+const ReplaceLink = ({ count }: { count: number }) => (
+  <Link to={TOKENS_PAGE}>{count === 1 ? "Replace it" : "Replace them"}</Link>
+);
 
 // What a token about to expire says, or one that already did.
 function expiryText(tokens: TokenDto[]) {
   const [first] = tokens;
   if (tokens.length > 1) {
-    return `${tokens.length} tokens expire within a week.`;
+    return `${tokens.length} tokens expire within ${EXPIRING_DAYS} days.`;
   }
   const days = first?.expiresAt ? daysLeft(first.expiresAt) : 0;
   return days > 0
@@ -62,7 +68,7 @@ function bannersFor(
       content: (
         <>
           Your token stopped working, so syncs are paused.{" "}
-          <Link to={TOKENS_LINK}>Add a new token</Link>
+          <Link to={TOKENS_PAGE}>Add a new token</Link>
         </>
       ),
     });
@@ -76,9 +82,7 @@ function bannersFor(
             ? `Your ${stopped[0]?.name} token stopped working. Its repos`
             : `${stopped.length} tokens stopped working. Their repos`}{" "}
           sync with another token or your GitHub sign in for now.{" "}
-          <Link to={TOKENS_LINK}>
-            {stopped.length === 1 ? "Replace it" : "Replace them"}
-          </Link>
+          <ReplaceLink count={stopped.length} />
         </>
       ),
     });
@@ -88,10 +92,7 @@ function bannersFor(
       key: "token-expiring",
       content: (
         <>
-          {expiryText(expiring)}{" "}
-          <Link to={TOKENS_LINK}>
-            {expiring.length === 1 ? "Replace it" : "Replace them"}
-          </Link>
+          {expiryText(expiring)} <ReplaceLink count={expiring.length} />
         </>
       ),
     });

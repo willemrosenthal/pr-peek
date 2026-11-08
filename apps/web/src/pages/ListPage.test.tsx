@@ -910,6 +910,18 @@ describe("banners", () => {
     expect(screen.queryByText("Add a new token")).toBe(null);
   });
 
+  it("counts several tokens that stopped, while one still syncs", async () => {
+    listWith([
+      githubToken({ id: "a" }),
+      githubToken({ id: "b", status: "stopped" }),
+      githubToken({ id: "c", status: "stopped" }),
+    ]);
+    renderApp("/");
+    expect(await bannerText(/stopped working/)).toBe(
+      "2 tokens stopped working. Their repos sync with another token or your GitHub sign in for now. Replace them",
+    );
+  });
+
   it("says a token expires soon, under one that stopped", async () => {
     listWith([
       githubToken({ id: "a", name: "acme-labs", expiresAt: inDays(4.5) }),

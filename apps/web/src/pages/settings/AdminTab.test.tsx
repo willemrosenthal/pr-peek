@@ -63,10 +63,13 @@ describe("the Admin tab", () => {
     // 30,240 calls over the 24 hours since the stats started.
     expect(screen.getByText("1,260")).toBeTruthy();
     expect(screen.queryAllByText("Worth a look")).toEqual([]);
-    // Tokens: 2 working, 1 expiring within the week, none stopped.
+    // Each count is in the description next to its label.
     const people = screen.getByRole("region", { name: "People and pushes" });
-    expect(people.textContent).toContain("Expiring within 7 days");
-    expect(people.textContent).toContain("Tokens stopped");
+    const countOf = (label: string) =>
+      within(people).getByText(label).nextElementSibling?.textContent;
+    expect(countOf("Tokens working")).toBe("2");
+    expect(countOf("Expiring within 7 days")).toBe("1");
+    expect(countOf("Tokens stopped")).toBe("0");
     expect(callsTo(fetch, "/api/admin/overview")).toHaveLength(1);
   });
 
