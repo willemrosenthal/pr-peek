@@ -44,8 +44,8 @@ export interface AppDeps {
 
 export function createApp(deps: AppDeps): Express {
   const app = express();
-  // Render sits in front of us as a proxy. This lets secure cookies work, and gives
-  // `req.ip` the user's IP for rate limits.
+  // Proxies sit in front of us (on Render: Cloudflare, then Render's own). This lets
+  // secure cookies work, and gives `req.ip` the user's IP for rate limits.
   app.set("trust proxy", deps.trustProxyHops);
 
   app.use(
