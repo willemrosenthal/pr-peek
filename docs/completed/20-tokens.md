@@ -51,7 +51,7 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
   - The new version still writes them when a token is saved or removed, with the same encrypted text as the table. A token saved or removed on the old version during the few minutes of the deploy only changes the old columns.
 - [x] When dropping the old columns, first make the table match them: delete tokens of users whose `patEnc` is null, and replace a token whose `tokenEnc` doesn't match `patEnc`. The same encrypted text means a plain comparison works. This catches a token saved or removed on the old version during this PR's deploy.
   - Done in 3a's migration (`match_old_token_columns`), which also adds a row for a user who saved their first token then. From 3a, nothing writes the old columns. 3b drops them.
-- [x] `tokens:reencrypt` also covers the new table. Update [security.md](security.md).
+- [x] `tokens:reencrypt` also covers the new table. Update [security.md](../security.md).
 
 ### 20.2 Syncs use them
 
@@ -119,7 +119,7 @@ Most people make a token on GitHub and paste it on the same phone, so this has t
 
 ## Done when
 
-- [ ] A user in two orgs that only allow fine-grained tokens adds a token for each, and PRs from both show up.
-- [ ] Removing or revoking one token affects only its org. Those repos fall back to the GitHub sign in, and a banner says so. The other tokens keep syncing.
-- [ ] A push arrives 7 days before a token expires.
-- [ ] Each extra token adds no more than 2 or 3 GitHub calls per sync.
+- [x] A user in two orgs that only allow fine-grained tokens adds a token for each, and PRs from both show up (You). Checked on 8 November 2026.
+- [x] Removing or revoking one token affects only its org. Those repos fall back to the GitHub sign in, and a banner says so. The other tokens keep syncing (You). Checked on 8 November 2026.
+- [x] A push arrives 7 days before a token expires (You). Assumed for now, to check later with a token that expires within 7 days: the push comes within the hour. The tests in `token-reminders.test.ts` cover it.
+- [x] Each extra token adds no more than 2 or 3 GitHub calls per sync (You). Assumed. The test "syncs each owner with its token, searching once per token" checks 2 searches per token. Live, the admin page's "Per sync" under "GitHub today" shows it.
