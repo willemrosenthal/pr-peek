@@ -53,7 +53,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 - [x] Run through: CSRF origin check on all writes, every query scoped by `userId`, rate limits on auth and sync, `helmet` headers including a Content Security Policy. With `/security-review`, below. As built (8 November), a pass over the whole server, web app, and Mac app:
   - Fine already: the origin check covers every API write. Every route with an id checks it belongs to the user. Sign in checks a random state once and gets a new session id. Cookies are httpOnly, `SameSite=Lax`, and secure in production. Push endpoints must be a browser maker's push service, so the server can't be made to call other URLs. GitHub's HTML in previews goes through an allow list. The live stream only sends the user's own events. The Mac app gives its native commands to the hosted site only, and opens only http(s) links. The web app reads no env vars, so no secrets reach the browser.
   - Fixed: test pushes had no limit, so a loop could get our push key throttled. Now 20 a minute. Adding a repo now counts toward the picker's limit of 60 GitHub asks a minute. Checking, saving, and replacing a token were limited by IP, so a company sharing one IP shared the limit. Now it's per user (30 per 15 minutes).
-  - Added: a check for how many proxies Render puts in front of us. Sign in is limited by IP, which only works if the server sees real IPs. `TRUST_PROXY_HOPS` (default 1) sets it, and `GET /api/admin/ip` shows what the server sees. See [security.md](security.md), "Rate limits and IPs".
+  - Added: a check for how many proxies Render puts in front of us. Sign in is limited by IP, which only works if the server sees real IPs. `TRUST_PROXY_HOPS` sets it, and `GET /api/admin/ip` shows what the server sees. See [security.md](security.md), "Rate limits and IPs".
   - Left as is: the Mac app also gives its commands to `http://localhost:5173`, for development. Only a program already running on the Mac could use that.
 - [x] **(You)** Once it's live, check `GET /api/admin/ip` shows your own IP (steps in [security.md](security.md), "Rate limits and IPs"). Found 8 November: 2 proxies (Cloudflare, then Render's own), not 1. So every user shared one sign-in limit. 2 is now the default.
 - [x] No tokens in logs: the logger also hides GitHub client errors' request headers and body, and any field named like a token (`token`, `accessToken`, `refresh_token`, …).
@@ -69,7 +69,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
   - The renamed `.app.tar.gz` needs nothing: only `latest.json` names it. Both Mac chips still get their entries for a universal build.
   - A change to `desktop-release.yml` now builds the Mac app on release too, so this ships as its own Mac release.
 - [x] After the release: the Mac release page keeps its title and notes. Checked 1.27.3: title "Git Buddy for Mac 1.27.3" and our notes kept, the files carry the version, `latest.json` links are API links, and every check passed.
-- [ ] **(You)** An installed Mac app updates to 1.27.3.
+- [x] **(You)** An installed Mac app updates to 1.27.3. Checked 8 November.
 
 ### 10.4 Limits and cost control
 
@@ -91,7 +91,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 ### 10.6 Data safety
 
 - [x] **Backups before other people sign in.** The project is on Supabase Pro, which has daily backups kept 7 days. **(You)** Check they show under Database, Backups. Checked on 7 November 2026.
-- [ ] **(You)** Test restoring a backup into a fresh database once.
+- [x] **(You)** Test restoring a backup into a fresh database once.
 - [ ] Prisma migrations only add or change in ways that work with the version currently running. Render runs migrations before swapping versions, so for a short time the old code runs against the new schema.
 
 ### 10.7 Polish for new users
