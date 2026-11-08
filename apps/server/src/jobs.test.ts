@@ -83,6 +83,10 @@ it("wakes a listening worker as soon as a job is added", async () => {
       { pollingIntervalSeconds: 30, notifyPollingIntervalSeconds: 60 },
       handled,
     );
+    // Its check at start is done, so only a wake-up can find the job.
+    await vi.waitFor(() =>
+      expect(worker.getWipData()[0]?.lastFetchedOn).toBeTruthy(),
+    );
 
     // Added by the web service, which doesn't listen.
     await boss.send(NOTIFY_ITEMS, { itemIds: ["a"] });
