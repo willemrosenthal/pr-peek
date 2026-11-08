@@ -242,7 +242,9 @@ function tokenClients(deps: SyncDeps, userId: string, tokens: PickableToken[]) {
       const groups = new Map<string | null, T[]>();
       for (const item of items) {
         const tokenId = pickToken(tokens, ownerOf(item));
-        groups.set(tokenId, [...(groups.get(tokenId) ?? []), item]);
+        const group = groups.get(tokenId);
+        if (group) group.push(item);
+        else groups.set(tokenId, [item]);
       }
       for (const [tokenId, group] of groups) {
         try {
@@ -394,7 +396,7 @@ async function fetchFromGitHub(
     )
     .map((pr) => pr.githubNodeId);
   const open = [...found];
-  // A PR skipped here (see TokenClients.each) is left as it is: not ended or updated.
+  // A PR skipped here (see tokenClients) is left as it is: not ended or updated.
   await github.each(
     missedIds,
     (id) => ownerOf(id),

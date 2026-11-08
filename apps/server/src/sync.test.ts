@@ -1418,7 +1418,8 @@ describe("several tokens", () => {
     return { user, acme, globex };
   }
 
-  // A fake GitHub for each token, by id. "signIn" is the sign in's.
+  // A fake GitHub for each token, by id. "signIn" is the sign in's. Syncs always say
+  // which token they want.
   function githubs(fakes: Record<string, FakePrGitHub>) {
     const made = Object.fromEntries(
       Object.entries(fakes).map(([key, fake]) => [
@@ -1428,7 +1429,7 @@ describe("several tokens", () => {
     );
     const github = vi.fn((_userId: string, choice?: TokenChoice) => {
       const key =
-        choice && "tokenId" in choice ? (choice.tokenId ?? "signIn") : "none";
+        choice && "tokenId" in choice ? (choice.tokenId ?? "signIn") : "";
       const fake = made[key];
       return fake
         ? Promise.resolve(fake.octokit)
@@ -1495,6 +1496,29 @@ describe("several tokens", () => {
     expect(
       await db.pullRequest.count({ where: { githubNodeId: "PR_G" } }),
     ).toBe(1);
+  });
+
+  it("checks a PR added by its link with the token for its owner", async () => {
+    const { user, acme, globex } = await setup();
+    // Added from a globex repo the user doesn't watch, and missed by the searches.
+    await makePr(user.id, 9, {
+      githubRepoId: 99,
+      repoOwner: "globex",
+      addedAt: hours(-1),
+    });
+    const { github, requestsOf } = githubs({
+      [acme.id]: {},
+      [globex.id]: {
+        statuses: { PR_9: searchHit("PR_9", { repoId: 99 }) },
+        prs: { PR_9: prIn("PR_9", "globex") },
+      },
+      signIn: {},
+    });
+
+    await syncUser({ db, github, now: () => NOW }, user.id);
+
+    expect(statusIds(requestsOf(globex.id))).toEqual(["PR_9"]);
+    expect(detailIds(requestsOf(globex.id))).toEqual(["PR_9"]);
   });
 
   it("keeps syncing with the tokens when the sign in stops working", async () => {
