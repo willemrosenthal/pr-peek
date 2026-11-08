@@ -123,6 +123,6 @@ Merging a PR can release it. PRs are squash merged, so the PR title becomes the 
 
 - Scopes: `web`, `server`, `core`, `desktop`, `ci`, `deps`. Like `fix(desktop): keep the dropdown open`. The scope is only a label: the changed files decide what ships.
 - A change that must ship but isn't a feature, like a security update to a dependency, is `fix(deps): ...`.
-- A release deploys the web app, and builds the Mac app only when `apps/desktop` changed since the last Mac release.
+- A release deploys the web app, and builds the Mac app only when `apps/desktop` or `.github/workflows/desktop-release.yml` changed since the last Mac release.
 - Breaking changes (`feat!:`, or `BREAKING CHANGE:` in any commit message) release a major version. Only when the user agrees.
 - Commits inside a PR use the same format, out of habit, but only the title counts.

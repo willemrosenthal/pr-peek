@@ -69,8 +69,9 @@ jobs:
             echo "No feat, fix, or perf since the last release. Nothing released." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      # A Mac build only when this is the newest version and apps/desktop changed since
-      # the last published Mac release, which is GitHub's latest release.
+      # A Mac build only when this is the newest version and the Mac app, or how it's built
+      # (desktop-release.yml), changed since the last published Mac release, which is
+      # GitHub's latest release.
       - name: Did the Mac app change?
         id: desktop
         if: steps.version.outputs.version != ''
@@ -85,7 +86,7 @@ jobs:
             desktop=true
           elif [ "$newest" != "$VERSION" ] || [ "${latest#v}" = "$VERSION" ]; then
             desktop=false
-          elif git diff --quiet "$latest" HEAD -- apps/desktop; then
+          elif git diff --quiet "$latest" HEAD -- apps/desktop .github/workflows/desktop-release.yml; then
             desktop=false
           else
             desktop=true
