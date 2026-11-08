@@ -1,12 +1,20 @@
 import { fireEvent } from "@testing-library/react";
+import {
+  ARM_PX,
+  MAX_PX,
+  RESISTANCE,
+  START_PX,
+} from "../components/PullToRefresh";
+import { SWIPE_MIN_PX } from "../components/SwipeRow";
 
 // jsdom has no pointer capture. Call before swiping.
 export function stubPointerCapture() {
   Element.prototype.setPointerCapture = () => {};
 }
 
-// Far enough to quiet a row in jsdom, where rows have no width.
-export const FAR_ENOUGH = 200;
+// Far enough to quiet a row in jsdom, where rows have no width, and short of it.
+export const FAR_ENOUGH = SWIPE_MIN_PX + 60;
+export const NOT_FAR_ENOUGH = SWIPE_MIN_PX - 40;
 
 const at = (dx: number, dy: number, share: number) => ({
   pointerId: 1,
@@ -21,8 +29,13 @@ export function hold(el: Element, dx: number, dy = 0) {
   fireEvent.pointerMove(el, at(dx, dy, 1));
 }
 
-// Far enough to refresh with pull to refresh.
-export const PULL_FAR_ENOUGH = 300;
+// How far a finger pulls to bring the page down `offset`: `pullOffset` backward.
+const pullFor = (offset: number) =>
+  START_PX + (MAX_PX * offset) / (MAX_PX - offset) / RESISTANCE;
+
+// Far enough to refresh with pull to refresh, and halfway there.
+export const PULL_FAR_ENOUGH = Math.ceil(pullFor(ARM_PX + 10));
+export const PULL_NOT_FAR_ENOUGH = Math.floor(pullFor(ARM_PX / 2));
 
 // For pull to refresh: a finger on `el` moves `dy` down and `dx` across, and stays.
 export function holdPull(el: Element, dy: number, dx = 0) {
