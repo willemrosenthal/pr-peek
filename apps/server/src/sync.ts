@@ -11,7 +11,7 @@ import {
 } from "./github/pull-search";
 import { listTokenOwners } from "./github/repos";
 import { fetchViewerTeams } from "./github/teams";
-import { NeedsReauthError } from "./github/tokens";
+import { isRejection, pickToken, type PickableToken } from "./github/tokens";
 import { idleGroup } from "./item-list";
 import {
   ITEMS_TX,
@@ -168,46 +168,94 @@ interface FromGitHub {
   firstSyncIds: Set<string>;
 }
 
-// Saves which owners each working personal access token reaches, if they were never
-// checked or are a day old. Classic tokens reach every owner, so they're skipped. GitHub
-// errors skip the token until the next sync. One it rejects is marked stopped by its
-// client.
+// The user's personal access tokens, after saving which owners each working fine-grained
+// token reaches, if they were never checked or are a day old. Classic tokens reach every
+// owner, so they're skipped. GitHub errors skip the token until the next sync. One it
+// rejects is marked stopped, here and by its client.
 export async function refreshTokenOwners(
   deps: SyncDeps,
   userId: string,
   now: Date,
-): Promise<void> {
+): Promise<PickableToken[]> {
   const tokens = await deps.db.gitHubToken.findMany({
-    where: {
-      userId,
-      status: "working",
-      // Null until the token is first read: it may be fine-grained.
-      OR: [{ kind: "fine_grained" }, { kind: null }],
-      AND: {
-        OR: [
-          { ownersCheckedAt: null },
-          { ownersCheckedAt: { lt: new Date(now.getTime() - OWNERS_KEPT_MS) } },
-        ],
-      },
+    where: { userId },
+    select: {
+      id: true,
+      kind: true,
+      owners: true,
+      ownersCheckedAt: true,
+      status: true,
+      createdAt: true,
     },
-    select: { id: true },
   });
-  for (const { id } of tokens) {
+  const staleBefore = now.getTime() - OWNERS_KEPT_MS;
+  for (const token of tokens) {
+    if (
+      token.status !== "working" ||
+      token.kind === "classic" ||
+      (token.ownersCheckedAt && token.ownersCheckedAt.getTime() >= staleBefore)
+    ) {
+      continue;
+    }
     try {
-      const owners = await listTokenOwners(
-        await deps.github(userId, { tokenId: id }),
+      token.owners = await listTokenOwners(
+        await deps.github(userId, { tokenId: token.id }),
       );
       await deps.db.gitHubToken.updateMany({
-        where: { id },
-        data: { owners, ownersCheckedAt: now },
+        where: { id: token.id },
+        data: { owners: token.owners, ownersCheckedAt: now },
       });
     } catch (err) {
-      if (err instanceof RequestError || err instanceof NeedsReauthError) {
-        continue;
-      }
-      throw err;
+      if (isRejection(err)) token.status = "stopped";
+      else if (!(err instanceof RequestError)) throw err;
     }
   }
+  return tokens;
+}
+
+// One GitHub client per token, made when first needed. Null is the sign in.
+function tokenClients(deps: SyncDeps, userId: string, tokens: PickableToken[]) {
+  const clients = new Map<string | null, Promise<Octokit>>();
+  const client = (tokenId: string | null) => {
+    let made = clients.get(tokenId);
+    if (!made) {
+      made = deps.github(userId, { tokenId });
+      clients.set(tokenId, made);
+    }
+    return made;
+  };
+  const [newestWorking] = tokens
+    .filter((token) => token.status === "working")
+    .toSorted((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return {
+    // For what isn't about one owner, like the user's teams.
+    forDefault: () => client(newestWorking?.id ?? null),
+    // Runs `work` once per token, with the items whose owners it's picked for (see
+    // pickToken). When the sign in stopped working but a token works, the sign in's
+    // items are skipped, so the rest still sync. A token GitHub rejects fails the sync:
+    // it's marked stopped, so the next one, soon after, picks another for its owners.
+    async each<T>(
+      items: T[],
+      ownerOf: (item: T) => string,
+      work: (octokit: Octokit, items: T[]) => Promise<void>,
+    ): Promise<void> {
+      const groups = new Map<string | null, T[]>();
+      for (const item of items) {
+        const tokenId = pickToken(tokens, ownerOf(item));
+        const group = groups.get(tokenId);
+        if (group) group.push(item);
+        else groups.set(tokenId, [item]);
+      }
+      for (const [tokenId, group] of groups) {
+        try {
+          await work(await client(tokenId), group);
+        } catch (err) {
+          if (tokenId === null && newestWorking && isRejection(err)) continue;
+          throw err;
+        }
+      }
+    },
+  };
 }
 
 // Searches find new PRs. Tracked PRs the searches missed are checked by id, since the
@@ -239,13 +287,14 @@ async function fetchFromGitHub(
     }),
     db.watchedRepo.findMany({
       where: { userId, enabled: true },
-      select: { githubRepoId: true },
+      select: { githubRepoId: true, owner: true },
     }),
     db.pullRequest.findMany({
       where: { userId },
       select: {
         githubNodeId: true,
         githubRepoId: true,
+        repoOwner: true,
         githubUpdatedAt: true,
         checkFingerprint: true,
         authorLogin: true,
@@ -293,12 +342,13 @@ async function fetchFromGitHub(
     };
   }
 
-  if (user._count.githubTokens > 0) {
-    await refreshTokenOwners(deps, userId, now);
-  }
-  const octokit = await deps.github(userId);
+  const tokens =
+    user._count.githubTokens > 0
+      ? await refreshTokenOwners(deps, userId, now)
+      : [];
+  const github = tokenClients(deps, userId, tokens);
   const teams = includeTeamRequests
-    ? await currentTeams(octokit, user, now)
+    ? await currentTeams(await github.forDefault(), user, now)
     : { teams: [], changed: false, checked: false };
   // The rules give the same items for a PR that didn't change, unless their code, the
   // user's settings, or their teams did.
@@ -308,11 +358,30 @@ async function fetchFromGitHub(
   );
   const fullPass =
     !user.rulesRunAt || user.rulesRunAt.getTime() < staleAfter || teams.changed;
-  // The searches only find PRs in watched repos.
-  const all =
-    watched.length > 0
-      ? await findRelevantPrs(octokit, { includeTeamRequests })
-      : new Map<string, PrStatus>();
+  // Each PR's owner, to pick its token: from its watched repo, else its stored row.
+  const watchedOwner = new Map(
+    watched.map((repo) => [repo.githubRepoId, repo.owner]),
+  );
+  const storedById = new Map(stored.map((pr) => [pr.githubNodeId, pr]));
+  const ownerOf = (id: string, githubRepoId?: number) =>
+    (githubRepoId === undefined ? undefined : watchedOwner.get(githubRepoId)) ??
+    storedById.get(id)?.repoOwner ??
+    "";
+
+  // The searches only find PRs in watched repos. They run once per token those repos
+  // use, and the results are merged.
+  const all = new Map<string, PrStatus>();
+  await github.each(
+    [...new Set(watched.map((repo) => repo.owner))],
+    (owner) => owner,
+    async (octokit) => {
+      for (const [id, pr] of await findRelevantPrs(octokit, {
+        includeTeamRequests,
+      })) {
+        all.set(id, pr);
+      }
+    },
+  );
   const found = [...all.values()].filter((pr) =>
     isWatched(pr.id, pr.githubRepoId),
   );
@@ -327,22 +396,39 @@ async function fetchFromGitHub(
     )
     .map((pr) => pr.githubNodeId);
   const open = [...found];
-  for (const [id, status] of await fetchPrStatuses(octokit, missedIds)) {
-    if (!status) ended.set(id, "gone");
-    else if (status.state === "MERGED") ended.set(id, "merged");
-    else if (status.state === "CLOSED") ended.set(id, "closed");
-    // Moved to a repo the user doesn't watch.
-    else if (!isWatched(id, status.githubRepoId)) ended.set(id, "unwatched");
-    else open.push(status);
-  }
+  // A PR skipped here (see tokenClients) is left as it is: not ended or updated.
+  await github.each(
+    missedIds,
+    (id) => ownerOf(id),
+    async (octokit, ids) => {
+      for (const [id, status] of await fetchPrStatuses(octokit, ids)) {
+        if (!status) ended.set(id, "gone");
+        else if (status.state === "MERGED") ended.set(id, "merged");
+        else if (status.state === "CLOSED") ended.set(id, "closed");
+        // Moved to a repo the user doesn't watch.
+        else if (!isWatched(id, status.githubRepoId)) {
+          ended.set(id, "unwatched");
+        } else open.push(status);
+      }
+    },
+  );
 
-  const storedById = new Map(stored.map((pr) => [pr.githubNodeId, pr]));
-  const fetchIds = open
-    .filter(
-      (pr) => fullPass || needsDetails(pr, storedById.get(pr.id), user.login),
-    )
-    .map((pr) => pr.id);
-  const details = await fetchPrDetails(octokit, fetchIds);
+  const fetchPrs = open.filter(
+    (pr) => fullPass || needsDetails(pr, storedById.get(pr.id), user.login),
+  );
+  const details: PrDetails = { snapshots: [], failed: [] };
+  await github.each(
+    fetchPrs,
+    (pr) => ownerOf(pr.id, pr.githubRepoId),
+    async (octokit, prs) => {
+      const got = await fetchPrDetails(
+        octokit,
+        prs.map((pr) => pr.id),
+      );
+      details.snapshots.push(...got.snapshots);
+      details.failed.push(...got.failed);
+    },
+  );
   return {
     searchedIds,
     open,

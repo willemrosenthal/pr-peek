@@ -57,12 +57,15 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
   - So: ask for private repos only (`GET /user/repos?visibility=private`), and save their owners. Public repos need no particular token: any works, including the sign in.
   - A classic token reaches everything the account can, so it counts as reaching every owner.
 - [x] Pick a token per owner: a working token that reaches it, newest first, else the sign in. `pickToken` in `tokens.ts`. Clients take a `TokenChoice`: an owner, or a token id (null for the sign in).
-- [ ] Run the searches once per token in use, then merge by PR id. Fetch each PR's details with its owner's token.
+- [x] Run the searches once per token in use, then merge by PR id. Fetch each PR's details with its owner's token.
+  - As built (2b): `tokenClients` in `sync.ts` makes one client per token, when first needed, and runs work grouped by the token picked for each owner. PRs a search missed are checked the same way. The user's teams use the newest working token, else the sign in.
+  - A token GitHub rejects fails that sync. It's marked stopped, so the next sync, a couple of minutes later, picks another token or the sign in for its owners.
+  - When the sign in stops working but a token works, the sign in's owners are skipped for that sync. Their PRs aren't ended or changed, and the rest still sync. Telling the user comes with the banners (20.5).
 - [x] The repo picker, the PR preview, and add by link use the owner's token too.
   - The picker's list of owners (`/github/owners`) still asks with the default token. The settings page (20.3) can add the owners each token reaches.
 - [x] When GitHub rejects a token, mark only that token stopped. Its owners fall back to the sign in. `syncError: "token"` is only for when nothing works.
   - `markRejected` replaces `markNeedsReauth`. A rejected sign in also stops syncs only when no personal access token works.
-- [ ] Tests: two fine-grained tokens for two orgs, one stopped token, an owner nothing reaches, and the GitHub call count per sync.
+- [x] Tests: two fine-grained tokens for two orgs, one stopped token, an owner nothing reaches, and the GitHub call count per sync. In `sync.test.ts`, "several tokens": each token makes 2 searches and fetches only its owner's PRs.
 
 ### 20.3 The settings page
 

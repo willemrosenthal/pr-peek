@@ -3,7 +3,12 @@ import { RequestError, type Octokit } from "octokit";
 import type { Logger } from "pino";
 import type { Db } from "./db";
 import type { Prisma } from "./generated/prisma/client";
-import { markRejected, NeedsReauthError, STOP_REASONS } from "./github/tokens";
+import {
+  isRejection,
+  markRejected,
+  NeedsReauthError,
+  STOP_REASONS,
+} from "./github/tokens";
 import type { GitHubFor } from "./github/client";
 import { POLL_JOBS_SECONDS, POLL_SCHEDULED_SECONDS } from "./jobs";
 import { isDesktopOnline } from "./push";
@@ -134,10 +139,6 @@ function watchRateLimit(
   });
 }
 
-const needsReauth = (err: unknown) =>
-  err instanceof NeedsReauthError ||
-  (err instanceof RequestError && err.status === 401);
-
 // Runs one sync and schedules the next. Failures back off instead of throwing.
 export async function runSync(
   deps: ScheduleDeps,
@@ -202,7 +203,7 @@ async function syncAndSchedule(
     // users until they sign in again or add a new token, but only when nothing works.
     // Otherwise it's a failed sync, tried again soon with the tokens left.
     const reason =
-      needsReauth(err) &&
+      isRejection(err) &&
       (await markRejected(
         db,
         userId,

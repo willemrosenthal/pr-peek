@@ -26,7 +26,7 @@ import {
   withHeadChecks,
 } from "../test/pulls";
 import { ITEMS_CHANNEL } from "./items";
-import type { TokenChoice } from "./github/tokens";
+import { NeedsReauthError, type TokenChoice } from "./github/tokens";
 import { refreshTokenOwners, syncUser } from "./sync";
 import { upsertGitHubUser } from "./users";
 
@@ -1302,10 +1302,8 @@ describe("refreshTokenOwners", () => {
   it("runs at the start of a sync, for users with a token", async () => {
     const user = await makeUser();
     const token = await addToken(db, user.id, "github_pat_acme");
-    const { octokit } = fakeGraphQL(prGitHub({}));
-    const github = vi.fn((_userId: string, choice?: TokenChoice) =>
-      Promise.resolve(choice ? reposGitHub([["acme"]]).octokit : octokit),
-    );
+    const { octokit } = fakeGraphQL(prGitHub({}), 0, ["acme"]);
+    const github = vi.fn(() => Promise.resolve(octokit));
 
     await syncUser({ db, github, now: () => NOW }, user.id);
 
@@ -1320,7 +1318,7 @@ describe("refreshTokenOwners", () => {
     const user = await makeUser();
     const { github } = await sync(user.id, {});
     expect(github).toHaveBeenCalledTimes(1);
-    expect(github).toHaveBeenCalledWith(user.id);
+    expect(github).toHaveBeenCalledWith(user.id, { tokenId: null });
   });
 
   it("saves the owners of fine-grained tokens never checked or a day old", async () => {
@@ -1378,5 +1376,180 @@ describe("refreshTokenOwners", () => {
       (await db.gitHubToken.findUniqueOrThrow({ where: { id: good.id } }))
         .owners,
     ).toEqual(["acme"]);
+  });
+});
+
+describe("several tokens", () => {
+  const { makePr } = itemRows(db);
+  const GLOBEX = 10;
+  const INITECH = 20;
+  const prIn = (id: string, owner: string) =>
+    githubPr({
+      id,
+      repository: { name: "app", owner: { login: owner } },
+    });
+
+  // A user who watches acme/web-app (from makeUser), globex/app, and initech/app, with
+  // a fine-grained token for acme and one for globex. Nothing reaches initech.
+  async function setup() {
+    const user = await makeUser();
+    await db.watchedRepo.createMany({
+      data: [
+        { userId: user.id, githubRepoId: GLOBEX, owner: "globex", name: "app" },
+        {
+          userId: user.id,
+          githubRepoId: INITECH,
+          owner: "initech",
+          name: "app",
+        },
+      ],
+    });
+    const fresh = { ownersCheckedAt: NOW };
+    const acme = await addToken(db, user.id, "github_pat_acme", {
+      owners: ["acme"],
+      createdAt: hours(-2),
+      ...fresh,
+    });
+    const globex = await addToken(db, user.id, "github_pat_globex", {
+      owners: ["globex"],
+      createdAt: hours(-1),
+      ...fresh,
+    });
+    return { user, acme, globex };
+  }
+
+  // A fake GitHub for each token, by id. "signIn" is the sign in's. Syncs always say
+  // which token they want.
+  function githubs(fakes: Record<string, FakePrGitHub>) {
+    const made = Object.fromEntries(
+      Object.entries(fakes).map(([key, fake]) => [
+        key,
+        fakeGraphQL(prGitHub(fake)),
+      ]),
+    );
+    const github = vi.fn((_userId: string, choice?: TokenChoice) => {
+      const key =
+        choice && "tokenId" in choice ? (choice.tokenId ?? "signIn") : "";
+      const fake = made[key];
+      return fake
+        ? Promise.resolve(fake.octokit)
+        : Promise.reject(new Error(`no fake for ${key}`));
+    });
+    return { github, requestsOf: (key: string) => made[key]!.requests };
+  }
+
+  it("syncs each owner with its token, searching once per token", async () => {
+    const { user, acme, globex } = await setup();
+    const { github, requestsOf } = githubs({
+      [acme.id]: {
+        reviewRequested: [searchHit("PR_A", { repoId: WATCHED })],
+        prs: { PR_A: prIn("PR_A", "acme") },
+      },
+      [globex.id]: {
+        reviewRequested: [searchHit("PR_G", { repoId: GLOBEX })],
+        prs: { PR_G: prIn("PR_G", "globex") },
+      },
+      signIn: {
+        reviewRequested: [searchHit("PR_I", { repoId: INITECH })],
+        prs: { PR_I: prIn("PR_I", "initech") },
+      },
+    });
+
+    await syncUser({ db, github, now: () => NOW }, user.id);
+
+    const saved = await db.pullRequest.findMany({
+      orderBy: { githubNodeId: "asc" },
+    });
+    expect(saved.map((pr) => pr.githubNodeId)).toEqual([
+      "PR_A",
+      "PR_G",
+      "PR_I",
+    ]);
+    // Each token makes its two searches and fetches only its owner's PRs.
+    for (const [key, id] of [
+      [acme.id, "PR_A"],
+      [globex.id, "PR_G"],
+      ["signIn", "PR_I"],
+    ] as const) {
+      expect(searchQueries(requestsOf(key))).toHaveLength(2);
+      expect(detailIds(requestsOf(key))).toEqual([id]);
+    }
+  });
+
+  it("syncs a stopped token's owners with the sign in", async () => {
+    const { user, acme, globex } = await setup();
+    await db.gitHubToken.update({
+      where: { id: globex.id },
+      data: { status: "stopped" },
+    });
+    const { github } = githubs({
+      [acme.id]: {},
+      signIn: {
+        reviewRequested: [searchHit("PR_G", { repoId: GLOBEX })],
+        prs: { PR_G: prIn("PR_G", "globex") },
+      },
+    });
+
+    await syncUser({ db, github, now: () => NOW }, user.id);
+
+    expect(github).not.toHaveBeenCalledWith(user.id, { tokenId: globex.id });
+    expect(
+      await db.pullRequest.count({ where: { githubNodeId: "PR_G" } }),
+    ).toBe(1);
+  });
+
+  it("checks a PR added by its link with the token for its owner", async () => {
+    const { user, acme, globex } = await setup();
+    // Added from a globex repo the user doesn't watch, and missed by the searches.
+    await makePr(user.id, 9, {
+      githubRepoId: 99,
+      repoOwner: "globex",
+      addedAt: hours(-1),
+    });
+    const { github, requestsOf } = githubs({
+      [acme.id]: {},
+      [globex.id]: {
+        statuses: { PR_9: searchHit("PR_9", { repoId: 99 }) },
+        prs: { PR_9: prIn("PR_9", "globex") },
+      },
+      signIn: {},
+    });
+
+    await syncUser({ db, github, now: () => NOW }, user.id);
+
+    expect(statusIds(requestsOf(globex.id))).toEqual(["PR_9"]);
+    expect(detailIds(requestsOf(globex.id))).toEqual(["PR_9"]);
+  });
+
+  it("keeps syncing with the tokens when the sign in stops working", async () => {
+    const { user, acme, globex } = await setup();
+    // On the list from before, in initech, which only the sign in reaches.
+    await makePr(user.id, 5, { githubRepoId: INITECH, repoOwner: "initech" });
+    const { github } = githubs({
+      [acme.id]: {
+        reviewRequested: [searchHit("PR_A", { repoId: WATCHED })],
+        prs: { PR_A: prIn("PR_A", "acme") },
+      },
+      [globex.id]: {},
+    });
+    const signInStopped = vi.fn((userId: string, choice?: TokenChoice) =>
+      choice && "tokenId" in choice && choice.tokenId === null
+        ? Promise.reject(new NeedsReauthError(userId))
+        : github(userId, choice),
+    );
+
+    await syncUser({ db, github: signInStopped, now: () => NOW }, user.id);
+
+    expect(
+      await db.pullRequest.count({ where: { githubNodeId: "PR_A" } }),
+    ).toBe(1);
+    // Left as it was: not ended for want of an answer.
+    expect(
+      (
+        await db.pullRequest.findFirstOrThrow({
+          where: { githubNodeId: "PR_5" },
+        })
+      ).state,
+    ).toBe("open");
   });
 });
