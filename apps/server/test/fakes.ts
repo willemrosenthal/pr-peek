@@ -65,5 +65,8 @@ export function fakeOAuth(overrides: Partial<GitHubOAuth> = {}) {
             expiresAt: hours(24 * 30),
           })),
     ),
+    tokenOwners: vi.fn<GitHubOAuth["tokenOwners"]>(
+      overrides.tokenOwners ?? (() => Promise.resolve(["acme"])),
+    ),
   };
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { TokenDto } from "./tokens";
 
 // A GitHub personal access token, classic (`ghp_...`) or fine-grained (`github_pat_...`).
 export const githubTokenBody = z.object({
@@ -32,8 +33,10 @@ export interface MeResponse {
     // Scopes of the GitHub sign in.
     scopes: string[];
   };
-  // Null when the user hasn't added one.
+  // The newest, or null when the user hasn't added one. Plan 20's settings page uses
+  // `githubTokens`. Removed with the old /github-token routes.
   githubToken: GitHubTokenDto | null;
+  githubTokens: TokenDto[];
   // The GitHub sign in stopped working. Sign in again.
   needsReauth: boolean;
   // Can open the admin page.

@@ -14,7 +14,7 @@ import {
   type GitHubOAuth,
   type ScopeChoice,
 } from "../github/oauth";
-import { newestToken, personalTokenDto } from "../github/tokens";
+import { listTokens, personalTokenDto, tokenDto } from "../github/tokens";
 import { HttpError } from "../http-error";
 import type { SendPush } from "../push";
 import { attemptLimiter } from "../rate-limit";
@@ -167,6 +167,7 @@ export function authRouter(deps: AuthDeps): Router {
 
   router.get("/me", signedIn, async (_req, res) => {
     const user = currentUser(res);
+    const tokens = await listTokens(deps.db, user.id);
     const body: MeResponse = {
       user: {
         id: user.id,
@@ -175,10 +176,8 @@ export function authRouter(deps: AuthDeps): Router {
         avatarUrl: user.avatarUrl,
         scopes: user.tokenScopes,
       },
-      githubToken: personalTokenDto(
-        await newestToken(deps.db, user.id),
-        user.syncError,
-      ),
+      githubToken: personalTokenDto(tokens.at(-1) ?? null, user.syncError),
+      githubTokens: tokens.map(tokenDto),
       needsReauth: user.syncError === "reauth",
       isAdmin: user.role === "admin",
       pending: !user.approvedAt,

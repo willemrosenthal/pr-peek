@@ -93,8 +93,8 @@ model User {
   refreshTokenEnc       String?
   refreshTokenExpiresAt DateTime?
   tokenScopes           String[]
-  // Unused since plan 20 moved tokens to GitHubToken. Still written, so the running
-  // version works during a deploy. Drop them in a later release.
+  // Unused since plan 20 moved tokens to GitHubToken, and no longer written. Drop them in
+  // a later release.
   patEnc                String?
   patExpiresAt          DateTime?
   patScopes             String[]

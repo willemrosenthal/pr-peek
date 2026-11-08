@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { RequestError } from "octokit";
-import type { GitHubTokenDto } from "@pr-peek/core";
+import { MAX_TOKENS, type GitHubTokenDto, type TokenDto } from "@pr-peek/core";
 import type { Config } from "../config";
 import { decrypt, encrypt } from "../crypto";
 import type { Db } from "../db";
@@ -116,15 +116,6 @@ export function encryptPersonalToken(
   };
 }
 
-// What the app shows about the user's newest personal access token, or null. Until plan
-// 20's settings page, a user has at most one: saving a token replaces the last.
-export const newestToken = (db: Db, userId: string) =>
-  db.gitHubToken.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select: { expiresAt: true, scopes: true },
-  });
-
 // Which token a GitHub client uses. With none, the newest working personal access token,
 // else the newest stopped one (so its error shows), else the sign in. `owner`: the token
 // that reaches that user or org (see pickToken). `tokenId`: that personal access token,
@@ -148,18 +139,24 @@ const TOKEN_ROW = {
   createdAt: true,
 } as const;
 
-// The token for an owner's repos: the newest working token that reaches it. A classic
-// token reaches every owner. Null means the GitHub sign in. Logins ignore case on GitHub.
+// Logins ignore case on GitHub.
+export const sameLogin = (a: string, b: string) =>
+  a.toLowerCase() === b.toLowerCase();
+
+// Whether a token reaches an owner's private repos. A classic token reaches every owner.
+export const reachesOwner = (
+  token: Pick<GitHubToken, "kind" | "owners">,
+  owner: string,
+) => token.kind === "classic" || token.owners.some((o) => sameLogin(o, owner));
+
+// The token for an owner's repos: the newest working token that reaches it. Null means
+// the GitHub sign in.
 export function pickToken(
   tokens: PickableToken[],
   owner: string,
 ): string | null {
-  const wanted = owner.toLowerCase();
-  const reaches = (token: PickableToken) =>
-    token.kind === "classic" ||
-    token.owners.some((o) => o.toLowerCase() === wanted);
   const [newest] = tokens
-    .filter((token) => token.status === "working" && reaches(token))
+    .filter((token) => token.status === "working" && reachesOwner(token, owner))
     .toSorted((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   return newest?.id ?? null;
 }
@@ -186,8 +183,8 @@ async function chosenToken(
   );
 }
 
-// Saves the user's personal access token in place of any they had. Also writes the old
-// User columns, which the running version reads during a deploy.
+// Saves the user's personal access token in place of any they had. For the old
+// /github-token routes, until plan 20's settings page replaces them.
 export function savePersonalToken(
   db: Db,
   userId: string,
@@ -200,33 +197,144 @@ export function savePersonalToken(
     const saved = await tx.gitHubToken.create({
       data: { userId, name: "Personal access token", ...token },
     });
-    await tx.user.update({
-      where: { id: userId },
-      data: {
-        ...userData,
-        patEnc: token.tokenEnc,
-        patExpiresAt: token.expiresAt,
-        patScopes: token.scopes,
-      },
-    });
+    await tx.user.update({ where: { id: userId }, data: userData });
     return saved;
   });
 }
 
-// Removes the user's personal access tokens, and the old User columns.
+// Removes the user's personal access tokens.
 export async function removePersonalTokens(
   db: Db,
   userId: string,
   userData: Prisma.UserUpdateInput = {},
 ): Promise<void> {
-  // Locked like a save, so one running at the same time can't leave the two apart.
+  await db.$transaction([
+    db.gitHubToken.deleteMany({ where: { userId } }),
+    db.user.update({ where: { id: userId }, data: userData }),
+  ]);
+}
+
+// What the API shows about a token. Never the token itself.
+const DTO_FIELDS = {
+  id: true,
+  name: true,
+  kind: true,
+  owners: true,
+  scopes: true,
+  expiresAt: true,
+  status: true,
+  createdAt: true,
+} as const;
+
+type TokenRow = Prisma.GitHubTokenGetPayload<{ select: typeof DTO_FIELDS }>;
+
+export const tokenDto = (row: TokenRow): TokenDto => ({
+  ...row,
+  expiresAt: row.expiresAt?.toISOString() ?? null,
+  createdAt: row.createdAt.toISOString(),
+});
+
+// The user's personal access tokens, oldest first.
+export const listTokens = (db: Db, userId: string) =>
+  db.gitHubToken.findMany({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    select: DTO_FIELDS,
+  });
+
+// A checked token, ready to save: its columns (see encryptPersonalToken) and owners.
+export type CheckedPersonalToken = ReturnType<typeof encryptPersonalToken> & {
+  owners: string[];
+};
+
+export const alreadyAdded = () =>
+  new HttpError(409, "already_added", "You've already added this token.");
+const notYours = () =>
+  new HttpError(404, "not_found", "That token isn't one of yours.");
+
+// A new token may fix stopped or failing syncs, so the next dispatch picks the user up.
+const RESTART_SYNCS = {
+  syncError: null,
+  syncFailures: 0,
+  syncRetryAt: null,
+} as const;
+
+// Adds a token, or replaces the one `replaceId` names in one step, so its owners never
+// fall back to the sign in. Replacing works at the cap, and keeps the name unless a new
+// one is given. Locked, so two saves at once can't pass the cap or add the same token.
+export function saveToken(
+  db: Db,
+  userId: string,
+  token: CheckedPersonalToken,
+  options: { name: string } | { name?: string; replaceId: string },
+): Promise<TokenRow> {
+  const replaceId = "replaceId" in options ? options.replaceId : null;
+  return db.$transaction(async (tx) => {
+    await lockUser(tx, userId);
+    const tokens = await tx.gitHubToken.findMany({
+      where: { userId },
+      select: { id: true, tokenHash: true },
+    });
+    if (replaceId && !tokens.some((t) => t.id === replaceId)) throw notYours();
+    if (
+      tokens.some((t) => t.tokenHash === token.tokenHash && t.id !== replaceId)
+    ) {
+      throw alreadyAdded();
+    }
+    if (!replaceId && tokens.length >= MAX_TOKENS) {
+      throw new HttpError(
+        409,
+        "too_many",
+        `You can add up to ${MAX_TOKENS} tokens. Remove one first.`,
+      );
+    }
+    const data = {
+      ...token,
+      ...(options.name !== undefined && { name: options.name }),
+      ownersCheckedAt: new Date(),
+      status: "working" as const,
+      stoppedAt: null,
+      expiryRemindedAt: null,
+    };
+    const saved =
+      "replaceId" in options
+        ? await tx.gitHubToken.update({
+            where: { id: options.replaceId },
+            data,
+            select: DTO_FIELDS,
+          })
+        : await tx.gitHubToken.create({
+            data: { userId, ...data, name: options.name },
+            select: DTO_FIELDS,
+          });
+    await tx.user.update({ where: { id: userId }, data: RESTART_SYNCS });
+    return saved;
+  });
+}
+
+// Removes one token. Its owners sync with another token or the sign in. If syncs waited
+// for a new token, they start again when one still works, or none are left.
+export async function removeToken(
+  db: Db,
+  userId: string,
+  tokenId: string,
+): Promise<void> {
   await db.$transaction(async (tx) => {
     await lockUser(tx, userId);
-    await tx.gitHubToken.deleteMany({ where: { userId } });
-    await tx.user.update({
-      where: { id: userId },
-      data: { ...userData, patEnc: null, patExpiresAt: null, patScopes: [] },
+    const { count } = await tx.gitHubToken.deleteMany({
+      where: { id: tokenId, userId },
     });
+    if (count === 0) throw notYours();
+    const left = await tx.gitHubToken.findMany({
+      where: { userId },
+      select: { status: true },
+    });
+    if (left.length === 0 || left.some((t) => t.status === "working")) {
+      await tx.user.updateMany({
+        where: { id: userId, syncError: "token" },
+        data: { syncError: null },
+      });
+    }
   });
 }
 
@@ -432,14 +540,10 @@ export async function reencryptTokens(
         where: { userId: id },
         select: { id: true, tokenEnc: true },
       });
-      // patEnc keeps the same text as its token in the table, so the two still match.
-      let patEnc = again(user.patEnc);
       for (const token of tokens) {
-        const tokenEnc = again(token.tokenEnc)!;
-        if (token.tokenEnc === user.patEnc) patEnc = tokenEnc;
         await tx.gitHubToken.update({
           where: { id: token.id },
-          data: { tokenEnc },
+          data: { tokenEnc: again(token.tokenEnc)! },
         });
       }
       await tx.user.update({
@@ -447,7 +551,7 @@ export async function reencryptTokens(
         data: {
           accessTokenEnc: again(user.accessTokenEnc),
           refreshTokenEnc: again(user.refreshTokenEnc),
-          patEnc,
+          patEnc: again(user.patEnc),
         },
       });
       saved++;
