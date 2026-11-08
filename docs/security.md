@@ -37,13 +37,14 @@ The list is in `apps/server/src/logger.ts`. Add to it if you log something new t
 
 ## Rate limits and IPs
 
-Sign in is rate limited by IP: 30 tries per 15 minutes. Everything else is limited per signed in user.
+Sign in is rate limited by IP: 30 tries per 15 minutes. Routes that ask GitHub or send pushes are limited per signed in user instead, since people at one company often share an IP.
 
 The IP limit only works if the server sees each user's real IP. Render's proxies sit in front of us, and `TRUST_PROXY_HOPS` (default 1) says how many. To check it:
 
 1. Sign in as an admin and open `https://www.git-buddy.com/api/admin/ip`.
 2. `ip` should be your own IP (search "what is my IP" to compare).
-3. If it isn't, find your IP in `forwardedFor`. Count the entries after it, add 1, and set `TRUST_PROXY_HOPS` to that in Render (Environment). Then check again.
+3. If it isn't, find your IP in `forwardedFor`. Count the entries after it, add 1, and set `TRUST_PROXY_HOPS` to that in Render (Environment). Render restarts the server with it. Then check again.
+4. If your IP isn't in `forwardedFor` at all, leave it at 1. Render passes it some other way, which needs a code change.
 
 Too low, and everyone shares one sign-in limit. Too high, and someone could fake their IP to skip it.
 
