@@ -1,18 +1,11 @@
 import { PRIVACY_EMAIL, REPO_URL } from "../build";
 import { BackToList } from "../components/BackToList";
+import { ExternalLink } from "../components/ExternalLink";
 import { useReturnToList } from "../hooks/useReturnToList";
 import styles from "./InfoPage.module.css";
 
 // Change this whenever the page changes in a way that matters.
 const LAST_CHANGED = "8 November 2026";
-
-function ExternalLink({ href, children }: { href: string; children: string }) {
-  return (
-    <a href={href} target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
-  );
-}
 
 const Email = () => <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>;
 
@@ -119,8 +112,8 @@ export function PrivacyPage() {
               Your profile, tokens, and settings: while you have an account.
             </li>
             <li>
-              Things that needed you and are done: 30 days. Pull requests GitHub
-              no longer shows you: 7 days.
+              Things that needed you and are done: 30 days. Pull requests that
+              leave your list: about 7 days, unless you flagged them.
             </li>
             <li>
               Being signed in: ends after 30 days without using Git Buddy.

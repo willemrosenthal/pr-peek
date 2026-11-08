@@ -102,7 +102,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 - [x] A custom domain on Render, with HTTPS (automatic). Done early: `www.git-buddy.com`, bought at Porkbun. `git-buddy.com` redirects to it.
 - [ ] A short landing section on `/signin`: what it does, a screenshot, install buttons.
 - [ ] Friendly states for: no repos yet, nothing needs you, GitHub is down, sync error.
-- [x] A feedback link: GitHub issues for bugs and ideas, and an email for privacy questions. As built (PR 4a): `HelpLinks` on sign in (with an install link) and in Settings, General. The email is on the privacy page.
+- [x] A feedback link: GitHub issues for bugs and ideas, and an email for privacy questions. As built (PR 4a): `HelpLinks` on sign in (with an install link) and in Settings, General. The email is on the privacy page. In the Mac app, the privacy link opens in the browser: the app only opens web links, so the page's email link wouldn't work inside it.
 
 ## Done when
 

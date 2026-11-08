@@ -62,10 +62,13 @@ export function SignIn() {
             reads. It never changes anything on GitHub. Pick "Public repos only"
             to keep private repos out.
           </p>
-          <p className={styles.hint}>
-            It's invite only for now: signing in sends a request, and you'll get
-            in once it's approved.
-          </p>
+          {/* Signing in again needs no approval. Waits for `me`, so it doesn't flash. */}
+          {!me.isPending && !me.data?.needsReauth && (
+            <p className={styles.hint}>
+              It's invite only for now: signing in sends a request, and you'll
+              get in once it's approved.
+            </p>
+          )}
           <p className={styles.hint}>
             If your company blocks Git Buddy, sign in anyway. You can add a
             personal access token after.
