@@ -14,6 +14,7 @@ import type {
   SignUpRequestsResponse,
   SummaryResponse,
   SyncStatusResponse,
+  TokensResponse,
   WatchedReposResponse,
 } from "@pr-peek/core";
 import {
@@ -39,6 +40,7 @@ export const queryKeys = {
   repos: ["repos"],
   githubRepos: ["github-repos"],
   githubOwners: ["github-owners"],
+  githubTokens: ["github-tokens"],
   adminOverview: ["admin-overview"],
   signUpRequests: ["sign-up-requests"],
   settings: ["settings"],
@@ -223,6 +225,15 @@ const repoUrl = (params: Record<string, string>) => {
   const search = new URLSearchParams(params);
   return `/github/repos${search.size > 0 ? `?${search}` : ""}`;
 };
+
+// The user's personal access tokens, and which token syncs each owner they watch.
+export function useGitHubTokens() {
+  return useQuery({
+    queryKey: queryKeys.githubTokens,
+    queryFn: () => api<TokensResponse>("/github-tokens"),
+    retry: retryServerErrors,
+  });
+}
 
 // Who the user can pick repos from: themselves, their orgs, and people who share repos.
 export function useRepoOwners() {

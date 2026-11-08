@@ -2,7 +2,6 @@ import {
   githubTokenBody,
   saveTokenBody,
   type CheckTokenResponse,
-  type GitHubTokenResponse,
   type TokenResponse,
   type TokensResponse,
 } from "@pr-peek/core";
@@ -14,12 +13,9 @@ import {
   alreadyAdded,
   encryptPersonalToken,
   listTokens,
-  personalTokenDto,
   pickToken,
   reachesOwner,
-  removePersonalTokens,
   removeToken,
-  savePersonalToken,
   saveToken,
   sameLogin,
   tokenDto,
@@ -43,7 +39,7 @@ const sameOwners = (a: string[], b: string[]) =>
 // fine-grained token reaches one org, so a user can add several.
 export function githubTokenRouter(deps: GitHubTokenDeps): Router {
   const router = express.Router();
-  router.use(["/github-token", "/github-tokens"], requireUser(deps.db));
+  router.use("/github-tokens", requireUser(deps.db));
 
   const limiter = attemptLimiter();
 
@@ -95,17 +91,18 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
     const user = currentUser(res);
     const [tokens, watched] = await Promise.all([
       listTokens(deps.db, user.id),
-      deps.db.watchedRepo.findMany({
+      deps.db.watchedRepo.groupBy({
+        by: ["owner"],
         where: { userId: user.id, enabled: true },
-        select: { owner: true },
-        distinct: ["owner"],
+        _count: true,
         orderBy: { owner: "asc" },
       }),
     ]);
     const body: TokensResponse = {
       tokens: tokens.map(tokenDto),
-      syncedBy: watched.map(({ owner }) => ({
+      syncedBy: watched.map(({ owner, _count }) => ({
         owner,
+        repos: _count,
         tokenId: pickToken(tokens, owner),
       })),
     };
@@ -177,33 +174,6 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
 
   router.delete("/github-tokens/:id", async (req, res) => {
     await removeToken(deps.db, currentUser(res).id, req.params.id);
-    res.sendStatus(204);
-  });
-
-  // The old single-token routes, until the web app moves to the ones above.
-  router.put("/github-token", limiter, async (req, res) => {
-    const { token } = parseInput(githubTokenBody, req.body);
-    const user = currentUser(res);
-    const checked = await check(user, token);
-    const saved = await savePersonalToken(deps.db, user.id, checked, {
-      syncError: null,
-      syncFailures: 0,
-      syncRetryAt: null,
-    });
-    const body: GitHubTokenResponse = {
-      githubToken: personalTokenDto(saved, null)!,
-    };
-    res.json(body);
-  });
-
-  // Syncs go back to the sign in token.
-  router.delete("/github-token", async (_req, res) => {
-    const user = currentUser(res);
-    await removePersonalTokens(
-      deps.db,
-      user.id,
-      user.syncError === "token" ? { syncError: null } : {},
-    );
     res.sendStatus(204);
   });
 

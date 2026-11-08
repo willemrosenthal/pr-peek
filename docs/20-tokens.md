@@ -33,7 +33,7 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 3. **The settings page** (20.3, 20.4), split in two:
    - 3a: `feat(server): an API for several personal access tokens`. The routes, checking a token before saving, `/me`'s list, and the table matching the old columns.
    - 3b: `feat(web): add several personal access tokens`. The settings page. Then the old `/github-token` routes and the old columns go.
-4. **Reminders and key checks** (20.5, 20.6): `feat(server): remind before a token expires, and check the key on start`.
+4. **Reminders and key checks** (20.5, 20.6): `feat(server): remind before a token expires, and check the key on start`. Also drops the old `User` columns (`patEnc`, `patExpiresAt`, `patScopes`) with a migration.
 
 ## Steps
 
@@ -72,22 +72,25 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 
 ### 20.3 The settings page
 
-- [ ] Settings, General, "GitHub tokens": each token's name, kind, owners, expiry, and status, with Remove. Replace shows too when the token expires within 7 days or has stopped. See the mockup.
-- [ ] Add a token: paste, check, then see what it reaches before saving. Name it, starting as its org.
-- [ ] If the new token reaches the same orgs as one you have, ask: "Replace that one?" Replace swaps it with no gap. Keep both saves it as a new token.
-- [ ] Messages for: not accepted, another account's token, already added, reaches no watched repo (can still save), and the cap.
-- [ ] "Which token syncs each owner": the owners of watched repos and what syncs each. An owner nothing reaches links to adding a token.
+- [x] Settings, General, "GitHub tokens": each token's name, kind, owners, expiry, and status, with Remove. Replace shows too when the token expires within 7 days or has stopped. See the mockup.
+  - As built (3b): `GitHubTokens.tsx`. Left out from the mockup: "Last used", since nothing records it, and a token with no kind yet shows no badge.
+- [x] Add a token: paste, check, then see what it reaches before saving. Name it, starting as its org.
+- [x] If the new token reaches the same orgs as one you have, ask: "Replace that one?" Replace swaps it with no gap. Keep both saves it as a new token.
+- [x] Messages for: not accepted, another account's token, already added, reaches no watched repo (can still save), and the cap.
+- [x] "Which token syncs each owner": the owners of watched repos and what syncs each. An owner nothing reaches links to adding a token.
+  - Changed: the server can't tell when the sign in can't reach an owner, so owners no token reaches say "GitHub sign in". There's no "Nothing reaches it" line.
 
 #### On phones
 
 Most people make a token on GitHub and paste it on the same phone, so this has to be easy there.
 
-- [ ] Buttons that open GitHub's new token pages. The classic one ticks `repo` and `read:org` already (`/settings/tokens/new?scopes=repo,read:org`).
-- [ ] A Paste button next to the token field. Inputs use 16px text, so iPhones don't zoom in.
-- [ ] Token cards stack, with full-width buttons. Every target is at least 44px.
-- [ ] Remove asks first, and says which repos fall back to the sign in.
-- [ ] "Which token syncs each owner" is a list, not a table, so nothing scrolls sideways.
-- [ ] Adding a token is its own screen on phones, in two steps: make one on GitHub, then paste and check.
+- [x] Buttons that open GitHub's new token pages. The classic one ticks `repo` and `read:org` already (`/settings/tokens/new?scopes=repo,read:org`).
+- [x] A Paste button next to the token field. Inputs use 16px text, so iPhones don't zoom in.
+- [x] Token cards stack, with full-width buttons. Every target is at least 44px.
+- [x] Remove asks first, and says which repos fall back to the sign in.
+- [x] "Which token syncs each owner" is a list, not a table, so nothing scrolls sideways.
+- [x] Adding a token is its own screen on phones, in two steps: make one on GitHub, then paste and check.
+  - As built: on screens up to 600px wide, the add panel hides the lists and scrolls into view. On wider screens it opens under the list, as in the mockup.
 
 ### 20.4 The API
 
@@ -95,7 +98,7 @@ Most people make a token on GitHub and paste it on the same phone, so this has t
   - As built (3a): `GET` also answers which token syncs each watched owner. `POST /github-tokens/check` checks a pasted token and says what it reaches, before saving: its owners, a name to start from, a token with the same owners (to offer Replace), and whether it reaches any watched repo. It answers 409 `already_added` for a token the user has.
   - Saving checks the token with GitHub again, and saves its owners, so no sync has to. `too_many` at 5. Replacing works at the cap and keeps the name unless given one. Removing a token restarts syncs that waited for one, when another still works.
 - [x] `/me` returns the list, without the tokens themselves. `githubTokens`. The old `githubToken` stays until 3b.
-- [ ] Remove the old `/github-token` routes once the web app stops calling them.
+- [x] Remove the old `/github-token` routes once the web app stops calling them. Done in 3b, with `githubToken` in `/me`. The old `User` columns left the Prisma schema too. The database keeps them, so the version running during the deploy still works. PR 4 drops them.
 
 ### 20.5 Reminders
 

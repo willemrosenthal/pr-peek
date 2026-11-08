@@ -1,0 +1,269 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.heading {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.kinds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.kind[open] {
+  padding-bottom: var(--space-2);
+}
+
+/* Inside the details, since Safari ignores flex on details itself. */
+.kindBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--color-text-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Permission and scope names, so they stand out from the gray steps. */
+.steps code {
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 85%;
+  white-space: nowrap;
+}
+
+.tokens {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.muted {
+  color: var(--color-text-secondary);
+}
+
+.saved {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.list > li + li {
+  border-top: 1px solid var(--color-divider);
+}
+
+.card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 14px;
+}
+
+.cardText {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.status {
+  font-weight: 600;
+}
+
+.workingText {
+  color: var(--color-success);
+}
+
+.expiringText {
+  color: var(--color-warning);
+}
+
+.stoppedText {
+  color: var(--color-danger);
+}
+
+.ownerRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) 14px;
+  overflow-wrap: anywhere;
+}
+
+.confirm {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  scroll-margin-top: var(--space-4);
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.label {
+  font-weight: 700;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.pasteRow {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* 16px, so iPhones don't zoom in when it's tapped. */
+.tokenInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 16px;
+}
+
+.accepted {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+
+.accepted > strong {
+  color: var(--color-success);
+}
+
+.warning {
+  padding: var(--space-3) 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+/* Phones: cards stack with full-width buttons, and adding a token takes the place of
+   the lists, like its own screen. */
+@media (max-width: 600px) {
+  .card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions,
+  .links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  }
+
+  .links {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .header > button {
+    width: 100%;
+  }
+
+  .adding .list,
+  .adding section + section {
+    display: none;
+  }
+
+  .panel input {
+    font-size: 16px;
+  }
+}

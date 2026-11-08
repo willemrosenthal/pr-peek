@@ -13,7 +13,7 @@ import { AppVersion } from "../../components/AppVersion";
 import { Button } from "../../components/Button";
 import { Card, CardRow } from "../../components/Card";
 import { Select } from "../../components/Field";
-import { GitHubToken } from "../../components/GitHubToken";
+import { GitHubTokens } from "../../components/GitHubTokens";
 import { RowText } from "../../components/RowText";
 import { SectionOrder } from "../../components/SectionOrder";
 import { SettingSwitch } from "../../components/SettingSwitch";
@@ -82,7 +82,7 @@ export function GeneralTab() {
           <ColoredIconRow />
         </Card>
       )}
-      <GitHubToken />
+      <GitHubTokens />
       <hr className={styles.divider} />
       <div>
         <Button onClick={() => signOut.mutate()} disabled={signOut.isPending}>

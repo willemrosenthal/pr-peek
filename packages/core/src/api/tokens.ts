@@ -34,8 +34,9 @@ export interface TokenDto {
 
 export interface TokensResponse {
   tokens: TokenDto[];
-  // Each owner of a watched repo, and the token that syncs it. Null is the sign in.
-  syncedBy: { owner: string; tokenId: string | null }[];
+  // Each owner of a watched repo, how many of its repos are watched, and the token that
+  // syncs it. Null is the GitHub sign in.
+  syncedBy: { owner: string; repos: number; tokenId: string | null }[];
 }
 
 export interface TokenResponse {

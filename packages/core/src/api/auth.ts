@@ -10,20 +10,6 @@ export const githubTokenBody = z.object({
 });
 export type GitHubTokenBody = z.infer<typeof githubTokenBody>;
 
-// A personal access token the user added. Syncs use it instead of the sign in token.
-export interface GitHubTokenDto {
-  // Null when the token never expires.
-  expiresAt: string | null;
-  // Empty for fine-grained tokens, which have no scopes.
-  scopes: string[];
-  // GitHub stopped accepting it. Syncs wait for a new one.
-  invalid: boolean;
-}
-
-export interface GitHubTokenResponse {
-  githubToken: GitHubTokenDto;
-}
-
 export interface MeResponse {
   user: {
     id: string;
@@ -33,9 +19,7 @@ export interface MeResponse {
     // Scopes of the GitHub sign in.
     scopes: string[];
   };
-  // The newest, or null when the user hasn't added one. Plan 20's settings page uses
-  // `githubTokens`. Removed with the old /github-token routes.
-  githubToken: GitHubTokenDto | null;
+  // The user's personal access tokens, oldest first.
   githubTokens: TokenDto[];
   // The GitHub sign in stopped working. Sign in again.
   needsReauth: boolean;
