@@ -242,13 +242,13 @@
   justify-content: center;
 }
 
-/* Most of a phone's screen, and up to 820px tall on a computer, so the steps have
-   room. The app's gray, so each step's white card stands out, like in Settings. */
+/* As tall as what's in it, up to most of a phone's screen or 820px on a computer, then
+   it scrolls. The app's gray, so each step's white card stands out, like in Settings. */
 .sheet {
   box-sizing: border-box;
   width: 100%;
   max-width: 680px;
-  height: min(820px, 90dvh);
+  max-height: min(820px, 90dvh);
   overflow-y: auto;
   overscroll-behavior: contain;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
@@ -411,21 +411,6 @@
   color: var(--color-on-accent);
 }
 
-/* Both panels share one spot, and the hidden one keeps its space, so switching tabs
-   doesn't move the paste step up or down. Hidden still hides it from screen readers. */
-.panels {
-  display: grid;
-}
-
-.panels > * {
-  grid-area: 1 / 1;
-}
-
-.panels > [hidden] {
-  display: flex;
-  visibility: hidden;
-}
-
 .recommended {
   padding: 0 6px;
   line-height: 18px;
@@ -436,10 +421,10 @@
   font-weight: 600;
 }
 
-/* Phones: the sheet takes most of the screen, and its buttons stack. */
+/* Phones: the sheet can take most of the screen, and its buttons stack. */
 @media (max-width: 600px) {
   .sheet {
-    height: 92dvh;
+    max-height: 92dvh;
   }
 
   .sheetBody {

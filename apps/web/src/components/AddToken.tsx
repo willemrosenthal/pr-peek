@@ -173,19 +173,12 @@ function AddToken({
                 Classic token
               </Tabs.Tab>
             </Tabs.List>
-            {/* Kept mounted, so the sheet sizes to the taller one. */}
-            <div className={styles.panels}>
-              <Tabs.Panel
-                value="fine_grained"
-                className={styles.step}
-                keepMounted
-              >
-                <FineGrainedSteps />
-              </Tabs.Panel>
-              <Tabs.Panel value="classic" className={styles.step} keepMounted>
-                <ClassicSteps />
-              </Tabs.Panel>
-            </div>
+            <Tabs.Panel value="fine_grained" className={styles.step}>
+              <FineGrainedSteps />
+            </Tabs.Panel>
+            <Tabs.Panel value="classic" className={styles.step}>
+              <ClassicSteps />
+            </Tabs.Panel>
           </Tabs.Root>
           <form className={styles.stepCard} onSubmit={submitToken}>
             <StepTitle number={2}>

@@ -92,7 +92,7 @@ Most people make a token on GitHub and paste it on the same phone, so this has t
 - [x] Remove asks first, and says which repos fall back to the sign in.
 - [x] "Which token syncs each owner" is a list, not a table, so nothing scrolls sideways.
 - [x] Adding a token is its own screen on phones, in two steps: make one on GitHub, then paste and check.
-  - Changed: "Add a token" opens a sheet from the bottom, on every screen size, like the PR preview. It has a tab for each kind: Fine-grained (marked Recommended) and Classic token, each with its own link and steps. Pasting and checking sit below the tabs. Replacing a classic token opens on its tab.
+  - Changed: "Add a token" opens a sheet from the bottom, on every screen size, like the PR preview. It has a tab for each kind: Fine-grained (marked Recommended) and Classic token, each with its own link and steps. Pasting and checking sit below the tabs. Replacing a classic token opens on its tab. The sheet fits what's in it, up to most of the screen, then scrolls.
 
 ### 20.4 The API
 
