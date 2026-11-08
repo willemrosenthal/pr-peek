@@ -52,7 +52,7 @@ export function SignIn() {
 
   return (
     <main className={styles.page}>
-      <div className={styles.intro}>
+      <div className={styles.content}>
         <header className={styles.header}>
           <h1 className={styles.title}>Git Buddy</h1>
           <p className={styles.tagline}>

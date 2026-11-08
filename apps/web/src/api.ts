@@ -12,6 +12,13 @@ export class ApiError extends Error {
   }
 }
 
+export const UNREACHABLE =
+  "Can't reach Git Buddy. Check your connection, then try again.";
+// Render answers these itself while a deploy starts or the server restarts.
+export const RESTARTING = "Git Buddy is restarting. Try again in a minute.";
+const RESTART_STATUSES = new Set([502, 503, 504]);
+export const UNKNOWN_ERROR = "Something went wrong. Try again.";
+
 // The request got no answer: offline, or Git Buddy can't be reached. Not an ApiError,
 // so queries still retry it.
 export class NetworkError extends Error {
@@ -20,13 +27,6 @@ export class NetworkError extends Error {
     this.name = "NetworkError";
   }
 }
-
-export const UNREACHABLE =
-  "Can't reach Git Buddy. Check your connection, then try again.";
-// Render answers these itself while a deploy starts or the server restarts.
-export const RESTARTING = "Git Buddy is restarting. Try again in a minute.";
-const RESTART_STATUSES = new Set([502, 503, 504]);
-export const UNKNOWN_ERROR = "Something went wrong. Try again.";
 
 interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
