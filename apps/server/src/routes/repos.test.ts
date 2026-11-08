@@ -1,16 +1,19 @@
 import {
   MAX_WATCHED_REPOS,
+  type RepoOwnersResponse,
   type SearchReposResponse,
   type WatchedRepoDto,
 } from "@pr-peek/core";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { APP_URL, bodyOf, makeTestApp, signIn } from "../../test/app";
-import { createTestDb, resetDb } from "../../test/db";
+import { addToken, createTestDb, resetDb } from "../../test/db";
+import { NOW } from "../../test/fakes";
 import {
   fakeGraphQL,
   notFoundError,
   type GraphQLRequest,
 } from "../../test/github";
+import type { GitHubFor } from "../github/client";
 import { NeedsReauthError } from "../github/tokens";
 import { PICKER_ASKS_PER_MINUTE, reposRouter } from "./repos";
 
@@ -102,7 +105,7 @@ async function setup(
   delayMs = 0,
 ) {
   const fake = fakeGraphQL(answer, delayMs);
-  const githubFor = vi.fn(() => Promise.resolve(fake.octokit));
+  const githubFor = vi.fn<GitHubFor>(() => Promise.resolve(fake.octokit));
   const { agent } = makeTestApp(db, {
     routers: [reposRouter({ db, github: githubFor })],
   });
@@ -121,7 +124,8 @@ describe("GET /api/github/repos", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       repos: [option(1, "web-app"), option(3, "api", { isPrivate: true })],
-      nextCursor: "cursor-2",
+      // With no owner, the cursor also says which token's list it's in.
+      nextCursor: "0:cursor-2",
     });
   });
 
@@ -174,7 +178,7 @@ describe("GET /api/github/repos", () => {
 
   it("searches by name when given a query, and passes the cursor along", async () => {
     const { agent, requests } = await setup();
-    const res = await agent.get("/api/github/repos?query=web&cursor=abc");
+    const res = await agent.get("/api/github/repos?query=web&cursor=0:abc");
 
     expect(bodyOf<SearchReposResponse>(res).repos).toHaveLength(1);
     expect(requests.at(-1)?.variables).toEqual({
@@ -291,6 +295,126 @@ describe("GET /api/github/owners", () => {
         { login: "dana", kind: "shared" },
       ],
     });
+  });
+});
+
+describe("with personal access tokens", () => {
+  // GitHub's answer with the sign in's repos on one page, no more after it.
+  const onePage = (request: GraphQLRequest) =>
+    request.query.includes("viewer") && !request.query.includes("organizations")
+      ? {
+          data: {
+            viewer: {
+              repositories: {
+                nodes: [repo(1, "web-app")],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          },
+        }
+      : github(request);
+
+  it("lists the repos of every token, one after another, with no owner picked", async () => {
+    const { agent, githubFor } = await setup(onePage);
+    const user = await db.user.findFirstOrThrow();
+    const token = await addToken(db, user.id, "github_pat_globex");
+
+    const first = bodyOf<SearchReposResponse>(
+      await agent.get("/api/github/repos"),
+    );
+    expect(first.nextCursor).toBe("1:");
+    expect(githubFor).toHaveBeenLastCalledWith(user.id, { tokenId: null });
+
+    const second = bodyOf<SearchReposResponse>(
+      await agent.get("/api/github/repos?cursor=1:"),
+    );
+    expect(second.repos).toHaveLength(1);
+    expect(second.nextCursor).toBeNull();
+    expect(githubFor).toHaveBeenLastCalledWith(user.id, { tokenId: token.id });
+  });
+
+  it("skips a token GitHub refuses, so the others still list", async () => {
+    const { agent, githubFor } = await setup(onePage);
+    const user = await db.user.findFirstOrThrow();
+    await addToken(db, user.id, "github_pat_globex");
+    githubFor.mockImplementation((_userId, choice) =>
+      choice && "tokenId" in choice && choice.tokenId
+        ? Promise.reject(new NeedsReauthError(user.id, "token"))
+        : Promise.resolve(fakeGraphQL(onePage).octokit),
+    );
+
+    const res = await agent.get("/api/github/repos?cursor=1:");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ repos: [], nextCursor: null });
+  });
+
+  it("ends the list for a cursor past the last token, like one removed meanwhile", async () => {
+    const { agent, githubFor } = await setup(onePage);
+    const res = await agent.get("/api/github/repos?cursor=3:abc");
+    expect(res.body).toEqual({ repos: [], nextCursor: null });
+    expect(githubFor).not.toHaveBeenCalled();
+  });
+
+  it("leaves out a sign in that stopped, while a token works", async () => {
+    const { agent, githubFor } = await setup(onePage);
+    const user = await db.user.findFirstOrThrow();
+    const token = await addToken(db, user.id, "github_pat_globex");
+    await db.user.update({
+      where: { id: user.id },
+      data: { signInStoppedAt: NOW },
+    });
+
+    const res = bodyOf<SearchReposResponse>(
+      await agent.get("/api/github/repos"),
+    );
+    expect(githubFor).toHaveBeenCalledExactlyOnceWith(user.id, {
+      tokenId: token.id,
+    });
+    expect(res.nextCursor).toBeNull();
+  });
+
+  it("lists orgs with the sign in, which sees them all, not a newer fine-grained token", async () => {
+    const { agent, githubFor } = await setup();
+    const user = await db.user.findFirstOrThrow();
+    await addToken(db, user.id, "github_pat_globex", { owners: ["globex"] });
+
+    await agent.get("/api/github/owners");
+    expect(githubFor).toHaveBeenCalledExactlyOnceWith(user.id, {
+      tokenId: null,
+    });
+  });
+
+  it("offers the tokens' orgs when GitHub refuses the sign in", async () => {
+    const { agent, githubFor } = await setup();
+    const user = await db.user.findFirstOrThrow();
+    await addToken(db, user.id, "github_pat_globex", { owners: ["globex"] });
+    githubFor.mockRejectedValue(new NeedsReauthError(user.id));
+
+    const res = await agent.get("/api/github/owners");
+    expect(res.status).toBe(200);
+    expect(bodyOf<RepoOwnersResponse>(res).owners).toEqual([
+      { login: user.login, kind: "you" },
+      { login: "globex", kind: "org" },
+    ]);
+  });
+
+  it("offers the orgs working tokens reach, next to the ones GitHub lists", async () => {
+    const { agent } = await setup();
+    const user = await db.user.findFirstOrThrow();
+    await addToken(db, user.id, "github_pat_a", { owners: ["globex", "acme"] });
+    await addToken(db, user.id, "github_pat_b", {
+      owners: ["initech"],
+      status: "stopped",
+    });
+
+    const { owners } = bodyOf<RepoOwnersResponse>(
+      await agent.get("/api/github/owners"),
+    );
+    expect(owners.filter((o) => o.kind === "org")).toEqual([
+      { login: "Acme", kind: "org" },
+      { login: "globex", kind: "org" },
+      { login: "zeta", kind: "org" },
+    ]);
   });
 });
 
