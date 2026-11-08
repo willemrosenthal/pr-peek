@@ -63,7 +63,7 @@ it("pushes once when a token stops working", async () => {
   // Stopped days ago: the banner says so, but it's too late for a push.
   await addToken(db, user.id, "github_pat_old", {
     status: "stopped",
-    stoppedAt: hours(-48),
+    stoppedAt: hours(-24 * 4),
   });
   const { send, run } = setup();
 
@@ -88,6 +88,23 @@ it("waits out the user's quiet hours", async () => {
 
   expect(await run()).toBe(0);
   expect(await run(hours(2))).toBe(1);
+});
+
+it("waits out a quiet weekend, and still pushes on Monday", async () => {
+  const user = await makeUser();
+  await db.userSettings.update({
+    where: { userId: user.id },
+    data: { quietWeekends: true },
+  });
+  const saturday = new Date("2026-10-24T09:00:00Z");
+  await addToken(db, user.id, "github_pat_stopped", {
+    status: "stopped",
+    stoppedAt: saturday,
+  });
+  const { run } = setup();
+
+  expect(await run(saturday)).toBe(0);
+  expect(await run(new Date("2026-10-26T09:00:00Z"))).toBe(1);
 });
 
 it("sends nothing when push is off", async () => {

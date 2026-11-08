@@ -16,6 +16,10 @@ import {
 import { QUIET_SETTINGS } from "./sync-schedule";
 import { DAY_MS } from "./health";
 
+// A stopped token's push goes out this long after, at most. Long enough to wait out a
+// quiet weekend, from Saturday morning to Monday.
+const STOP_REMINDER_DAYS = 3;
+
 export interface TokenReminderDeps {
   db: Db;
   // Null when push is off, because the VAPID keys aren't set.
@@ -43,9 +47,9 @@ function reminderFor(
   };
 }
 
-// Pushes, once each per token: when it expires within EXPIRING_DAYS, and on the day it
-// stopped working. A user in their quiet hours gets theirs after. Run every hour. Returns
-// how many went out.
+// Pushes, once each per token: when it expires within EXPIRING_DAYS, and when it stopped
+// working. A user in their quiet hours gets theirs after. Run every hour. Returns how
+// many went out.
 export async function sendTokenReminders(
   deps: TokenReminderDeps,
   now: Date,
@@ -60,11 +64,13 @@ export async function sendTokenReminders(
           expiryRemindedAt: null,
           expiresAt: { lte: new Date(now.getTime() + EXPIRING_DAYS * DAY_MS) },
         },
-        // On the day it stops, so a user who gets a device later isn't told of old ones.
+        // Soon after it stops, so a user who gets a device later isn't told of old ones.
         {
           status: "stopped",
           stopRemindedAt: null,
-          stoppedAt: { gte: new Date(now.getTime() - DAY_MS) },
+          stoppedAt: {
+            gte: new Date(now.getTime() - STOP_REMINDER_DAYS * DAY_MS),
+          },
         },
       ],
       user: reachableUsers(now),
