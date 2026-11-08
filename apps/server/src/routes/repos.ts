@@ -6,6 +6,7 @@ import {
   type AddRepoResponse,
   type RepoOwner,
   type RepoOwnersResponse,
+  type SearchReposResponse,
   type WatchedRepoDto,
   type WatchedReposResponse,
 } from "@pr-peek/core";
@@ -108,13 +109,12 @@ export function reposRouter(deps: RepoDeps): Router {
   router.get("/github/repos", async (req, res) => {
     const { query, owner, cursor } = parseInput(searchReposQuery, req.query);
     const user = currentUser(res);
-    const userId = user.id;
     if (!owner) {
       res.json(await acrossSources(user, query, cursor));
       return;
     }
     // An owner's repos list with the token that reaches it.
-    const octokit = await deps.github(userId, { owner });
+    const octokit = await deps.github(user.id, { owner });
     if (query) {
       res.json(await searchRepos(octokit, { query, owner, cursor }));
       return;
@@ -151,21 +151,22 @@ export function reposRouter(deps: RepoDeps): Router {
   });
 
   // A page of the repos every token reaches, with no owner picked: one source's page at
-  // a time, then the next source's (see repoSources). A source GitHub refuses is skipped,
-  // so the others still list, unless it's the only one.
+  // a time, then the next source's (see pickerTokens). A source GitHub refuses is
+  // skipped, so the others still list, unless it's the only one.
   async function acrossSources(
     user: User,
     query: string | undefined,
     raw: string | undefined,
-  ) {
-    const userId = user.id;
+  ): Promise<SearchReposResponse> {
     const { sources } = await pickerTokens(deps.db, user);
     const { index, cursor } = parseSourceCursor(raw);
+    const source = sources[index];
+    // Past the last source, like from a cursor kept while a token was removed.
+    if (source === undefined) return { repos: [], nextCursor: null };
     const nextSource =
       index + 1 < sources.length ? sourceCursor(index + 1, null) : null;
-    if (index >= sources.length) return { repos: [], nextCursor: null };
     try {
-      const octokit = await deps.github(userId, { tokenId: sources[index]! });
+      const octokit = await deps.github(user.id, { tokenId: source });
       const page = query
         ? await searchRepos(octokit, { query, cursor })
         : await listRepos(octokit, { cursor });

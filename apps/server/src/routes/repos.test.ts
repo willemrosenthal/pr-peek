@@ -348,6 +348,13 @@ describe("with personal access tokens", () => {
     expect(res.body).toEqual({ repos: [], nextCursor: null });
   });
 
+  it("ends the list for a cursor past the last token, like one removed meanwhile", async () => {
+    const { agent, githubFor } = await setup(onePage);
+    const res = await agent.get("/api/github/repos?cursor=3:abc");
+    expect(res.body).toEqual({ repos: [], nextCursor: null });
+    expect(githubFor).not.toHaveBeenCalled();
+  });
+
   it("leaves out a sign in that stopped, while a token works", async () => {
     const { agent, githubFor } = await setup(onePage);
     const user = await db.user.findFirstOrThrow();
