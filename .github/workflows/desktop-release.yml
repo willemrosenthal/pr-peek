@@ -145,6 +145,26 @@ jobs:
           xcrun stapler validate "$app"
           spctl --assess --type execute -vv "$app"
 
+      # The update in the draft's latest.json downloads the way the app's updater gets it,
+      # for both Mac chips. Its links are GitHub API links, which send the file when asked
+      # for application/octet-stream. The token reaches the draft, and avoids GitHub's
+      # limit on requests without one.
+      - name: Check the update downloads
+        run: |
+          dir="$RUNNER_TEMP/update"
+          gh release download "$TAG" --pattern latest.json --dir "$dir" --clobber
+          for platform in darwin-aarch64 darwin-x86_64; do
+            update=$(jq -r --arg p "$platform" '.platforms[$p].url // empty' "$dir/latest.json")
+            if [ -z "$update" ] ||
+              ! curl -fsSL -H "Accept: application/octet-stream" \
+                -H "Authorization: Bearer $GH_TOKEN" "$update" -o "$dir/$platform.tar.gz" ||
+              ! tar -tzf "$dir/$platform.tar.gz" > /dev/null; then
+              echo "::error::The $platform update ($update) doesn't download as an archive."
+              exit 1
+            fi
+          done
+          echo "The update downloads for both Mac chips." >> "$GITHUB_STEP_SUMMARY"
+
       # Only the newest version becomes latest. GitHub would otherwise mark any newly
       # published release latest, and a re-run of an old one would send the updater back.
       - name: Publish the release
@@ -166,30 +186,16 @@ jobs:
         if: steps.publish.outputs.latest == 'true'
         run: |
           url="https://github.com/$GH_REPO/releases/latest/download/latest.json"
-          found=false
           for _ in 1 2 3 4 5 6 7 8 9 10; do
             if curl -fsSL "$url" -o latest.json &&
               jq -e --arg v "$VERSION" '(.version | ltrimstr("v")) == $v
                 and .platforms["darwin-aarch64"] != null
                 and .platforms["darwin-x86_64"] != null' latest.json > /dev/null; then
-              found=true
-              break
+              echo "latest.json offers $VERSION to both Mac chips."
+              exit 0
             fi
             sleep 15
           done
-          if [ "$found" != true ]; then
-            echo "::error::latest.json doesn't offer $VERSION to both Mac chips."
-            cat latest.json || true
-            exit 1
-          fi
-          echo "latest.json offers $VERSION to both Mac chips."
-
-          # Downloads the update like the app's updater: its links are GitHub API links,
-          # which only send the file when asked for application/octet-stream.
-          update=$(jq -r '.platforms["darwin-aarch64"].url' latest.json)
-          if ! curl -fsSL -H "Accept: application/octet-stream" "$update" -o update.tar.gz ||
-            ! tar -tzf update.tar.gz > /dev/null; then
-            echo "::error::The update at $update doesn't download as an archive."
-            exit 1
-          fi
-          echo "The update downloads from $update." >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::latest.json doesn't offer $VERSION to both Mac chips."
+          cat latest.json || true
+          exit 1
