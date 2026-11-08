@@ -77,6 +77,8 @@ function setup(quiet = false) {
 
 // Waits longer than a row takes to slide out.
 const settle = () => new Promise((done) => setTimeout(done, 300));
+// The same, for tests on fake timers.
+const settleTimed = () => vi.advanceTimersByTimeAsync(300);
 
 // The strip behind the row that says `label`, while it shows.
 const strip = (label = "Quiet") =>
@@ -100,7 +102,7 @@ describe("SwipeRow", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { onToggle, link } = setup();
     slowDrag(link, dx);
-    await vi.advanceTimersByTimeAsync(400);
+    await settleTimed();
     expect(onToggle).not.toHaveBeenCalled();
     expect(strip()).toBe(null);
   });
@@ -111,10 +113,10 @@ describe("SwipeRow", () => {
     const { onToggle, link } = setup();
     // 45% of 600 is 270.
     slowDrag(link, -FAR_ENOUGH);
-    await vi.advanceTimersByTimeAsync(400);
+    await settleTimed();
     expect(onToggle).not.toHaveBeenCalled();
     slowDrag(link, -300);
-    await vi.advanceTimersByTimeAsync(400);
+    await settleTimed();
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
@@ -166,7 +168,7 @@ describe("SwipeRow", () => {
     it("quiets before it's gone far enough", async () => {
       const { onToggle, link } = setup();
       swipeTimed(link, flick(-100));
-      await vi.advanceTimersByTimeAsync(400);
+      await settleTimed();
       expect(onToggle).toHaveBeenCalledTimes(1);
     });
 
@@ -174,7 +176,7 @@ describe("SwipeRow", () => {
     it("doesn't count if the finger stopped before letting go", async () => {
       const { onToggle, link } = setup();
       swipeTimed(link, flick(-100), 60);
-      await vi.advanceTimersByTimeAsync(400);
+      await settleTimed();
       expect(onToggle).not.toHaveBeenCalled();
     });
 
@@ -185,7 +187,7 @@ describe("SwipeRow", () => {
         [300, -150],
         [30, -100],
       ]);
-      await vi.advanceTimersByTimeAsync(400);
+      await settleTimed();
       expect(onToggle).not.toHaveBeenCalled();
     });
   });
