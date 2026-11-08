@@ -65,7 +65,13 @@ export async function upsertGitHubUser(
 
   const user = await db.user.upsert({
     where: { githubId: githubUser.id },
-    update: { ...profile, ...tokenFields, ...clearErrors },
+    // A new sign in works, so syncs use it again (see markRejected).
+    update: {
+      ...profile,
+      ...tokenFields,
+      ...clearErrors,
+      signInStoppedAt: null,
+    },
     create: {
       githubId: githubUser.id,
       ...profile,

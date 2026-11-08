@@ -4,7 +4,7 @@ import { createDb, createPool } from "./db";
 import { getOctokit } from "./github/client";
 import { tokenKeys } from "./github/tokens";
 import { createGitHubOAuth } from "./github/oauth";
-import { checkHealth } from "./health";
+import { checkHealth, checkTokenKey } from "./health";
 import {
   createBoss,
   createQueues,
@@ -28,6 +28,7 @@ import { onShutdown } from "./shutdown";
 import { countJobs, countPool, Usage } from "./usage";
 import { sendDueSummaries } from "./summary";
 import { dueUsers, isLagging, runSync } from "./sync-schedule";
+import { sendTokenReminders } from "./token-reminders";
 
 // The rules' code can only change with a deploy, which restarts the worker. Each user's
 // next sync after this runs the rules on every PR (see sync.ts).
@@ -143,12 +144,18 @@ await work(REMINDER_DISPATCH, scheduled, async () => {
 
 await boss.schedule(HEALTH_CHECK, "0 * * * *");
 await work(HEALTH_CHECK, scheduled, async () => {
-  await checkHealth({ db, send, logger }, new Date());
+  const now = new Date();
+  await checkHealth({ db, send, logger }, now);
+  const reminded = await sendTokenReminders({ db, send, logger }, now);
+  if (reminded > 0) logger.info({ reminded }, "token reminders sent");
 });
 
 const stopSavingUsage = usage.saveHourly(db, logger);
 
 logger.info("worker started");
+void checkTokenKey({ db, send, logger }, tokenKeys(config), new Date()).catch(
+  (err: unknown) => logger.error({ err }, "couldn't check the token key"),
+);
 
 onShutdown(logger, async () => {
   await boss.stop({ graceful: true });

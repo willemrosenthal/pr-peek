@@ -1,5 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTestDb, resetDb } from "../test/db";
+import { addPersonalToken, createTestDb, resetDb } from "../test/db";
+import { randomBytes } from "node:crypto";
+import { KEY_BYTES } from "./crypto";
 import {
   githubTokens,
   githubUser,
@@ -11,6 +13,7 @@ import {
 import {
   alertsFor,
   checkHealth,
+  checkTokenKey,
   readHealth,
   USAGE_KEPT_DAYS,
   type Health,
@@ -237,5 +240,36 @@ describe("checkHealth", () => {
     await run();
     const kept = await db.usageStat.findMany({ select: { bucket: true } });
     expect(kept).toEqual([{ bucket: daysAgo(USAGE_KEPT_DAYS - 1) }]);
+  });
+});
+
+describe("checkTokenKey", () => {
+  it("passes when the key reads a stored token", async () => {
+    const user = await makeUser("user");
+    await addPersonalToken(db, user.id);
+    const send = vi.fn<SendPush>(() => Promise.resolve());
+    expect(
+      await checkTokenKey({ db, send, logger }, { key: TEST_KEY }, NOW),
+    ).toBe(true);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("alerts the admins once a day when no key fits", async () => {
+    const admin = await makeUser("admin", { role: "admin" }, { syncs: false });
+    await db.pushSubscription.create({
+      data: { userId: admin.id, endpoint: PHONE, p256dh: "key", auth: "auth" },
+    });
+    const send = vi.fn<SendPush>(() => Promise.resolve());
+    const wrong = { key: randomBytes(KEY_BYTES) };
+
+    expect(await checkTokenKey({ db, send, logger }, wrong, NOW)).toBe(false);
+    expect(await checkTokenKey({ db, send, logger }, wrong, hours(1))).toBe(
+      false,
+    );
+    expect(send).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ endpoint: PHONE }),
+      expect.objectContaining({ tag: "alert-key" }),
+      expect.anything(),
+    );
   });
 });

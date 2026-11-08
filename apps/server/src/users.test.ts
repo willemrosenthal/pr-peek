@@ -95,6 +95,26 @@ describe("upsertGitHubUser", () => {
     expect(await db.userSettings.count()).toBe(1);
   });
 
+  it("uses the sign in again after the user signs in again", async () => {
+    const first = await upsertGitHubUser(
+      db,
+      githubUser(),
+      githubTokens(),
+      TEST_KEY,
+    );
+    await db.user.update({
+      where: { id: first.user.id },
+      data: { signInStoppedAt: new Date() },
+    });
+    const { user } = await upsertGitHubUser(
+      db,
+      githubUser(),
+      githubTokens(),
+      TEST_KEY,
+    );
+    expect(user.signInStoppedAt).toBeNull();
+  });
+
   it("keeps the personal access token, and its error, on a later sign in", async () => {
     const first = await upsertGitHubUser(
       db,

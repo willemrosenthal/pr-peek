@@ -1552,4 +1552,17 @@ describe("several tokens", () => {
       ).state,
     ).toBe("open");
   });
+
+  it("doesn't try a sign in that stopped working, while a token works", async () => {
+    const { user, acme, globex } = await setup();
+    await db.user.update({
+      where: { id: user.id },
+      data: { signInStoppedAt: hours(-1) },
+    });
+    const { github } = githubs({ [acme.id]: {}, [globex.id]: {} });
+
+    await syncUser({ db, github, now: () => NOW }, user.id);
+
+    expect(github).not.toHaveBeenCalledWith(user.id, { tokenId: null });
+  });
 });

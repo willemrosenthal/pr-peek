@@ -1,4 +1,4 @@
-import type { AdminOverviewResponse } from "@pr-peek/core";
+import { EXPIRING_DAYS, type AdminOverviewResponse } from "@pr-peek/core";
 import type { Db } from "./db";
 import { Prisma } from "./generated/prisma/client";
 import {
@@ -106,6 +106,7 @@ export async function readOverview(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
   );
   const daysAgo = (days: number) => new Date(today.getTime() - days * DAY_MS);
+  const expiringBefore = new Date(now.getTime() + EXPIRING_DAYS * DAY_MS);
 
   const [
     health,
@@ -117,6 +118,7 @@ export async function readOverview(
     hours,
     queues,
     [github],
+    [tokens],
     [people],
     pushes,
   ] = await Promise.all([
@@ -172,6 +174,12 @@ export async function readOverview(
         sum("count") FILTER (WHERE "key" = 'rate_limited') AS "rateLimited"
       FROM "UsageStat"
       WHERE "metric" = 'github' AND "bucket" >= ${today}`,
+    db.$queryRaw<{ working: bigint; expiring: bigint; stopped: bigint }[]>`
+      SELECT
+        count(*) FILTER (WHERE "status" = 'working' AND ("expiresAt" IS NULL OR "expiresAt" > ${expiringBefore})) AS working,
+        count(*) FILTER (WHERE "status" = 'working' AND "expiresAt" <= ${expiringBefore}) AS expiring,
+        count(*) FILTER (WHERE "status" = 'stopped') AS stopped
+      FROM "GitHubToken"`,
     db.$queryRaw<{ users: bigint; activeDay: bigint; activeWeek: bigint }[]>`
       SELECT count(*) AS users,
         count(*) FILTER (WHERE "lastActiveAt" > ${new Date(now.getTime() - DAY_MS)}) AS "activeDay",
@@ -230,6 +238,11 @@ export async function readOverview(
       syncRequests: num(github?.syncRequests),
       lowestBudget: numOrNull(github?.lowestBudget),
       rateLimited: num(github?.rateLimited),
+    },
+    tokens: {
+      working: num(tokens?.working),
+      expiring: num(tokens?.expiring),
+      stopped: num(tokens?.stopped),
     },
     people: {
       users: num(people?.users),

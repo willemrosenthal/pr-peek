@@ -254,6 +254,7 @@ export const adminOverview = (
     lowestBudget: 4610,
     rateLimited: 0,
   },
+  tokens: { working: 2, expiring: 1, stopped: 0 },
   people: {
     users: 21,
     activeDay: 9,

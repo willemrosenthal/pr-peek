@@ -1,9 +1,11 @@
-import type { TokenDto, TokenKind, TokensResponse } from "@pr-peek/core";
+import {
+  EXPIRING_DAYS,
+  type TokenDto,
+  type TokenKind,
+  type TokensResponse,
+} from "@pr-peek/core";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-// A token this close to expiring offers Replace, like one that stopped.
-const REPLACE_WITHIN_DAYS = 7;
-
 export const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
 
@@ -51,10 +53,7 @@ export type TokenState = "working" | "expiring" | "stopped";
 
 export function stateOf(token: TokenDto, now = Date.now()): TokenState {
   if (token.status === "stopped") return "stopped";
-  if (
-    token.expiresAt &&
-    daysLeft(token.expiresAt, now) <= REPLACE_WITHIN_DAYS
-  ) {
+  if (token.expiresAt && daysLeft(token.expiresAt, now) <= EXPIRING_DAYS) {
     return "expiring";
   }
   return "working";

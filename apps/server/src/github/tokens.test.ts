@@ -296,7 +296,18 @@ describe("getAccessToken", () => {
       const user = await userWith();
       await addPersonalToken(db, user.id);
       expect(await markRejected(db, user.id, null)).toBeNull();
-      expect((await reload(user.id)).syncError).toBeNull();
+      expect(await reload(user.id)).toMatchObject({
+        syncError: null,
+        // Remembered, so syncs skip the sign in until the user signs in again.
+        signInStoppedAt: expect.any(Date) as Date,
+      });
+    });
+
+    it("leaves the sign in alone when it's not known which token was rejected", async () => {
+      const user = await userWith();
+      await addPersonalToken(db, user.id);
+      await markRejected(db, user.id, undefined);
+      expect((await reload(user.id)).signInStoppedAt).toBeNull();
     });
   });
 

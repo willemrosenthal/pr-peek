@@ -4,6 +4,9 @@ import { githubTokenBody } from "./auth";
 // Personal access tokens a user can add. Each adds about 2 GitHub calls per sync.
 export const MAX_TOKENS = 5;
 
+// A token this close to expiring gets a push, a banner, and Replace in Settings.
+export const EXPIRING_DAYS = 7;
+
 export const tokenName = z.string().trim().min(1).max(60);
 
 // Adding a token, or replacing one with it. Without a name, it's named after what it

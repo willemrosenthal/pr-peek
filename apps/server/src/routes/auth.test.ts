@@ -171,6 +171,15 @@ describe("GET /api/me", () => {
     expect(me.body).toMatchObject({ needsReauth: true });
   });
 
+  it("reports a sign in that stopped while a token still works", async () => {
+    const { agent } = makeApp();
+    await signIn(agent);
+    await db.user.updateMany({ data: { signInStoppedAt: new Date() } });
+
+    const me = await agent.get("/api/me");
+    expect(me.body).toMatchObject({ needsReauth: true });
+  });
+
   it("returns 401 if the user was deleted", async () => {
     const { agent } = makeApp();
     await signIn(agent);

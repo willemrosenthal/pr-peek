@@ -177,7 +177,7 @@ export function authRouter(deps: AuthDeps): Router {
         scopes: user.tokenScopes,
       },
       githubTokens: tokens.map(tokenDto),
-      needsReauth: user.syncError === "reauth",
+      needsReauth: user.syncError === "reauth" || user.signInStoppedAt !== null,
       isAdmin: user.role === "admin",
       pending: !user.approvedAt,
     };
