@@ -14,6 +14,7 @@ import {
   NOTIFY_ITEMS,
   NOTIFY_MERGED,
   POLL_JOBS_SECONDS,
+  POLL_LISTENING_SECONDS,
   POLL_SCHEDULED_SECONDS,
   queueSync,
   REMINDER_DISPATCH,
@@ -44,9 +45,14 @@ const oauth = createGitHubOAuth({
   clientId: config.GITHUB_CLIENT_ID,
   clientSecret: config.GITHUB_CLIENT_SECRET,
 });
-const boss = createBoss(pool, { worker: true });
+const boss = createBoss(pool, {
+  worker: true,
+  listen: { connectionString: config.DATABASE_URL, logger, usage },
+});
 
 boss.on("error", (err) => logger.error({ err }, "pg-boss error"));
+// Like "can't listen for new jobs": it polls more often instead.
+boss.on("warning", (warning) => logger.warn({ warning }, "pg-boss warning"));
 
 await boss.start();
 
@@ -59,8 +65,15 @@ const work = <T>(
   handler: WorkHandler<T>,
 ) => boss.work<T>(queue, options, countJobs(usage, queue, handler));
 
-const scheduled = { pollingIntervalSeconds: POLL_SCHEDULED_SECONDS };
-const jobs = { pollingIntervalSeconds: POLL_JOBS_SECONDS };
+const notifyPollingIntervalSeconds = POLL_LISTENING_SECONDS;
+const scheduled = {
+  pollingIntervalSeconds: POLL_SCHEDULED_SECONDS,
+  notifyPollingIntervalSeconds,
+};
+const jobs = {
+  pollingIntervalSeconds: POLL_JOBS_SECONDS,
+  notifyPollingIntervalSeconds,
+};
 
 await boss.schedule(HEARTBEAT, "* * * * *");
 await work(HEARTBEAT, scheduled, () => {

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { TEST_DATABASE_URL } from "../test/db";
 import { createPool } from "./db";
+import { createLogger } from "./logger";
 import {
   createBoss,
   createQueues,
@@ -50,6 +51,49 @@ it("sets up the queues, and updates ones made before", async () => {
   expect(await boss.getQueue(NOTIFY_ITEMS)).toMatchObject({
     deleteAfterSeconds: 7 * 24 * 60 * 60,
   });
+  // Every queue wakes the worker, including one made before.
+  for (const queue of [SYNC_USER, NOTIFY_ITEMS, SYNC_DISPATCH, SEND_IT]) {
+    expect(await boss.getQueue(queue)).toMatchObject({ notify: true });
+  }
+});
+
+it("wakes a listening worker as soon as a job is added", async () => {
+  await createQueues(boss);
+  const workerPool = createPool({
+    DATABASE_URL: TEST_DATABASE_URL,
+    DB_POOL_MAX: 2,
+  });
+  // As the worker makes it, minus scheduled jobs and upkeep.
+  const worker = createBoss(workerPool, {
+    worker: false,
+    schema: SCHEMA,
+    listen: {
+      connectionString: TEST_DATABASE_URL,
+      logger: createLogger({ LOG_LEVEL: "silent" }),
+    },
+  });
+  const warnings: unknown[] = [];
+  worker.on("warning", (warning) => warnings.push(warning));
+  try {
+    await worker.start();
+    const handled = vi.fn();
+    // Checks once at start, then not for a minute while it listens.
+    await worker.work(
+      NOTIFY_ITEMS,
+      { pollingIntervalSeconds: 30, notifyPollingIntervalSeconds: 60 },
+      handled,
+    );
+
+    // Added by the web service, which doesn't listen.
+    await boss.send(NOTIFY_ITEMS, { itemIds: ["a"] });
+    await vi.waitFor(() => expect(handled).toHaveBeenCalledOnce(), {
+      timeout: 5_000,
+    });
+    expect(warnings).toEqual([]);
+  } finally {
+    await worker.stop({ graceful: false });
+    await workerPool.end();
+  }
 });
 
 it("cleans up every hour, deleting finished jobs past their time in every queue", async () => {

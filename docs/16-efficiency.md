@@ -96,6 +96,8 @@ GitHub's `involves:@me` matches PRs the user authored, is assigned to, is mentio
 ## Key decision: quieter background work
 
 - pg-boss checks `sync-user`, `notify-items`, and `notify-merged` every 10 seconds, and the scheduled queues (dispatch, summary, reminders, heartbeat) every 30. A push may wait up to 10 more seconds. That's fine next to a sync interval of minutes.
+- **Later: the worker listens for new jobs** (16.8). Every queue sends a Postgres NOTIFY (a wake-up message) when a job is added, and the worker listens on one more connection of its own. It starts a job within a moment, and checks each queue only once a minute, just in case. If the listening connection is down, it falls back to the 10 and 30 seconds above. So the worker uses `DB_POOL_MAX + 1` connections, like the web service.
+- **Later: pg-boss's upkeep pass runs every 5 minutes, not every minute** (16.8). Each pass reads every queue's row, so once a minute was about 5 MB of egress a day. A job past its time, like a sync over 10 minutes, is now given up on up to 5 minutes later.
 - Updates that don't need the row back ask for nothing back. The sync's user updates are merged where they can be.
 
 ## Key decision: raise the worker's limits now, and alert on trouble
@@ -232,6 +234,17 @@ PR 5b-3, Settings:
 ### 16.7 Drop the column
 
 - [x] Once PR 5 has been released, and plan 17 PR 2a (#128), whose migration had the backfill re-sort merged PRs once: a migration drops `PullRequest.snapshot`, and the backfill is removed. Nothing reads `prSnapshot` from the database any more. It only checks the shape of what GitHub sends.
+
+### 16.8 Listen for new jobs
+
+Added on 8 November 2026, after the admin page showed pg-boss's polling and upkeep as most of a quiet day's egress.
+
+- [x] `listen.ts`: LISTEN on a connection of its own, and reconnect when it drops. The items listener uses it too.
+- [x] Every queue has `notify: true`, including pg-boss's own `__pgboss__send-it`. The worker's pg-boss gets a `listen` function and `useListenNotify`. Workers check every 60 seconds while listening (`notifyPollingIntervalSeconds`), and every 10 or 30 seconds when not.
+- [x] pg-boss's upkeep pass (`superviseIntervalSeconds`, `monitorIntervalSeconds`) every 5 minutes.
+- [x] The worker logs pg-boss's warnings, like "can't listen, polling instead".
+- [x] Tests: every queue has `notify`. A listening worker picks up a job the web service adds within a few seconds, with its poll set to a minute.
+- [ ] After a few days without deploys: check the admin page's egress (You). `pgboss.job_common with` and `pgboss.queue select` should be much smaller.
 
 ## Done when
 
