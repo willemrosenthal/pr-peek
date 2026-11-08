@@ -21,20 +21,23 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 1. **Limits and security** (10.3, the Pro limits): `feat(server): use Supabase Pro limits, rotate keys, and hide more in logs`.
 2. **Sign-up requests** (10.4): `feat(web): sign-up requests, approved from the admin page`. Has a migration.
 3. **Account controls** (10.2): `feat(web): delete my account, and clean up old data`. Open.
-4. **Privacy and the landing section** (10.1, 10.7): `feat(web): a privacy page, and a landing section on sign in`.
-5. **Monitoring** (10.5): `feat(server): Sentry, and an uptime check`. Needs accounts from you.
+4. **Privacy and the landing section** (10.1, 10.7), split in two:
+   - 4a: `feat(web): a privacy page, and help links on sign in and in Settings`. Also the safe migrations rule (10.6).
+   - 4b: `feat(web): a landing section on sign in, and friendlier empty and error states`.
+5. **Monitoring** (10.5): `feat(server): Sentry, and an uptime check`. Needs accounts from you. Add Sentry to the privacy page's "Who else handles it".
 
 ## Steps
 
 ### 10.1 Privacy and trust
 
-- [ ] A plain English `/privacy` page covering:
+- [x] A plain English `/privacy` page covering:
   - What we store: GitHub profile, encrypted token (from the GitHub sign in, or the personal access token you pasted), PR titles and comment previews for watched repos, push subscriptions.
   - That a pasted personal access token can do anything you can do on GitHub, and how to revoke it.
   - Why we store it.
   - How long we keep it.
   - That we never write to GitHub. (Until plan 11 adds actions. Then say exactly which.)
-- [ ] The sign in screen links to it and explains the `repo` scope (plan 03 background).
+  - As built (PR 4a): `PrivacyPage.tsx`. Also who runs it (Git Buddy, `privacy@git-buddy.com`, a Porkbun forward), who else handles data (Supabase and Render, both in Ohio, GitHub, browser push services), the one cookie, and your rights (a copy by email, fix on GitHub, delete in Settings, complain in the EU or UK). That covers what GDPR and Apple's App Store ask a privacy policy to say. Its "Last changed" date is a constant in the file.
+- [x] The sign in screen links to it and explains the `repo` scope (plan 03 background). It also says sign-up is invite only for now.
 - [x] Store only short comment previews (first 200 characters), not full bodies. Done another way: comments aren't stored at all. The preview sheet loads them live from GitHub (plan 13).
 
 ### 10.2 Account controls
@@ -92,14 +95,14 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 
 - [x] **Backups before other people sign in.** The project is on Supabase Pro, which has daily backups kept 7 days. **(You)** Check they show under Database, Backups. Checked on 7 November 2026.
 - [x] **(You)** Test restoring a backup into a fresh database once.
-- [ ] Prisma migrations only add or change in ways that work with the version currently running. Render runs migrations before swapping versions, so for a short time the old code runs against the new schema.
+- [x] Prisma migrations only add or change in ways that work with the version currently running. Render runs migrations before swapping versions, so for a short time the old code runs against the new schema. As built (PR 4a): the rules are in [overview.md](overview.md#migrations-that-are-safe-to-deploy), with a line in CLAUDE.md.
 
 ### 10.7 Polish for new users
 
 - [x] A custom domain on Render, with HTTPS (automatic). Done early: `www.git-buddy.com`, bought at Porkbun. `git-buddy.com` redirects to it.
 - [ ] A short landing section on `/signin`: what it does, a screenshot, install buttons.
 - [ ] Friendly states for: no repos yet, nothing needs you, GitHub is down, sync error.
-- [ ] A feedback link: GitHub issues for bugs and ideas, and an email for privacy questions.
+- [x] A feedback link: GitHub issues for bugs and ideas, and an email for privacy questions. As built (PR 4a): `HelpLinks` on sign in (with an install link) and in Settings, General. The email is on the privacy page.
 
 ## Done when
 

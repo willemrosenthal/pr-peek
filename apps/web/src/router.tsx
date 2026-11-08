@@ -4,6 +4,7 @@ import { RequireAuth } from "./components/RequireAuth";
 import { InstallPage } from "./pages/InstallPage";
 import { ListPage } from "./pages/ListPage";
 import { Onboarding } from "./pages/Onboarding";
+import { PrivacyPage } from "./pages/PrivacyPage";
 import { SharePage } from "./pages/SharePage";
 import { AdminTab } from "./pages/settings/AdminTab";
 import { DevicesTab } from "./pages/settings/DevicesTab";
@@ -18,6 +19,7 @@ import { SignIn } from "./pages/SignIn";
 export const routes = [
   { path: "/signin", element: <SignIn /> },
   { path: "/install", element: <InstallPage /> },
+  { path: "/privacy", element: <PrivacyPage /> },
   {
     element: <RequireAuth />,
     children: [

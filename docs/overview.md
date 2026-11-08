@@ -127,7 +127,18 @@ Items close on their own when the condition goes away (you approved or asked for
 
 - `main` is where work lands, through PRs.
 - `prod` is what's live. Merging `main` into `prod` makes Render deploy the web service and worker, and run database migrations.
-- Desktop app releases are made by pushing a `desktop-v*` tag (phase 2).
+- A release builds the Mac app too when it changed. See [Releases in CLAUDE.md](../CLAUDE.md#releases).
+
+### Migrations that are safe to deploy
+
+Render runs migrations before it swaps in the new version. So for a minute or so, the old code runs against the new schema. Each migration must work with the code that's live now:
+
+- **Adding** a table, or a column that's optional or has a default, is safe.
+- **Removing or renaming** takes two releases. First, ship code that stops using the old column or table. Then remove it in a later release. A rename is: add the new one, copy the data, switch the code over, then remove the old one.
+- **Making a column required** takes two releases too: first fill it in and have the code always set it, then add the rule.
+- **Changing a column's type** is a rename in disguise. Add a new column instead.
+
+Check this in review for any PR with a file in `apps/server/prisma/migrations`.
 
 ## 7. Accounts you will need
 
@@ -135,5 +146,5 @@ Items close on their own when the condition goes away (you approved or asked for
 | --------------------------------------------- | ----------------- | ---------------------------------------------------------------- |
 | GitHub OAuth Apps (one for dev, one for prod) | Plan 03           | "Sign in with GitHub"                                            |
 | Render                                        | Plan 02           | Hosting the server and worker                                    |
-| Supabase (free plan, in its own free org)     | Plan 02           | The production Postgres database                                 |
+| Supabase (Pro plan, in its own org)           | Plan 02           | The production Postgres database                                 |
 | Apple Developer Program (about $99 a year)    | Plan 09, optional | Signing the Mac app so other people can open it without warnings |

@@ -106,6 +106,10 @@ After the PR is up, send a short message with:
 - The user wants as few permission prompts as possible. Before running a command, check it matches a rule in `.claude/settings.local.json` or `~/.claude/settings.json`. If it doesn't, prefer a form that does: a `pnpm` script, or a plain command without pipes, `&&`, `$VARS`, or `$(...)`. These always prompt.
 - Don't probe for tools outside the repo (`ls /opt/...`, `echo $PATH`). If a tool is missing, tell the user.
 
+## Database migrations
+
+- Every migration must work with the code that's live, since Render migrates before swapping versions. Removing, renaming, or making a column required takes two releases. See [Migrations that are safe to deploy](docs/overview.md#migrations-that-are-safe-to-deploy).
+
 ## Branches
 
 - `main`: work lands here through PRs, squash merged.

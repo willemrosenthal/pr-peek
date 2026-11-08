@@ -4,7 +4,7 @@ import { ButtonLink } from "../components/Button";
 import { InstallHere, OtherDevices } from "../components/InstallSteps";
 import { inDesktopApp } from "../desktop";
 import { useReturnToList } from "../hooks/useReturnToList";
-import styles from "./InstallPage.module.css";
+import styles from "./InfoPage.module.css";
 
 // Built by .github/workflows/desktop-release.yml.
 const MAC_APP_DOWNLOAD = `${REPO_URL}/releases/latest`;

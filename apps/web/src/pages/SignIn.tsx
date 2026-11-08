@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate, useSearchParams } from "react-router";
 import { Alert } from "../components/Alert";
 import { ButtonLink } from "../components/Button";
+import { HelpLinks } from "../components/HelpLinks";
 import { useMe } from "../queries";
 import styles from "./SignIn.module.css";
 
@@ -56,14 +57,22 @@ export function SignIn() {
           </label>
           <p className={styles.hint}>
             GitHub will ask to let Git Buddy see your repos, teams, and
-            notifications. Git Buddy only reads. It never changes anything on
-            GitHub. Pick "Public repos only" to keep private repos out.
+            notifications. GitHub has no read-only way to see private repos, so
+            its <code>repo</code> permission also allows changes. Git Buddy only
+            reads. It never changes anything on GitHub. Pick "Public repos only"
+            to keep private repos out.
+          </p>
+          <p className={styles.hint}>
+            It's invite only for now: signing in sends a request, and you'll get
+            in once it's approved.
           </p>
           <p className={styles.hint}>
             If your company blocks Git Buddy, sign in anyway. You can add a
             personal access token after.
           </p>
         </section>
+
+        <HelpLinks install />
       </div>
     </main>
   );
