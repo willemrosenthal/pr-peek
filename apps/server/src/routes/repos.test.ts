@@ -7,6 +7,7 @@ import {
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { APP_URL, bodyOf, makeTestApp, signIn } from "../../test/app";
 import { addToken, createTestDb, resetDb } from "../../test/db";
+import { NOW } from "../../test/fakes";
 import {
   fakeGraphQL,
   notFoundError,
@@ -345,6 +346,49 @@ describe("with personal access tokens", () => {
     const res = await agent.get("/api/github/repos?cursor=1:");
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ repos: [], nextCursor: null });
+  });
+
+  it("leaves out a sign in that stopped, while a token works", async () => {
+    const { agent, githubFor } = await setup(onePage);
+    const user = await db.user.findFirstOrThrow();
+    const token = await addToken(db, user.id, "github_pat_globex");
+    await db.user.update({
+      where: { id: user.id },
+      data: { signInStoppedAt: NOW },
+    });
+
+    const res = bodyOf<SearchReposResponse>(
+      await agent.get("/api/github/repos"),
+    );
+    expect(githubFor).toHaveBeenCalledExactlyOnceWith(user.id, {
+      tokenId: token.id,
+    });
+    expect(res.nextCursor).toBeNull();
+  });
+
+  it("lists orgs with the sign in, which sees them all, not a newer fine-grained token", async () => {
+    const { agent, githubFor } = await setup();
+    const user = await db.user.findFirstOrThrow();
+    await addToken(db, user.id, "github_pat_globex", { owners: ["globex"] });
+
+    await agent.get("/api/github/owners");
+    expect(githubFor).toHaveBeenCalledExactlyOnceWith(user.id, {
+      tokenId: null,
+    });
+  });
+
+  it("offers the tokens' orgs when GitHub refuses the sign in", async () => {
+    const { agent, githubFor } = await setup();
+    const user = await db.user.findFirstOrThrow();
+    await addToken(db, user.id, "github_pat_globex", { owners: ["globex"] });
+    githubFor.mockRejectedValue(new NeedsReauthError(user.id));
+
+    const res = await agent.get("/api/github/owners");
+    expect(res.status).toBe(200);
+    expect(bodyOf<RepoOwnersResponse>(res).owners).toEqual([
+      { login: user.login, kind: "you" },
+      { login: "globex", kind: "org" },
+    ]);
   });
 
   it("offers the orgs working tokens reach, next to the ones GitHub lists", async () => {

@@ -4,6 +4,7 @@ import {
   searchReposQuery,
   updateRepoBody,
   type AddRepoResponse,
+  type RepoOwner,
   type RepoOwnersResponse,
   type WatchedRepoDto,
   type WatchedReposResponse,
@@ -11,7 +12,11 @@ import {
 import express, { type Router } from "express";
 import type { GitHubFor } from "../github/client";
 import type { Db } from "../db";
-import { Prisma, type WatchedRepo } from "../generated/prisma/client";
+import {
+  Prisma,
+  type User,
+  type WatchedRepo,
+} from "../generated/prisma/client";
 import {
   findRepo,
   listOwners,
@@ -48,20 +53,27 @@ export const PICKER_ASKS_PER_MINUTE = 60;
 
 const notFound = () => new HttpError(404, "not_found", "Repo not found");
 
-// Where a list or search with no owner reads from, one after another: the newest working
-// classic token, or else the sign in (null), then each working fine-grained token. A
-// classic token reaches everything the sign in does.
-async function repoSources(db: Db, userId: string): Promise<(string | null)[]> {
+// What the picker reads with, from one query. `sources`: where a list or search with no
+// owner reads from, one after another. First the newest working classic token, or else
+// the sign in (null), which see every owner. The sign in is left out while it's stopped
+// and a token works (see markRejected). Then each working fine-grained token. `owners`:
+// the owners the working tokens reach.
+async function pickerTokens(
+  db: Db,
+  user: Pick<User, "id" | "signInStoppedAt">,
+) {
   const tokens = await db.gitHubToken.findMany({
-    where: { userId, status: "working" },
+    where: { userId: user.id, status: "working" },
     orderBy: { createdAt: "desc" },
-    select: { id: true, kind: true },
+    select: { id: true, kind: true, owners: true },
   });
   const classic = tokens.find((token) => token.kind === "classic");
-  return [
-    classic?.id ?? null,
+  const signIn = user.signInStoppedAt && tokens.length > 0 ? [] : [null];
+  const sources: (string | null)[] = [
+    ...(classic ? [classic.id] : signIn),
     ...tokens.filter((token) => token.kind !== "classic").map((t) => t.id),
   ];
+  return { sources, owners: tokens.flatMap((token) => token.owners) };
 }
 
 // The cursor for a list across several sources: which source, then GitHub's own cursor
@@ -95,9 +107,10 @@ export function reposRouter(deps: RepoDeps): Router {
   // Repos the user could add, for the picker: a list, or a search with `query`.
   router.get("/github/repos", async (req, res) => {
     const { query, owner, cursor } = parseInput(searchReposQuery, req.query);
-    const userId = currentUser(res).id;
+    const user = currentUser(res);
+    const userId = user.id;
     if (!owner) {
-      res.json(await acrossSources(userId, query, cursor));
+      res.json(await acrossSources(user, query, cursor));
       return;
     }
     // An owner's repos list with the token that reaches it.
@@ -117,21 +130,22 @@ export function reposRouter(deps: RepoDeps): Router {
     res.json(list);
   });
 
-  // The owners the picker offers: the ones GitHub lists, and the ones tokens reach.
+  // The owners the picker offers: the ones GitHub lists to the first source, and the
+  // ones tokens reach. If GitHub refuses that source but a token works, the tokens'.
   router.get("/github/owners", async (_req, res) => {
-    const userId = currentUser(res).id;
-    const [owners, tokens] = await Promise.all([
-      deps.github(userId).then(listOwners),
-      deps.db.gitHubToken.findMany({
-        where: { userId, status: "working" },
-        select: { owners: true },
-      }),
-    ]);
+    const user = currentUser(res);
+    const { sources, owners: tokenOwners } = await pickerTokens(deps.db, user);
+    let listed: RepoOwner[];
+    try {
+      listed = await listOwners(
+        await deps.github(user.id, { tokenId: sources[0] ?? null }),
+      );
+    } catch (err) {
+      if (!isRejection(err) || tokenOwners.length === 0) throw err;
+      listed = [{ login: user.login, kind: "you" }];
+    }
     const body: RepoOwnersResponse = {
-      owners: withTokenOwners(
-        owners,
-        tokens.flatMap((token) => token.owners),
-      ),
+      owners: withTokenOwners(listed, tokenOwners),
     };
     res.json(body);
   });
@@ -140,11 +154,12 @@ export function reposRouter(deps: RepoDeps): Router {
   // a time, then the next source's (see repoSources). A source GitHub refuses is skipped,
   // so the others still list, unless it's the only one.
   async function acrossSources(
-    userId: string,
+    user: User,
     query: string | undefined,
     raw: string | undefined,
   ) {
-    const sources = await repoSources(deps.db, userId);
+    const userId = user.id;
+    const { sources } = await pickerTokens(deps.db, user);
     const { index, cursor } = parseSourceCursor(raw);
     const nextSource =
       index + 1 < sources.length ? sourceCursor(index + 1, null) : null;
