@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { githubToken } from "./test/fake-api";
-import { daysLeft, reachText, stateOf, watchedReposOf } from "./tokens";
+import { reachText, stateOf, watchedReposOf } from "./tokens";
 
 const NOW = Date.parse("2026-11-08T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -22,11 +22,6 @@ describe("stateOf", () => {
     const token = githubToken({ status: "stopped", expiresAt: inDays(3) });
     expect(stateOf(token, NOW)).toBe("stopped");
   });
-});
-
-it("counts days left, rounding part of a day up", () => {
-  expect(daysLeft(inDays(1.2), NOW)).toBe(2);
-  expect(daysLeft(inDays(-1.5), NOW)).toBe(-1);
 });
 
 it("counts watched repos by owner, ignoring case", () => {

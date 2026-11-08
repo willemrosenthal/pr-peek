@@ -214,7 +214,13 @@ export async function refreshTokenOwners(
 }
 
 // One GitHub client per token, made when first needed. Null is the sign in.
-function tokenClients(deps: SyncDeps, userId: string, tokens: PickableToken[]) {
+function tokenClients(
+  deps: SyncDeps,
+  userId: string,
+  tokens: PickableToken[],
+  // The sign in stopped working while a token worked (see markRejected).
+  signInStopped: boolean,
+) {
   const clients = new Map<string | null, Promise<Octokit>>();
   const client = (tokenId: string | null) => {
     let made = clients.get(tokenId);
@@ -232,8 +238,9 @@ function tokenClients(deps: SyncDeps, userId: string, tokens: PickableToken[]) {
     forDefault: () => client(newestWorking?.id ?? null),
     // Runs `work` once per token, with the items whose owners it's picked for (see
     // pickToken). When the sign in stopped working but a token works, the sign in's
-    // items are skipped, so the rest still sync. A token GitHub rejects fails the sync:
-    // it's marked stopped, so the next one, soon after, picks another for its owners.
+    // items are skipped, so the rest still sync. It's only tried again after the user
+    // signs in again. A token GitHub rejects fails the sync: it's marked stopped, so the
+    // next one, soon after, picks another for its owners.
     async each<T>(
       items: T[],
       ownerOf: (item: T) => string,
@@ -247,6 +254,7 @@ function tokenClients(deps: SyncDeps, userId: string, tokens: PickableToken[]) {
         else groups.set(tokenId, [item]);
       }
       for (const [tokenId, group] of groups) {
+        if (tokenId === null && signInStopped && newestWorking) continue;
         try {
           await work(await client(tokenId), group);
         } catch (err) {
@@ -277,6 +285,7 @@ async function fetchFromGitHub(
         rulesStaleAt: true,
         teams: true,
         teamsCheckedAt: true,
+        signInStoppedAt: true,
         // In the same query, to skip checking tokens' owners for users with none.
         _count: { select: { githubTokens: true } },
       },
@@ -346,7 +355,12 @@ async function fetchFromGitHub(
     user._count.githubTokens > 0
       ? await refreshTokenOwners(deps, userId, now)
       : [];
-  const github = tokenClients(deps, userId, tokens);
+  const github = tokenClients(
+    deps,
+    userId,
+    tokens,
+    user.signInStoppedAt !== null,
+  );
   const teams = includeTeamRequests
     ? await currentTeams(await github.forDefault(), user, now)
     : { teams: [], changed: false, checked: false };

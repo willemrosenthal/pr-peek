@@ -12,7 +12,7 @@ import {
   makeTestApp,
   signIn,
 } from "../../test/app";
-import { createTestDb, resetDb } from "../../test/db";
+import { addToken, createTestDb, resetDb } from "../../test/db";
 import {
   githubTokens,
   githubUser,
@@ -237,6 +237,16 @@ describe("GET /api/admin/overview", () => {
     // Past the 14 days.
     await log("E_4", new Date(NOW.getTime() - 20 * DAY), "sent");
 
+    await addToken(db, me.id, "github_pat_working");
+    await addToken(db, me.id, "github_pat_expiring", {
+      expiresAt: hours(24 * 3),
+    });
+    await addToken(db, me.id, "github_pat_stopped", { status: "stopped" });
+    expect((await overview()).tokens).toEqual({
+      working: 1,
+      expiring: 1,
+      stopped: 1,
+    });
     expect((await overview()).people).toEqual({
       users: 3,
       activeDay: 1,

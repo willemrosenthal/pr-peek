@@ -1,7 +1,9 @@
 import type { Logger } from "pino";
-import { awakeAdmins, pushToAdmins } from "./admin-push";
+import { awakeAdmins, pushToAdmins, type Admin } from "./admin-push";
+import { decrypt } from "./crypto";
 import type { Db } from "./db";
-import type { SendPush } from "./push";
+import { keysOf, type TokenKeys } from "./github/tokens";
+import type { PushDeps, SendPush } from "./push";
 import { dueUsers, SYNCING_USERS } from "./sync-schedule";
 import { MINUTE_MS } from "./sync-timing";
 
@@ -39,7 +41,7 @@ export interface Health {
   failingUsers: number;
 }
 
-export type AlertKind = "database" | "late" | "failing";
+export type AlertKind = "database" | "late" | "failing" | "key";
 
 interface Alert {
   kind: AlertKind;
@@ -130,15 +132,71 @@ export async function checkHealth(
   if (awake.length === 0) return [];
 
   const sent: AlertKind[] = [];
-  for (const { kind, body } of alerts) {
-    if (!(await claimAlert(db, kind, now))) continue;
-    await pushToAdmins(
-      { ...deps, send },
-      awake,
-      { title: "Git Buddy needs a look", body, url: "/", tag: `alert-${kind}` },
-      now,
-    );
-    sent.push(kind);
+  for (const alert of alerts) {
+    if (await sendAlert({ ...deps, send }, awake, alert, now)) {
+      sent.push(alert.kind);
+    }
   }
   return sent;
+}
+
+// Pushes an alert to the admins awake now, at most once a day for each kind. Returns
+// whether it went out.
+async function sendAlert(
+  deps: PushDeps,
+  awake: Admin[],
+  { kind, body }: Alert,
+  now: Date,
+): Promise<boolean> {
+  if (!(await claimAlert(deps.db, kind, now))) return false;
+  await pushToAdmins(
+    deps,
+    awake,
+    { title: "Git Buddy needs a look", body, url: "/", tag: `alert-${kind}` },
+    now,
+  );
+  return true;
+}
+
+// Decrypts one stored token, to catch a wrong TOKEN_ENC_KEY right after a deploy. With
+// it, no one's token can be read, so every sync fails. Logs an error, and alerts the
+// admins once a day. Run when the server and worker start. Returns whether a key fits.
+export async function checkTokenKey(
+  deps: HealthDeps,
+  keys: TokenKeys,
+  now: Date,
+): Promise<boolean> {
+  const { db, send, logger } = deps;
+  const stored =
+    (await db.gitHubToken.findFirst({ select: { tokenEnc: true } }))
+      ?.tokenEnc ??
+    (
+      await db.user.findFirst({
+        where: { accessTokenEnc: { not: null } },
+        select: { accessTokenEnc: true },
+      })
+    )?.accessTokenEnc;
+  if (!stored) return true;
+  try {
+    decrypt(stored, keysOf(keys));
+    return true;
+  } catch {
+    logger.error(
+      "TOKEN_ENC_KEY can't read the stored GitHub tokens. It was probably changed by mistake. See docs/security.md.",
+    );
+    if (!send) return false;
+    const awake = await awakeAdmins(db, logger, now);
+    if (awake.length > 0) {
+      await sendAlert(
+        { ...deps, send },
+        awake,
+        {
+          kind: "key",
+          body: "The encryption key can't read the stored GitHub tokens, so syncs fail. Check TOKEN_ENC_KEY in Render.",
+        },
+        now,
+      );
+    }
+    return false;
+  }
 }

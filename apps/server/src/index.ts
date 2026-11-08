@@ -9,6 +9,7 @@ import { createGitHubOAuth } from "./github/oauth";
 import { createLogger } from "./logger";
 import { getOctokit, type GitHubFor } from "./github/client";
 import { tokenKeys } from "./github/tokens";
+import { checkTokenKey } from "./health";
 import { listenForItemChanges } from "./items-listener";
 import { createBoss, createQueues, queueSync } from "./jobs";
 import { vapidFrom, webPushSender } from "./push";
@@ -107,6 +108,9 @@ const app = createApp({
 const server = app.listen(config.PORT, () => {
   logger.info({ port: config.PORT }, "server listening");
 });
+void checkTokenKey({ db, send, logger }, tokenKeys(config), new Date()).catch(
+  (err: unknown) => logger.error({ err }, "couldn't check the token key"),
+);
 
 onShutdown(logger, async () => {
   // Open streams never finish on their own, so end them first.

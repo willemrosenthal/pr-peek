@@ -207,7 +207,7 @@ async function syncAndSchedule(
       (await markRejected(
         db,
         userId,
-        err instanceof NeedsReauthError ? err.tokenId : null,
+        err instanceof NeedsReauthError ? err.tokenId : undefined,
       ));
     if (reason) {
       await db.user.updateMany({

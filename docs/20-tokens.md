@@ -33,7 +33,9 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 3. **The settings page** (20.3, 20.4), split in two:
    - 3a: `feat(server): an API for several personal access tokens`. The routes, checking a token before saving, `/me`'s list, and the table matching the old columns.
    - 3b: `feat(web): add several personal access tokens`. The settings page. Then the old `/github-token` routes and the old columns go.
-4. **Reminders and key checks** (20.5, 20.6): `feat(server): remind before a token expires, and check the key on start`. Also drops the old `User` columns (`patEnc`, `patExpiresAt`, `patScopes`) with a migration.
+4. **Reminders and key checks** (20.5, 20.6), split in two:
+   - 4a: `feat(server): remind before a token expires, and check the key on start`. The pushes, remembering a stopped sign in, the key check, token counts on the admin API, and dropping the old `User` columns (`patEnc`, `patExpiresAt`, `patScopes`).
+   - 4b: `feat(web): banners for tokens and the sign in`. The banners, and the token counts on the admin page.
 
 ## Steps
 
@@ -102,14 +104,17 @@ Most people make a token on GitHub and paste it on the same phone, so this has t
 
 ### 20.5 Reminders
 
-- [ ] A push 7 days before a token expires, and one when it stops working. Once each per token.
+- [x] A push 7 days before a token expires, and one when it stops working. Once each per token.
+  - As built (4a): `token-reminders.ts`, run by the hourly health job. `expiryRemindedAt` and a new `stopRemindedAt` mark them sent. A user in their quiet hours gets theirs after. Replacing a token clears both. The stopped push only goes out within 3 days of stopping (long enough to wait out a quiet weekend), so a user who adds a device later isn't told of old ones: the banner covers those. Tokens that stopped before 4a were marked as reminded.
 - [ ] A banner on the list for a token expiring within 7 days or stopped, with a link to replace it.
-- [ ] Remember when the GitHub sign in stops working while a token works (`markRejected` returns null then). Syncs skip the sign in's owners until the user signs in again, instead of trying it each sync (about 6 small queries and maybe a GitHub call). Show a banner to sign in again.
+- [x] Remember when the GitHub sign in stops working while a token works (`markRejected` returns null then). Syncs skip the sign in's owners until the user signs in again, instead of trying it each sync (about 6 small queries and maybe a GitHub call). Show a banner to sign in again.
+  - As built (4a): `User.signInStoppedAt`. `markRejected` takes null for the sign in, and undefined when the rejected token isn't known (its client marked it already). Signing in clears it. `/me`'s `needsReauth` is true while it's set, so the existing "Reconnect GitHub" banner shows.
 
 ### 20.6 Key checks
 
-- [ ] On start, the server and worker decrypt one stored token. If no key fits, log an error and alert the admins: the wrong `TOKEN_ENC_KEY` was probably set.
+- [x] On start, the server and worker decrypt one stored token. If no key fits, log an error and alert the admins: the wrong `TOKEN_ENC_KEY` was probably set. `checkTokenKey` in `health.ts`, an alert of kind `key`, once a day like the others.
 - [ ] The admin page counts tokens by status: working, expiring soon, and stopped.
+  - The admin API answers them in 4a (`tokens` in the overview). The page shows them in 4b.
 
 ## Done when
 

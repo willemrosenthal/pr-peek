@@ -1,14 +1,18 @@
-import { MAX_TOKENS, type TokenDto, type TokensResponse } from "@pr-peek/core";
+import {
+  daysLeft,
+  MAX_TOKENS,
+  plural,
+  type TokenDto,
+  type TokensResponse,
+} from "@pr-peek/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../api";
 import { cx } from "../cx";
 import { refreshTokens, useGitHubTokens } from "../queries";
 import {
-  daysLeft,
   formatDate,
   kindLabel,
-  plural,
   reachText,
   reposSyncedBy,
   stateOf,

@@ -14,7 +14,7 @@ import {
   type Agent,
 } from "../../test/app";
 import { createTestDb, resetDb } from "../../test/db";
-import { fakeOAuth, githubUser, hours, TEST_KEY } from "../../test/fakes";
+import { fakeOAuth, githubUser, hours, NOW, TEST_KEY } from "../../test/fakes";
 import { decrypt } from "../crypto";
 import {
   type CheckedToken,
@@ -287,13 +287,18 @@ describe("PUT /api/github-tokens/:id", () => {
     const id = ids[0]!;
     await db.gitHubToken.update({
       where: { id },
-      data: { status: "stopped", name: "Work" },
+      data: { status: "stopped", name: "Work", stopRemindedAt: NOW },
     });
 
     const res = await replaceToken(agent, id, "github_pat_new");
     expect(res.status).toBe(200);
     const saved = await db.gitHubToken.findUniqueOrThrow({ where: { id } });
-    expect(saved).toMatchObject({ name: "Work", status: "working" });
+    // A new token, so its reminders start over.
+    expect(saved).toMatchObject({
+      name: "Work",
+      status: "working",
+      stopRemindedAt: null,
+    });
     expect(decrypt(saved.tokenEnc, TEST_KEY)).toBe("github_pat_new");
     expect(await db.gitHubToken.count()).toBe(MAX_TOKENS);
 

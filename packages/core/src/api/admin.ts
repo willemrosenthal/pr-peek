@@ -61,6 +61,8 @@ export interface AdminOverviewResponse {
     lowestBudget: number | null;
     rateLimited: number;
   };
+  // Personal access tokens. Expiring: working, and expires within EXPIRING_DAYS.
+  tokens: { working: number; expiring: number; stopped: number };
   people: {
     users: number;
     // Opened the app in the last 24 hours, and the last 7 days.

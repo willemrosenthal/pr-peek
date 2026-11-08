@@ -25,7 +25,7 @@ export interface TokenDeps {
   now?: () => Date;
 }
 
-type TokenKeys = Pick<TokenDeps, "key" | "previousKey">;
+export type TokenKeys = Pick<TokenDeps, "key" | "previousKey">;
 
 export const tokenKeys = (
   config: Pick<Config, "TOKEN_ENC_KEY" | "TOKEN_ENC_KEY_PREVIOUS">,
@@ -44,7 +44,7 @@ const lockUser = (tx: Prisma.TransactionClient, userId: string) =>
   tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
 
 // The keys to read tokens with: the current one, then the previous.
-const keysOf = (keys: TokenKeys) =>
+export const keysOf = (keys: TokenKeys) =>
   keys.previousKey ? [keys.key, keys.previousKey] : [keys.key];
 
 // Sync errors that stop syncs until the user acts. "reauth": sign in with GitHub again.
@@ -264,6 +264,7 @@ export function saveToken(
       status: "working" as const,
       stoppedAt: null,
       expiryRemindedAt: null,
+      stopRemindedAt: null,
     };
     const saved =
       "replaceId" in options
@@ -307,18 +308,21 @@ export async function removeToken(
   });
 }
 
-// GitHub rejected a token. Marks that personal access token stopped (`tokenId`; null for
-// the sign in, or when it's not known). Syncs stop only when no personal access token
-// works: "token" if the user has any, else "reauth". Returns why syncs stopped, or null.
+// GitHub rejected a token: a personal access token (its id), the sign in (null), or one
+// not known here (undefined, when its client marked it already). A personal access token
+// is marked stopped. Syncs stop only when no personal access token works: "token" if the
+// user has any, else "reauth". A sign in rejected while a token works is remembered, so
+// syncs skip it until the user signs in again. Returns why syncs stopped, or null.
 export async function markRejected(
   db: Db,
   userId: string,
-  tokenId: string | null,
+  tokenId: string | null | undefined,
 ): Promise<StopReason | null> {
+  const now = new Date();
   if (tokenId) {
     await db.gitHubToken.updateMany({
       where: { id: tokenId, userId, status: "working" },
-      data: { status: "stopped", stoppedAt: new Date() },
+      data: { status: "stopped", stoppedAt: now },
     });
   }
   const tokens = await db.gitHubToken.findMany({
@@ -334,6 +338,11 @@ export async function markRejected(
     await db.user.updateMany({
       where: { id: userId },
       data: { syncError: reason },
+    });
+  } else if (tokenId === null) {
+    await db.user.updateMany({
+      where: { id: userId, signInStoppedAt: null },
+      data: { signInStoppedAt: now },
     });
   }
   return reason;
