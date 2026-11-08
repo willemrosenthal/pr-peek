@@ -281,6 +281,8 @@ it("opens the sheet on the recommended fine-grained tab, with a tab for classic 
   const fineGrained = within(sheet).getByRole("tab", { name: /Fine-grained/ });
   expect(fineGrained.textContent).toContain("Recommended");
   expect(fineGrained.getAttribute("aria-selected")).toBe("true");
+  // What the highlight's style keys on. Base UI's name for it, not data-selected.
+  expect(fineGrained.hasAttribute("data-active")).toBe(true);
   expect(
     within(sheet)
       .getByRole("link", { name: "Make a fine-grained token on GitHub" })
