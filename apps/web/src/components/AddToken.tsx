@@ -11,7 +11,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, X } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../api";
-import { queryKeys } from "../queries";
+import { refreshTokens } from "../queries";
 import { formatDate, kindLabel, reachText } from "../tokens";
 import { Alert } from "./Alert";
 import { Button, ButtonLink } from "./Button";
@@ -119,10 +119,7 @@ function AddToken({
         { method: replaceId ? "PUT" : "POST", body: { token, name } },
       ),
     onSuccess: async ({ token: saved }) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.githubTokens }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.me }),
-      ]);
+      await refreshTokens(queryClient);
       onSaved(
         `Saved ${saved.name}. Its repos sync with it from the next sync.`,
       );
@@ -217,7 +214,7 @@ function AddToken({
               wide
               disabled={!token.trim() || check.isPending}
             >
-              {check.isPending ? "Checking token" : "Check token"}
+              {check.isPending ? "Checking" : "Submit"}
             </Button>
           </form>
         </>

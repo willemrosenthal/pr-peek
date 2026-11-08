@@ -54,7 +54,7 @@ async function pasteAndCheck(token: string) {
     screen.getByLabelText("Copy it, then paste it here"),
     token,
   );
-  await userEvent.click(screen.getByRole("button", { name: "Check token" }));
+  await userEvent.click(screen.getByRole("button", { name: "Submit" }));
 }
 
 it("lists each token with what it covers, and offers Replace only when it needs one", async () => {
@@ -201,7 +201,7 @@ it("replaces a token from its card, keeping its name", async () => {
     screen.getByLabelText("Copy it, then paste it here"),
     "github_pat_new",
   );
-  await userEvent.click(screen.getByRole("button", { name: "Check token" }));
+  await userEvent.click(screen.getByRole("button", { name: "Submit" }));
   expect((await screen.findByLabelText<HTMLInputElement>("Name")).value).toBe(
     "Work",
   );

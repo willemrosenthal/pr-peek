@@ -235,6 +235,13 @@ export function useGitHubTokens() {
   });
 }
 
+// After a token is added, replaced, or removed: the list, and /me's copy.
+export const refreshTokens = (queryClient: QueryClient) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.githubTokens }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.me }),
+  ]);
+
 // Who the user can pick repos from: themselves, their orgs, and people who share repos.
 export function useRepoOwners() {
   return useQuery({

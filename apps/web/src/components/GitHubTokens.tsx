@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../api";
 import { cx } from "../cx";
-import { queryKeys, useGitHubTokens } from "../queries";
+import { refreshTokens, useGitHubTokens } from "../queries";
 import {
   daysLeft,
   formatDate,
@@ -142,11 +142,7 @@ function TokenCard({
   const [confirming, setConfirming] = useState(false);
   const remove = useMutation({
     mutationFn: () => api(`/github-tokens/${token.id}`, { method: "DELETE" }),
-    onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.githubTokens }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.me }),
-      ]),
+    onSuccess: () => refreshTokens(queryClient),
   });
   const state = stateOf(token);
   // The watched repos it syncs now, which move to another token or the sign in.
