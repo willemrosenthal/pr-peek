@@ -371,6 +371,7 @@ export const me = (
     scopes: ["repo", "read:org"],
   },
   githubToken: null,
+  githubTokens: [],
   needsReauth: false,
   isAdmin: false,
   pending: false,

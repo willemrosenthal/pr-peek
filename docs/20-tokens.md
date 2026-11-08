@@ -30,7 +30,9 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 2. **Syncs use them** (20.2), split in two since it's big:
    - 2a: `feat(server): find which orgs each token reaches`. Finding owners, picking a token per owner, the repo picker, preview, and add by link, and a rejected token stopping alone.
    - 2b: `feat(server): sync each owner with the token that reaches it`. Searches per token, details per owner, and the tests with several tokens.
-3. **The settings page** (20.3, 20.4): `feat(web): add several personal access tokens`.
+3. **The settings page** (20.3, 20.4), split in two:
+   - 3a: `feat(server): an API for several personal access tokens`. The routes, checking a token before saving, `/me`'s list, and the table matching the old columns.
+   - 3b: `feat(web): add several personal access tokens`. The settings page. Then the old `/github-token` routes and the old columns go.
 4. **Reminders and key checks** (20.5, 20.6): `feat(server): remind before a token expires, and check the key on start`.
 
 ## Steps
@@ -45,7 +47,8 @@ Mockups: [Git Buddy Tokens](https://claude.ai/artifact/FvtNWFdpKt6o49E6KEaUXa): 
 - [x] The current `/github-token` routes and the sync read and write the table, as a list of one. So nothing changes for users yet, and nothing is lost after the deploy.
 - [x] Keep the old columns for one release, so the running version still works during the deploy (10.6). Drop them in a later PR.
   - The new version still writes them when a token is saved or removed, with the same encrypted text as the table. A token saved or removed on the old version during the few minutes of the deploy only changes the old columns.
-- [ ] When dropping the old columns, first make the table match them: delete tokens of users whose `patEnc` is null, and replace a token whose `tokenEnc` doesn't match `patEnc`. The same encrypted text means a plain comparison works. This catches a token saved or removed on the old version during this PR's deploy.
+- [x] When dropping the old columns, first make the table match them: delete tokens of users whose `patEnc` is null, and replace a token whose `tokenEnc` doesn't match `patEnc`. The same encrypted text means a plain comparison works. This catches a token saved or removed on the old version during this PR's deploy.
+  - Done in 3a's migration (`match_old_token_columns`), which also adds a row for a user who saved their first token then. From 3a, nothing writes the old columns. 3b drops them.
 - [x] `tokens:reencrypt` also covers the new table. Update [security.md](security.md).
 
 ### 20.2 Syncs use them
@@ -88,14 +91,17 @@ Most people make a token on GitHub and paste it on the same phone, so this has t
 
 ### 20.4 The API
 
-- [ ] `GET /github-tokens`, `POST /github-tokens`, `PUT /github-tokens/:id` (replace, with a new name if given), `DELETE /github-tokens/:id`. Each checks the token belongs to the user.
-- [ ] `/me` returns the list, without the tokens themselves.
+- [x] `GET /github-tokens`, `POST /github-tokens`, `PUT /github-tokens/:id` (replace, with a new name if given), `DELETE /github-tokens/:id`. Each checks the token belongs to the user.
+  - As built (3a): `GET` also answers which token syncs each watched owner. `POST /github-tokens/check` checks a pasted token and says what it reaches, before saving: its owners, a name to start from, a token with the same owners (to offer Replace), and whether it reaches any watched repo. It answers 409 `already_added` for a token the user has.
+  - Saving checks the token with GitHub again, and saves its owners, so no sync has to. `too_many` at 5. Replacing works at the cap and keeps the name unless given one. Removing a token restarts syncs that waited for one, when another still works.
+- [x] `/me` returns the list, without the tokens themselves. `githubTokens`. The old `githubToken` stays until 3b.
 - [ ] Remove the old `/github-token` routes once the web app stops calling them.
 
 ### 20.5 Reminders
 
 - [ ] A push 7 days before a token expires, and one when it stops working. Once each per token.
 - [ ] A banner on the list for a token expiring within 7 days or stopped, with a link to replace it.
+- [ ] Remember when the GitHub sign in stops working while a token works (`markRejected` returns null then). Syncs skip the sign in's owners until the user signs in again, instead of trying it each sync (about 6 small queries and maybe a GitHub call). Show a banner to sign in again.
 
 ### 20.6 Key checks
 

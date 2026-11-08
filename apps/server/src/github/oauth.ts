@@ -1,6 +1,9 @@
 // Talks to GitHub's OAuth endpoints: the sign in link, swapping a code for tokens, and refreshing them.
 // Also checks personal access tokens that users paste in.
 
+import { Octokit } from "octokit";
+import { listTokenOwners } from "./repos";
+
 export type ScopeChoice = "full" | "public";
 
 const SCOPES: Record<ScopeChoice, string> = {
@@ -44,6 +47,8 @@ export interface GitHubOAuth {
   refresh(refreshToken: string): Promise<GitHubTokens>;
   getUser(accessToken: string): Promise<GitHubUser>;
   checkToken(token: string): Promise<CheckedToken>;
+  // The owners of a personal access token's private repos (see listTokenOwners).
+  tokenOwners(token: string): Promise<string[]>;
 }
 
 // GitHub said no: a bad or expired code or refresh token. The user has to sign in again.
@@ -178,6 +183,15 @@ export function createGitHubOAuth(options: Options): GitHubOAuth {
       const res = await fetchUser(accessToken);
       if (!res.ok) throw new Error(`GitHub user request failed: ${res.status}`);
       return toGitHubUser((await res.json()) as UserResponse);
+    },
+
+    async tokenOwners(token) {
+      const octokit = new Octokit({
+        auth: token,
+        request: { fetch: request },
+        throttle: { enabled: false },
+      });
+      return listTokenOwners(octokit);
     },
 
     async checkToken(token) {
