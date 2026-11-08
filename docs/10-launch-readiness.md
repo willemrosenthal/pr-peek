@@ -100,8 +100,11 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 ### 10.7 Polish for new users
 
 - [x] A custom domain on Render, with HTTPS (automatic). Done early: `www.git-buddy.com`, bought at Porkbun. `git-buddy.com` redirects to it.
-- [ ] A short landing section on `/signin`: what it does, a screenshot, install buttons.
-- [ ] Friendly states for: no repos yet, nothing needs you, GitHub is down, sync error.
+- [x] A short landing section on `/signin`: what it does, a screenshot, install buttons. As built (PR 4b): three feature lines above the sign-in card. No screenshot: an example list was tried and dropped, since it made the page too busy. Install is a link (4a's help links), as in the mockup.
+- [x] Friendly states for: no repos yet, nothing needs you, GitHub is down, sync error. As built (PR 4b):
+  - No repos yet and nothing needs you: already there, from earlier plans.
+  - Sync error and GitHub down: the failed-sync banner now says it can't sync with GitHub, the list may be out of date, and it keeps trying. The header already says how old the list is. Telling GitHub being down apart from other failures would need a new `SyncError` value, which old code can't read during a deploy, so it's one message.
+  - Errors everywhere: when a request gets no answer, the app says it can't reach Git Buddy, not the browser's "Failed to fetch" (`NetworkError` in `api.ts`). Render's own 502, 503, and 504 pages during a deploy say Git Buddy is restarting.
 - [x] A feedback link: GitHub issues for bugs and ideas, and an email for privacy questions. As built (PR 4a): `HelpLinks` on sign in (with an install link) and in Settings, General. The email is on the privacy page. In the Mac app, the privacy link opens in the browser: the app only opens web links, so the page's email link wouldn't work inside it.
 
 ## Done when

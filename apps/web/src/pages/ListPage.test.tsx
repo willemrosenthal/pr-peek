@@ -13,6 +13,7 @@ import {
 } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { beforeAll, describe, expect, it } from "vitest";
+import { SYNC_FAILED } from "../components/Banners";
 import { sectionOrder } from "../sections";
 import {
   githubToken,
@@ -876,7 +877,7 @@ describe("banners", () => {
       },
       "Add a new token",
     ],
-    [{ status: syncStatus({ syncError: "failed" }) }, /Sync problem/],
+    [{ status: syncStatus({ syncError: "failed" }) }, SYNC_FAILED],
   ])("shows %o", async (state, text) => {
     fakeApi(
       listApi({

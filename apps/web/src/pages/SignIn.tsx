@@ -1,3 +1,4 @@
+import { Bell, CircleCheck, Eye } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useSearchParams } from "react-router";
 import { Alert } from "../components/Alert";
@@ -14,6 +15,28 @@ const SIGN_IN_ERRORS: Record<string, string> = {
   server: "Something went wrong on our side. Try again.",
 };
 
+// What Git Buddy does, for people who haven't signed in yet. Colored like the rows.
+const FEATURES = [
+  {
+    Icon: Eye,
+    color: "var(--color-kind-review)",
+    title: "Reviews you owe, first.",
+    text: "Requests, re-requests, and replies to your comments, sorted by how long they've waited.",
+  },
+  {
+    Icon: CircleCheck,
+    color: "var(--color-kind-approved)",
+    title: "Your own PRs, when they need you.",
+    text: "Approved and ready to merge, changes asked for, or checks failing.",
+  },
+  {
+    Icon: Bell,
+    color: "var(--color-kind-talk)",
+    title: "A push when something lands on you.",
+    text: "On your phone, or in the Mac menu bar. Quiet hours hold them back.",
+  },
+];
+
 export function SignIn() {
   const me = useMe();
   const [params] = useSearchParams();
@@ -29,7 +52,7 @@ export function SignIn() {
 
   return (
     <main className={styles.page}>
-      <div className={styles.panel}>
+      <div className={styles.content}>
         <header className={styles.header}>
           <h1 className={styles.title}>Git Buddy</h1>
           <p className={styles.tagline}>
@@ -37,9 +60,21 @@ export function SignIn() {
           </p>
         </header>
 
+        <ul className={styles.features}>
+          {FEATURES.map(({ Icon, color, title, text }) => (
+            <li key={title} className={styles.feature}>
+              <Icon style={{ color }} aria-hidden="true" />
+              <p>
+                <strong>{title}</strong>{" "}
+                <span className={styles.featureText}>{text}</span>
+              </p>
+            </li>
+          ))}
+        </ul>
+
         {error && <Alert>{error}</Alert>}
 
-        <section className={styles.section}>
+        <section className={styles.panel}>
           <ButtonLink
             variant="primary"
             wide

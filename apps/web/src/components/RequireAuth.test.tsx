@@ -1,11 +1,13 @@
 import { screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
+import { UNREACHABLE } from "../api";
 import {
   apiError,
   fakeApi,
   json,
   me,
+  offline,
   signedInApi,
   signedOut,
 } from "../test/fake-api";
@@ -38,4 +40,17 @@ it("offers a retry when the server can't be reached", async () => {
   down = false;
   await userEvent.click(screen.getByRole("button", { name: "Try again" }));
   expect(await screen.findByText("Signed in as octocat")).toBeTruthy();
+});
+
+it("says it can't reach Git Buddy when offline, once retries run out", async () => {
+  fakeApi({ "GET /api/me": offline });
+  renderApp("/settings");
+  expect(
+    await screen.findByRole(
+      "heading",
+      { name: "Couldn't load Git Buddy" },
+      { timeout: 10_000 },
+    ),
+  ).toBeTruthy();
+  expect(screen.getByText(UNREACHABLE)).toBeTruthy();
 });
