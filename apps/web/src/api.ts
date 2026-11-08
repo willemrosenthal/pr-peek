@@ -12,6 +12,22 @@ export class ApiError extends Error {
   }
 }
 
+// The request got no answer: offline, or Git Buddy can't be reached. Not an ApiError,
+// so queries still retry it.
+export class NetworkError extends Error {
+  constructor(cause: unknown) {
+    super(UNREACHABLE, { cause });
+    this.name = "NetworkError";
+  }
+}
+
+export const UNREACHABLE =
+  "Can't reach Git Buddy. Check your connection, then try again.";
+// Render answers these itself while a deploy starts or the server restarts.
+export const RESTARTING = "Git Buddy is restarting. Try again in a minute.";
+const RESTART_STATUSES = new Set([502, 503, 504]);
+export const UNKNOWN_ERROR = "Something went wrong. Try again.";
+
 interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
@@ -31,13 +47,18 @@ export async function api<T>(
   const headers: Record<string, string> = {};
   if (isLooking()) headers[LOOKING_HEADER] = "1";
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  const res = await fetch(`/api${path}`, {
-    method,
-    credentials: "same-origin",
-    keepalive,
-    headers,
-    ...(body !== undefined && { body: JSON.stringify(body) }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      method,
+      credentials: "same-origin",
+      keepalive,
+      headers,
+      ...(body !== undefined && { body: JSON.stringify(body) }),
+    });
+  } catch (err) {
+    throw new NetworkError(err);
+  }
   if (!res.ok) throw await toApiError(res);
   // 204 No Content and 202 with no body.
   const text = await res.text();
@@ -45,7 +66,9 @@ export async function api<T>(
 }
 
 async function toApiError(res: Response): Promise<ApiError> {
-  const fallback = "Something went wrong. Try again.";
+  const fallback = RESTART_STATUSES.has(res.status)
+    ? RESTARTING
+    : UNKNOWN_ERROR;
   try {
     const { error } = (await res.json()) as {
       error?: { code?: string; message?: string };

@@ -1,6 +1,13 @@
 import { LOOKING_HEADER } from "@pr-peek/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api, ApiError } from "./api";
+import {
+  api,
+  ApiError,
+  NetworkError,
+  RESTARTING,
+  UNKNOWN_ERROR,
+  UNREACHABLE,
+} from "./api";
 import { fakeApi, json, signedOut } from "./test/fake-api";
 
 describe("api", () => {
@@ -63,12 +70,36 @@ describe("api", () => {
 
   it("throws a general error when the answer isn't JSON", async () => {
     fakeApi({
-      "GET /api/me": () => new Response("Bad gateway", { status: 502 }),
+      "GET /api/me": () => new Response("Teapot", { status: 418 }),
     });
     await expect(api("/me")).rejects.toMatchObject({
-      status: 502,
+      status: 418,
       code: "unknown",
-      message: "Something went wrong. Try again.",
+      message: UNKNOWN_ERROR,
     });
+  });
+
+  it.each([502, 503, 504])(
+    "says it's restarting for a %i with no JSON, like during a deploy",
+    async (status) => {
+      fakeApi({
+        "GET /api/me": () => new Response("Bad gateway", { status }),
+      });
+      await expect(api("/me")).rejects.toMatchObject({
+        status,
+        message: RESTARTING,
+      });
+    },
+  );
+
+  it("says it can't reach Git Buddy when the request gets no answer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))),
+    );
+    const err = await api("/me").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(NetworkError);
+    expect(err).not.toBeInstanceOf(ApiError);
+    expect((err as Error).message).toBe(UNREACHABLE);
   });
 });

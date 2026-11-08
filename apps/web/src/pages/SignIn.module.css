@@ -6,17 +6,27 @@
   padding: var(--space-6) var(--space-4);
 }
 
-.panel {
+/* Two columns when there's room, else the example goes below. */
+.layout {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  align-items: flex-start;
+  width: 100%;
+  max-width: 960px;
+}
+
+.intro {
+  display: flex;
+  flex: 1 1 380px;
   flex-direction: column;
   gap: var(--space-5);
-  width: 100%;
-  max-width: 400px;
-  padding: var(--space-5);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-panel);
+  min-width: 0;
+}
+
+.example {
+  flex: 1 1 400px;
+  min-width: 0;
 }
 
 .header {
@@ -30,19 +40,62 @@
   font-weight: 700;
 }
 
+.tagline {
+  font-size: var(--text-lg);
+}
+
 .tagline,
-.hint {
+.hint,
+.featureText {
   color: var(--color-text-secondary);
+}
+
+.features {
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.feature {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.feature svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+
+.review {
+  color: var(--color-kind-review);
+}
+
+.approved {
+  color: var(--color-kind-approved);
+}
+
+.talk {
+  color: var(--color-kind-talk);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
 }
 
 .hint {
   font-size: var(--text-sm);
-}
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
 }
 
 .check {

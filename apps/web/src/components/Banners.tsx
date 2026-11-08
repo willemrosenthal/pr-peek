@@ -19,6 +19,9 @@ interface Banner {
   content: ReactNode;
 }
 
+export const SYNC_FAILED =
+  "Can't sync with GitHub right now, so your list may be out of date. Git Buddy keeps trying.";
+
 // Settings, where tokens are added and replaced.
 const TOKENS_PAGE = "/settings/general";
 
@@ -98,7 +101,8 @@ function bannersFor(
     });
   }
   if (syncError === "failed") {
-    banners.push({ key: "failed", content: "Sync problem. Retrying soon." });
+    // Usually GitHub being down or slow. The header says how old the list is.
+    banners.push({ key: "failed", content: SYNC_FAILED });
   }
   return banners;
 }
