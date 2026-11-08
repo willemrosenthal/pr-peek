@@ -51,7 +51,7 @@ const boss = createBoss(pool, {
 });
 
 boss.on("error", (err) => logger.error({ err }, "pg-boss error"));
-// Like "can't listen for new jobs": it polls more often instead.
+// Like "couldn't start listening for new jobs": it polls every 10 and 30 seconds instead.
 boss.on("warning", (warning) => logger.warn({ warning }, "pg-boss warning"));
 
 await boss.start();
@@ -65,14 +65,13 @@ const work = <T>(
   handler: WorkHandler<T>,
 ) => boss.work<T>(queue, options, countJobs(usage, queue, handler));
 
-const notifyPollingIntervalSeconds = POLL_LISTENING_SECONDS;
 const scheduled = {
   pollingIntervalSeconds: POLL_SCHEDULED_SECONDS,
-  notifyPollingIntervalSeconds,
+  notifyPollingIntervalSeconds: POLL_LISTENING_SECONDS,
 };
 const jobs = {
   pollingIntervalSeconds: POLL_JOBS_SECONDS,
-  notifyPollingIntervalSeconds,
+  notifyPollingIntervalSeconds: POLL_LISTENING_SECONDS,
 };
 
 await boss.schedule(HEARTBEAT, "* * * * *");

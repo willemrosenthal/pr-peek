@@ -28,14 +28,16 @@ const NOTIFY = { notify: true };
 // so the job table stays small.
 const FREQUENT = { ...NOTIFY, deleteAfterSeconds: 60 * 60 };
 
-// How often the worker checks each queue for jobs, in seconds, when it can't listen for
-// new ones (the listening connection is down). pg-boss's 2 seconds would mean millions of
-// queries a month with no users at all. Pushes wait up to 10 seconds.
+// How often the worker checks each queue for jobs, in seconds, if it couldn't start
+// listening for new ones. pg-boss's 2 seconds would mean millions of queries a month with
+// no users at all. Pushes wait up to 10 seconds.
 export const POLL_JOBS_SECONDS = 10;
 // Scheduled queues, like the sync dispatch. With POLL_JOBS_SECONDS, must add up to under
 // 55 seconds (see DISPATCH_SLACK_MS in sync-schedule.ts).
 export const POLL_SCHEDULED_SECONDS = 30;
-// How often it checks while listening, just in case a wake-up is lost.
+// How often it checks while listening, just in case a wake-up is lost. If the listening
+// connection drops, it keeps this pace, and checks every queue once it reconnects.
+// A retried job waits for this too, since pg-boss sends no wake-up for a retry.
 export const POLL_LISTENING_SECONDS = 60;
 
 // pg-boss's own queue, which every scheduled job passes through.
