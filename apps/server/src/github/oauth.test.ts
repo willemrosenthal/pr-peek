@@ -131,6 +131,36 @@ describe("refresh", () => {
   });
 });
 
+describe("revokeGrant", () => {
+  it("asks GitHub to delete the grant, signed with the app's client secret", async () => {
+    const { oauth, fetch, sentBody } = setup(null);
+    fetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await oauth.revokeGrant("ghu_access");
+
+    const [url, init] = fetch.mock.calls[0] ?? [];
+    expect(url).toBe("https://api.github.com/applications/client-id/grant");
+    expect(init?.method).toBe("DELETE");
+    const headers = init?.headers as Record<string, string>;
+    expect(headers.Authorization).toBe(
+      `Basic ${Buffer.from("client-id:client-secret").toString("base64")}`,
+    );
+    expect(sentBody()).toEqual({ access_token: "ghu_access" });
+  });
+
+  it.each([404, 422])(
+    "counts %i as done: the grant is gone already",
+    async (status) => {
+      const { oauth } = setup({ message: "Not Found" }, status);
+      await expect(oauth.revokeGrant("ghu_access")).resolves.toBeUndefined();
+    },
+  );
+
+  it("throws when GitHub fails", async () => {
+    const { oauth } = setup({ message: "Server Error" }, 500);
+    await expect(oauth.revokeGrant("ghu_access")).rejects.toThrow("500");
+  });
+});
+
 describe("getUser", () => {
   it("returns the GitHub profile", async () => {
     const { oauth, fetch } = setup({

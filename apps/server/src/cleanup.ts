@@ -4,7 +4,7 @@ import { unseenPrs } from "./sync";
 
 // Resolved items are kept this long. Long enough to reopen an item without notifying
 // again if its PR comes back.
-export const KEEP_RESOLVED_DAYS = 30;
+const KEEP_RESOLVED_DAYS = 30;
 
 // Deletes what users no longer need: resolved items over 30 days old, with their push
 // logs, and PRs no search has found for a week, with nothing open (see unseenPrs). Each
