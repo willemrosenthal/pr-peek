@@ -22,7 +22,7 @@ import {
   type CheckedPersonalToken,
 } from "../github/tokens";
 import { HttpError, parseInput } from "../http-error";
-import { attemptLimiter } from "../rate-limit";
+import { userLimiter } from "../rate-limit";
 import { currentUser, requireUser } from "./auth";
 
 export interface GitHubTokenDeps {
@@ -41,7 +41,8 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
   const router = express.Router();
   router.use("/github-tokens", requireUser(deps.db));
 
-  const limiter = attemptLimiter();
+  // Per user, not by IP: a company's people often share one. Each check asks GitHub.
+  const limiter = userLimiter(15 * 60 * 1000, 30);
 
   // Asks GitHub about a pasted token: that it works, is the user's, and what it reaches.
   // Classic tokens reach everything the account can, so their owners aren't listed.
