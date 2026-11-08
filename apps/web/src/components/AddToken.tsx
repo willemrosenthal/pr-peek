@@ -8,8 +8,8 @@ import type {
   TokensResponse,
 } from "@pr-peek/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { X } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { ExternalLink, X } from "lucide-react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../api";
 import { queryKeys } from "../queries";
 import { formatDate, kindLabel, reachText } from "../tokens";
@@ -151,6 +151,7 @@ function AddToken({
 
   return (
     <div className={styles.sheetBody}>
+      <div className={styles.handle} aria-hidden="true" />
       <div className={styles.sheetTop}>
         <Drawer.Title className={styles.heading}>
           {replacing ? `Replace ${replacing.name}` : "Add a token"}
@@ -168,7 +169,7 @@ function AddToken({
           >
             <Tabs.List className={styles.tabs}>
               <Tabs.Tab value="fine_grained" className={styles.tab}>
-                Fine-grained{" "}
+                Fine-grained
                 <span className={styles.recommended}>Recommended</span>
               </Tabs.Tab>
               <Tabs.Tab value="classic" className={styles.tab}>
@@ -189,10 +190,10 @@ function AddToken({
               </Tabs.Panel>
             </div>
           </Tabs.Root>
-          <form className={styles.step} onSubmit={submitToken}>
-            <label htmlFor="token-input" className={styles.label}>
-              2. Copy it, then paste it here
-            </label>
+          <form className={styles.stepCard} onSubmit={submitToken}>
+            <StepTitle number={2}>
+              <label htmlFor="token-input">Copy it, then paste it here</label>
+            </StepTitle>
             <div className={styles.pasteRow}>
               <Input
                 id="token-input"
@@ -210,7 +211,7 @@ function AddToken({
               )}
             </div>
             {check.isError && <Alert>{check.error.message}</Alert>}
-            <div className={styles.actions}>
+            <div className={styles.sheetActions}>
               <Button
                 type="submit"
                 variant="primary"
@@ -224,7 +225,7 @@ function AddToken({
         </>
       ) : (
         <form
-          className={styles.step}
+          className={styles.stepCard}
           onSubmit={(e) => {
             e.preventDefault();
             save.mutate(replacing?.id ?? null);
@@ -275,7 +276,7 @@ function AddToken({
               </div>
             </div>
           ) : (
-            <div className={styles.actions}>
+            <div className={styles.sheetActions}>
               <Button type="submit" variant="primary" disabled={save.isPending}>
                 {save.isPending ? "Saving" : "Save token"}
               </Button>
@@ -288,20 +289,61 @@ function AddToken({
   );
 }
 
+// A numbered step's title. The number is only drawn, so screen readers read the words.
+function StepTitle({
+  number,
+  children,
+}: {
+  number: number;
+  children: ReactNode;
+}) {
+  return (
+    <div className={styles.stepTitle}>
+      <span className={styles.stepNumber} aria-hidden="true">
+        {number}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+// The first step: a link to GitHub's page for making the token, and what to set there.
+function MakeStep({
+  href,
+  label,
+  children,
+}: {
+  href: string;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={styles.stepCard}>
+      <StepTitle number={1}>
+        <span>Make one on GitHub</span>
+      </StepTitle>
+      <ButtonLink href={href} target="_blank" rel="noreferrer" wide>
+        {label}
+        <ExternalLink aria-hidden="true" className={styles.linkIcon} />
+      </ButtonLink>
+      <ol className={styles.steps}>{children}</ol>
+    </div>
+  );
+}
+
 function FineGrainedSteps() {
   return (
     <>
-      <p className={styles.hint}>
+      <p className={styles.kindHint}>
         Reaches only the org you pick, with read-only access, so it's the safer
         kind. Add one for each org. GitHub doesn't let these tokens read check
         runs, so failed checks from GitHub Actions and similar tools aren't
         named. Whether checks passed still shows.
       </p>
-      <strong>1. Make one on GitHub</strong>
-      <ButtonLink href={FINE_GRAINED_URL} target="_blank" rel="noreferrer">
-        Make a fine-grained token on GitHub
-      </ButtonLink>
-      <ol className={styles.steps}>
+      <MakeStep
+        href={FINE_GRAINED_URL}
+        label="Make a fine-grained token on GitHub"
+      >
         <li>
           Set <strong>Resource owner</strong> to your org. Set{" "}
           <strong>Repository access</strong> to All repositories, or pick the
@@ -321,7 +363,7 @@ function FineGrainedSteps() {
           If your org has to approve tokens, wait for an org owner to approve
           it. Syncs fail until then.
         </li>
-      </ol>
+      </MakeStep>
     </>
   );
 }
@@ -329,15 +371,11 @@ function FineGrainedSteps() {
 function ClassicSteps() {
   return (
     <>
-      <p className={styles.hint}>
+      <p className={styles.kindHint}>
         Easiest. One token reaches all your repos and orgs, but it can do
         anything you can on GitHub. Some orgs don't allow them.
       </p>
-      <strong>1. Make one on GitHub</strong>
-      <ButtonLink href={CLASSIC_URL} target="_blank" rel="noreferrer">
-        Make a classic token on GitHub
-      </ButtonLink>
-      <ol className={styles.steps}>
+      <MakeStep href={CLASSIC_URL} label="Make a classic token on GitHub">
         <li>
           The link ticks <code>repo</code> (its sub-boxes tick with it) and{" "}
           <code>read:org</code>. Leave the rest. For public repos only, tick
@@ -349,7 +387,7 @@ function ClassicSteps() {
           <strong>Configure SSO</strong>, then <strong>Authorize</strong> next
           to your org. Without this, work repos won't show up.
         </li>
-      </ol>
+      </MakeStep>
     </>
   );
 }
