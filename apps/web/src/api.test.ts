@@ -8,7 +8,7 @@ import {
   UNKNOWN_ERROR,
   UNREACHABLE,
 } from "./api";
-import { fakeApi, json, signedOut } from "./test/fake-api";
+import { fakeApi, json, offline, signedOut } from "./test/fake-api";
 
 describe("api", () => {
   it("returns the JSON answer", async () => {
@@ -93,10 +93,7 @@ describe("api", () => {
   );
 
   it("says it can't reach Git Buddy when the request gets no answer", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))),
-    );
+    fakeApi({ "GET /api/me": offline });
     const err = await api("/me").catch((e: unknown) => e);
     expect(err).toBeInstanceOf(NetworkError);
     expect(err).not.toBeInstanceOf(ApiError);

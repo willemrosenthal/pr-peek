@@ -16,23 +16,23 @@ const SIGN_IN_ERRORS: Record<string, string> = {
   server: "Something went wrong on our side. Try again.",
 };
 
-// What Git Buddy does, for people who haven't signed in yet.
+// What Git Buddy does, for people who haven't signed in yet. Colored like the rows.
 const FEATURES = [
   {
     Icon: Eye,
-    tone: styles.review,
+    color: "var(--color-kind-review)",
     title: "Reviews you owe, first.",
     text: "Requests, re-requests, and replies to your comments, sorted by how long they've waited.",
   },
   {
     Icon: CircleCheck,
-    tone: styles.approved,
+    color: "var(--color-kind-approved)",
     title: "Your own PRs, when they need you.",
     text: "Approved and ready to merge, changes asked for, or checks failing.",
   },
   {
     Icon: Bell,
-    tone: styles.talk,
+    color: "var(--color-kind-talk)",
     title: "A push when something lands on you.",
     text: "On your phone, or in the Mac menu bar. Quiet hours hold them back.",
   },
@@ -63,9 +63,9 @@ export function SignIn() {
           </header>
 
           <ul className={styles.features}>
-            {FEATURES.map(({ Icon, tone, title, text }) => (
+            {FEATURES.map(({ Icon, color, title, text }) => (
               <li key={title} className={styles.feature}>
-                <Icon className={tone} aria-hidden="true" />
+                <Icon style={{ color }} aria-hidden="true" />
                 <p>
                   <strong>{title}</strong>{" "}
                   <span className={styles.featureText}>{text}</span>

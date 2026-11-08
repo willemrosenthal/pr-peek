@@ -52,6 +52,11 @@ export const sentBodies = (fetch: ReturnType<typeof fakeApi>, key: string) =>
     .filter(([url, init = {}]) => `${init.method ?? "GET"} ${url}` === key)
     .map(([, init]) => JSON.parse(init!.body as string) as unknown);
 
+// A request that gets no answer, like when offline. Thrown, as fetch does.
+export const offline = (): Response => {
+  throw new TypeError("Failed to fetch");
+};
+
 export const json = (body: unknown, status = 200) =>
   Response.json(body, { status });
 

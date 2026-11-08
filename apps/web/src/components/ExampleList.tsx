@@ -2,16 +2,21 @@ import type { ItemDto, ItemKind, StaleLevel } from "@pr-peek/core";
 import { ItemRow } from "./ItemRow";
 import styles from "./ExampleList.module.css";
 
-const example = (
-  n: number,
-  kind: ItemKind,
-  title: string,
-  repo: string,
-  summary: string,
-  age: string,
-  staleLevel: StaleLevel | null = null,
+interface Example {
+  kind: ItemKind;
+  title: string;
+  repo: string;
+  summary: string;
+  age: string;
+  staleLevel?: StaleLevel;
+}
+
+// A full row from the few fields that show. The first one is new, so it has a dot.
+const toItem = (
+  { kind, title, repo, summary, age, staleLevel }: Example,
+  i: number,
 ): ItemDto => ({
-  id: `example-${n}`,
+  id: `example-${i}`,
   kind,
   summary,
   actorLogin: null,
@@ -19,19 +24,19 @@ const example = (
   occurredAt: "",
   waitingSince: null,
   age,
-  staleLevel,
+  staleLevel: staleLevel ?? null,
   waitingOnAuthor: false,
   assignedState: null,
   assigned: false,
   severity: "normal",
-  unseen: n === 1,
+  unseen: i === 0,
   otherIds: [],
   pr: {
-    id: `example-pr-${n}`,
+    id: `example-pr-${i}`,
     title,
     owner: "acme",
     repo,
-    number: 100 + n * 7,
+    number: 107 + i * 7,
     url: "#",
     author: "",
     color: null,
@@ -39,50 +44,47 @@ const example = (
   },
 });
 
-const EXAMPLES = [
-  example(
-    1,
-    "review_requested",
-    "Add rate limits to the export API",
-    "api-gateway",
-    "Review requested",
-    "4h",
-    "warn",
-  ),
-  example(
-    2,
-    "re_requested",
-    "Fix flaky login test on Safari",
-    "web-app",
-    "Re-review requested",
-    "45m",
-    "fresh",
-  ),
-  example(
-    3,
-    "reviewed",
-    "Move billing to the new ledger",
-    "billing",
-    "jlee approved",
-    "1d",
-  ),
-  example(
-    4,
-    "check_failed",
-    "Upgrade to Node 24",
-    "web-app",
-    "test-server",
-    "2h",
-  ),
-  example(
-    5,
-    "reply",
-    "Search: rank exact matches first",
-    "search",
-    'priya: "Agreed, exact matches first"',
-    "20m",
-  ),
-];
+const EXAMPLES: ItemDto[] = (
+  [
+    {
+      kind: "review_requested",
+      title: "Add rate limits to the export API",
+      repo: "api-gateway",
+      summary: "Review requested",
+      age: "4h",
+      staleLevel: "warn",
+    },
+    {
+      kind: "re_requested",
+      title: "Fix flaky login test on Safari",
+      repo: "web-app",
+      summary: "Re-review requested",
+      age: "45m",
+      staleLevel: "fresh",
+    },
+    {
+      kind: "reviewed",
+      title: "Move billing to the new ledger",
+      repo: "billing",
+      summary: "jlee approved",
+      age: "1d",
+    },
+    {
+      kind: "check_failed",
+      title: "Upgrade to Node 24",
+      repo: "web-app",
+      summary: "test-server",
+      age: "2h",
+    },
+    {
+      kind: "reply",
+      title: "Search: rank exact matches first",
+      repo: "search",
+      summary: 'priya: "Agreed, exact matches first"',
+      age: "20m",
+    },
+  ] satisfies Example[]
+).map(toItem);
 
 // The real list's rows, with made-up PRs, to show what Git Buddy looks like before
 // signing in. Inert, so its rows aren't links.

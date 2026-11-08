@@ -71,18 +71,6 @@
   margin-top: 2px;
 }
 
-.review {
-  color: var(--color-kind-review);
-}
-
-.approved {
-  color: var(--color-kind-approved);
-}
-
-.talk {
-  color: var(--color-kind-talk);
-}
-
 .panel {
   display: flex;
   flex-direction: column;
