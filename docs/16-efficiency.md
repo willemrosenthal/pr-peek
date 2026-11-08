@@ -103,7 +103,7 @@ GitHub's `involves:@me` matches PRs the user authored, is assigned to, is mentio
 ## Key decision: raise the worker's limits now, and alert on trouble
 
 - **6 syncs at once** (up from 3). A ceiling costs nothing while idle. Each sync holds a few MB, well inside Render Starter's 512 MB.
-- **The database pool stays at 5.** Supabase's session pooler, which we connect through, allows 15 connections in all on the free plan (Database settings, Connection pooling, Pool Size: checked, 15). Web 5 + live updates 1 + worker 5 is already 11, and Render briefly runs old and new copies side by side during a deploy. Syncs mostly wait on GitHub, and only hold a connection for short reads and their save, so 6 syncs share 5 connections fine. A save that finds none free waits for one (up to 10 seconds, `ITEMS_TX`).
+- **The database pool stays at 5.** Supabase's session pooler, which we connect through, allows 15 connections in all on the free plan (Database settings, Connection pooling, Pool Size: checked, 15). Web 5 + live updates 1 + worker 5 is already 11 (12 since 16.8, which gives the worker a listening connection too), and Render briefly runs old and new copies side by side during a deploy. Syncs mostly wait on GitHub, and only hold a connection for short reads and their save, so 6 syncs share 5 connections fine. A save that finds none free waits for one (up to 10 seconds, `ITEMS_TX`).
 - **Alerts:** a worker job, once an hour, sends a push to the admin (you) when:
   - the database passes 70% of the free plan's 500 MB,
   - users are 15 minutes or more past their sync interval,
@@ -127,6 +127,7 @@ GitHub's `involves:@me` matches PRs the user authored, is assigned to, is mentio
      - 5b-2, the list: `perf(server): stop storing PR snapshots`. The list reads the new columns, and snapshots stop being written. Needs 5b-1, so nothing reads them once they stop. Has a migration.
      - 5b-3, Settings: `feat(web): show when the list is updating after a settings change`.
 6. **Drop the column** (16.7): `chore(server): drop the snapshot column`. Once PR 5b has been live for a release, so a server mid-deploy never reads a missing column. And after [plan 17](completed/17-add-by-link.md) PR 2a is live: its migration has the backfill re-sort merged PRs from their snapshots, once.
+7. **Listen for new jobs** (16.8), added later: `perf(server): wake the worker on new jobs, and run pg-boss upkeep every 5 minutes` (#175).
 
 PRs 2 to 5b-3 release a patch or minor version and deploy. PR 6 releases nothing by itself, and ships with the next release. Each is about 150 to 300 lines with tests. PR 2 is first: quick, no migration, and most of the savings that don't need PR 5.
 
