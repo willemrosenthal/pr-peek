@@ -9,12 +9,8 @@ import type { Logger } from "pino";
 import { awakeAdmins, pushToAdmins } from "../admin-push";
 import type { Db } from "../db";
 import type { User } from "../generated/prisma/client";
-import {
-  GitHubAuthError,
-  type GitHubOAuth,
-  type ScopeChoice,
-} from "../github/oauth";
-import { listTokens, tokenDto } from "../github/tokens";
+import { GitHubAuthError, type ScopeChoice } from "../github/oauth";
+import { listTokens, tokenDto, type TokenDeps } from "../github/tokens";
 import { deleteAccount } from "../account";
 import type { SendPush } from "../push";
 import { attemptLimiter } from "../rate-limit";
@@ -26,17 +22,11 @@ import {
 } from "../session";
 import { upsertGitHubUser } from "../users";
 
-export interface AuthDeps {
-  db: Db;
-  oauth: GitHubOAuth;
-  key: Buffer;
-  // The key before `key`, while changing it (TOKEN_ENC_KEY_PREVIOUS).
-  previousKey?: Buffer | undefined;
+export interface AuthDeps extends TokenDeps {
   appUrl: string;
   // Null when push is off, because the VAPID keys aren't set.
   send: SendPush | null;
   logger: Logger;
-  now?: () => Date;
 }
 
 // Loads the signed in user, or answers 401. A user whose sign-up request waits for an

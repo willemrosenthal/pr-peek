@@ -12,7 +12,7 @@ beforeEach(() => resetDb(db));
 const { makePr, makeItem } = itemRows(db);
 const DAY = 24;
 
-it("deletes resolved items and push logs over 30 days old, and keeps the rest", async () => {
+it("deletes resolved items over 30 days old with their push logs, and keeps the rest", async () => {
   const { user } = await upsertGitHubUser(
     db,
     githubUser(),
@@ -22,7 +22,7 @@ it("deletes resolved items and push logs over 30 days old, and keeps the rest", 
   // Seen just now, so it stays.
   const pr = await makePr(user.id);
   // Resolved over 30 days ago: deleted.
-  await makeItem(user.id, pr.id, "review_requested", {
+  const old = await makeItem(user.id, pr.id, "review_requested", {
     status: "resolved",
     resolvedAt: hours(-31 * DAY),
   });
@@ -31,25 +31,26 @@ it("deletes resolved items and push logs over 30 days old, and keeps the rest", 
     resolvedAt: hours(-29 * DAY),
   });
   const open = await makeItem(user.id, pr.id, "assigned");
-  const log = (eventId: string, sentAt: Date) =>
+  const log = (itemId: string, eventId: string) =>
     db.notificationLog.create({
       data: {
         userId: user.id,
-        itemId: open.id,
+        itemId,
         eventId,
         channel: "push",
-        sentAt,
+        sentAt: hours(-31 * DAY),
       },
     });
-  await log("E_old", hours(-31 * DAY));
-  await log("E_new", hours(-1));
+  await log(old.id, "E_old");
+  // An open item's old log stays, so its reminder doesn't push again.
+  await log(open.id, "E_open:late");
 
-  expect(await cleanUpOldData(db, NOW)).toEqual({ logs: 1, items: 1, prs: 0 });
+  expect(await cleanUpOldData(db, NOW)).toEqual({ items: 1, prs: 0 });
   expect((await db.item.findMany()).map((i) => i.id).sort()).toEqual(
     [recent.id, open.id].sort(),
   );
   expect((await db.notificationLog.findMany()).map((l) => l.eventId)).toEqual([
-    "E_new",
+    "E_open:late",
   ]);
 });
 

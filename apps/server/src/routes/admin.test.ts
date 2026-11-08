@@ -37,9 +37,8 @@ const DAY = 24 * 60 * 60 * 1000;
 // NOW is 12:00 UTC on 21 October 2026.
 const day = (date: string) => new Date(`${date}T00:00:00Z`);
 
-const oauth = fakeOAuth();
-
 async function setup({ admin = true, send = null as SendPush | null } = {}) {
+  const oauth = fakeOAuth();
   const { agent } = makeTestApp(db, {
     routers: [
       adminRouter({
@@ -59,7 +58,7 @@ async function setup({ admin = true, send = null as SendPush | null } = {}) {
   }
   const overview = async () =>
     bodyOf<AdminOverviewResponse>(await agent.get("/api/admin/overview"));
-  return { agent, me, overview };
+  return { agent, me, oauth, overview };
 }
 
 // A usage row, like the hourly save makes.
@@ -91,7 +90,15 @@ describe("who can see it", () => {
 
   it("needs signing in", async () => {
     const { agent } = makeTestApp(db, {
-      routers: [adminRouter({ db, logger, send: null, oauth, key: TEST_KEY })],
+      routers: [
+        adminRouter({
+          db,
+          logger,
+          send: null,
+          oauth: fakeOAuth(),
+          key: TEST_KEY,
+        }),
+      ],
     });
     expect((await agent.get("/api/admin/overview")).status).toBe(401);
   });
@@ -411,9 +418,8 @@ describe("sign-up requests", () => {
   });
 
   it("declines a request by deleting the user, and taking back their GitHub grant", async () => {
-    const { agent } = await setup();
+    const { agent, oauth } = await setup();
     const user = await waiting(7, "dana", 1);
-    oauth.revokeGrant.mockClear();
 
     const res = await agent
       .delete(`/api/admin/requests/${user.id}`)
@@ -424,8 +430,7 @@ describe("sign-up requests", () => {
   });
 
   it("never declines an approved user", async () => {
-    const { agent, me } = await setup();
-    oauth.revokeGrant.mockClear();
+    const { agent, me, oauth } = await setup();
 
     const res = await agent
       .delete(`/api/admin/requests/${me.id}`)

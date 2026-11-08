@@ -45,7 +45,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
   3. Destroy their sessions.
   - As built (PR 3): `deleteAccount` in `account.ts`. It refreshes the sign in token if needed, then revokes the grant. If GitHub won't, it still deletes. Sessions on every device go, from the `session` table. The confirm says personal access tokens stay on GitHub, since only the user can delete those.
 - [x] ~~"Export my data" as JSON~~: dropped. See Decisions.
-- [x] Clear old data on a schedule: resolved items after 30 days, notification logs after 30 days, closed PRs after 7 days.
+- [x] Clear old data on a schedule: resolved items after 30 days, closed PRs after 7 days. Push logs go with their items. Logs of open items stay, since reminders check them so each stage pushes once.
   - As built: `cleanup.ts`, run by the worker's hourly job. "Closed PRs" uses the rule each sync already uses for its own user (`unseenPrs`): no search found it for 7 days and nothing is open, keeping important PRs. This also covers users who stopped syncing.
 
 ### 10.3 Security review

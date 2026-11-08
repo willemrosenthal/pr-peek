@@ -149,7 +149,8 @@ await work(HEALTH_CHECK, scheduled, async () => {
   await checkHealth({ db, send, logger }, now);
   const reminded = await sendTokenReminders({ db, send, logger }, now);
   if (reminded > 0) logger.info({ reminded }, "token reminders sent");
-  logger.info(await cleanUpOldData(db, now), "old data deleted");
+  const deleted = await cleanUpOldData(db, now);
+  if (deleted.items + deleted.prs > 0) logger.info(deleted, "old data deleted");
 });
 
 const stopSavingUsage = usage.saveHourly(db, logger);
