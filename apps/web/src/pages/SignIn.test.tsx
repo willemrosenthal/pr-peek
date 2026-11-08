@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
 import {
@@ -58,11 +58,8 @@ it("lets users whose GitHub sign in stopped working sign in again, with no invit
   expect(screen.queryByText(INVITE_ONLY)).toBe(null);
 });
 
-it("shows what Git Buddy does, with an example list that can't be clicked", async () => {
+it("shows what Git Buddy does", async () => {
   fakeApi({ "GET /api/me": signedOut });
   renderApp("/signin");
   expect(await screen.findByText("Reviews you owe, first.")).toBeTruthy();
-  const example = screen.getByRole("figure", { name: "An example list" });
-  const row = within(example).getByText("Upgrade to Node 24");
-  expect(row.closest("[inert]")).not.toBe(null);
 });

@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Navigate, useSearchParams } from "react-router";
 import { Alert } from "../components/Alert";
 import { ButtonLink } from "../components/Button";
-import { ExampleList } from "../components/ExampleList";
 import { HelpLinks } from "../components/HelpLinks";
 import { useMe } from "../queries";
 import styles from "./SignIn.module.css";
@@ -53,71 +52,65 @@ export function SignIn() {
 
   return (
     <main className={styles.page}>
-      <div className={styles.layout}>
-        <div className={styles.intro}>
-          <header className={styles.header}>
-            <h1 className={styles.title}>Git Buddy</h1>
-            <p className={styles.tagline}>
-              The pull requests waiting on you, in one list.
-            </p>
-          </header>
+      <div className={styles.intro}>
+        <header className={styles.header}>
+          <h1 className={styles.title}>Git Buddy</h1>
+          <p className={styles.tagline}>
+            The pull requests waiting on you, in one list.
+          </p>
+        </header>
 
-          <ul className={styles.features}>
-            {FEATURES.map(({ Icon, color, title, text }) => (
-              <li key={title} className={styles.feature}>
-                <Icon style={{ color }} aria-hidden="true" />
-                <p>
-                  <strong>{title}</strong>{" "}
-                  <span className={styles.featureText}>{text}</span>
-                </p>
-              </li>
-            ))}
-          </ul>
-
-          {error && <Alert>{error}</Alert>}
-
-          <section className={styles.panel}>
-            <ButtonLink
-              variant="primary"
-              wide
-              href={`/api/auth/github${publicOnly ? "?scope=public" : ""}`}
-            >
-              Sign in with GitHub
-            </ButtonLink>
-            <label className={styles.check}>
-              <input
-                type="checkbox"
-                checked={publicOnly}
-                onChange={(e) => setPublicOnly(e.target.checked)}
-              />
-              Public repos only
-            </label>
-            <p className={styles.hint}>
-              GitHub will ask to let Git Buddy see your repos, teams, and
-              notifications. GitHub has no read-only way to see private repos,
-              so its <code>repo</code> permission also allows changes. Git Buddy
-              only reads. It never changes anything on GitHub. Pick "Public
-              repos only" to keep private repos out.
-            </p>
-            {/* Signing in again needs no approval. Waits for `me`, so it doesn't flash. */}
-            {!me.isPending && !me.data?.needsReauth && (
-              <p className={styles.hint}>
-                It's invite only for now: signing in sends a request, and you'll
-                get in once it's approved.
+        <ul className={styles.features}>
+          {FEATURES.map(({ Icon, color, title, text }) => (
+            <li key={title} className={styles.feature}>
+              <Icon style={{ color }} aria-hidden="true" />
+              <p>
+                <strong>{title}</strong>{" "}
+                <span className={styles.featureText}>{text}</span>
               </p>
-            )}
+            </li>
+          ))}
+        </ul>
+
+        {error && <Alert>{error}</Alert>}
+
+        <section className={styles.panel}>
+          <ButtonLink
+            variant="primary"
+            wide
+            href={`/api/auth/github${publicOnly ? "?scope=public" : ""}`}
+          >
+            Sign in with GitHub
+          </ButtonLink>
+          <label className={styles.check}>
+            <input
+              type="checkbox"
+              checked={publicOnly}
+              onChange={(e) => setPublicOnly(e.target.checked)}
+            />
+            Public repos only
+          </label>
+          <p className={styles.hint}>
+            GitHub will ask to let Git Buddy see your repos, teams, and
+            notifications. GitHub has no read-only way to see private repos, so
+            its <code>repo</code> permission also allows changes. Git Buddy only
+            reads. It never changes anything on GitHub. Pick "Public repos only"
+            to keep private repos out.
+          </p>
+          {/* Signing in again needs no approval. Waits for `me`, so it doesn't flash. */}
+          {!me.isPending && !me.data?.needsReauth && (
             <p className={styles.hint}>
-              If your company blocks Git Buddy, sign in anyway. You can add a
-              personal access token after.
+              It's invite only for now: signing in sends a request, and you'll
+              get in once it's approved.
             </p>
-          </section>
+          )}
+          <p className={styles.hint}>
+            If your company blocks Git Buddy, sign in anyway. You can add a
+            personal access token after.
+          </p>
+        </section>
 
-          <HelpLinks install />
-        </div>
-
-        <div className={styles.example}>
-          <ExampleList />
-        </div>
+        <HelpLinks install />
       </div>
     </main>
   );

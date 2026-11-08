@@ -100,7 +100,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 ### 10.7 Polish for new users
 
 - [x] A custom domain on Render, with HTTPS (automatic). Done early: `www.git-buddy.com`, bought at Porkbun. `git-buddy.com` redirects to it.
-- [x] A short landing section on `/signin`: what it does, a screenshot, install buttons. As built (PR 4b): three feature lines, and an example list built from the real `ItemRow` with made-up PRs (`ExampleList.tsx`) in place of a screenshot, so it stays current and follows dark mode. Install is a link (4a's help links), as in the mockup.
+- [x] A short landing section on `/signin`: what it does, a screenshot, install buttons. As built (PR 4b): three feature lines above the sign-in card. No screenshot: an example list was tried and dropped, since it made the page too busy. Install is a link (4a's help links), as in the mockup.
 - [x] Friendly states for: no repos yet, nothing needs you, GitHub is down, sync error. As built (PR 4b):
   - No repos yet and nothing needs you: already there, from earlier plans.
   - Sync error and GitHub down: the failed-sync banner now says it can't sync with GitHub, the list may be out of date, and it keeps trying. The header already says how old the list is. Telling GitHub being down apart from other failures would need a new `SyncError` value, which old code can't read during a deploy, so it's one message.
