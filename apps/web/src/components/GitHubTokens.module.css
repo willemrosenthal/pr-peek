@@ -298,7 +298,7 @@
   height: 18px;
 }
 
-/* Two buttons in a gray track, the picked one raised, so they read as choices. */
+/* Two buttons in a gray track, so they read as choices. */
 .tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -333,12 +333,11 @@
   }
 }
 
+/* The picked tab in the accent color, so it's plain which one is showing. */
 .tab[data-selected] {
-  background: var(--color-surface);
-  box-shadow:
-    0 0 0 1px var(--color-border),
-    0 1px 3px rgb(0 0 0 / 12%);
-  color: var(--color-text);
+  background: var(--color-accent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  color: var(--color-on-accent);
 }
 
 /* Both panels share one spot, and the hidden one keeps its space, so switching tabs
