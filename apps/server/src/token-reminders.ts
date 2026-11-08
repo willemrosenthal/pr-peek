@@ -5,27 +5,13 @@ import {
   plural,
   type PushPayload,
 } from "@pr-peek/core";
-import type { Logger } from "pino";
-import type { Db } from "./db";
-import {
-  deliver,
-  NOTIFY_TTL_SECONDS,
-  reachableUsers,
-  type SendPush,
-} from "./push";
+import { DAY_MS, type HealthDeps } from "./health";
+import { deliver, NOTIFY_TTL_SECONDS, reachableUsers } from "./push";
 import { QUIET_SETTINGS } from "./sync-schedule";
-import { DAY_MS } from "./health";
 
 // A stopped token's push goes out this long after, at most. Long enough to wait out a
 // quiet weekend, from Saturday morning to Monday.
 const STOP_REMINDER_DAYS = 3;
-
-export interface TokenReminderDeps {
-  db: Db;
-  // Null when push is off, because the VAPID keys aren't set.
-  send: SendPush | null;
-  logger: Logger;
-}
 
 // What a reminder says: a token about to expire, or one that stopped.
 function reminderFor(
@@ -51,7 +37,7 @@ function reminderFor(
 // working. A user in their quiet hours gets theirs after. Run every hour. Returns how
 // many went out.
 export async function sendTokenReminders(
-  deps: TokenReminderDeps,
+  deps: HealthDeps,
   now: Date,
 ): Promise<number> {
   const { db, send, logger } = deps;
