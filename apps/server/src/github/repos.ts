@@ -195,6 +195,32 @@ export async function listOwners(octokit: Octokit): Promise<RepoOwner[]> {
   ];
 }
 
+// Adds the owners personal access tokens reach to the owners the sign in found, as
+// orgs, leaving out any already there. A fine-grained token only sees its own org, so
+// the sign in may not list it. Logins ignore case on GitHub.
+export function withTokenOwners(
+  owners: RepoOwner[],
+  tokenOwners: string[],
+): RepoOwner[] {
+  const seen = new Set(owners.map((owner) => owner.login.toLowerCase()));
+  const added: RepoOwner[] = [];
+  for (const login of tokenOwners) {
+    if (seen.has(login.toLowerCase())) continue;
+    seen.add(login.toLowerCase());
+    added.push({ login, kind: "org" });
+  }
+  if (added.length === 0) return owners;
+  const orgs = [...owners.filter((o) => o.kind === "org"), ...added].sort(
+    (a, b) =>
+      a.login.localeCompare(b.login, undefined, { sensitivity: "base" }),
+  );
+  return [
+    ...owners.filter((o) => o.kind === "you"),
+    ...orgs,
+    ...owners.filter((o) => o.kind === "shared"),
+  ];
+}
+
 // Pages of 100 repos read when finding a token's owners. 1,000 private repos is plenty.
 const OWNER_PAGES = 10;
 

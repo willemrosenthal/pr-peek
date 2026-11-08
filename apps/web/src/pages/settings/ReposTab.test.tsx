@@ -397,6 +397,23 @@ describe("adding repos", () => {
     expect(callsTo(fetch, "/api/github/repos")).toHaveLength(0);
   });
 
+  it("shows a repo once when two tokens' lists both have it", async () => {
+    const shared = repoOption({ owner: "acme", name: "shared" });
+    reposApi([], [], {
+      "GET /api/github/repos": () => json(searchResults([shared], "1:")),
+      "GET /api/github/repos?cursor=1%3A": () =>
+        json(
+          searchResults([shared, repoOption({ owner: "globex", name: "app" })]),
+        ),
+    });
+    renderApp("/settings/repos");
+
+    expect(await addButton("globex/app")).toBeTruthy();
+    expect(
+      screen.getAllByRole("button", { name: "Add acme/shared" }),
+    ).toHaveLength(1);
+  });
+
   it("stops loading pages after an error, like too many asks", async () => {
     const fetch = reposApi([], [], {
       "GET /api/github/repos": () =>

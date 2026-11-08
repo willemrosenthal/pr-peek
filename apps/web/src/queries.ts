@@ -276,10 +276,16 @@ export function useRepoList(owner: string | null | undefined) {
 
   const { data, hasNextPage, isFetching, isError, fetchNextPage } = list;
   // The same array until a page arrives, so the filter's index isn't rebuilt each render.
-  const repos = useMemo(
-    () => data?.pages.flatMap((page) => page.repos),
-    [data],
-  );
+  // With no owner, the pages come from each token in turn, so a repo two tokens reach
+  // shows up twice. Keep the first.
+  const repos = useMemo(() => {
+    const seen = new Set<number>();
+    return data?.pages
+      .flatMap((page) => page.repos)
+      .filter(
+        (repo) => !seen.has(repo.githubRepoId) && !!seen.add(repo.githubRepoId),
+      );
+  }, [data]);
   const pageCount = data?.pages.length ?? 0;
   const loadingMore = hasNextPage && pageCount < MAX_REPO_PAGES && !isError;
   // Runs again after each page: with fast answers, isFetching can be false both times.

@@ -12,7 +12,14 @@ import express, { type Router } from "express";
 import type { GitHubFor } from "../github/client";
 import type { Db } from "../db";
 import { Prisma, type WatchedRepo } from "../generated/prisma/client";
-import { findRepo, listOwners, listRepos, searchRepos } from "../github/repos";
+import {
+  findRepo,
+  listOwners,
+  listRepos,
+  searchRepos,
+  withTokenOwners,
+} from "../github/repos";
+import { isRejection } from "../github/tokens";
 import { HttpError, parseInput, sentFields } from "../http-error";
 import { userLimiter } from "../rate-limit";
 import { currentUser, requireUser } from "./auth";
@@ -41,6 +48,34 @@ export const PICKER_ASKS_PER_MINUTE = 60;
 
 const notFound = () => new HttpError(404, "not_found", "Repo not found");
 
+// Where a list or search with no owner reads from, one after another: the newest working
+// classic token, or else the sign in (null), then each working fine-grained token. A
+// classic token reaches everything the sign in does.
+async function repoSources(db: Db, userId: string): Promise<(string | null)[]> {
+  const tokens = await db.gitHubToken.findMany({
+    where: { userId, status: "working" },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, kind: true },
+  });
+  const classic = tokens.find((token) => token.kind === "classic");
+  return [
+    classic?.id ?? null,
+    ...tokens.filter((token) => token.kind !== "classic").map((t) => t.id),
+  ];
+}
+
+// The cursor for a list across several sources: which source, then GitHub's own cursor
+// in it. "2:abc" is source 2 from "abc". The browser passes it back as it is.
+const sourceCursor = (index: number, cursor: string | null) =>
+  `${index}:${cursor ?? ""}`;
+
+function parseSourceCursor(cursor: string | undefined) {
+  const match = cursor ? /^(\d+):(.*)$/.exec(cursor) : null;
+  return match
+    ? { index: Number(match[1]), cursor: match[2] || undefined }
+    : { index: 0, cursor: undefined };
+}
+
 // Prisma's code for "a row like this already exists".
 const isUniqueViolation = (err: unknown) =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
@@ -60,11 +95,13 @@ export function reposRouter(deps: RepoDeps): Router {
   // Repos the user could add, for the picker: a list, or a search with `query`.
   router.get("/github/repos", async (req, res) => {
     const { query, owner, cursor } = parseInput(searchReposQuery, req.query);
+    const userId = currentUser(res).id;
+    if (!owner) {
+      res.json(await acrossSources(userId, query, cursor));
+      return;
+    }
     // An owner's repos list with the token that reaches it.
-    const octokit = await deps.github(
-      currentUser(res).id,
-      owner ? { owner } : undefined,
-    );
+    const octokit = await deps.github(userId, { owner });
     if (query) {
       res.json(await searchRepos(octokit, { query, owner, cursor }));
       return;
@@ -80,12 +117,57 @@ export function reposRouter(deps: RepoDeps): Router {
     res.json(list);
   });
 
-  // The owners the picker offers.
+  // The owners the picker offers: the ones GitHub lists, and the ones tokens reach.
   router.get("/github/owners", async (_req, res) => {
-    const octokit = await deps.github(currentUser(res).id);
-    const body: RepoOwnersResponse = { owners: await listOwners(octokit) };
+    const userId = currentUser(res).id;
+    const [owners, tokens] = await Promise.all([
+      deps.github(userId).then(listOwners),
+      deps.db.gitHubToken.findMany({
+        where: { userId, status: "working" },
+        select: { owners: true },
+      }),
+    ]);
+    const body: RepoOwnersResponse = {
+      owners: withTokenOwners(
+        owners,
+        tokens.flatMap((token) => token.owners),
+      ),
+    };
     res.json(body);
   });
+
+  // A page of the repos every token reaches, with no owner picked: one source's page at
+  // a time, then the next source's (see repoSources). A source GitHub refuses is skipped,
+  // so the others still list, unless it's the only one.
+  async function acrossSources(
+    userId: string,
+    query: string | undefined,
+    raw: string | undefined,
+  ) {
+    const sources = await repoSources(deps.db, userId);
+    const { index, cursor } = parseSourceCursor(raw);
+    const nextSource =
+      index + 1 < sources.length ? sourceCursor(index + 1, null) : null;
+    if (index >= sources.length) return { repos: [], nextCursor: null };
+    try {
+      const octokit = await deps.github(userId, { tokenId: sources[index]! });
+      const page = query
+        ? await searchRepos(octokit, { query, cursor })
+        : await listRepos(octokit, { cursor });
+      return {
+        repos: page?.repos ?? [],
+        nextCursor:
+          page?.nextCursor != null
+            ? sourceCursor(index, page.nextCursor)
+            : nextSource,
+      };
+    } catch (err) {
+      if (sources.length > 1 && isRejection(err)) {
+        return { repos: [], nextCursor: nextSource };
+      }
+      throw err;
+    }
+  }
 
   router.get("/repos", async (_req, res) => {
     const repos = await deps.db.watchedRepo.findMany({
