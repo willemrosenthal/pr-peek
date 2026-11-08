@@ -11,14 +11,17 @@ import type { Db } from "../db";
 import type { User } from "../generated/prisma/client";
 import { GitHubAuthError, type GitHubOAuth } from "../github/oauth";
 import {
+  alreadyAdded,
   encryptPersonalToken,
   listTokens,
   personalTokenDto,
   pickToken,
+  reachesOwner,
   removePersonalTokens,
   removeToken,
   savePersonalToken,
   saveToken,
+  sameLogin,
   tokenDto,
   type CheckedPersonalToken,
 } from "../github/tokens";
@@ -32,10 +35,9 @@ export interface GitHubTokenDeps {
   key: Buffer;
 }
 
-// Logins ignore case on GitHub.
 const sameOwners = (a: string[], b: string[]) =>
   a.length === b.length &&
-  a.every((owner) => b.some((o) => o.toLowerCase() === owner.toLowerCase()));
+  a.every((owner) => b.some((o) => sameLogin(o, owner)));
 
 // Personal access tokens the user adds for syncs, for orgs that block our OAuth App. A
 // fine-grained token reaches one org, so a user can add several.
@@ -127,15 +129,8 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
       }),
     ]);
     if (tokens.some((t) => t.tokenHash === checked.tokenHash)) {
-      throw new HttpError(
-        409,
-        "already_added",
-        "You've already added this token.",
-      );
+      throw alreadyAdded();
     }
-    const reaches = (owner: string) =>
-      checked.kind === "classic" ||
-      checked.owners.some((o) => o.toLowerCase() === owner.toLowerCase());
     const body: CheckTokenResponse = {
       kind: checked.kind,
       owners: checked.owners,
@@ -147,7 +142,7 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
           (t) =>
             t.kind === checked.kind && sameOwners(t.owners, checked.owners),
         )?.id ?? null,
-      reachesWatched: watched.some(({ owner }) => reaches(owner)),
+      reachesWatched: watched.some(({ owner }) => reachesOwner(checked, owner)),
     };
     res.json(body);
   });

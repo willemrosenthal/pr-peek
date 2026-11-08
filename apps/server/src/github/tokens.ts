@@ -139,18 +139,24 @@ const TOKEN_ROW = {
   createdAt: true,
 } as const;
 
-// The token for an owner's repos: the newest working token that reaches it. A classic
-// token reaches every owner. Null means the GitHub sign in. Logins ignore case on GitHub.
+// Logins ignore case on GitHub.
+export const sameLogin = (a: string, b: string) =>
+  a.toLowerCase() === b.toLowerCase();
+
+// Whether a token reaches an owner's private repos. A classic token reaches every owner.
+export const reachesOwner = (
+  token: Pick<GitHubToken, "kind" | "owners">,
+  owner: string,
+) => token.kind === "classic" || token.owners.some((o) => sameLogin(o, owner));
+
+// The token for an owner's repos: the newest working token that reaches it. Null means
+// the GitHub sign in.
 export function pickToken(
   tokens: PickableToken[],
   owner: string,
 ): string | null {
-  const wanted = owner.toLowerCase();
-  const reaches = (token: PickableToken) =>
-    token.kind === "classic" ||
-    token.owners.some((o) => o.toLowerCase() === wanted);
   const [newest] = tokens
-    .filter((token) => token.status === "working" && reaches(token))
+    .filter((token) => token.status === "working" && reachesOwner(token, owner))
     .toSorted((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   return newest?.id ?? null;
 }
@@ -241,6 +247,11 @@ export type CheckedPersonalToken = ReturnType<typeof encryptPersonalToken> & {
   owners: string[];
 };
 
+export const alreadyAdded = () =>
+  new HttpError(409, "already_added", "You've already added this token.");
+const notYours = () =>
+  new HttpError(404, "not_found", "That token isn't one of yours.");
+
 // A new token may fix stopped or failing syncs, so the next dispatch picks the user up.
 const RESTART_SYNCS = {
   syncError: null,
@@ -255,28 +266,20 @@ export function saveToken(
   db: Db,
   userId: string,
   token: CheckedPersonalToken,
-  options:
-    | { name: string; replaceId?: undefined }
-    | { name?: string; replaceId: string },
+  options: { name: string } | { name?: string; replaceId: string },
 ): Promise<TokenRow> {
-  const { replaceId, name } = options;
+  const replaceId = "replaceId" in options ? options.replaceId : null;
   return db.$transaction(async (tx) => {
     await lockUser(tx, userId);
     const tokens = await tx.gitHubToken.findMany({
       where: { userId },
       select: { id: true, tokenHash: true },
     });
-    if (replaceId && !tokens.some((t) => t.id === replaceId)) {
-      throw new HttpError(404, "not_found", "That token isn't one of yours.");
-    }
+    if (replaceId && !tokens.some((t) => t.id === replaceId)) throw notYours();
     if (
       tokens.some((t) => t.tokenHash === token.tokenHash && t.id !== replaceId)
     ) {
-      throw new HttpError(
-        409,
-        "already_added",
-        "You've already added this token.",
-      );
+      throw alreadyAdded();
     }
     if (!replaceId && tokens.length >= MAX_TOKENS) {
       throw new HttpError(
@@ -287,22 +290,23 @@ export function saveToken(
     }
     const data = {
       ...token,
-      ...(name !== undefined && { name }),
+      ...(options.name !== undefined && { name: options.name }),
       ownersCheckedAt: new Date(),
       status: "working" as const,
       stoppedAt: null,
       expiryRemindedAt: null,
     };
-    const saved = replaceId
-      ? await tx.gitHubToken.update({
-          where: { id: replaceId },
-          data,
-          select: DTO_FIELDS,
-        })
-      : await tx.gitHubToken.create({
-          data: { userId, name: name ?? "", ...data },
-          select: DTO_FIELDS,
-        });
+    const saved =
+      "replaceId" in options
+        ? await tx.gitHubToken.update({
+            where: { id: options.replaceId },
+            data,
+            select: DTO_FIELDS,
+          })
+        : await tx.gitHubToken.create({
+            data: { userId, ...data, name: options.name },
+            select: DTO_FIELDS,
+          });
     await tx.user.update({ where: { id: userId }, data: RESTART_SYNCS });
     return saved;
   });
@@ -320,9 +324,7 @@ export async function removeToken(
     const { count } = await tx.gitHubToken.deleteMany({
       where: { id: tokenId, userId },
     });
-    if (count === 0) {
-      throw new HttpError(404, "not_found", "That token isn't one of yours.");
-    }
+    if (count === 0) throw notYours();
     const left = await tx.gitHubToken.findMany({
       where: { userId },
       select: { status: true },

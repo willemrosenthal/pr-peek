@@ -315,7 +315,7 @@ describe("POST /api/github-tokens/check", () => {
 
 describe("POST /api/github-tokens", () => {
   it("adds tokens next to each other, named after what they reach", async () => {
-    const { agent } = await setupWith(fineGrained(["acme"]));
+    const { agent, oauth } = await setupWith(fineGrained(["acme"]));
     const res = await addToken(agent, "github_pat_acme");
     expect(res.status).toBe(201);
     await addToken(agent, "ghp_classic", "Everything");
@@ -329,6 +329,8 @@ describe("POST /api/github-tokens", () => {
     ]);
     expect(decrypt(tokens[0]!.tokenEnc, TEST_KEY)).toBe("github_pat_acme");
     expect(tokens[0]!.ownersCheckedAt).toBeInstanceOf(Date);
+    // Only the fine-grained one: a classic token reaches every owner.
+    expect(oauth.tokenOwners).toHaveBeenCalledTimes(1);
   });
 
   it("refuses a sixth token, and the same token twice", async () => {
