@@ -6,6 +6,12 @@
   font-size: var(--text-sm);
 }
 
+/* Something stopped working. */
+.danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
 .banner a {
   color: inherit;
   font-weight: 700;
