@@ -63,7 +63,12 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 - [x] Use Supabase Pro's limits (8 GB of database, 250 GB of egress) on the admin page and in health alerts.
 - [x] Encryption key rotation: `TOKEN_ENC_KEY_PREVIOUS`. Tokens read with either key, and are written with the new one. `pnpm --filter @pr-peek/server tokens:reencrypt` encrypts them all again with the new key.
 - [x] Run the `/security-review` command on the main branch before launch. That command only reviews a branch's changes, so the whole-code pass above took its place.
-- [ ] Move `tauri-apps/tauri-action` from v0 to v1 by hand, with a Mac release of its own, not mixed with other Mac changes. Dependabot skips its majors. v1 renames the update file (`.app.tar.gz`) to include the version, changes the links in `latest.json`, and rewrites an existing release's title and notes. Pass `releaseName` and `releaseBody`, or check ours survive. Then check the release page, and that an installed app updates. Moved here from [plan 09](completed/09-desktop-tauri.md).
+- [x] Move `tauri-apps/tauri-action` from v0 to v1 by hand, with a Mac release of its own, not mixed with other Mac changes. Dependabot skips its majors. v1 renames the update file (`.app.tar.gz`) to include the version, changes the links in `latest.json`, and rewrites an existing release's title and notes. Pass `releaseName` and `releaseBody`, or check ours survive. Then check the release page, and that an installed app updates. Moved here from [plan 09](completed/09-desktop-tauri.md). As built (8 November), from v1's source:
+  - Title and notes: v1 only renames a release it finds by `tagName`. We pass `releaseId`, so ours stay. `tagName` is ignored then, so it's gone.
+  - Links: `latest.json` now points at GitHub API links (`api.github.com/.../releases/assets/<id>`). Those only send the file when asked for `application/octet-stream`, which Tauri's updater does when it downloads (tauri-plugin-updater 2.14.1). The release's last step now downloads the update the same way and checks it's an archive.
+  - The renamed `.app.tar.gz` needs nothing: only `latest.json` names it. Both Mac chips still get their entries for a universal build.
+  - A change to `desktop-release.yml` now builds the Mac app on release too, so this ships as its own Mac release.
+- [ ] **(You)** After the release: check the Mac release page keeps its title and notes, and that an installed app updates to it.
 
 ### 10.4 Limits and cost control
 

@@ -114,7 +114,7 @@ jobs:
       # The version comes from the tag. createUpdaterArtifacts is on only here, so local
       # builds don't need the key. The APPLE_ values sign the app with the Developer ID
       # certificate and notarize it, so other Macs open it with no warning.
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -128,10 +128,9 @@ jobs:
         with:
           projectPath: apps/desktop
           tauriScript: pnpm tauri
+          # Uploads to our draft, and leaves its title and notes alone. Links in
+          # latest.json point at each file by its id, so they work once it's published.
           releaseId: ${{ steps.draft.outputs.id }}
-          # Links in latest.json point at this tag. Without it, a draft's links point at
-          # whichever release is latest.
-          tagName: ${{ inputs.tag }}
           args: >-
             --target universal-apple-darwin
             --config '{"version":"${{ env.VERSION }}","bundle":{"createUpdaterArtifacts":true}}'
@@ -167,16 +166,30 @@ jobs:
         if: steps.publish.outputs.latest == 'true'
         run: |
           url="https://github.com/$GH_REPO/releases/latest/download/latest.json"
+          found=false
           for _ in 1 2 3 4 5 6 7 8 9 10; do
             if curl -fsSL "$url" -o latest.json &&
               jq -e --arg v "$VERSION" '(.version | ltrimstr("v")) == $v
                 and .platforms["darwin-aarch64"] != null
                 and .platforms["darwin-x86_64"] != null' latest.json > /dev/null; then
-              echo "latest.json offers $VERSION to both Mac chips."
-              exit 0
+              found=true
+              break
             fi
             sleep 15
           done
-          echo "::error::latest.json doesn't offer $VERSION to both Mac chips."
-          cat latest.json || true
-          exit 1
+          if [ "$found" != true ]; then
+            echo "::error::latest.json doesn't offer $VERSION to both Mac chips."
+            cat latest.json || true
+            exit 1
+          fi
+          echo "latest.json offers $VERSION to both Mac chips."
+
+          # Downloads the update like the app's updater: its links are GitHub API links,
+          # which only send the file when asked for application/octet-stream.
+          update=$(jq -r '.platforms["darwin-aarch64"].url' latest.json)
+          if ! curl -fsSL -H "Accept: application/octet-stream" "$update" -o update.tar.gz ||
+            ! tar -tzf update.tar.gz > /dev/null; then
+            echo "::error::The update at $update doesn't download as an archive."
+            exit 1
+          fi
+          echo "The update downloads from $update." >> "$GITHUB_STEP_SUMMARY"
