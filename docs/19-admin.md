@@ -114,7 +114,7 @@ PRs 2 and 3 were one PR in the first draft of this plan. Together they're over 4
 
 ## Done when
 
-- [ ] The admin page shows each section with real numbers (You).
+- [x] The admin page shows each section with real numbers (You).
 - [ ] Its egress for a day is within about 20% of Supabase's for that day (You).
 - [x] Opening the page makes one request, and its answer is under 50 KB. The tests "shows each section, asking the server once" and "stays small with 30 days of many kinds of read".
 - [ ] A day of counting adds about 150 rows to `UsageStat`.
