@@ -20,13 +20,21 @@ describe("loadConfig", () => {
       LOG_LEVEL: "info",
       DB_POOL_MAX: 5,
       SYNC_CONCURRENCY: 6,
+      // Render's: Cloudflare, then Render's own.
+      TRUST_PROXY_HOPS: 2,
     });
   });
 
   it("turns number settings into numbers", () => {
-    const config = loadConfig({ ...required, PORT: "8080", DB_POOL_MAX: "3" });
+    const config = loadConfig({
+      ...required,
+      PORT: "8080",
+      DB_POOL_MAX: "3",
+      TRUST_PROXY_HOPS: "1",
+    });
     expect(config.PORT).toBe(8080);
     expect(config.DB_POOL_MAX).toBe(3);
+    expect(config.TRUST_PROXY_HOPS).toBe(1);
   });
 
   it("decodes the token key into bytes", () => {
