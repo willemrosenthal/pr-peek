@@ -76,33 +76,25 @@ function openRequest(
   };
 }
 
-// The viewer's latest comment or review since the request, if any. Until the author
-// asks again, the review is waiting on them. Pushes and replies don't end the wait:
-// replies show up as their own "reply" item.
-function lastMineSince(
-  snapshot: PrSnapshot,
-  ctx: RuleContext,
-  { event }: OpenRequest,
-): string | undefined {
-  const since = event?.createdAt ?? null;
-  return latestBy(
-    viewerActivity(snapshot, ctx).filter((t) => isAfter(t, since)),
-    (t) => t,
-  );
-}
-
 function requestItem(
   kind: ItemKind,
   prefix: string,
   summary: string,
   snapshot: PrSnapshot,
   ctx: RuleContext,
-  request: OpenRequest,
+  { event }: OpenRequest,
 ): DetectedItem {
-  const { event } = request;
   const eventId = event?.id ?? "current";
   const team = event?.reviewer.type === "team" ? event.reviewer.slug : null;
-  const lastMine = lastMineSince(snapshot, ctx, request);
+  // Your latest comment or review since the request. Once you've left one, it waits on
+  // the author until they ask again. Their pushes don't count, and their replies are
+  // the "reply" rule's.
+  const lastMine = latestBy(
+    viewerActivity(snapshot, ctx).filter((t) =>
+      isAfter(t, event?.createdAt ?? null),
+    ),
+    (t) => t,
+  );
   const waiting = lastMine !== undefined;
   return {
     kind,

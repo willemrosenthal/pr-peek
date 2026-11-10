@@ -42,7 +42,7 @@ export interface ItemDto {
   age: string;
   // Only review requests have one. Null while waiting on the author.
   staleLevel: StaleLevel | null;
-  // A review request you commented on, until the author replies or pushes.
+  // A review request you commented on, until the author asks again.
   waitingOnAuthor: boolean;
   // What the PR needs next, on assigned rows. Null on other rows.
   assignedState: AssignedState | null;

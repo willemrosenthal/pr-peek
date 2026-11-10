@@ -234,7 +234,7 @@ model Item {
   summary         String
   occurredAt      DateTime
   waitingSince    DateTime?
-  // A review request the user commented on, until the author replies or pushes.
+  // A review request the user commented on, until the author asks again.
   waitingOnAuthor Boolean    @default(false)
   status          ItemStatus @default(open)
   resolvedAt      DateTime?

@@ -45,7 +45,7 @@ export interface DetectedItem {
   // When the wait started, for review requests. Null for other kinds, and while
   // waiting on the author.
   waitingSince: string | null;
-  // A review request the viewer commented on, until the author replies or pushes.
+  // A review request the viewer commented on, until the author asks again.
   // Sorts last, with no stale color, reminders, or push.
   waitingOnAuthor: boolean;
   // Nothing new for the viewer, like assigning yourself. A new item starts seen and
