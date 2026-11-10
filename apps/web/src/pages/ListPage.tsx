@@ -6,7 +6,7 @@ import type {
 } from "@pr-peek/core";
 import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Navigate, useSearchParams } from "react-router";
 import { AddPrDialog } from "../components/AddPrDialog";
 import { Toast, type ToastMessage } from "../components/Toast";
 import { Banners } from "../components/Banners";
@@ -302,16 +302,10 @@ function Sections({
 function EmptyList() {
   const repos = useRepos();
   if (repos.isPending) return null;
+  // Nothing to show and nothing watched: setting up isn't done, like after a reload
+  // partway through onboarding, or a sign in after approval.
   if (repos.data?.repos.length === 0) {
-    return (
-      <div className={styles.message}>
-        <p className={styles.emptyTitle}>You're not watching any repos yet</p>
-        <p>
-          Pick the repos Git Buddy should watch in{" "}
-          <Link to="/settings/repos">settings</Link>.
-        </p>
-      </div>
-    );
+    return <Navigate to="/onboarding" replace />;
   }
   return (
     <div className={styles.message}>

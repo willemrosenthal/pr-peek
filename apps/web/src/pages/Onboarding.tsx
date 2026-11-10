@@ -2,7 +2,7 @@ import { MAX_TOKENS, type TokenDto, type TokensResponse } from "@pr-peek/core";
 import { useMutation } from "@tanstack/react-query";
 import { Building2, Check, User } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { api } from "../api";
 import { AddTokenSheet, type Adding } from "../components/AddToken";
 import { Alert } from "../components/Alert";
@@ -16,7 +16,7 @@ import { WatchedRepos } from "../components/WatchedRepos";
 import { cx } from "../cx";
 import { useIsTray } from "../hooks/useIsTray";
 import { detectPlatform, isStandalone } from "../install";
-import { useGitHubTokens } from "../queries";
+import { useGitHubTokens, useRepos } from "../queries";
 import { detectedTimezone, timezoneOptions } from "../timezones";
 import { reachText, stateOf } from "../tokens";
 import styles from "./Onboarding.module.css";
@@ -25,11 +25,23 @@ import styles from "./Onboarding.module.css";
 const STEPS = ["orgs", "repos", "timezone", "done"] as const;
 type Step = (typeof STEPS)[number];
 
-// First run, after signing in with GitHub for the first time.
+const isStep = (value: string | null): value is Step =>
+  STEPS.includes(value as Step);
+
+// First run, after signing in with GitHub for the first time. Also where the list
+// sends anyone who watches no repos. The step is in the URL, so a reload stays on it,
+// and Back goes to the step before.
 export function Onboarding() {
-  const [step, setStep] = useState<Step>("orgs");
+  const [params, setParams] = useSearchParams();
+  const asked = params.get("step");
+  const step = isStep(asked) ? asked : "orgs";
   const at = STEPS.indexOf(step);
-  const next = () => setStep(STEPS[at + 1] ?? "done");
+  // Keeps the other params, like the menu bar app's `shell=tray`.
+  const next = () =>
+    setParams((current) => {
+      current.set("step", STEPS[at + 1] ?? "done");
+      return current;
+    });
 
   return (
     <main className={styles.page}>
@@ -153,8 +165,7 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
     <section className={styles.step}>
       <h2 className={styles.stepTitle}>Repos from your orgs</h2>
       <p className={styles.hint}>
-        Your own repos work right away. Orgs usually block apps like Git Buddy,
-        so to see a work org's repos, add a GitHub token for it.
+        Your own repos work right away. Orgs usually require a GitHub token.
       </p>
       <Card label="What Git Buddy can reach">
         <AccessRow icon={<User />} label="Your repos" ready status="Ready" />
@@ -209,6 +220,9 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
 }
 
 function ReposStep({ onNext }: { onNext: () => void }) {
+  const repos = useRepos();
+  // With none, the list would only send them back here.
+  const none = repos.data?.repos.length === 0;
   const [adding, setAdding] = useState<Adding | null>(null);
   const [saved, setSaved] = useState(false);
   const finish = () => {
@@ -241,10 +255,18 @@ function ReposStep({ onNext }: { onNext: () => void }) {
       </p>
       <WatchedRepos />
       <RepoPicker />
-      <div>
-        <Button variant="primary" onClick={finish}>
+      <div className={styles.actions}>
+        <Button
+          variant="primary"
+          onClick={finish}
+          // Waits only while loading. A list that failed to load doesn't block.
+          disabled={repos.isPending || none}
+        >
           Next
         </Button>
+        {none && (
+          <span className={styles.note}>Pick at least one repo to go on.</span>
+        )}
       </div>
       <TokenSheet
         adding={adding}

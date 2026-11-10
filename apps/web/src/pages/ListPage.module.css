@@ -15,8 +15,6 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-panel);
-  /* Added this so give mobile a bit of space at the bottom of the list */
-  padding-bottom: var(--space-4);
 }
 
 /* Above the rows, so the header can stick over them. */
