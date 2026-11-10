@@ -1,4 +1,7 @@
-name: CI
+name: Build and browser test
+
+# Format, lint, typecheck, and unit tests each have their own workflow, so a failure
+# shows by name on the PR.
 
 on:
   pull_request:
@@ -18,7 +21,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
-      # For the browser smoke test. Unit tests run in the test-*.yml workflows.
+      # For the browser smoke test.
       postgres:
         image: postgres:17
         env:
@@ -38,12 +41,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      - run: pnpm format:check
-      - run: pnpm lint
-      # Checks the workflow files themselves. A broken release.yml would otherwise only
-      # show up on main, after merging.
-      - run: pnpm lint:workflows
-      - run: pnpm typecheck
       - run: pnpm build
       # The browser smoke test. Needs the build above, since the server serves it.
       # Headless Chromium only. The runner already has its system libraries.
