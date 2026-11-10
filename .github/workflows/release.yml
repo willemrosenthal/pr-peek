@@ -39,16 +39,14 @@ jobs:
   # this one need it, so they skip too.
   version:
     needs:
-      [
-        ci,
-        format,
-        lint,
-        typecheck,
-        test-core,
-        test-server,
-        test-web,
-        check-desktop,
-      ]
+      - ci
+      - format
+      - lint
+      - typecheck
+      - test-core
+      - test-server
+      - test-web
+      - check-desktop
     if: github.repository == 'willemrosenthal/pr-peek'
     runs-on: ubuntu-24.04
     timeout-minutes: 10

@@ -1,4 +1,7 @@
-name: CI
+name: Build and browser test
+
+# Format, lint, typecheck, and unit tests each have their own workflow, so a failure
+# shows by name on the PR.
 
 on:
   pull_request:
@@ -18,7 +21,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
-      # For the browser smoke test. Unit tests run in the test-*.yml workflows.
+      # For the browser smoke test.
       postgres:
         image: postgres:17
         env:
