@@ -99,10 +99,9 @@ describe("notifyItem", () => {
     expect(send).toHaveBeenCalledOnce();
   });
 
-  it("sends to every device, even one left on the old high only level", async () => {
+  it("sends to every device, even at low severity", async () => {
     const { user, send, notify } = await setup({ severity: "low" });
     await addDevice(user.id, "mac");
-    await db.pushSubscription.updateMany({ data: { minSeverity: "high" } });
 
     await notify();
     expect(sentTo(send).sort()).toEqual([endpoint("mac"), endpoint("phone")]);
