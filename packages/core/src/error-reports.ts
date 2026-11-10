@@ -52,8 +52,11 @@ interface Span {
   attributes?: Strings;
 }
 interface ReportEvent {
+  message?: string;
   transaction?: string;
   request?: { url?: string };
+  // The error, then what caused it, if anything.
+  exception?: { values?: { value?: string }[] };
 }
 
 // Sentry.init hooks that clean every URL in what's sent: the steps before an error
@@ -70,8 +73,12 @@ export const cleanReports = {
     return span;
   },
   beforeSend<T extends ReportEvent>(event: T): T {
+    if (event.message) event.message = cleanUrls(event.message);
     if (event.transaction) event.transaction = cleanUrls(event.transaction);
     if (event.request?.url) event.request.url = cleanUrl(event.request.url);
+    for (const error of event.exception?.values ?? []) {
+      if (error.value) error.value = cleanUrls(error.value);
+    }
     return event;
   },
 };

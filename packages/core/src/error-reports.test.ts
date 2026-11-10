@@ -64,14 +64,34 @@ describe("cleanReports", () => {
     });
   });
 
-  it("cleans an error report's request and transaction", () => {
+  it("cleans an error report's request, transaction, and error text", () => {
     const event = cleanReports.beforeSend({
       transaction: "GET /api/github/repos?owner=acme",
       request: { url: "https://www.git-buddy.com/api/github/repos?owner=acme" },
+      exception: {
+        values: [
+          { value: "Failed: https://api.github.com/repos/acme/secret" },
+          { value: "Caused by: GET https://github.com/acme/secret" },
+          {},
+        ],
+      },
     });
     expect(event).toEqual({
       transaction: "GET /api/github/repos",
       request: { url: "https://www.git-buddy.com/api/github/repos" },
+      exception: {
+        values: [
+          { value: "Failed: https://api.github.com" },
+          { value: "Caused by: GET https://github.com" },
+          {},
+        ],
+      },
     });
+  });
+
+  it("cleans a message sent on its own", () => {
+    expect(
+      cleanReports.beforeSend({ message: "Couldn't load /api/items?x=1" }),
+    ).toEqual({ message: "Couldn't load /api/items" });
   });
 });
