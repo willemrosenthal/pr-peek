@@ -5,10 +5,8 @@ import type {
   PrSnapshot,
 } from "../pr-snapshot";
 import {
-  allComments,
   isAfter,
   isViewer,
-  lastPushOf,
   latestBy,
   sameLogin,
   viewerActivity,
@@ -78,67 +76,36 @@ function openRequest(
   };
 }
 
-interface AuthorTurn {
-  // The viewer's latest comment or review since the request. Missing if none.
-  lastMine: string | undefined;
-  // When the author first replied or pushed after that. Missing while it's their turn.
-  answeredAt: string | undefined;
-}
-
-// Whose turn it is once the viewer has commented on a requested review.
-function authorTurn(
-  snapshot: PrSnapshot,
-  ctx: RuleContext,
-  { event }: OpenRequest,
-): AuthorTurn {
-  const since = event?.createdAt ?? null;
-  const lastMine = latestBy(
-    viewerActivity(snapshot, ctx).filter((t) => isAfter(t, since)),
-    (t) => t,
-  );
-  if (!lastMine) return { lastMine, answeredAt: undefined };
-
-  // ISO times, so they sort by time.
-  const answers = [
-    ...allComments(snapshot)
-      .filter((comment) =>
-        sameLogin(comment.author.login, snapshot.author.login),
-      )
-      .map((comment) => comment.createdAt),
-    lastPushOf(snapshot).committedAt,
-  ]
-    .filter((t) => isAfter(t, lastMine))
-    .sort();
-  return { lastMine, answeredAt: answers[0] };
-}
-
 function requestItem(
   kind: ItemKind,
   prefix: string,
   summary: string,
   snapshot: PrSnapshot,
   ctx: RuleContext,
-  request: OpenRequest,
+  { event }: OpenRequest,
 ): DetectedItem {
-  const { event } = request;
   const eventId = event?.id ?? "current";
   const team = event?.reviewer.type === "team" ? event.reviewer.slug : null;
-  const { lastMine, answeredAt } = authorTurn(snapshot, ctx, request);
-  const waiting = lastMine !== undefined && answeredAt === undefined;
-  const startedAt = answeredAt ?? event?.createdAt;
+  // Your latest comment or review since the request. Once you've left one, it waits on
+  // the author until they ask again. Their pushes don't count, and their replies are
+  // the "reply" rule's.
+  const lastMine = latestBy(
+    viewerActivity(snapshot, ctx).filter((t) =>
+      isAfter(t, event?.createdAt ?? null),
+    ),
+    (t) => t,
+  );
+  const waiting = lastMine !== undefined;
   return {
     kind,
     dedupeKey: `${prefix}:${snapshot.id}:${eventId}`,
-    // The author answering your latest comment is a new event, so the item turns unseen
-    // and can push. It's named by your comment, so more pushes or replies from the
-    // author aren't new events, and the clock runs from their first answer.
-    latestEventId: answeredAt ? `${eventId}:${lastMine}` : eventId,
+    latestEventId: eventId,
     eventCount: 1,
     actorLogin: null,
     actorIsBot: false,
     summary: team ? `${summary} from ${team}` : summary,
-    occurredAt: (waiting ? lastMine : startedAt) ?? snapshot.updatedAt,
-    waitingSince: waiting ? null : (startedAt ?? null),
+    occurredAt: (waiting ? lastMine : event?.createdAt) ?? snapshot.updatedAt,
+    waitingSince: waiting ? null : (event?.createdAt ?? null),
     waitingOnAuthor: waiting,
   };
 }
