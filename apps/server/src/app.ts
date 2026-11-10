@@ -20,6 +20,8 @@ const CACHE_FOREVER = "public, max-age=31536000, immutable";
 const NO_CACHE = "no-cache";
 // Where GitHub's pictures come from: avatars, pasted images (private ones too), and
 // other sites' images, which GitHub serves itself. Plus its emoji.
+// Where the web app's Sentry errors go.
+const SENTRY_INGEST = "https://*.ingest.us.sentry.io";
 const GITHUB_IMAGES = [
   "https://*.githubusercontent.com",
   "https://github.com",
@@ -53,12 +55,21 @@ export function createApp(deps: AppDeps): Express {
       logger: deps.logger,
       // Render calls this every few seconds. Failures are still logged by the route.
       autoLogging: { ignore: (req) => req.url === `${API}${HEALTH}` },
+      // A 4xx or 5xx is a warning, not pino-http's usual error for a 5xx. The error
+      // behind a 5xx is logged as an error where it happened (errorHandler, the health
+      // check), so each goes to Sentry once.
+      customLogLevel: (_req, res, err) =>
+        err || res.statusCode >= 400 ? "warn" : "info",
     }),
   );
   app.use(
     helmet({
       contentSecurityPolicy: {
-        directives: { "img-src": ["'self'", "data:", ...GITHUB_IMAGES] },
+        directives: {
+          "img-src": ["'self'", "data:", ...GITHUB_IMAGES],
+          // The web app sends its errors to Sentry (apps/web/src/sentry.ts).
+          "connect-src": ["'self'", SENTRY_INGEST],
+        },
       },
     }),
   );

@@ -13,6 +13,9 @@ envVarGroups:
         sync: false
       - key: APP_URL
         sync: false
+      # Build time only: uploads the web app's source maps to Sentry (vite.config.ts).
+      - key: SENTRY_AUTH_TOKEN
+        sync: false
 
 services:
   - type: web

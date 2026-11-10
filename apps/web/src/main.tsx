@@ -8,11 +8,14 @@ import { UpdatePrompt } from "./components/UpdatePrompt";
 import { startDesktop } from "./desktop";
 import { createRouter } from "./router";
 import { applyScale } from "./scale";
+import { initSentry, reportReactError } from "./sentry";
 // Starts listening for the browser's install offer. See install.ts.
 import "./install";
 import "./styles/tokens.css";
 import "./styles/global.css";
 
+// First, so it sees any error from here on.
+initSentry();
 const queryClient = new QueryClient();
 // Before the first render, so the app never shows at the wrong size.
 applyScale();
@@ -23,7 +26,11 @@ if (window.matchMedia("(pointer: coarse)").matches) {
   document.addEventListener("gesturestart", (event) => event.preventDefault());
 }
 
-createRoot(document.getElementById("root")!).render(
+createRoot(document.getElementById("root")!, {
+  onUncaughtError: reportReactError,
+  onCaughtError: reportReactError,
+  onRecoverableError: reportReactError,
+}).render(
   <StrictMode>
     <LucideProvider size={16} strokeWidth={2.2}>
       <QueryClientProvider client={queryClient}>

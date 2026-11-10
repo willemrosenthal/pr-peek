@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import react from "@vitejs/plugin-react";
 import { loadEnv } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -29,9 +30,18 @@ function buildInfo() {
   return { version: tag.replace(/^v/, ""), commit };
 }
 
+const build = buildInfo();
+// Lets the build send its source maps to Sentry, so stack traces show our code, not the
+// minified build. Set on Render only. Without it, the Sentry plugin does nothing.
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
+
 export default defineConfig({
   define: {
-    __BUILD__: JSON.stringify(buildInfo()),
+    __BUILD__: JSON.stringify(build),
+  },
+  build: {
+    // Made for Sentry, but not linked from the built files.
+    sourcemap: "hidden",
   },
   plugins: [
     react(),
@@ -77,6 +87,17 @@ export default defineConfig({
       injectManifest: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
       },
+    }),
+    // Last, so it sees the final files. Uploads the source maps, then deletes them, so
+    // they aren't served.
+    sentryVitePlugin({
+      org: "willem-rosenthal",
+      project: "git-buddy-web",
+      authToken: sentryAuthToken,
+      disable: !sentryAuthToken,
+      release: { name: build.commit },
+      sourcemaps: { filesToDeleteAfterUpload: ["./dist/**/*.map"] },
+      telemetry: false,
     }),
   ],
   server: {
