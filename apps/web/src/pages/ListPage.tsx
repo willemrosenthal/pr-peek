@@ -4,8 +4,7 @@ import type {
   ListSection,
   ShowAuthors,
 } from "@pr-peek/core";
-import { Plus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Navigate, useSearchParams } from "react-router";
 import { AddPrDialog } from "../components/AddPrDialog";
 import { Toast, type ToastMessage } from "../components/Toast";
@@ -204,6 +203,7 @@ function ListBody({
   onShown: () => void;
 }) {
   const items = useItems();
+  const promptId = useId();
   useShowRow(added, items.data, onShown);
 
   if (items.isPending) return <p className={styles.message}>Loading</p>;
@@ -223,10 +223,15 @@ function ListBody({
     <>
       {total === 0 && <EmptyList />}
       <Sections groups={items.data} onPreview={onPreview} />
-      <button type="button" className={styles.addRow} onClick={onAdd}>
-        <Plus aria-hidden="true" />
-        Add a PR by link
-      </button>
+      {/* Quiet on purpose: adding by link is now and then. Pasting or dropping a link
+          on the list works too. */}
+      <p className={styles.addLine}>
+        <span id={promptId}>Following a PR elsewhere?</span>
+        {/* The prompt says what "it" is, for screen readers too. */}
+        <Button variant="link" aria-describedby={promptId} onClick={onAdd}>
+          Add it by link
+        </Button>
+      </p>
     </>
   );
 }

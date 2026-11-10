@@ -138,18 +138,6 @@
   font-weight: 600;
 }
 
-/* Inline in a sentence, like a link, but it opens the token sheet. */
-.linkButton {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-accent);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .segment {
     transition: none;

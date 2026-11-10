@@ -57,33 +57,19 @@
   pointer-events: none;
 }
 
-/* "Add a PR by link", after the last section. Design B in the plan 17 mockups. */
-.addRow {
+/* "Add it by link", after the last section: gray text with the button as a link in it. */
+.addLine {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  width: 100%;
-  padding: var(--space-3) 14px;
-  border: 0;
+  /* Flex drops the space between the words and the button, so a gap stands in. */
+  column-gap: var(--space-1);
+  margin: 0;
+  padding: 0 14px;
   border-top: 1px solid var(--color-divider);
-  background: none;
-  color: var(--color-accent);
-  font: inherit;
+  color: var(--color-text-tertiary);
   font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.addRow svg {
-  width: 15px;
-  height: 15px;
-}
-
-@media (hover: hover) {
-  .addRow:hover {
-    background: var(--color-hover);
-  }
 }
 
 .emptyTitle {

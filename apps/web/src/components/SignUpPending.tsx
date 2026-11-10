@@ -85,13 +85,9 @@ export function SignUpPending({
       ) : (
         <p className={styles.hint}>
           Changed your mind?{" "}
-          <button
-            type="button"
-            className={styles.link}
-            onClick={() => setWithdrawing(true)}
-          >
+          <Button variant="link" onClick={() => setWithdrawing(true)}>
             Withdraw your request
-          </button>
+          </Button>
         </p>
       )}
     </main>

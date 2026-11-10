@@ -41,6 +41,26 @@
   }
 }
 
+/* Reads as a link in a sentence. Underlined, since color alone doesn't tell everyone
+   it can be tapped. Keeps the touch height. */
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .link:hover {
+    background: none;
+    color: var(--color-accent-hover);
+  }
+}
+
 .wide {
   width: 100%;
 }
