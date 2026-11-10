@@ -11,6 +11,7 @@ import {
   createQueues,
   HEALTH_CHECK,
   HEARTBEAT,
+  logFailures,
   NOTIFY_ITEMS,
   NOTIFY_MERGED,
   POLL_JOBS_SECONDS,
@@ -58,8 +59,7 @@ await boss.start();
 
 await createQueues(boss);
 
-// Runs a queue's jobs, each counted for the admin page. A failed job is logged, so it
-// reaches Sentry, then pg-boss marks it failed.
+// Runs a queue's jobs, each counted for the admin page, and each failure logged.
 const work = <T>(
   queue: string,
   options: WorkOptions,
@@ -68,14 +68,7 @@ const work = <T>(
   boss.work<T>(
     queue,
     options,
-    countJobs(usage, queue, async (jobs) => {
-      try {
-        await handler(jobs);
-      } catch (err) {
-        logger.error({ err, queue }, "job failed");
-        throw err;
-      }
-    }),
+    countJobs(usage, queue, logFailures(logger, queue, handler)),
   );
 
 const scheduled = {

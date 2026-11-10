@@ -24,7 +24,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 4. **Privacy and the landing section** (10.1, 10.7), split in two:
    - 4a: `feat(web): a privacy page, and help links on sign in and in Settings`. Also the safe migrations rule (10.6).
    - 4b: `feat(web): a landing section on sign in, and friendlier empty and error states`.
-5. **Monitoring** (10.5): `feat(server): Sentry, and an uptime check`. It also adds Sentry to the privacy page.
+5. **Monitoring** (10.5): `feat(server): report errors to Sentry, and check uptime`. It also adds Sentry to the privacy page.
 
 ## Steps
 

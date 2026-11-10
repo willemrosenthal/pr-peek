@@ -62,6 +62,13 @@ describe("createLogger", () => {
       expect(report).toHaveBeenCalledExactlyOnceWith(err, "sync failed");
     });
 
+    it("reports an error passed straight in", () => {
+      const { report, logger } = setup();
+      const err = new Error("boom");
+      logger.error(err, "sync failed");
+      expect(report).toHaveBeenCalledExactlyOnceWith(err, "sync failed");
+    });
+
     it("reports an error logged with only a message", () => {
       const { report, logger } = setup();
       logger.error("shutdown timed out");

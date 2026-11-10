@@ -42,7 +42,7 @@ Errors go to Sentry, in two projects in the `willem-rosenthal` org: `git-buddy-s
 - **What's sent:** the error, its stack, its log message, and the request's method and path, or the page. Also timings for 10% of requests and page loads.
 - **What's never sent:** cookies, headers, request and response bodies, URL query strings, database query values, job data, or variable values. Each is turned off by name in `sentry.ts`, since an option left out can default to on.
 - **When:** the server and worker only report on Render (`RENDER_GIT_COMMIT` is set). The web app only reports on `www.git-buddy.com`. Local runs, tests, and CI send nothing.
-- **How:** every `logger.error(...)` goes to Sentry (`createLogger` in `logger.ts`), so new code needs no extra call. A failed worker job is logged, so it goes too. `index.ts` and `worker.ts` start Sentry, then load the app (`run-server.ts`, `run-worker.ts`), so Sentry can trace Express and the database.
+- **How:** every `logger.error(...)` goes to Sentry (`createLogger` in `logger.ts`), so new code needs no extra call. A failed worker job is logged, so it goes too. A failed health check is only a warning: Render checks every few seconds, and the uptime monitor already reports outages. `index.ts` and `worker.ts` start Sentry, then load the app (`run-server.ts`, `run-worker.ts`), so Sentry can trace Express and the database.
 - **Source maps:** the server's stack traces point at the TypeScript files on their own. The web app's need `SENTRY_AUTH_TOKEN` on Render at build time, which uploads its source maps and then deletes them.
 - **Alerts:** each project emails on new high priority issues. The "Git Buddy health" uptime monitor checks `/api/health` every minute, and opens an issue after 3 failures in a row.
 

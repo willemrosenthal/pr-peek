@@ -118,7 +118,9 @@ function apiRouter(deps: AppDeps): express.Router {
       await deps.checkDb();
       res.json({ ok: true, version: deps.version });
     } catch (err) {
-      req.log.error({ err }, "health check failed");
+      // A warning, not an error: an error goes to Sentry, and Render checks this every
+      // few seconds, so an outage would send hundreds. The uptime monitor reports it.
+      req.log.warn({ err }, "health check failed");
       res.status(503).json({ ok: false, version: deps.version });
     }
   });

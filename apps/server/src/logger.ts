@@ -13,10 +13,14 @@ const TOKEN_FIELDS = [
 
 type Report = (err: unknown, message: string | undefined) => void;
 
-// The error and message of a log call, like `logger.error({ err }, "sync failed")`.
+// The error and message of a log call, like `logger.error({ err }, "sync failed")`,
+// `logger.error(err, "sync failed")`, or `logger.error("shutdown timed out")`.
 function errorOf(args: unknown[]): [unknown, string | undefined] {
   const [first, second] = args;
   if (typeof first === "string") return [undefined, first];
+  if (first instanceof Error) {
+    return [first, typeof second === "string" ? second : undefined];
+  }
   const err =
     typeof first === "object" && first !== null && "err" in first
       ? first.err

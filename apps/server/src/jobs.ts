@@ -148,3 +148,20 @@ export async function queueSync(
   );
   return jobId !== null;
 }
+
+// Logs a job's failure, so it reaches Sentry (see logger.ts), then passes it on for
+// pg-boss to mark the job failed.
+export function logFailures<T extends unknown[]>(
+  logger: Logger,
+  queue: string,
+  handler: (jobs: T) => Promise<unknown>,
+): (jobs: T) => Promise<void> {
+  return async (jobs) => {
+    try {
+      await handler(jobs);
+    } catch (err) {
+      logger.error({ err, queue }, "job failed");
+      throw err;
+    }
+  };
+}
