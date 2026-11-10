@@ -20,15 +20,10 @@ export function Button({
   variant,
   wide,
   type = "button",
-  className,
   ...props
 }: Look & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button
-      type={type}
-      className={cx(classes({ variant, wide }), className)}
-      {...props}
-    />
+    <button type={type} className={classes({ variant, wide })} {...props} />
   );
 }
 
