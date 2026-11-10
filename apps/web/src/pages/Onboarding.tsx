@@ -259,7 +259,8 @@ function ReposStep({ onNext }: { onNext: () => void }) {
         <Button
           variant="primary"
           onClick={finish}
-          disabled={!repos.data || none}
+          // Waits only while loading. A list that failed to load doesn't block.
+          disabled={repos.isPending || none}
         >
           Next
         </Button>

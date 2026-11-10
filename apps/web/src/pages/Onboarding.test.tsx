@@ -291,3 +291,16 @@ it("needs a repo before going on, since the list would send them back", async ()
     screen.getByRole<HTMLButtonElement>("button", { name: "Next" }).disabled,
   ).toBe(true);
 });
+
+it("doesn't block Next when the watched repos can't load", async () => {
+  onboardingApi({
+    "GET /api/repos": () => apiError(500, "server_error", "Something broke"),
+  });
+  renderApp("/onboarding?step=repos");
+  await screen.findByRole("heading", { name: "Pick the repos to watch" });
+  await vi.waitFor(() =>
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", { name: "Next" }).disabled,
+    ).toBe(false),
+  );
+});
