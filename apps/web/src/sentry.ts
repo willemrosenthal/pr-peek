@@ -1,3 +1,4 @@
+import { cleanReports, NO_EXTRA_DATA } from "@pr-peek/core";
 import * as Sentry from "@sentry/react";
 import { BUILD } from "./build";
 
@@ -11,7 +12,8 @@ export const LIVE_HOST = "www.git-buddy.com";
 const TRACES_SAMPLE_RATE = 0.1;
 
 // Starts reporting errors to Sentry on the live site. Sends no cookies, headers, request
-// bodies, or URL query strings: only the error, its stack, and the page's path.
+// bodies, or URL query strings (see error-reports.ts in core): only the error, its
+// stack, the page's path, and timings.
 export function initSentry(host = location.hostname): void {
   if (host !== LIVE_HOST) return;
   Sentry.init({
@@ -20,14 +22,8 @@ export function initSentry(host = location.hostname): void {
     environment: "production",
     integrations: [Sentry.browserTracingIntegration()],
     tracesSampleRate: TRACES_SAMPLE_RATE,
-    dataCollection: {
-      userInfo: false,
-      cookies: false,
-      httpHeaders: false,
-      httpBodies: [],
-      urlQueryParams: false,
-      stackFrameVariables: false,
-    },
+    dataCollection: NO_EXTRA_DATA,
+    ...cleanReports,
   });
 }
 

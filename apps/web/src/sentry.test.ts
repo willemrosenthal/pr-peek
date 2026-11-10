@@ -1,3 +1,4 @@
+import { cleanReports, NO_EXTRA_DATA } from "@pr-peek/core";
 import * as Sentry from "@sentry/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { initSentry, LIVE_HOST, reportReactError } from "./sentry";
@@ -17,20 +18,15 @@ describe("initSentry", () => {
     expect(Sentry.init).not.toHaveBeenCalled();
   });
 
-  it("starts on the live site, sending no extra data", () => {
+  it("starts on the live site, sending no extra data, and cleaning URLs", () => {
     initSentry(LIVE_HOST);
     expect(Sentry.init).toHaveBeenCalledOnce();
     const options = vi.mocked(Sentry.init).mock.calls[0]![0];
     expect(options).toMatchObject({
       environment: "production",
     });
-    expect(options.dataCollection).toMatchObject({
-      cookies: false,
-      httpHeaders: false,
-      httpBodies: [],
-      urlQueryParams: false,
-      stackFrameVariables: false,
-    });
+    expect(options.dataCollection).toBe(NO_EXTRA_DATA);
+    expect(options).toMatchObject(cleanReports);
   });
 });
 

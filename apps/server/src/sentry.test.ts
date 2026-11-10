@@ -1,3 +1,4 @@
+import { cleanReports, NO_EXTRA_DATA } from "@pr-peek/core";
 import * as Sentry from "@sentry/node";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initSentry, REPEAT_MS, reportError } from "./sentry";
@@ -23,7 +24,7 @@ describe("initSentry", () => {
     expect(Sentry.init).not.toHaveBeenCalled();
   });
 
-  it("starts on Render, tagged with the commit and the service, sending no extra data", () => {
+  it("starts on Render, tagged with the commit and the service, sending no extra data, and cleaning URLs", () => {
     vi.stubEnv("RENDER_GIT_COMMIT", "abc123");
     initSentry("worker");
     expect(Sentry.init).toHaveBeenCalledOnce();
@@ -32,15 +33,8 @@ describe("initSentry", () => {
       release: "abc123",
       initialScope: { tags: { service: "worker" } },
     });
-    expect(options.dataCollection).toMatchObject({
-      cookies: false,
-      httpHeaders: false,
-      httpBodies: [],
-      urlQueryParams: false,
-      databaseQueryData: false,
-      queues: false,
-      stackFrameVariables: false,
-    });
+    expect(options.dataCollection).toBe(NO_EXTRA_DATA);
+    expect(options).toMatchObject(cleanReports);
   });
 });
 

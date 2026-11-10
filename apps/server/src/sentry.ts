@@ -1,3 +1,4 @@
+import { cleanReports, NO_EXTRA_DATA } from "@pr-peek/core";
 import * as Sentry from "@sentry/node";
 
 // Where git-buddy-server's errors go. Not a secret: it only lets Sentry receive events.
@@ -6,27 +7,14 @@ const DSN =
 // Share of requests and jobs traced, for how long they take.
 const TRACES_SAMPLE_RATE = 0.1;
 
-// Each kind of extra data, off. Named one by one: an option left out can default to on.
-const NOTHING_EXTRA = {
-  userInfo: false,
-  cookies: false,
-  httpHeaders: false,
-  httpBodies: [],
-  urlQueryParams: false,
-  graphQL: { document: false, variables: false },
-  genAI: { inputs: false, outputs: false },
-  mcp: { inputs: false, outputs: false },
-  databaseQueryData: false,
-  queues: false,
-  stackFrameVariables: false,
-} satisfies Sentry.NodeOptions["dataCollection"];
-
 // Starts reporting errors to Sentry, on Render only (it sets RENDER_GIT_COMMIT), so
 // local runs, tests, and CI send nothing. `service` says which one: the web server or
 // the worker. Call it before the app's other modules load (see index.ts).
 //
 // Sends no cookies, headers, request bodies, IPs, or variable values, since requests
-// and code can hold GitHub tokens. Only the error, its stack, and its log message.
+// and code can hold GitHub tokens, and no URL query strings or GitHub paths, which can
+// name private repos (see error-reports.ts in core). Only the error, its stack, its log
+// message, and timings.
 export function initSentry(service: "web" | "worker"): void {
   const release = process.env.RENDER_GIT_COMMIT;
   if (!release) return;
@@ -38,7 +26,8 @@ export function initSentry(service: "web" | "worker"): void {
     environment: process.env.NODE_ENV ?? "production",
     tracesSampleRate: TRACES_SAMPLE_RATE,
     initialScope: { tags: { service } },
-    dataCollection: NOTHING_EXTRA,
+    dataCollection: NO_EXTRA_DATA,
+    ...cleanReports,
   });
 }
 
