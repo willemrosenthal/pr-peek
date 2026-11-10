@@ -13,7 +13,7 @@ import {
   searchResults,
   sentBodies,
 } from "../test/fake-api";
-import { stubUserAgent, USER_AGENTS } from "../test/install";
+import { stubDisplayMode, stubUserAgent, USER_AGENTS } from "../test/install";
 import { PUBLIC_KEY, stubPush } from "../test/push";
 import { renderApp } from "../test/render";
 
@@ -42,8 +42,9 @@ async function finishSteps() {
   await screen.findByRole("heading", { name: "You're set" });
 }
 
-// Turning them on is tested in DevicesTab.test.tsx.
-it("offers to turn on notifications at the end", async () => {
+// Turning them on is tested in NotificationPrompt.test.tsx.
+it("offers to turn on notifications at the end, in the installed app", async () => {
+  stubDisplayMode({ standalone: true });
   stubPush();
   onboardingApi();
   renderApp("/onboarding");
@@ -51,6 +52,20 @@ it("offers to turn on notifications at the end", async () => {
   expect(
     await screen.findByRole("button", { name: "Turn on notifications" }),
   ).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Install the app" })).toBe(null);
+});
+
+it("offers the install, not notifications, in a browser tab", async () => {
+  stubUserAgent(USER_AGENTS.chrome);
+  stubPush();
+  onboardingApi();
+  renderApp("/onboarding");
+  await finishSteps();
+  expect(screen.getByRole("heading", { name: "Install the app" })).toBeTruthy();
+  expect(screen.getByText(/Notifications come with the app/)).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Turn on notifications" })).toBe(
+    null,
+  );
 });
 
 it("shows only the install steps on an iPhone outside the Home Screen app", async () => {

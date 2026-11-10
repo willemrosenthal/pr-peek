@@ -42,10 +42,6 @@ export const SEVERITY_RANK: Record<Severity, number> = {
   low: 2,
 };
 
-// True if `severity` is `min` or more severe.
-export const isAtLeast = (severity: Severity, min: Severity) =>
-  SEVERITY_RANK[severity] <= SEVERITY_RANK[min];
-
 // Points for each part of the urgency score. Higher scores sort first.
 export const URGENCY_WEIGHTS = {
   severity: { high: 300, normal: 200, low: 100 },

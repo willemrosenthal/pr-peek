@@ -15,7 +15,7 @@ import { TurnOnNotifications } from "../components/TurnOnNotifications";
 import { WatchedRepos } from "../components/WatchedRepos";
 import { cx } from "../cx";
 import { useIsTray } from "../hooks/useIsTray";
-import { pushSupport } from "../push";
+import { isStandalone } from "../install";
 import { useGitHubTokens } from "../queries";
 import { detectedTimezone, timezoneOptions } from "../timezones";
 import { reachText, stateOf } from "../tokens";
@@ -302,22 +302,27 @@ function DoneStep() {
     <section className={styles.step}>
       <h2 className={styles.stepTitle}>You're set</h2>
       <p className={styles.hint}>Your list fills in within a minute.</p>
-      {/* The iPhone install steps below already say notifications need the app. */}
-      {!isTray && pushSupport() !== "needs-install" && (
-        <>
-          <h3 className={styles.subTitle}>Get notifications</h3>
-          <TurnOnNotifications />
-        </>
-      )}
-      {!isTray && (
-        <>
-          <h3 className={styles.subTitle}>Install the app</h3>
-          <InstallHere />
-          <p>
-            <Link to="/install">Install on other devices</Link>
-          </p>
-        </>
-      )}
+      {/* The menu bar app already notifies. Elsewhere, notifications come with the
+          installed app, so a browser tab offers the install first. */}
+      {!isTray &&
+        (isStandalone() ? (
+          <>
+            <h3 className={styles.subTitle}>Get notifications</h3>
+            <TurnOnNotifications />
+          </>
+        ) : (
+          <>
+            <h3 className={styles.subTitle}>Install the app</h3>
+            <p className={styles.hint}>
+              Notifications come with the app. Turn them on there once it's
+              installed.
+            </p>
+            <InstallHere />
+            <p>
+              <Link to="/install">Install on other devices</Link>
+            </p>
+          </>
+        ))}
       <div>
         <Button variant="primary" onClick={() => void navigate("/")}>
           Go to your list

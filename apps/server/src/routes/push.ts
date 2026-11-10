@@ -1,8 +1,6 @@
 import {
   addPushSubscriptionBody,
   MAX_PUSH_DEVICES,
-  TEST_PUSHES,
-  testPushBody,
   updatePushSubscriptionBody,
   type PushKeyResponse,
   type PushSubscriptionDto,
@@ -13,14 +11,12 @@ import express, { type Router } from "express";
 import type { Db } from "../db";
 import type { PushSubscription } from "../generated/prisma/client";
 import { HttpError, parseInput, sentFields } from "../http-error";
-import { pushToDevice, type SendPush } from "../push";
-import { userLimiter } from "../rate-limit";
 import { currentUser, requireUser } from "./auth";
 
 export interface PushRouteDeps {
   db: Db;
   // Null when push is off, because the VAPID keys aren't set.
-  push: { publicKey: string; send: SendPush } | null;
+  push: { publicKey: string } | null;
 }
 
 function toDto(row: PushSubscription): PushSubscriptionDto {
@@ -28,15 +24,10 @@ function toDto(row: PushSubscription): PushSubscriptionDto {
     id: row.id,
     endpoint: row.endpoint,
     label: row.label,
-    minSeverity: row.minSeverity,
     lastSuccessAt: row.lastSuccessAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
-
-// Test pushes each user can send a minute. Enough to click through every sample, but a
-// loop can't get our push key throttled by Apple or Google.
-export const TEST_PUSHES_PER_MINUTE = 20;
 
 const notFound = () => new HttpError(404, "not_found", "Device not found");
 const pushOff = () =>
@@ -46,10 +37,6 @@ export function pushRouter(deps: PushRouteDeps): Router {
   const router = express.Router();
   const { db } = deps;
   router.use("/push/subscriptions", requireUser(db));
-  router.use(
-    "/push/subscriptions/:id/test",
-    userLimiter(60 * 1000, TEST_PUSHES_PER_MINUTE),
-  );
 
   router.get("/push/key", (_req, res) => {
     if (!deps.push) throw pushOff();
@@ -100,7 +87,6 @@ export function pushRouter(deps: PushRouteDeps): Router {
         : {
             ...fresh,
             onMac: onMac ?? null,
-            minSeverity: "low",
             lastSuccessAt: null,
             failureCount: 0,
           },
@@ -152,38 +138,6 @@ export function pushRouter(deps: PushRouteDeps): Router {
     });
     if (count === 0) throw notFound();
     res.sendStatus(204);
-  });
-
-  router.post("/push/subscriptions/:id/test", async (req, res) => {
-    if (!deps.push) throw pushOff();
-    const { sample = 0 } = parseInput(testPushBody, req.body ?? {});
-    const where = { id: req.params.id, userId: currentUser(res).id };
-    const device = await db.pushSubscription.findFirst({ where });
-    if (!device) throw notFound();
-
-    const result = await pushToDevice(
-      { db, send: deps.push.send, logger: req.log },
-      device,
-      TEST_PUSHES[sample]!.payload,
-      { ttlSeconds: 60, urgency: "high" },
-    );
-    if (result === "removed") {
-      throw new HttpError(
-        410,
-        "device_gone",
-        "This device stopped taking notifications, so it was removed",
-      );
-    }
-    if (result === "failed") {
-      throw new HttpError(
-        502,
-        "push_failed",
-        "The test didn't send. Try again",
-      );
-    }
-    const saved = await db.pushSubscription.findUniqueOrThrow({ where });
-    const body: PushSubscriptionResponse = { subscription: toDto(saved) };
-    res.json(body);
   });
 
   return router;

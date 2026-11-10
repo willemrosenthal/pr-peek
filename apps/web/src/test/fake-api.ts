@@ -189,7 +189,6 @@ export const device = (
     id: `device-${deviceCount}`,
     endpoint: `https://fcm.googleapis.com/fcm/send/device-${deviceCount}`,
     label: `Device ${deviceCount}`,
-    minSeverity: "low",
     lastSuccessAt: null,
     createdAt: "2026-10-21T10:00:00.000Z",
     ...fields,

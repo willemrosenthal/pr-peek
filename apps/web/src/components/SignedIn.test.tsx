@@ -1,4 +1,8 @@
-import { ITEMS_CHANGED_EVENT, NOTIFY_EVENT } from "@pr-peek/core";
+import {
+  ITEMS_CHANGED_EVENT,
+  NOTIFY_EVENT,
+  type PushSubscriptionDto,
+} from "@pr-peek/core";
 import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import {
@@ -15,15 +19,20 @@ import { RECONNECT_MS } from "../hooks/useLiveUpdates";
 import {
   apiError,
   callsTo,
+  device,
   fakeApi,
+  type Handlers,
   json,
   listApi,
   me,
   noContent,
+  sentBodies,
   signedInApi,
   signedOut,
   summary,
 } from "../test/fake-api";
+import { stubUserAgent, USER_AGENTS } from "../test/install";
+import { stubPush, SUBSCRIPTION_KEYS, THIS_ENDPOINT } from "../test/push";
 import { FakeEventSource, latestStream } from "../test/fake-stream";
 import { renderApp } from "../test/render";
 import { callsOf, stubTauri } from "../test/tauri";
@@ -312,5 +321,83 @@ describe("the app badge", () => {
     setAppBadge.mockImplementation(() => Promise.reject(new Error("no")));
     await renderList();
     await waitFor(() => expect(setAppBadge).toHaveBeenCalledWith(0));
+  });
+});
+
+describe("checking this device's notifications on open", () => {
+  const OLD_ENDPOINT = "https://fcm.googleapis.com/fcm/send/old";
+
+  // The list, with a server holding `devices`.
+  const withDevices = (
+    devices: PushSubscriptionDto[],
+    overrides: Handlers = {},
+  ) =>
+    fakeApi(
+      listApi({
+        "GET /api/push/subscriptions": () => json({ subscriptions: devices }),
+        ...overrides,
+      }),
+    );
+
+  it("moves the device when the browser changed its subscription", async () => {
+    stubPush({ subscribed: THIS_ENDPOINT });
+    localStorage.setItem("push-endpoint", OLD_ENDPOINT);
+    const mac = device({ endpoint: OLD_ENDPOINT, label: "Mac" });
+    const fetch = withDevices([mac], {
+      [`PATCH /api/push/subscriptions/${mac.id}`]: () => {
+        mac.endpoint = THIS_ENDPOINT;
+        return json({ subscription: mac });
+      },
+    });
+    renderApp("/");
+
+    await waitFor(() =>
+      expect(localStorage.getItem("push-endpoint")).toBe(THIS_ENDPOINT),
+    );
+    expect(
+      sentBodies(fetch, `PATCH /api/push/subscriptions/${mac.id}`),
+    ).toEqual([
+      {
+        onMac: false,
+        subscription: { endpoint: THIS_ENDPOINT, keys: SUBSCRIPTION_KEYS },
+      },
+    ]);
+  });
+
+  it("leaves a device removed from another device removed", async () => {
+    stubPush({ subscribed: THIS_ENDPOINT });
+    localStorage.setItem("push-endpoint", OLD_ENDPOINT);
+    const fetch = withDevices([]);
+    renderApp("/");
+
+    await waitFor(() =>
+      expect(callsTo(fetch, "/api/push/subscriptions")).toHaveLength(1),
+    );
+    await screen.findByText("Nothing needs you right now");
+    expect(sentBodies(fetch, "POST /api/push/subscriptions")).toEqual([]);
+  });
+
+  it("tells the server once whether an older device is on a Mac", async () => {
+    stubUserAgent(USER_AGENTS.macSafari);
+    stubPush({ subscribed: THIS_ENDPOINT });
+    const mac = device({ endpoint: THIS_ENDPOINT });
+    const fetch = withDevices([mac], {
+      [`PATCH /api/push/subscriptions/${mac.id}`]: () =>
+        json({ subscription: mac }),
+    });
+    renderApp("/");
+
+    await waitFor(() =>
+      expect(localStorage.getItem("push-endpoint")).toBe(THIS_ENDPOINT),
+    );
+    expect(
+      sentBodies(fetch, `PATCH /api/push/subscriptions/${mac.id}`),
+    ).toEqual([{ onMac: true }]);
+    cleanup();
+
+    // Already told, so opening again checks nothing.
+    renderApp("/");
+    await screen.findByText("Nothing needs you right now");
+    expect(callsTo(fetch, "/api/push/subscriptions")).toHaveLength(1);
   });
 });

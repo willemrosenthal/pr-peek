@@ -10,6 +10,7 @@ import { Link, useSearchParams } from "react-router";
 import { AddPrDialog } from "../components/AddPrDialog";
 import { Toast, type ToastMessage } from "../components/Toast";
 import { Banners } from "../components/Banners";
+import { NotificationPrompt } from "../components/NotificationPrompt";
 import { Button } from "../components/Button";
 import { ItemSection } from "../components/ItemSection";
 import { ListHeader } from "../components/ListHeader";
@@ -26,6 +27,7 @@ import { useQuickAdd } from "../hooks/useQuickAdd";
 import { useStoredState } from "../hooks/useStoredState";
 import { useSync } from "../hooks/useSync";
 import { useWhenHidden } from "../hooks/useWhenHidden";
+import { isStandalone } from "../install";
 import { useLocalSetting } from "../localSetting";
 import {
   useItems,
@@ -113,6 +115,7 @@ export function ListPage() {
             onRefresh={sync.refresh}
           />
           <Banners me={me.data} syncError={sync.status?.syncError} />
+          {!tray && isStandalone() && <NotificationPrompt />}
         </div>
         <ListBody
           onPreview={setPreview}

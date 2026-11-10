@@ -7,7 +7,6 @@ import { Onboarding } from "./pages/Onboarding";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { SharePage } from "./pages/SharePage";
 import { AdminTab } from "./pages/settings/AdminTab";
-import { DevicesTab } from "./pages/settings/DevicesTab";
 import { GeneralTab } from "./pages/settings/GeneralTab";
 import { ReposTab } from "./pages/settings/ReposTab";
 import { RulesTab } from "./pages/settings/RulesTab";
@@ -32,7 +31,6 @@ export const routes = [
           { path: "repos", element: <ReposTab /> },
           { path: "rules", element: <RulesTab /> },
           { path: "timing", element: <TimingTab /> },
-          { path: "devices", element: <DevicesTab /> },
           { path: "admin", element: <AdminTab /> },
           { index: true, element: <Navigate to="/settings/general" replace /> },
           { path: "*", element: <Navigate to="/settings/general" replace /> },

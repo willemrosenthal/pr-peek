@@ -1,6 +1,5 @@
 import {
   formatAge,
-  isAtLeast,
   isQuiet,
   prPushBody,
   type PushPayload,
@@ -195,7 +194,8 @@ type Reachable = Pick<User, "id" | "desktopSeenAt"> & {
 };
 
 // The user's devices that take a notification of this severity about a PR in this repo,
-// or why none do.
+// or why none do. Every device takes every severity. The old per-device level
+// (`minSeverity`) is no longer read, and no longer set.
 async function reach(
   db: Db,
   now: Date,
@@ -213,9 +213,7 @@ async function reach(
   const breaksQuiet = settings?.highBreaksQuiet && severity === "high";
   if (settings && isQuiet(settings, now) && !breaksQuiet) return "quiet";
 
-  const devices = user.pushSubscriptions.filter((device) =>
-    isAtLeast(severity, device.minSeverity),
-  );
+  const devices = user.pushSubscriptions;
   // The running Mac menu bar app takes every severity.
   const desktop = isDesktopOnline(user.desktopSeenAt, now);
   if (devices.length === 0 && !desktop) return "no_devices";

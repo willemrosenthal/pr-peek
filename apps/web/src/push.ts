@@ -95,11 +95,6 @@ export async function thisDeviceEndpoint() {
   return (await currentSubscription())?.endpoint ?? null;
 }
 
-export async function unsubscribeThisDevice() {
-  await (await currentSubscription())?.unsubscribe();
-  store(SAVED_ENDPOINT_KEY, null);
-}
-
 // The endpoint this browser last saved as a device, to spot when the browser changes it.
 const SAVED_ENDPOINT_KEY = "push-endpoint";
 // The endpoint whose device the server knows is or isn't on a Mac.

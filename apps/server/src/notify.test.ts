@@ -34,16 +34,16 @@ async function setup({ severity = "normal" }: { severity?: Severity } = {}) {
   });
   const pr = await makePr(user.id);
   const item = await makeItem(user.id, pr.id, "review_requested");
-  await addDevice(user.id, "phone", "low");
+  await addDevice(user.id, "phone");
   const send = vi.fn<SendPush>(() => Promise.resolve());
   const notify = (now = NOW) =>
     notifyItem({ db, send, logger, now: () => now }, item.id);
   return { user, item, send, notify };
 }
 
-const addDevice = (userId: string, name: string, minSeverity: Severity) =>
+const addDevice = (userId: string, name: string) =>
   db.pushSubscription.create({
-    data: { userId, endpoint: endpoint(name), ...keys, minSeverity },
+    data: { userId, endpoint: endpoint(name), ...keys },
   });
 
 // NOW is 12:00 UTC, so these quiet hours cover it.
@@ -99,10 +99,10 @@ describe("notifyItem", () => {
     expect(send).toHaveBeenCalledOnce();
   });
 
-  it("sends only to devices that take the rule's severity", async () => {
-    const { user, send, notify } = await setup({ severity: "normal" });
-    await addDevice(user.id, "mac", "normal");
-    await addDevice(user.id, "watch", "high");
+  it("sends to every device, even one left on the old high only level", async () => {
+    const { user, send, notify } = await setup({ severity: "low" });
+    await addDevice(user.id, "mac");
+    await db.pushSubscription.updateMany({ data: { minSeverity: "high" } });
 
     await notify();
     expect(sentTo(send).sort()).toEqual([endpoint("mac"), endpoint("phone")]);
@@ -167,9 +167,9 @@ describe("notifyItem", () => {
       expect(send).not.toHaveBeenCalled();
     });
 
-    it("no device that takes the severity", async () => {
-      const { send, notify } = await setup({ severity: "low" });
-      await db.pushSubscription.updateMany({ data: { minSeverity: "normal" } });
+    it("no devices", async () => {
+      const { send, notify } = await setup();
+      await db.pushSubscription.deleteMany();
       expect(await notify()).toBe("no_devices");
       expect(send).not.toHaveBeenCalled();
       expect(await db.notificationLog.count()).toBe(0);
@@ -303,9 +303,9 @@ describe("notifyItems", () => {
     expect(send).toHaveBeenCalledTimes(2);
   });
 
-  it("sends a batch to each device that takes any of it, urgent if any is high", async () => {
+  it("sends a batch to each device, urgent if any is high", async () => {
     const { user, ids, send } = await withRequests(3);
-    await addDevice(user.id, "watch", "high");
+    await addDevice(user.id, "watch");
     await db.ruleSetting.update({
       where: { userId_ruleId: { userId: user.id, ruleId: "reply" } },
       data: { severity: "high", channels: ["list", "push"] },
@@ -333,7 +333,7 @@ describe("notifyItems", () => {
 });
 
 describe("notifyMerged", () => {
-  // A user with a merged PR marked important, and a device that only takes high.
+  // A user with a merged PR marked important, and a device.
   async function merged() {
     const { user } = await upsertGitHubUser(
       db,
@@ -346,7 +346,7 @@ describe("notifyMerged", () => {
       importantAt: hours(-1),
       mergedAt: NOW,
     });
-    await addDevice(user.id, "watch", "high");
+    await addDevice(user.id, "watch");
     const send = vi.fn<SendPush>(() => Promise.resolve());
     const notify = () =>
       notifyMerged({ db, send, logger, now: () => NOW }, [pr.id]);
