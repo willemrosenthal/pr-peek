@@ -271,8 +271,8 @@ model PushSubscription {
   p256dh        String
   auth          String
   label         String?
-  // The lowest severity this device gets.
-  minSeverity   Severity  @default(low)
+  // The database still has a `minSeverity` column, no longer read. A later migration
+  // drops it, once this is live (docs/overview.md, migrations that are safe to deploy).
   // A browser on a Mac. Skipped while the menu bar app runs. Null until the browser says.
   onMac         Boolean?
   lastSuccessAt DateTime?

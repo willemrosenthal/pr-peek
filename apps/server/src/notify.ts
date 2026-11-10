@@ -194,8 +194,7 @@ type Reachable = Pick<User, "id" | "desktopSeenAt"> & {
 };
 
 // The user's devices that take a notification of this severity about a PR in this repo,
-// or why none do. Every device takes every severity. The old per-device level
-// (`minSeverity`) is no longer read, and no longer set.
+// or why none do. Every device takes every severity.
 async function reach(
   db: Db,
   now: Date,
