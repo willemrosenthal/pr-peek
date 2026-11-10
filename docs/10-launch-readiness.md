@@ -24,7 +24,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 4. **Privacy and the landing section** (10.1, 10.7), split in two:
    - 4a: `feat(web): a privacy page, and help links on sign in and in Settings`. Also the safe migrations rule (10.6).
    - 4b: `feat(web): a landing section on sign in, and friendlier empty and error states`.
-5. **Monitoring** (10.5): `feat(server): Sentry, and an uptime check`. Needs accounts from you. Add Sentry to the privacy page's "Who else handles it".
+5. **Monitoring** (10.5): `feat(server): report errors to Sentry, and check uptime`. It also adds Sentry to the privacy page.
 
 ## Steps
 
@@ -87,8 +87,8 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 
 ### 10.5 Monitoring
 
-- [ ] Error tracking with Sentry (free tier) on server, worker, and web. Optional but recommended once others use it.
-- [ ] Uptime check on `/api/health` (Render's own checks, or a free service like UptimeRobot).
+- [x] Error tracking with Sentry (free tier) on server, worker, and web. Optional but recommended once others use it. As built (PR 5): two projects, `git-buddy-server` and `git-buddy-web`, with errors and 10% tracing. Every logged error is reported, and nothing that could hold a token is sent. Checked with a real error from each. Details in [security.md](security.md), "Error reports (Sentry)". The privacy page lists Sentry.
+- [x] Uptime check on `/api/health` (Render's own checks, or a free service like UptimeRobot). As built (PR 5): a Sentry uptime monitor, "Git Buddy health", every minute from outside Render. Down after 3 failures in a row.
 - [x] Simple counters logged per hour: syncs run, sync failures, pushes sent, push failures, active users. Done in [plan 19](19-admin.md): the admin page.
 
 ### 10.6 Data safety
@@ -109,6 +109,6 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 
 ## Done when
 
-- [ ] A friend can sign up from the landing page, install on their phone, get pushes, and delete their account, without your help.
-- [ ] Sentry and the uptime check alert you when something breaks.
-- [ ] The security review checklist is done and findings are fixed.
+- [ ] **(You)** A friend can sign up from the landing page, install on their phone, get pushes, and delete their account, without your help.
+- [ ] **(You)** Sentry and the uptime check alert you when something breaks. Both projects email on new high priority issues, and fired for the setup checks on 8 November. Check those emails reached you.
+- [ ] **(You)** The security review checklist is done and findings are fixed. All done but turning on Dependabot alerts (10.3).

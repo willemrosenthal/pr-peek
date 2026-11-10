@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createLogger } from "./logger";
 
 describe("createLogger", () => {
@@ -40,5 +40,49 @@ describe("createLogger", () => {
 
     expect(output).not.toMatch(/secret\d/);
     expect(output).toContain("Bad credentials");
+  });
+
+  describe("reporting errors", () => {
+    const setup = () => {
+      const report = vi.fn();
+      const logger = createLogger(
+        { LOG_LEVEL: "info" },
+        { write: () => {} },
+        report,
+      );
+      return { report, logger };
+    };
+
+    it("reports an error with its message, from children too", () => {
+      const { report, logger } = setup();
+      const err = new Error("boom");
+      logger
+        .child({ userId: "u1" })
+        .error({ err, userId: "u1" }, "sync failed");
+      expect(report).toHaveBeenCalledExactlyOnceWith(err, "sync failed");
+    });
+
+    it("reports an error passed straight in", () => {
+      const { report, logger } = setup();
+      const err = new Error("boom");
+      logger.error(err, "sync failed");
+      expect(report).toHaveBeenCalledExactlyOnceWith(err, "sync failed");
+    });
+
+    it("reports an error logged with only a message", () => {
+      const { report, logger } = setup();
+      logger.error("shutdown timed out");
+      expect(report).toHaveBeenCalledExactlyOnceWith(
+        undefined,
+        "shutdown timed out",
+      );
+    });
+
+    it("doesn't report warnings or below", () => {
+      const { report, logger } = setup();
+      logger.warn({ err: new Error("slow") }, "sync failed");
+      logger.info("heartbeat");
+      expect(report).not.toHaveBeenCalled();
+    });
   });
 });

@@ -12,6 +12,7 @@ export * from "./api/settings";
 export * from "./api/stream";
 export * from "./api/sync";
 export * from "./assigned-state";
+export * from "./error-reports";
 export * from "./pr-link";
 export * from "./pr-snapshot";
 export * from "./quiet";

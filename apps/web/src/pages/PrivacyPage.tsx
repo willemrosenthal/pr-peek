@@ -5,7 +5,7 @@ import { useReturnToList } from "../hooks/useReturnToList";
 import styles from "./InfoPage.module.css";
 
 // Change this whenever the page changes in a way that matters.
-const LAST_CHANGED = "8 November 2026";
+const LAST_CHANGED = "10 November 2026";
 
 const Email = () => <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>;
 
@@ -123,6 +123,7 @@ export function PrivacyPage() {
               tokens or cookies: a few weeks at most.
             </li>
             <li>Database backups: 7 days.</li>
+            <li>Error reports in Sentry: 30 days.</li>
             <li>
               Delete my account, in Settings, deletes it all right away, signs
               you out everywhere, and gives up Git Buddy's GitHub access. After
@@ -137,6 +138,12 @@ export function PrivacyPage() {
             <li>Supabase keeps the database, in Ohio, USA.</li>
             <li>Render runs the app, in Ohio, USA.</li>
             <li>GitHub, where it all comes from.</li>
+            <li>
+              Sentry, in the USA, gets a report when something breaks: the
+              error, where in the code it happened, and the page or request. It
+              also times a share of requests, to find slow ones. Never tokens,
+              cookies, or what a request sent.
+            </li>
             <li>
               Apple, Google, Mozilla, and Microsoft deliver notifications to
               their browsers. Each notification is encrypted, so they can't read

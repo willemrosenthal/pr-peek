@@ -6,6 +6,7 @@ import {
   createBoss,
   createQueues,
   HEARTBEAT,
+  logFailures,
   NOTIFY_ITEMS,
   SEND_IT,
   SUMMARY_DISPATCH,
@@ -159,4 +160,28 @@ it("re-reads the queues' settings hourly, not every minute", async () => {
     await other.stop({ graceful: false });
     await watched.end();
   }
+});
+
+it("logs a failed job as an error, and still fails it", async () => {
+  const report = vi.fn();
+  const logger = createLogger(
+    { LOG_LEVEL: "info" },
+    { write: () => {} },
+    report,
+  );
+  const err = new Error("GitHub is down");
+  const run = logFailures(logger, SYNC_USER, () => Promise.reject(err));
+  await expect(run([])).rejects.toBe(err);
+  expect(report).toHaveBeenCalledExactlyOnceWith(err, "job failed");
+});
+
+it("logs nothing for a job that works", async () => {
+  const report = vi.fn();
+  const logger = createLogger(
+    { LOG_LEVEL: "info" },
+    { write: () => {} },
+    report,
+  );
+  await logFailures(logger, SYNC_USER, () => Promise.resolve())([]);
+  expect(report).not.toHaveBeenCalled();
 });

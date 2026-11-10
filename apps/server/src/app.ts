@@ -18,6 +18,8 @@ const HEALTH = "/health";
 const CACHE_FOREVER = "public, max-age=31536000, immutable";
 // Everything else (index.html, sw.js, the manifest, icons) is checked with us each time.
 const NO_CACHE = "no-cache";
+// Where the web app's Sentry errors go.
+const SENTRY_INGEST = "https://*.ingest.us.sentry.io";
 // Where GitHub's pictures come from: avatars, pasted images (private ones too), and
 // other sites' images, which GitHub serves itself. Plus its emoji.
 const GITHUB_IMAGES = [
@@ -53,12 +55,21 @@ export function createApp(deps: AppDeps): Express {
       logger: deps.logger,
       // Render calls this every few seconds. Failures are still logged by the route.
       autoLogging: { ignore: (req) => req.url === `${API}${HEALTH}` },
+      // A 4xx or 5xx is a warning, not pino-http's usual error for a 5xx. The error
+      // behind a 5xx is logged as an error where it happened (errorHandler, the health
+      // check), so each goes to Sentry once.
+      customLogLevel: (_req, res, err) =>
+        err || res.statusCode >= 400 ? "warn" : "info",
     }),
   );
   app.use(
     helmet({
       contentSecurityPolicy: {
-        directives: { "img-src": ["'self'", "data:", ...GITHUB_IMAGES] },
+        directives: {
+          "img-src": ["'self'", "data:", ...GITHUB_IMAGES],
+          // The web app sends its errors to Sentry (apps/web/src/sentry.ts).
+          "connect-src": ["'self'", SENTRY_INGEST],
+        },
       },
     }),
   );
@@ -107,7 +118,9 @@ function apiRouter(deps: AppDeps): express.Router {
       await deps.checkDb();
       res.json({ ok: true, version: deps.version });
     } catch (err) {
-      req.log.error({ err }, "health check failed");
+      // A warning, not an error: an error goes to Sentry, and Render checks this every
+      // few seconds, so an outage would send hundreds. The uptime monitor reports it.
+      req.log.warn({ err }, "health check failed");
       res.status(503).json({ ok: false, version: deps.version });
     }
   });

@@ -23,6 +23,7 @@
     "@pr-peek/core": "workspace:*",
     "@prisma/adapter-pg": "~7.10.1",
     "@prisma/client": "~7.10.1",
+    "@sentry/node": "^11.11.0",
     "connect-pg-simple": "^10.0.0",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.3",

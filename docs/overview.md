@@ -148,3 +148,4 @@ Check this in review for any PR with a file in `apps/server/prisma/migrations`.
 | Render                                        | Plan 02           | Hosting the server and worker                                    |
 | Supabase (Pro plan, in its own org)           | Plan 02           | The production Postgres database                                 |
 | Apple Developer Program (about $99 a year)    | Plan 09, optional | Signing the Mac app so other people can open it without warnings |
+| Sentry (free plan)                            | Plan 10           | Error reports, and the uptime check on `/api/health`             |
