@@ -14,13 +14,13 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 - **Errors go to Sentry,** on its free plan. The privacy page says so.
 - **Feedback:** GitHub issues for bugs and ideas, and an email for privacy questions and account problems.
 - **No "Export my data".** Almost everything we keep comes from GitHub. The privacy page offers a copy by email instead.
-- **What's already done** by later plans: CSRF checks, security headers, rate limits, the repo, device, and refresh caps (10.4), comment bodies aren't stored at all (previews load live from GitHub), and hourly counters with health alerts ([plan 16](16-efficiency.md), [plan 19](19-admin.md)).
+- **What's already done** by later plans: CSRF checks, security headers, rate limits, the repo, device, and refresh caps (10.4), comment bodies aren't stored at all (previews load live from GitHub), and hourly counters with health alerts ([plan 16](../16-efficiency.md), [plan 19](../19-admin.md)).
 
 ## PRs
 
 1. **Limits and security** (10.3, the Pro limits): `feat(server): use Supabase Pro limits, rotate keys, and hide more in logs`.
 2. **Sign-up requests** (10.4): `feat(web): sign-up requests, approved from the admin page`. Has a migration.
-3. **Account controls** (10.2): `feat(web): delete my account, and clean up old data`. Open.
+3. **Account controls** (10.2): `feat(web): delete my account, and clean up old data`.
 4. **Privacy and the landing section** (10.1, 10.7), split in two:
    - 4a: `feat(web): a privacy page, and help links on sign in and in Settings`. Also the safe migrations rule (10.6).
    - 4b: `feat(web): a landing section on sign in, and friendlier empty and error states`.
@@ -56,17 +56,17 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 - [x] Run through: CSRF origin check on all writes, every query scoped by `userId`, rate limits on auth and sync, `helmet` headers including a Content Security Policy. With `/security-review`, below. As built (8 November), a pass over the whole server, web app, and Mac app:
   - Fine already: the origin check covers every API write. Every route with an id checks it belongs to the user. Sign in checks a random state once and gets a new session id. Cookies are httpOnly, `SameSite=Lax`, and secure in production. Push endpoints must be a browser maker's push service, so the server can't be made to call other URLs. GitHub's HTML in previews goes through an allow list. The live stream only sends the user's own events. The Mac app gives its native commands to the hosted site only, and opens only http(s) links. The web app reads no env vars, so no secrets reach the browser.
   - Fixed: test pushes had no limit, so a loop could get our push key throttled. Now 20 a minute. Adding a repo now counts toward the picker's limit of 60 GitHub asks a minute. Checking, saving, and replacing a token were limited by IP, so a company sharing one IP shared the limit. Now it's per user (30 per 15 minutes).
-  - Added: a check for how many proxies Render puts in front of us. Sign in is limited by IP, which only works if the server sees real IPs. `TRUST_PROXY_HOPS` sets it, and `GET /api/admin/ip` shows what the server sees. See [security.md](security.md), "Rate limits and IPs".
+  - Added: a check for how many proxies Render puts in front of us. Sign in is limited by IP, which only works if the server sees real IPs. `TRUST_PROXY_HOPS` sets it, and `GET /api/admin/ip` shows what the server sees. See [security.md](../security.md), "Rate limits and IPs".
   - Left as is: the Mac app also gives its commands to `http://localhost:5173`, for development. Only a program already running on the Mac could use that.
-- [x] **(You)** Once it's live, check `GET /api/admin/ip` shows your own IP (steps in [security.md](security.md), "Rate limits and IPs"). Found 8 November: 2 proxies (Cloudflare, then Render's own), not 1. So every user shared one sign-in limit. 2 is now the default.
+- [x] **(You)** Once it's live, check `GET /api/admin/ip` shows your own IP (steps in [security.md](../security.md), "Rate limits and IPs"). Found 8 November: 2 proxies (Cloudflare, then Render's own), not 1. So every user shared one sign-in limit. 2 is now the default.
 - [x] No tokens in logs: the logger also hides GitHub client errors' request headers and body, and any field named like a token (`token`, `accessToken`, `refresh_token`, …).
 - [x] A dependency audit (`pnpm audit --prod --audit-level high`) on each PR and weekly, in its own workflow, so a new advisory never blocks an unrelated PR. It found two: `body-parser` (a denial of service, through Express) and `lodash` (through Prisma Studio). Both updated.
 - [x] Dependabot (`.github/dependabot.yml`): monthly grouped updates, and security fixes as they come. App and Mac app updates are `fix(deps)`, so they release.
-- [ ] **(You)** Turn on Dependabot alerts and security updates: the repo's Settings, Advanced Security (or Code security).
+- [x] **(You)** Turn on Dependabot alerts and security updates: the repo's Settings, Advanced Security (or Code security).
 - [x] Use Supabase Pro's limits (8 GB of database, 250 GB of egress) on the admin page and in health alerts.
 - [x] Encryption key rotation: `TOKEN_ENC_KEY_PREVIOUS`. Tokens read with either key, and are written with the new one. `pnpm --filter @pr-peek/server tokens:reencrypt` encrypts them all again with the new key.
 - [x] Run the `/security-review` command on the main branch before launch. That command only reviews a branch's changes, so the whole-code pass above took its place.
-- [x] Move `tauri-apps/tauri-action` from v0 to v1 by hand, with a Mac release of its own, not mixed with other Mac changes. Dependabot skips its majors. v1 renames the update file (`.app.tar.gz`) to include the version, changes the links in `latest.json`, and rewrites an existing release's title and notes. Pass `releaseName` and `releaseBody`, or check ours survive. Then check the release page, and that an installed app updates. Moved here from [plan 09](completed/09-desktop-tauri.md). As built (8 November), from v1's source:
+- [x] Move `tauri-apps/tauri-action` from v0 to v1 by hand, with a Mac release of its own, not mixed with other Mac changes. Dependabot skips its majors. v1 renames the update file (`.app.tar.gz`) to include the version, changes the links in `latest.json`, and rewrites an existing release's title and notes. Pass `releaseName` and `releaseBody`, or check ours survive. Then check the release page, and that an installed app updates. Moved here from [plan 09](09-desktop-tauri.md). As built (8 November), from v1's source:
   - Title and notes: v1 only renames a release it finds by `tagName`. We pass `releaseId`, so ours stay. `tagName` is ignored then, so it's gone.
   - Links: `latest.json` now points at GitHub API links (`api.github.com/.../releases/assets/<id>`). Those only send the file when asked for `application/octet-stream`, which Tauri's updater does when it downloads (tauri-plugin-updater 2.14.1). Before publishing, the release now downloads the update from the draft's `latest.json` the same way, for both Mac chips, and checks it's an archive.
   - The renamed `.app.tar.gz` needs nothing: only `latest.json` names it. Both Mac chips still get their entries for a universal build.
@@ -77,7 +77,7 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 ### 10.4 Limits and cost control
 
 - [x] Caps per user: watched repos (50), devices (10), manual refreshes (once per 30 seconds). Done in plans 06 and 08.
-- [x] A worker concurrency setting, and a log or metric for "sync queue lag" (how far behind schedule syncs are). If it grows, raise concurrency or upgrade the worker plan. Done in [plan 16](16-efficiency.md), step 16.4: `SYNC_CONCURRENCY`, and `lagging` in the "sync dispatch" log.
+- [x] A worker concurrency setting, and a log or metric for "sync queue lag" (how far behind schedule syncs are). If it grows, raise concurrency or upgrade the worker plan. Done in [plan 16](../16-efficiency.md), step 16.4: `SYNC_CONCURRENCY`, and `lagging` in the "sync dispatch" log.
 - [x] Sign-up requests, approved by an admin, in place of invite codes or an allow list. See Decisions.
   - [x] A user is waiting or approved: `User.approvedAt`, empty while waiting. Declining deletes the user, so "declined" is never stored. Everyone signed up before this is approved.
   - [x] A waiting user sees "Your request is in", with Check again, Sign out, and Withdraw. Every other route answers 403 (code `pending`), and opening the app doesn't sync them.
@@ -87,15 +87,15 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 
 ### 10.5 Monitoring
 
-- [x] Error tracking with Sentry (free tier) on server, worker, and web. Optional but recommended once others use it. As built (PR 5): two projects, `git-buddy-server` and `git-buddy-web`, with errors and 10% tracing. Every logged error is reported, and nothing that could hold a token is sent. Checked with a real error from each. Details in [security.md](security.md), "Error reports (Sentry)". The privacy page lists Sentry.
+- [x] Error tracking with Sentry (free tier) on server, worker, and web. Optional but recommended once others use it. As built (PR 5): two projects, `git-buddy-server` and `git-buddy-web`, with errors and 10% tracing. Every logged error is reported, and nothing that could hold a token is sent. Checked with a real error from each. Details in [security.md](../security.md), "Error reports (Sentry)". The privacy page lists Sentry.
 - [x] Uptime check on `/api/health` (Render's own checks, or a free service like UptimeRobot). As built (PR 5): a Sentry uptime monitor, "Git Buddy health", every minute from outside Render. Down after 3 failures in a row.
-- [x] Simple counters logged per hour: syncs run, sync failures, pushes sent, push failures, active users. Done in [plan 19](19-admin.md): the admin page.
+- [x] Simple counters logged per hour: syncs run, sync failures, pushes sent, push failures, active users. Done in [plan 19](../19-admin.md): the admin page.
 
 ### 10.6 Data safety
 
 - [x] **Backups before other people sign in.** The project is on Supabase Pro, which has daily backups kept 7 days. **(You)** Check they show under Database, Backups. Checked on 7 November 2026.
 - [x] **(You)** Test restoring a backup into a fresh database once.
-- [x] Prisma migrations only add or change in ways that work with the version currently running. Render runs migrations before swapping versions, so for a short time the old code runs against the new schema. As built (PR 4a): the rules are in [overview.md](overview.md#migrations-that-are-safe-to-deploy), with a line in CLAUDE.md.
+- [x] Prisma migrations only add or change in ways that work with the version currently running. Render runs migrations before swapping versions, so for a short time the old code runs against the new schema. As built (PR 4a): the rules are in [overview.md](../overview.md#migrations-that-are-safe-to-deploy), with a line in CLAUDE.md.
 
 ### 10.7 Polish for new users
 
@@ -109,6 +109,6 @@ Mockups: [Git Buddy Launch Screens](https://claude.ai/artifact/S8wiHXmBHmT9WpXGW
 
 ## Done when
 
-- [ ] **(You)** A friend can sign up from the landing page, install on their phone, get pushes, and delete their account, without your help.
-- [ ] **(You)** Sentry and the uptime check alert you when something breaks. Both projects email on new high priority issues, and fired for the setup checks on 8 November. Check those emails reached you.
-- [ ] **(You)** The security review checklist is done and findings are fixed. All done but turning on Dependabot alerts (10.3).
+- [x] **(You)** A friend can sign up from the landing page, install on their phone, get pushes, and delete their account, without your help. Checked 10 November 2026.
+- [x] **(You)** Sentry and the uptime check alert you when something breaks. Both projects email on new high priority issues, and fired for the setup checks on 8 November. The emails reached you, checked 10 November 2026.
+- [x] **(You)** The security review checklist is done and findings are fixed. Dependabot alerts turned on 10 November 2026.

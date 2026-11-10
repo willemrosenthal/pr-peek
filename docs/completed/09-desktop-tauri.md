@@ -141,7 +141,7 @@ The Mac browser may also have a push subscription, so the same alert could arriv
 
   The updater and the download link both use GitHub's "latest release". Only the Mac app should publish non-draft releases from this repo, or installed apps stop finding updates.
 
-- [x] ~~Move `tauri-apps/tauri-action` from v0 to v1.~~ Moved to [plan 10](../10-launch-readiness.md), 10.3, so this plan could finish.
+- [x] ~~Move `tauri-apps/tauri-action` from v0 to v1.~~ Moved to [plan 10](10-launch-readiness.md), 10.3, so this plan could finish.
 - [x] Apple signing and notarization (Apple's automated malware check, needed so other people's Macs open the app without warnings). Step by step: [09-apple-signing.md](09-apple-signing.md). First signed build: 1.19.0, on 7 November 2026.
   - **(You)** Join the Apple Developer Program. Done.
   - **(You)** Create a "Developer ID Application" certificate and an App Store Connect API key. Done.
