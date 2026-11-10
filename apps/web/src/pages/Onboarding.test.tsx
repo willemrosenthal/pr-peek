@@ -81,6 +81,7 @@ it("shows only the install steps on an iPhone outside the Home Screen app", asyn
       "On iPhone, notifications only work in the Home Screen app.",
     ),
   ).toHaveLength(1);
+  expect(screen.queryByText(/Notifications come with the app/)).toBe(null);
 });
 
 it("picks repos, sets the timezone, and goes to the list", async () => {

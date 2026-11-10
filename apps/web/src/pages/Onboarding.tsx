@@ -15,7 +15,7 @@ import { TurnOnNotifications } from "../components/TurnOnNotifications";
 import { WatchedRepos } from "../components/WatchedRepos";
 import { cx } from "../cx";
 import { useIsTray } from "../hooks/useIsTray";
-import { isStandalone } from "../install";
+import { detectPlatform, isStandalone } from "../install";
 import { useGitHubTokens } from "../queries";
 import { detectedTimezone, timezoneOptions } from "../timezones";
 import { reachText, stateOf } from "../tokens";
@@ -313,10 +313,13 @@ function DoneStep() {
         ) : (
           <>
             <h3 className={styles.subTitle}>Install the app</h3>
-            <p className={styles.hint}>
-              Notifications come with the app. Turn them on there once it's
-              installed.
-            </p>
+            {/* The iPhone steps already say this. */}
+            {detectPlatform() !== "ios" && (
+              <p className={styles.hint}>
+                Notifications come with the app. Turn them on there once it's
+                installed.
+              </p>
+            )}
             <InstallHere />
             <p>
               <Link to="/install">Install on other devices</Link>
