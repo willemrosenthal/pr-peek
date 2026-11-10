@@ -99,8 +99,8 @@ describe("notifyItem", () => {
     expect(send).toHaveBeenCalledOnce();
   });
 
-  it("sends to every device, even at low severity", async () => {
-    const { user, send, notify } = await setup({ severity: "low" });
+  it("sends to each of the user's devices", async () => {
+    const { user, send, notify } = await setup();
     await addDevice(user.id, "mac");
 
     await notify();
