@@ -20,6 +20,8 @@ jobs:
   # The checks PRs run, again on the commit that would be released.
   ci:
     uses: ./.github/workflows/ci.yml
+  format:
+    uses: ./.github/workflows/format.yml
   test-core:
     uses: ./.github/workflows/test-core.yml
   test-server:
@@ -32,7 +34,7 @@ jobs:
   # Everything from here pushes or publishes, so it never runs in a fork. The jobs after
   # this one need it, so they skip too.
   version:
-    needs: [ci, test-core, test-server, test-web, check-desktop]
+    needs: [ci, format, test-core, test-server, test-web, check-desktop]
     if: github.repository == 'willemrosenthal/pr-peek'
     runs-on: ubuntu-24.04
     timeout-minutes: 10

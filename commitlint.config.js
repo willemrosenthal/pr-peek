@@ -2,4 +2,8 @@
 // workflow reads its type (see docs/15-auto-release.md).
 export default {
   extends: ["@commitlint/config-conventional"],
+  rules: {
+    // Any case after the prefix, like "fix: Test" as well as "fix: test".
+    "subject-case": [0],
+  },
 };
