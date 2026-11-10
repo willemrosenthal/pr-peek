@@ -15,7 +15,7 @@
 .header {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-3);
 }
 
 .title {
@@ -41,4 +41,116 @@
 
 .hint {
   color: var(--color-text-secondary);
+}
+
+/* The bar, with "Step 1 of 4" to its right. */
+.progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.stepCount {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* One segment per step, filled up to the current one. */
+.bar {
+  display: flex;
+  flex: 1;
+  gap: var(--space-1);
+}
+
+.segment {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-divider);
+  transition: background-color 0.3s ease;
+}
+
+.segment.reached {
+  background: var(--color-accent);
+}
+
+.accessRow {
+  flex-wrap: nowrap;
+}
+
+.accessIcon {
+  display: flex;
+  flex: none;
+  color: var(--color-text-secondary);
+}
+
+.accessIcon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.accessLabel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.reach {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.status {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-warning);
+}
+
+.status.ready {
+  color: var(--color-success);
+}
+
+.check {
+  width: 14px;
+  height: 14px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.note {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.saved {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+/* Inline in a sentence, like a link, but it opens the token sheet. */
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment {
+    transition: none;
+  }
 }

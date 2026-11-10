@@ -235,11 +235,14 @@ export function useGitHubTokens() {
   });
 }
 
-// After a token is added, replaced, or removed: the list, and /me's copy.
+// After a token is added, replaced, or removed: the list, /me's copy, and the repo
+// picker, since a token changes which orgs and repos it can list.
 export const refreshTokens = (queryClient: QueryClient) =>
   Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.githubTokens }),
     queryClient.invalidateQueries({ queryKey: queryKeys.me }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.githubOwners }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.githubRepos }),
   ]);
 
 // Who the user can pick repos from: themselves, their orgs, and people who share repos.

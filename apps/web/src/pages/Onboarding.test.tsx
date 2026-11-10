@@ -1,3 +1,4 @@
+import type { CheckTokenResponse, TokenDto } from "@pr-peek/core";
 import { screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
@@ -5,6 +6,7 @@ import {
   apiError,
   callsTo,
   fakeApi,
+  githubToken,
   json,
   listApi,
   type Handlers,
@@ -30,7 +32,11 @@ const onboardingApi = (overrides: Handlers = {}) =>
 const next = async () =>
   userEvent.click(await screen.findByRole("button", { name: "Next" }));
 
+const skipTokens = async () =>
+  userEvent.click(await screen.findByRole("button", { name: "Skip for now" }));
+
 async function finishSteps() {
+  await skipTokens();
   await next();
   await next();
   await screen.findByRole("heading", { name: "You're set" });
@@ -66,6 +72,7 @@ it("picks repos, sets the timezone, and goes to the list", async () => {
   const fetch = onboardingApi();
   const { router } = renderApp("/onboarding");
 
+  await skipTokens();
   expect(
     await screen.findByRole("heading", { name: "Pick the repos to watch" }),
   ).toBeTruthy();
@@ -106,6 +113,7 @@ it("goes on when the first sync is refused", async () => {
       apiError(429, "rate_limited", "Wait a moment and try again"),
   });
   renderApp("/onboarding");
+  await skipTokens();
   await next();
   expect(await screen.findByLabelText("Timezone")).toBeTruthy();
 });
@@ -119,6 +127,7 @@ it("keeps the detected timezone when the browser's list lacks it", async () => {
   vi.spyOn(Intl, "supportedValuesOf").mockReturnValue(["Europe/Paris"]);
   const fetch = onboardingApi();
   renderApp("/onboarding");
+  await skipTokens();
   await next();
 
   const select = await screen.findByLabelText("Timezone");
@@ -137,9 +146,86 @@ it("shows why the timezone couldn't be saved", async () => {
       apiError(400, "invalid_input", "Unknown timezone"),
   });
   renderApp("/onboarding");
+  await skipTokens();
   await next();
   await next();
   expect((await screen.findByRole("alert")).textContent).toBe(
     "Unknown timezone",
+  );
+});
+
+// A token API that keeps what's saved. Checking always finds an acme token.
+function tokenApi() {
+  let tokens: TokenDto[] = [];
+  const checked: CheckTokenResponse = {
+    kind: "fine_grained",
+    owners: ["acme"],
+    scopes: [],
+    expiresAt: null,
+    name: "acme",
+    sameOwnersAs: null,
+    // Nothing is watched yet during onboarding.
+    reachesWatched: false,
+  };
+  return {
+    "GET /api/github-tokens": () => json({ tokens, syncedBy: [] }),
+    "POST /api/github-tokens/check": () => json(checked),
+    "POST /api/github-tokens": () => {
+      tokens = [githubToken({ name: "acme", owners: ["acme"] })];
+      return json({ token: tokens[0] }, 201);
+    },
+  };
+}
+
+async function addToken(opener: string) {
+  await userEvent.click(await screen.findByRole("button", { name: opener }));
+  await userEvent.type(
+    await screen.findByLabelText("Copy it, then paste it here"),
+    "github_pat_x",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+  await screen.findByText("GitHub accepted it.");
+}
+
+it("starts by explaining org repos need a token, and adds one there", async () => {
+  onboardingApi(tokenApi());
+  renderApp("/onboarding");
+
+  expect(
+    await screen.findByRole("heading", { name: "Repos from your orgs" }),
+  ).toBeTruthy();
+  expect(screen.getByText("Needs a token")).toBeTruthy();
+
+  await addToken("Add a token");
+  // Nothing is watched yet, so there's nothing to warn about.
+  expect(screen.queryByText(/doesn't reach any repo you watch/)).toBe(null);
+  await userEvent.click(screen.getByRole("button", { name: "Save token" }));
+
+  expect(await screen.findByText("Added")).toBeTruthy();
+  expect(screen.queryByText("Needs a token")).toBe(null);
+  expect(screen.queryByRole("button", { name: "Skip for now" })).toBe(null);
+  expect(screen.getByRole("button", { name: "Add another" })).toBeTruthy();
+
+  await next();
+  expect(
+    await screen.findByRole("heading", { name: "Pick the repos to watch" }),
+  ).toBeTruthy();
+});
+
+it("offers a token on the repos step, and reloads the picker's owners after", async () => {
+  const fetch = onboardingApi(tokenApi());
+  renderApp("/onboarding");
+  await skipTokens();
+  await screen.findByRole("heading", { name: "Pick the repos to watch" });
+  const before = callsTo(fetch, "/api/github/owners").length;
+
+  await addToken("Add a token");
+  await userEvent.click(screen.getByRole("button", { name: "Save token" }));
+
+  expect(
+    await screen.findByText("Token saved. Its org's repos show below."),
+  ).toBeTruthy();
+  await vi.waitFor(() =>
+    expect(callsTo(fetch, "/api/github/owners").length).toBeGreaterThan(before),
   );
 });
