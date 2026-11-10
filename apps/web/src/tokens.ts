@@ -31,8 +31,11 @@ export function reachText(
 ) {
   if (token.kind === "classic") return "every repo your account can see";
   if (token.owners.length === 0) return "no private repos";
+  const owners = token.owners.join(", ");
+  // Before any repo is watched, like during onboarding, a count of 0 would only worry.
+  if (syncedBy.length === 0) return owners;
   const repos = plural(watchedReposOf(syncedBy, token.owners), "repo");
-  return `${token.owners.join(", ")}: ${repos} you watch`;
+  return `${owners}: ${repos} you watch`;
 }
 
 // How many watched repos a token syncs now.

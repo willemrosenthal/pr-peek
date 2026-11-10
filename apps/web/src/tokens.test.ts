@@ -39,4 +39,8 @@ it("counts watched repos by owner, ignoring case", () => {
   expect(reachText({ kind: "fine_grained", owners: [] }, syncedBy)).toBe(
     "no private repos",
   );
+  // Before any repo is watched, there's no count to give.
+  expect(reachText({ kind: "fine_grained", owners: ["acme"] }, [])).toBe(
+    "acme",
+  );
 });

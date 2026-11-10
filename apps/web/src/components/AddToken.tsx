@@ -229,7 +229,8 @@ function AddToken({
             </span>
             <span>It reaches {reachText(checked, syncedBy)}.</span>
           </div>
-          {!checked.reachesWatched && (
+          {/* With no repos watched yet, like during onboarding, there's nothing to reach. */}
+          {!checked.reachesWatched && syncedBy.length > 0 && (
             <p className={styles.warning}>
               It doesn't reach any repo you watch yet. Save it anyway, or check
               its resource owner on GitHub.
