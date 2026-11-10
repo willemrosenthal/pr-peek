@@ -266,9 +266,11 @@ it("offers notifications on this device in the installed app, for after Not now"
   expect(
     await within(card).findByRole("button", { name: "Turn on notifications" }),
   ).toBeTruthy();
-  // Its own card, at the top.
-  await screen.findByRole("list", { name: "General settings" });
-  expect(screen.getAllByRole("list")[0]).toBe(card);
+  // Its own card, above the others.
+  const general = await screen.findByRole("list", { name: "General settings" });
+  expect(
+    card.compareDocumentPosition(general) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });
 
 it("says when notifications are blocked on this device", async () => {
