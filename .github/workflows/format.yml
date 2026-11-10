@@ -1,6 +1,6 @@
 name: Format
 
-# Its own workflow, so a formatting failure shows by name on the PR.
+# Its own workflow, so a failure shows by name on the PR.
 on:
   pull_request:
   # release.yml runs it on main, before releasing.

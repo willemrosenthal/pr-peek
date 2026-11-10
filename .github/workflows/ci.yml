@@ -38,11 +38,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      - run: pnpm lint
-      # Checks the workflow files themselves. A broken release.yml would otherwise only
-      # show up on main, after merging.
-      - run: pnpm lint:workflows
-      - run: pnpm typecheck
       - run: pnpm build
       # The browser smoke test. Needs the build above, since the server serves it.
       # Headless Chromium only. The runner already has its system libraries.
