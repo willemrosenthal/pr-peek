@@ -59,6 +59,11 @@ export function GeneralTab() {
   return (
     <>
       <TabHeading title="General">Signed in as {data?.user.login}</TabHeading>
+      {inInstalledApp && (
+        <Card label="Notifications">
+          <NotificationsRow />
+        </Card>
+      )}
       {settings.isError && <Alert>{settings.error.message}</Alert>}
       {settings.data && (
         <Card label="General settings">
@@ -78,7 +83,6 @@ export function GeneralTab() {
         </Card>
       )}
       <Card label="This device">
-        {inInstalledApp && <NotificationsRow />}
         <SizeRow />
         <SectionOrderRow />
       </Card>
@@ -183,7 +187,7 @@ const scaleAt = (step: string) => SCALES[Number(step)] ?? 1;
 function NotificationsRow() {
   return (
     <CardRow>
-      <RowText label="Notifications" />
+      <RowText label="Notifications" hint="On this device." />
       <TurnOnNotifications />
     </CardRow>
   );
