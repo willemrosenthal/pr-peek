@@ -99,7 +99,7 @@ const app = createApp({
     streamRouter({ db, listener, signal: streams.signal }),
     pushRouter({
       db,
-      push: vapid && send && { publicKey: vapid.publicKey, send },
+      push: vapid && { publicKey: vapid.publicKey },
     }),
   ],
   // Same depth from src/ (tsx in dev) and dist/ (built), so this works for both.

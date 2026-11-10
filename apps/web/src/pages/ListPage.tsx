@@ -10,6 +10,7 @@ import { Navigate, useSearchParams } from "react-router";
 import { AddPrDialog } from "../components/AddPrDialog";
 import { Toast, type ToastMessage } from "../components/Toast";
 import { Banners } from "../components/Banners";
+import { NotificationPrompt } from "../components/NotificationPrompt";
 import { Button } from "../components/Button";
 import { ItemSection } from "../components/ItemSection";
 import { ListHeader } from "../components/ListHeader";
@@ -20,7 +21,7 @@ import {
 } from "../components/PrPreview";
 import { PullToRefresh } from "../components/PullToRefresh";
 import { cx } from "../cx";
-import { useIsTray } from "../hooks/useIsTray";
+import { useInInstalledApp, useIsTray } from "../hooks/useIsTray";
 import { useMarkSeen } from "../hooks/useMarkSeen";
 import { useQuickAdd } from "../hooks/useQuickAdd";
 import { useStoredState } from "../hooks/useStoredState";
@@ -63,6 +64,7 @@ export function ListPage() {
   // Like "Wait a moment and try again" after refreshing too often.
   const sync = useSync({ onError: (err) => setToast({ text: err.message }) });
   const tray = useIsTray();
+  const inInstalledApp = useInInstalledApp();
   const setQuiet = useSetQuiet();
   const toggleImportant = useToggleImportant();
   // The PR whose preview is open. Kept here, not in its section, so the sheet stays
@@ -113,6 +115,7 @@ export function ListPage() {
             onRefresh={sync.refresh}
           />
           <Banners me={me.data} syncError={sync.status?.syncError} />
+          {inInstalledApp && <NotificationPrompt />}
         </div>
         <ListBody
           onPreview={setPreview}

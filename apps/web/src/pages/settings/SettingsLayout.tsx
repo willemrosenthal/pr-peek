@@ -13,7 +13,6 @@ const SETTINGS_TABS = [
   { path: "repos", label: "Repos" },
   { path: "rules", label: "Rules" },
   { path: "timing", label: "Timing" },
-  { path: "devices", label: "Devices" },
 ];
 // Only admins see it.
 const ADMIN_TAB = { path: "admin", label: "Admin" };

@@ -36,7 +36,6 @@ async function setup() {
       endpoint: PHONE,
       p256dh: "p256dh-key",
       auth: "auth-key",
-      minSeverity: "high",
     },
   });
   const pr = await makePr(user.id);

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useSearchParams } from "react-router";
+import { isStandalone } from "../install";
 
 const KEY = "pr-peek:shell";
 
@@ -25,6 +26,10 @@ export function useIsTray(): boolean {
   const shell = useShell();
   return shell === "tray" || shell === "window";
 }
+
+// True in the installed web app, on a phone or a computer, where notifications are set
+// up. Not the Mac menu bar app, which notifies on its own.
+export const useInInstalledApp = () => !useIsTray() && isStandalone();
 
 // True in the dropdown under the icon.
 export const useIsDropdown = () => useShell() === "tray";

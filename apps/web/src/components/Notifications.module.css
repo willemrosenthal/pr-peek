@@ -5,21 +5,24 @@
   gap: var(--space-2);
 }
 
-.name {
-  display: flex;
-  flex: 1 1 var(--row-label-min);
-  flex-direction: column;
-  min-width: min(100%, var(--row-label-min));
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.label {
-  max-width: 16rem;
-}
-
 .hint {
   font-size: var(--text-sm);
-  font-weight: 400;
   color: var(--color-text-secondary);
+}
+
+/* The installed app's ask to turn notifications on. A strip under the header, like the
+   banners, but gray, since nothing is wrong. */
+.prompt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 14px;
+  border-top: 1px solid var(--color-divider);
+  background: var(--color-surface-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }

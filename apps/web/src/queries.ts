@@ -361,11 +361,12 @@ export function usePushKey(enabled: boolean) {
 export const isPushOff = (err: unknown) =>
   err instanceof ApiError && err.code === "push_off";
 
-// Devices that get the user's notifications.
-export function useDevices() {
+// Devices that get the user's notifications. Off where push can't work, to save a request.
+export function useDevices(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.devices,
     queryFn: () => api<PushSubscriptionsResponse>("/push/subscriptions"),
+    enabled,
   });
 }
 
