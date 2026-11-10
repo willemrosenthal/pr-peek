@@ -18,14 +18,13 @@ type Report = (err: unknown, message: string | undefined) => void;
 function errorOf(args: unknown[]): [unknown, string | undefined] {
   const [first, second] = args;
   if (typeof first === "string") return [undefined, first];
-  if (first instanceof Error) {
-    return [first, typeof second === "string" ? second : undefined];
-  }
+  const message = typeof second === "string" ? second : undefined;
+  if (first instanceof Error) return [first, message];
   const err =
     typeof first === "object" && first !== null && "err" in first
       ? first.err
       : undefined;
-  return [err, typeof second === "string" ? second : undefined];
+  return [err, message];
 }
 
 // Every error logged goes to Sentry too (`report`), from the server and the worker, so

@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { initSentry, reportError } from "./sentry";
+import { initSentry, REPEAT_MS, reportError } from "./sentry";
 
 vi.mock("@sentry/node", () => ({
   init: vi.fn(),
@@ -59,6 +59,21 @@ describe("reportError", () => {
       "shutdown timed out",
       "error",
     );
+  });
+
+  it("sends the same error once in REPEAT_MS, like a poll failing again and again", () => {
+    const failure = () => new Error("connection refused");
+    reportError(failure(), "pg-boss error", 0);
+    reportError(failure(), "pg-boss error", REPEAT_MS - 1);
+    expect(Sentry.captureException).toHaveBeenCalledOnce();
+    reportError(failure(), "pg-boss error", REPEAT_MS);
+    expect(Sentry.captureException).toHaveBeenCalledTimes(2);
+  });
+
+  it("still sends different errors logged with the same message", () => {
+    reportError(new Error("a is undefined"), "request failed", 0);
+    reportError(new Error("b is undefined"), "request failed", 0);
+    expect(Sentry.captureException).toHaveBeenCalledTimes(2);
   });
 
   it("sends nothing without an error or a message", () => {

@@ -18,10 +18,10 @@ const HEALTH = "/health";
 const CACHE_FOREVER = "public, max-age=31536000, immutable";
 // Everything else (index.html, sw.js, the manifest, icons) is checked with us each time.
 const NO_CACHE = "no-cache";
-// Where GitHub's pictures come from: avatars, pasted images (private ones too), and
-// other sites' images, which GitHub serves itself. Plus its emoji.
 // Where the web app's Sentry errors go.
 const SENTRY_INGEST = "https://*.ingest.us.sentry.io";
+// Where GitHub's pictures come from: avatars, pasted images (private ones too), and
+// other sites' images, which GitHub serves itself. Plus its emoji.
 const GITHUB_IMAGES = [
   "https://*.githubusercontent.com",
   "https://github.com",

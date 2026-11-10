@@ -42,9 +42,32 @@ export function initSentry(service: "web" | "worker"): void {
   });
 }
 
+// The same error goes to Sentry at most once in this long, from each process. So a
+// burst, like every poll failing while the database is down, can't use up the free
+// plan's errors for the month. "The same" is the same log message and error text.
+export const REPEAT_MS = 5 * 60_000;
+// Forgets them all past this many, so the map can't grow forever.
+const MAX_REMEMBERED = 500;
+const lastSent = new Map<string, number>();
+
+function sentRecently(err: unknown, message: string | undefined, now: number) {
+  const key = `${message}\n${err instanceof Error ? err.message : String(err)}`;
+  const last = lastSent.get(key);
+  if (last !== undefined && now - last < REPEAT_MS) return true;
+  if (lastSent.size >= MAX_REMEMBERED) lastSent.clear();
+  lastSent.set(key, now);
+  return false;
+}
+
 // Sends an error to Sentry, with the log message that came with it. A message on its own
 // goes as one. Does nothing until initSentry has started it.
-export function reportError(err: unknown, message: string | undefined): void {
+export function reportError(
+  err: unknown,
+  message: string | undefined,
+  now = Date.now(),
+): void {
+  if (err === undefined && !message) return;
+  if (sentRecently(err, message, now)) return;
   if (err !== undefined) {
     Sentry.captureException(err, message ? { extra: { message } } : undefined);
   } else if (message) {
