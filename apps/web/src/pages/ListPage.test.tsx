@@ -838,15 +838,26 @@ describe("empty and error states", () => {
     expect(await screen.findByText("Nothing needs you right now")).toBeTruthy();
   });
 
-  it("asks for repos when none are watched", async () => {
+  it("goes to onboarding when nothing is watched and nothing shows", async () => {
     fakeApi(listApi({ "GET /api/repos": () => json({ repos: [] }) }));
-    renderApp("/");
+    const { router } = renderApp("/");
     expect(
-      await screen.findByText("You're not watching any repos yet"),
+      await screen.findByRole("heading", { name: "Repos from your orgs" }),
     ).toBeTruthy();
-    expect(
-      screen.getByRole("link", { name: "settings" }).getAttribute("href"),
-    ).toBe("/settings/repos");
+    expect(router.state.location.pathname).toBe("/onboarding");
+  });
+
+  it("stays on the list with no repos when something shows, like an added PR", async () => {
+    const added = item();
+    fakeApi(
+      listApi({
+        "GET /api/repos": () => json({ repos: [] }),
+        "GET /api/items": () => json(groups({ review: [added] })),
+      }),
+    );
+    const { router } = renderApp("/");
+    expect(await screen.findByText(added.pr.title)).toBeTruthy();
+    expect(router.state.location.pathname).toBe("/");
   });
 
   it("offers a retry when the list can't load", async () => {

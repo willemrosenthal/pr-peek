@@ -261,3 +261,46 @@ it("says when a saved token stopped working, and that a classic one covers every
     screen.getByText(/A classic token covers every org you're in/),
   ).toBeTruthy();
 });
+
+it("keeps the step in the URL, so a reload stays on it", async () => {
+  onboardingApi();
+  const { router } = renderApp("/onboarding?shell=tray&step=timezone");
+  expect(await screen.findByLabelText("Timezone")).toBeTruthy();
+
+  await next();
+  await screen.findByRole("heading", { name: "You're set" });
+  // The menu bar app's flag stays too.
+  expect(router.state.location.search).toBe("?shell=tray&step=done");
+});
+
+it("starts at the first step when the URL's step is unknown", async () => {
+  onboardingApi();
+  renderApp("/onboarding?step=nope");
+  expect(
+    await screen.findByRole("heading", { name: "Repos from your orgs" }),
+  ).toBeTruthy();
+});
+
+it("needs a repo before going on, since the list would send them back", async () => {
+  onboardingApi({ "GET /api/repos": () => json({ repos: [] }) });
+  renderApp("/onboarding?step=repos");
+  expect(
+    await screen.findByText("Pick at least one repo to go on."),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole<HTMLButtonElement>("button", { name: "Next" }).disabled,
+  ).toBe(true);
+});
+
+it("doesn't block Next when the watched repos can't load", async () => {
+  onboardingApi({
+    "GET /api/repos": () => apiError(500, "server_error", "Something broke"),
+  });
+  renderApp("/onboarding?step=repos");
+  await screen.findByRole("heading", { name: "Pick the repos to watch" });
+  await vi.waitFor(() =>
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", { name: "Next" }).disabled,
+    ).toBe(false),
+  );
+});
