@@ -4,7 +4,7 @@ import type {
   ListSection,
   ShowAuthors,
 } from "@pr-peek/core";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Navigate, useSearchParams } from "react-router";
 import { AddPrDialog } from "../components/AddPrDialog";
 import { Toast, type ToastMessage } from "../components/Toast";
@@ -203,6 +203,7 @@ function ListBody({
   onShown: () => void;
 }) {
   const items = useItems();
+  const promptId = useId();
   useShowRow(added, items.data, onShown);
 
   if (items.isPending) return <p className={styles.message}>Loading</p>;
@@ -225,10 +226,11 @@ function ListBody({
       {/* Quiet on purpose: adding by link is now and then. Pasting or dropping a link
           on the list works too. */}
       <p className={styles.addLine}>
-        Following a PR elsewhere?{" "}
-        <button type="button" className={styles.addLink} onClick={onAdd}>
+        <span id={promptId}>Following a PR elsewhere?</span>
+        {/* The prompt says what "it" is, for screen readers too. */}
+        <Button variant="link" aria-describedby={promptId} onClick={onAdd}>
           Add it by link
-        </button>
+        </Button>
       </p>
     </>
   );

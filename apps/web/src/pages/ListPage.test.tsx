@@ -832,6 +832,18 @@ describe("tray mode", () => {
 });
 
 describe("empty and error states", () => {
+  it("offers adding a PR by link under the list, saying what it's for", async () => {
+    fakeApi(listApi());
+    renderApp("/");
+    // The prompt describes the button, so "it" makes sense on its own too.
+    expect(
+      await screen.findByRole("button", {
+        name: "Add it by link",
+        description: "Following a PR elsewhere?",
+      }),
+    ).toBeTruthy();
+  });
+
   it("says when nothing needs you", async () => {
     fakeApi(listApi());
     renderApp("/");

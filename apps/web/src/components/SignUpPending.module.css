@@ -66,13 +66,3 @@
 }
 
 /* Reads as a link, but it's an action, so it's a button. */
-.link {
-  min-height: var(--touch-target);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-accent);
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
-}

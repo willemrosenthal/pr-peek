@@ -24,6 +24,7 @@ import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cx } from "../cx";
 import { unflagAction } from "../important";
 import { usePrPreview } from "../queries";
+import { Button } from "./Button";
 import { GitHubHtml } from "./GitHubHtml";
 import { avatarUrl } from "./ItemRow";
 import styles from "./PrPreview.module.css";
@@ -240,13 +241,9 @@ function Sheet({
         {preview.isError && (
           <div className={cx(styles.card, styles.cardBody, styles.error)}>
             <p>Couldn't load the details.</p>
-            <button
-              type="button"
-              className={styles.link}
-              onClick={() => void preview.refetch()}
-            >
+            <Button variant="link" onClick={() => void preview.refetch()}>
               Try again
-            </button>
+            </Button>
           </div>
         )}
         {data?.bodyHtml && (
@@ -335,7 +332,7 @@ function Comments({
         <>
           <button
             type="button"
-            className={cx(styles.link, styles.more)}
+            className={styles.more}
             aria-expanded={open}
             onClick={() => setOpen(!open)}
           >

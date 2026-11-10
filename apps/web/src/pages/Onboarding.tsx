@@ -245,13 +245,9 @@ function ReposStep({ onNext }: { onNext: () => void }) {
         ) : (
           "Missing an org's repos?"
         )}{" "}
-        <button
-          type="button"
-          className={styles.linkButton}
-          onClick={() => setAdding(newToken())}
-        >
+        <Button variant="link" onClick={() => setAdding(newToken())}>
           {saved ? "Add another" : "Add a token"}
-        </button>
+        </Button>
       </p>
       <WatchedRepos />
       <RepoPicker />

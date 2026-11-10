@@ -467,23 +467,20 @@
   padding: var(--space-4);
 }
 
-.link {
-  padding: 0;
+/* A full-width toggle above the comments, in the accent color. */
+.more {
+  display: block;
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: 0 var(--space-4);
   border: none;
   background: none;
   color: var(--color-accent);
   font: inherit;
   font-size: var(--text-md);
   font-weight: 600;
-  cursor: pointer;
-}
-
-.more {
-  display: block;
-  width: 100%;
-  min-height: var(--touch-target);
-  padding: 0 var(--space-4);
   text-align: left;
+  cursor: pointer;
 }
 
 /* Earlier comments open fast, with a little rise as they come in. The grid row grows

@@ -63,28 +63,13 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
+  /* Flex drops the space between the words and the button, so a gap stands in. */
+  column-gap: var(--space-1);
   margin: 0;
   padding: 0 14px;
   border-top: 1px solid var(--color-divider);
   color: var(--color-text-tertiary);
   font-size: var(--text-sm);
-}
-
-.addLink {
-  min-height: var(--touch-target);
-  padding: 0 var(--space-1);
-  border: 0;
-  background: none;
-  color: var(--color-accent);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-@media (hover: hover) {
-  .addLink:hover {
-    text-decoration: underline;
-  }
 }
 
 .emptyTitle {
