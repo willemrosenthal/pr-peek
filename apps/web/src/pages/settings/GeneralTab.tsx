@@ -59,6 +59,7 @@ export function GeneralTab() {
   return (
     <>
       <TabHeading title="General">Signed in as {data?.user.login}</TabHeading>
+      {inInstalledApp && <NotificationsCard />}
       {settings.isError && <Alert>{settings.error.message}</Alert>}
       {settings.data && (
         <Card label="General settings">
@@ -78,7 +79,6 @@ export function GeneralTab() {
         </Card>
       )}
       <Card label="This device">
-        {inInstalledApp && <NotificationsRow />}
         <SizeRow />
         <SectionOrderRow />
       </Card>
@@ -180,12 +180,14 @@ const scaleAt = (step: string) => SCALES[Number(step)] ?? 1;
 // Applies the size when the user lets go. Resizing mid-drag would move the slider under
 // the pointer and pick another size by accident.
 // Where to turn notifications on after "Not now" on the list, or to see why they're off.
-function NotificationsRow() {
+function NotificationsCard() {
   return (
-    <CardRow>
-      <RowText label="Notifications" />
-      <TurnOnNotifications />
-    </CardRow>
+    <Card label="Notifications">
+      <CardRow>
+        <RowText label="Notifications" hint="On this device." />
+        <TurnOnNotifications />
+      </CardRow>
+    </Card>
   );
 }
 

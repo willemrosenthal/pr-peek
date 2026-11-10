@@ -262,9 +262,14 @@ it("offers notifications on this device in the installed app, for after Not now"
     }),
   );
   renderApp("/settings/general");
-  const card = await screen.findByRole("list", { name: "This device" });
+  const card = await screen.findByRole("list", { name: "Notifications" });
   expect(
     await within(card).findByRole("button", { name: "Turn on notifications" }),
+  ).toBeTruthy();
+  // Its own card, above the others.
+  const general = await screen.findByRole("list", { name: "General settings" });
+  expect(
+    card.compareDocumentPosition(general) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
 });
 
@@ -287,5 +292,5 @@ it("leaves notifications out in a browser tab", async () => {
   fakeApi(signedInApi());
   renderApp("/settings/general");
   await screen.findByRole("list", { name: "This device" });
-  expect(screen.queryByText("Notifications")).toBe(null);
+  expect(screen.queryByRole("list", { name: "Notifications" })).toBe(null);
 });
