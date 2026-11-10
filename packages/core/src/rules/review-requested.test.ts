@@ -215,67 +215,37 @@ describe("waiting on the author", () => {
     });
   });
 
-  it("is your turn again when the author replies", () => {
+  it("keeps waiting when the author replies or pushes", () => {
     const pr = {
       ...commentedAt(10),
-      comments: [comment("C_1", "jlee", 15), comment("C_2", "sam", 20)],
-    };
-    expect(detect(pr)[0]).toMatchObject({
-      latestEventId: `RR_1:${at(10)}`,
-      occurredAt: at(20),
-      waitingSince: at(20),
-      waitingOnAuthor: false,
-    });
-  });
-
-  it("makes no new event when the author keeps going", () => {
-    const pr = {
-      ...commentedAt(10),
-      comments: [comment("C_2", "sam", 20)],
+      comments: [comment("C_1", "sam", 20)],
       headSha: "def456",
       headCommittedAt: at(30),
     };
     expect(detect(pr)[0]).toMatchObject({
-      latestEventId: `RR_1:${at(10)}`,
-      waitingSince: at(20),
+      kind: "review_requested",
+      latestEventId: "RR_1",
+      occurredAt: at(10),
+      waitingOnAuthor: true,
     });
   });
 
-  it("is your turn again when the author pushes", () => {
-    const pr = {
-      ...commentedAt(10),
+  it("is a re-request, your turn, when the author asks again", () => {
+    const pr = snapshot({
+      reviewRequests: [me],
+      reviewRequestEvents: [requested("RR_1", 5), requested("RR_2", 30)],
+      reviews: [review("R_1", VIEWER, 10)],
       headSha: "def456",
       headCommittedAt: at(20),
-    };
-    expect(detect(pr)[0]).toMatchObject({
-      latestEventId: `RR_1:${at(10)}`,
-      waitingSince: at(20),
-      waitingOnAuthor: false,
     });
-  });
-
-  it("ignores pushes from before your comment", () => {
-    const pr = {
-      ...commentedAt(10),
-      headSha: "def456",
-      headCommittedAt: at(7),
-    };
-    expect(detect(pr)[0]).toMatchObject({
-      latestEventId: "RR_1",
-      waitingOnAuthor: true,
-    });
-  });
-
-  it("waits again when you answer", () => {
-    const pr = {
-      ...commentedAt(10),
-      comments: [comment("C_2", "sam", 20), comment("C_3", VIEWER, 30)],
-    };
-    expect(detect(pr)[0]).toMatchObject({
-      latestEventId: "RR_1",
-      occurredAt: at(30),
-      waitingOnAuthor: true,
-    });
+    expect(detect(pr)).toEqual([
+      expect.objectContaining({
+        kind: "re_requested",
+        latestEventId: "RR_2",
+        waitingSince: at(30),
+        waitingOnAuthor: false,
+      }),
+    ]);
   });
 
   it("stays a re-request when you comment after one", () => {

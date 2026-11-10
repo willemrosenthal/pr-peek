@@ -700,12 +700,17 @@ describe("items", () => {
       waitingSince: null,
     });
 
-    // Your turn: a new event.
+    // The author answers. That's a reply. The request keeps waiting until they ask again.
     const answered = await sync(user.id, commented(answer), hours(2));
-    expect(answered.result.newEventItemIds).toEqual([before.id]);
-    await db.item.updateMany({ data: { seenAt: NOW } });
+    const replyItem = await itemOf("reply");
+    expect(answered.result.newEventItemIds).toEqual([replyItem.id]);
+    expect(replyItem).toMatchObject({ status: "open", latestEventId: "IC_2" });
+    expect(await itemOf("review_requested")).toMatchObject({
+      latestEventId: "RRE_1",
+      waitingOnAuthor: true,
+    });
 
-    // You answer back. Not new to you, so it stays seen.
+    // You answer back. The reply is done, and the request still waits.
     const reply = {
       ...answer,
       id: "IC_3",
@@ -714,9 +719,9 @@ describe("items", () => {
     };
     const again = await sync(user.id, commented(answer, reply), hours(3));
     expect(again.result.newEventItemIds).toEqual([]);
+    expect(await itemOf("reply")).toMatchObject({ status: "resolved" });
     expect(await itemOf("review_requested")).toMatchObject({
       latestEventId: "RRE_1",
-      seenAt: NOW,
       waitingOnAuthor: true,
     });
   });

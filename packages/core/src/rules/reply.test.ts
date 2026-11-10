@@ -7,6 +7,7 @@ import {
   comment,
   ctx,
   myPr,
+  review,
   snapshot,
   thread,
   VIEWER,
@@ -74,6 +75,37 @@ describe("reply to my comment", () => {
         comment("C_1", VIEWER, 5),
         comment("C_2", "sam", 10, { mentions: ["me"] }),
       ],
+    });
+    expect(detect(pr)).toEqual([]);
+  });
+
+  it("counts the author's conversation comments after yours", () => {
+    const pr = snapshot({
+      comments: [comment("C_1", VIEWER, 5), comment("C_2", "sam", 10)],
+    });
+    expect(detect(pr)).toEqual([
+      expect.objectContaining({ kind: "reply", latestEventId: "C_2" }),
+    ]);
+  });
+
+  it("counts the author's comment after your review", () => {
+    const pr = snapshot({
+      reviews: [review("R_1", VIEWER, 5)],
+      comments: [comment("C_1", "sam", 10)],
+    });
+    expect(detect(pr)).toHaveLength(1);
+  });
+
+  it("ignores conversation comments by others than the author", () => {
+    const pr = snapshot({
+      comments: [comment("C_1", VIEWER, 5), comment("C_2", "jlee", 10)],
+    });
+    expect(detect(pr)).toEqual([]);
+  });
+
+  it("ignores the author's comments from before yours", () => {
+    const pr = snapshot({
+      comments: [comment("C_1", "sam", 5), comment("C_2", VIEWER, 10)],
     });
     expect(detect(pr)).toEqual([]);
   });
