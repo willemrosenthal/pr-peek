@@ -4,7 +4,6 @@ import type {
   ListSection,
   ShowAuthors,
 } from "@pr-peek/core";
-import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, useSearchParams } from "react-router";
 import { AddPrDialog } from "../components/AddPrDialog";
@@ -223,10 +222,14 @@ function ListBody({
     <>
       {total === 0 && <EmptyList />}
       <Sections groups={items.data} onPreview={onPreview} />
-      <button type="button" className={styles.addRow} onClick={onAdd}>
-        <Plus aria-hidden="true" />
-        Add a PR by link
-      </button>
+      {/* Quiet on purpose: adding by link is now and then. Pasting or dropping a link
+          on the list works too. */}
+      <p className={styles.addLine}>
+        Following a PR elsewhere?{" "}
+        <button type="button" className={styles.addLink} onClick={onAdd}>
+          Add it by link
+        </button>
+      </p>
     </>
   );
 }

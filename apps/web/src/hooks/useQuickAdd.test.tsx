@@ -31,7 +31,7 @@ async function setup(
     }),
   );
   renderApp("/");
-  await screen.findByRole("button", { name: "Add a PR by link" });
+  await screen.findByRole("button", { name: "Add it by link" });
   return fetch;
 }
 
@@ -121,7 +121,7 @@ describe("dropping a PR link", () => {
   it("shows where to drop while a link is over the list", async () => {
     await setup();
     const list = screen.getByRole("main");
-    const row = screen.getByRole("button", { name: "Add a PR by link" });
+    const row = screen.getByRole("button", { name: "Add it by link" });
     const dataTransfer = { types: ["text/plain"], getData: () => "" };
     fireEvent.dragEnter(list, { dataTransfer });
     fireEvent.dragOver(list, { dataTransfer });

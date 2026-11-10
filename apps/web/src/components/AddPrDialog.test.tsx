@@ -46,7 +46,7 @@ const dialogButton = (name: RegExp | string) =>
 
 async function openAndType(text: string) {
   await userEvent.click(
-    await screen.findByRole("button", { name: "Add a PR by link" }),
+    await screen.findByRole("button", { name: "Add it by link" }),
   );
   await userEvent.type(await input(), text);
 }
@@ -88,7 +88,7 @@ it("opens on the link field, and closes when the Mac app hides", async () => {
   fakeApi(listApi());
   renderApp("/?shell=tray");
   await userEvent.click(
-    await screen.findByRole("button", { name: "Add a PR by link" }),
+    await screen.findByRole("button", { name: "Add it by link" }),
   );
   await waitFor(async () => expect(document.activeElement).toBe(await input()));
 
@@ -103,9 +103,7 @@ it("starts empty each time it opens", async () => {
   await userEvent.click(dialogButton("Cancel"));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
-  await userEvent.click(
-    screen.getByRole("button", { name: "Add a PR by link" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: "Add it by link" }));
   expect(await input()).toHaveProperty("value", "");
 });
 
