@@ -127,12 +127,17 @@ it("offers it again when the server dropped this device", async () => {
   expect(await turnOnButton()).toBeTruthy();
 });
 
-it.each([
-  ["they're already on", () => stubPush({ subscribed: THIS_ENDPOINT }), true],
-  ["they're blocked", () => stubPush({ permission: "denied" }), false],
-])("doesn't show when %s", async (_name, stub, on) => {
-  stub();
-  installedApp(on ? [device({ endpoint: THIS_ENDPOINT })] : []);
+it("doesn't show when they're already on", async () => {
+  stubPush({ subscribed: THIS_ENDPOINT });
+  installedApp([device({ endpoint: THIS_ENDPOINT })]);
+  renderApp("/");
+  await listShown();
+  expect(prompt()).toBe(null);
+});
+
+it("doesn't show when they're blocked", async () => {
+  stubPush({ permission: "denied" });
+  installedApp([]);
   renderApp("/");
   await listShown();
   expect(prompt()).toBe(null);

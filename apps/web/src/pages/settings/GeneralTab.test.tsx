@@ -19,6 +19,8 @@ import {
   signedInApi,
 } from "../../test/fake-api";
 import { coloredIcon, countStyle } from "../../desktop";
+import { stubDisplayMode } from "../../test/install";
+import { PUBLIC_KEY, stubPush } from "../../test/push";
 import { appScale } from "../../scale";
 import { sectionOrder } from "../../sections";
 import { renderApp } from "../../test/render";
@@ -246,4 +248,44 @@ it("turns launching at login off, only inside the Mac app", async () => {
 
   await userEvent.click(toggle);
   expect(callsOf(invoke, "set_launch_at_login")).toEqual([{ on: false }]);
+});
+
+// Turning them on is tested in NotificationPrompt.test.tsx.
+it("offers notifications on this device in the installed app, for after Not now", async () => {
+  stubDisplayMode({ standalone: true });
+  stubPush();
+  localStorage.setItem("pr-peek:notification-prompt-dismissed", "true");
+  fakeApi(
+    signedInApi({
+      "GET /api/push/key": () => json({ publicKey: PUBLIC_KEY }),
+      "GET /api/push/subscriptions": () => json({ subscriptions: [] }),
+    }),
+  );
+  renderApp("/settings/general");
+  const card = await screen.findByRole("list", { name: "This device" });
+  expect(
+    await within(card).findByRole("button", { name: "Turn on notifications" }),
+  ).toBeTruthy();
+});
+
+it("says when notifications are blocked on this device", async () => {
+  stubDisplayMode({ standalone: true });
+  stubPush({ permission: "denied" });
+  fakeApi(
+    signedInApi({
+      "GET /api/push/key": () => json({ publicKey: PUBLIC_KEY }),
+      "GET /api/push/subscriptions": () => json({ subscriptions: [] }),
+    }),
+  );
+  renderApp("/settings/general");
+  expect(
+    await screen.findByText(/Notifications are blocked for Git Buddy/),
+  ).toBeTruthy();
+});
+
+it("leaves notifications out in a browser tab", async () => {
+  fakeApi(signedInApi());
+  renderApp("/settings/general");
+  await screen.findByRole("list", { name: "This device" });
+  expect(screen.queryByText("Notifications")).toBe(null);
 });

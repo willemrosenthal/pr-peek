@@ -19,6 +19,7 @@ import { RowText } from "../../components/RowText";
 import { SectionOrder } from "../../components/SectionOrder";
 import { SettingSwitch } from "../../components/SettingSwitch";
 import { Switch } from "../../components/Switch";
+import { TurnOnNotifications } from "../../components/TurnOnNotifications";
 import {
   clearTrayState,
   coloredIcon,
@@ -29,6 +30,7 @@ import {
   setLaunchAtLogin,
   type CountStyle,
 } from "../../desktop";
+import { useInInstalledApp } from "../../hooks/useIsTray";
 import { useSettingsSaver } from "../../hooks/useSaveSettings";
 import { useLocalSetting } from "../../localSetting";
 import { queryKeys, useMe, useSettings } from "../../queries";
@@ -41,6 +43,7 @@ export function GeneralTab() {
   const settings = useSettings();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const inInstalledApp = useInInstalledApp();
   // After signing out or deleting the account: nothing of theirs stays on this device.
   const leave = async () => {
     queryClient.clear();
@@ -75,6 +78,7 @@ export function GeneralTab() {
         </Card>
       )}
       <Card label="This device">
+        {inInstalledApp && <NotificationsRow />}
         <SizeRow />
         <SectionOrderRow />
       </Card>
@@ -175,6 +179,16 @@ const scaleAt = (step: string) => SCALES[Number(step)] ?? 1;
 
 // Applies the size when the user lets go. Resizing mid-drag would move the slider under
 // the pointer and pick another size by accident.
+// Where to turn notifications on after "Not now" on the list, or to see why they're off.
+function NotificationsRow() {
+  return (
+    <CardRow>
+      <RowText label="Notifications" />
+      <TurnOnNotifications />
+    </CardRow>
+  );
+}
+
 function SizeRow() {
   const saved = useLocalSetting(appScale);
   const [dragging, setDragging] = useState<number | null>(null);

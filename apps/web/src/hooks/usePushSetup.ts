@@ -12,6 +12,8 @@ import {
 // the Home Screen app, or push turned off on the server.
 export type PushStatus = "unavailable" | "blocked" | "off" | "on";
 
+export type PushSetup = ReturnType<typeof usePushSetup>;
+
 // Whether this device gets notifications, and a way to turn them on. `status` is
 // undefined while it loads.
 export function usePushSetup() {

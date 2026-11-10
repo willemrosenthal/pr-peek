@@ -1,4 +1,4 @@
-import { usePushSetup } from "../hooks/usePushSetup";
+import { usePushSetup, type PushSetup } from "../hooks/usePushSetup";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import styles from "./Notifications.module.css";
@@ -26,15 +26,22 @@ export function TurnOnNotifications() {
     case "off":
       return (
         <div className={styles.turnOn}>
-          <Button
-            variant="primary"
-            disabled={!push.turnOn || push.turningOn}
-            onClick={push.turnOn}
-          >
-            Turn on notifications
-          </Button>
+          <TurnOnButton push={push} />
           {push.error && <Alert>{push.error.message}</Alert>}
         </div>
       );
   }
+}
+
+// Asks for permission and saves this device. Waits for the push key.
+export function TurnOnButton({ push }: { push: PushSetup }) {
+  return (
+    <Button
+      variant="primary"
+      disabled={!push.turnOn || push.turningOn}
+      onClick={push.turnOn}
+    >
+      Turn on notifications
+    </Button>
+  );
 }
