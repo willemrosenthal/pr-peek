@@ -1,10 +1,10 @@
-import { MAX_TOKENS } from "@pr-peek/core";
+import { MAX_TOKENS, type TokenDto, type TokensResponse } from "@pr-peek/core";
 import { useMutation } from "@tanstack/react-query";
 import { Building2, Check, User } from "lucide-react";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { api } from "../api";
-import { AddTokenSheet } from "../components/AddToken";
+import { AddTokenSheet, type Adding } from "../components/AddToken";
 import { Alert } from "../components/Alert";
 import { Button } from "../components/Button";
 import { Card, CardRow } from "../components/Card";
@@ -18,7 +18,7 @@ import { useIsTray } from "../hooks/useIsTray";
 import { pushSupport } from "../push";
 import { useGitHubTokens } from "../queries";
 import { detectedTimezone, timezoneOptions } from "../timezones";
-import { reachText } from "../tokens";
+import { reachText, stateOf } from "../tokens";
 import styles from "./Onboarding.module.css";
 
 // Org tokens come before repos, so the picker can list the orgs' repos.
@@ -28,8 +28,8 @@ type Step = (typeof STEPS)[number];
 // First run, after signing in with GitHub for the first time.
 export function Onboarding() {
   const [step, setStep] = useState<Step>("orgs");
-  const next = () => setStep(STEPS[STEPS.indexOf(step) + 1] ?? "done");
   const at = STEPS.indexOf(step);
+  const next = () => setStep(STEPS[at + 1] ?? "done");
 
   return (
     <main className={styles.page}>
@@ -59,19 +59,20 @@ export function Onboarding() {
   );
 }
 
-// The add token sheet, open while `open` is true. `onSaved` runs once a token saves.
+// Set as a new object each time, so the sheet starts a fresh form.
+const newToken = (): Adding => ({ replacing: null });
+
+// The add token sheet, with the user's tokens. Null `adding` closes it.
 function TokenSheet({
-  open,
+  adding,
   onSaved,
   onClose,
 }: {
-  open: boolean;
+  adding: Adding | null;
   onSaved: () => void;
   onClose: () => void;
 }) {
   const tokens = useGitHubTokens();
-  // A new object each opening, so the sheet starts a fresh form.
-  const adding = useMemo(() => (open ? { replacing: null } : null), [open]);
   return (
     <AddTokenSheet
       adding={adding}
@@ -109,13 +110,44 @@ function AccessRow({
   );
 }
 
+// A saved token's row: its name, what it reaches when that says more, and whether it
+// works.
+function TokenRow({
+  token,
+  syncedBy,
+}: {
+  token: TokenDto;
+  syncedBy: TokensResponse["syncedBy"];
+}) {
+  const reach = reachText(token, syncedBy);
+  const stopped = stateOf(token) === "stopped";
+  return (
+    <AccessRow
+      icon={<Building2 />}
+      label={
+        <>
+          <strong>{token.name}</strong>
+          {/* A new token is named after its org, so don't say it twice. */}
+          {reach !== token.name && (
+            <span className={styles.reach}>{reach}</span>
+          )}
+        </>
+      }
+      ready={!stopped}
+      status={stopped ? "Stopped working" : "Added"}
+    />
+  );
+}
+
 // Orgs usually block outside apps, so their repos need a token. Skippable: the repos
 // step offers it again, and so does Settings.
 function OrgsStep({ onNext }: { onNext: () => void }) {
   const tokens = useGitHubTokens();
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<Adding | null>(null);
   const list = tokens.data?.tokens ?? [];
   const syncedBy = tokens.data?.syncedBy ?? [];
+  // A classic token reaches every org, so there's no need for one per org.
+  const hasClassic = list.some((token) => token.kind === "classic");
 
   return (
     <section className={styles.step}>
@@ -135,23 +167,7 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
           />
         ) : (
           list.map((token) => (
-            <AccessRow
-              key={token.id}
-              icon={<Building2 />}
-              label={
-                <>
-                  <strong>{token.name}</strong>
-                  {/* A new token is named after its org, so don't say it twice. */}
-                  {reachText(token, syncedBy) !== token.name && (
-                    <span className={styles.reach}>
-                      {reachText(token, syncedBy)}
-                    </span>
-                  )}
-                </>
-              }
-              ready
-              status="Added"
-            />
+            <TokenRow key={token.id} token={token} syncedBy={syncedBy} />
           ))
         )}
       </Card>
@@ -159,7 +175,7 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
       <div className={styles.actions}>
         {list.length === 0 ? (
           <>
-            <Button variant="primary" onClick={() => setAdding(true)}>
+            <Button variant="primary" onClick={() => setAdding(newToken())}>
               Add a token
             </Button>
             <Button onClick={onNext}>Skip for now</Button>
@@ -170,7 +186,7 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
               Next
             </Button>
             {list.length < MAX_TOKENS && (
-              <Button onClick={() => setAdding(true)}>Add another</Button>
+              <Button onClick={() => setAdding(newToken())}>Add another</Button>
             )}
           </>
         )}
@@ -178,20 +194,22 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
       <p className={styles.note}>
         {list.length === 0
           ? "No orgs, or not sure? Skip it. If an org's repos are missing on the next step, you can add a token there."
-          : "A fine-grained token covers one org. Add one for each org you work in."}{" "}
+          : hasClassic
+            ? "A classic token covers every org you're in."
+            : "A fine-grained token covers one org. Add one for each org you work in."}{" "}
         Tokens are encrypted, and only ever read your repos.
       </p>
       <TokenSheet
-        open={adding}
-        onSaved={() => setAdding(false)}
-        onClose={() => setAdding(false)}
+        adding={adding}
+        onSaved={() => setAdding(null)}
+        onClose={() => setAdding(null)}
       />
     </section>
   );
 }
 
 function ReposStep({ onNext }: { onNext: () => void }) {
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<Adding | null>(null);
   const [saved, setSaved] = useState(false);
   const finish = () => {
     // Starts a first sync, so the list isn't empty. A refused one waits for the schedule.
@@ -204,22 +222,23 @@ function ReposStep({ onNext }: { onNext: () => void }) {
       <p className={styles.hint}>
         Git Buddy only looks at these. You can change them later in settings.
       </p>
-      {saved ? (
-        <p className={styles.saved} role="status">
-          Token saved. Its org's repos show below.
-        </p>
-      ) : (
-        <p className={styles.hint}>
-          Missing an org's repos?{" "}
-          <button
-            type="button"
-            className={styles.linkButton}
-            onClick={() => setAdding(true)}
-          >
-            Add a token
-          </button>
-        </p>
-      )}
+      {/* Stays after a save, for a second org. */}
+      <p className={styles.hint}>
+        {saved ? (
+          <span className={styles.saved} role="status">
+            Token saved. Its repos show below.
+          </span>
+        ) : (
+          "Missing an org's repos?"
+        )}{" "}
+        <button
+          type="button"
+          className={styles.linkButton}
+          onClick={() => setAdding(newToken())}
+        >
+          {saved ? "Add another" : "Add a token"}
+        </button>
+      </p>
       <WatchedRepos />
       <RepoPicker />
       <div>
@@ -228,12 +247,12 @@ function ReposStep({ onNext }: { onNext: () => void }) {
         </Button>
       </div>
       <TokenSheet
-        open={adding}
+        adding={adding}
         onSaved={() => {
-          setAdding(false);
+          setAdding(null);
           setSaved(true);
         }}
-        onClose={() => setAdding(false)}
+        onClose={() => setAdding(null)}
       />
     </section>
   );

@@ -204,7 +204,14 @@ it("starts by explaining org repos need a token, and adds one there", async () =
   expect(await screen.findByText("Added")).toBeTruthy();
   expect(screen.queryByText("Needs a token")).toBe(null);
   expect(screen.queryByRole("button", { name: "Skip for now" })).toBe(null);
-  expect(screen.getByRole("button", { name: "Add another" })).toBeTruthy();
+
+  // A fresh form, not the last token's.
+  await userEvent.click(screen.getByRole("button", { name: "Add another" }));
+  expect(
+    await screen.findByLabelText("Copy it, then paste it here"),
+  ).toBeTruthy();
+  expect(screen.queryByText("GitHub accepted it.")).toBe(null);
+  await userEvent.click(screen.getByRole("button", { name: "Close" }));
 
   await next();
   expect(
@@ -223,9 +230,34 @@ it("offers a token on the repos step, and reloads the picker's owners after", as
   await userEvent.click(screen.getByRole("button", { name: "Save token" }));
 
   expect(
-    await screen.findByText("Token saved. Its org's repos show below."),
+    await screen.findByText("Token saved. Its repos show below."),
   ).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Add another" })).toBeTruthy();
   await vi.waitFor(() =>
     expect(callsTo(fetch, "/api/github/owners").length).toBeGreaterThan(before),
   );
+});
+
+it("says when a saved token stopped working, and that a classic one covers every org", async () => {
+  onboardingApi({
+    "GET /api/github-tokens": () =>
+      json({
+        tokens: [
+          githubToken({
+            kind: "classic",
+            name: "Work",
+            owners: [],
+            status: "stopped",
+          }),
+        ],
+        syncedBy: [],
+      }),
+  });
+  renderApp("/onboarding");
+
+  expect(await screen.findByText("Stopped working")).toBeTruthy();
+  expect(screen.queryByText("Added")).toBe(null);
+  expect(
+    screen.getByText(/A classic token covers every org you're in/),
+  ).toBeTruthy();
 });
