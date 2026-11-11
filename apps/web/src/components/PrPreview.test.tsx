@@ -22,7 +22,13 @@ import {
   vi,
 } from "vitest";
 import { apiError, fakeApi, important, item, json } from "../test/fake-api";
-import { COPIED_MS, HOLD_MS, PrPreview, type PreviewTarget } from "./PrPreview";
+import {
+  COPIED_MS,
+  HOLD_MS,
+  LIFT_GRACE_MS,
+  PrPreview,
+  type PreviewTarget,
+} from "./PrPreview";
 import styles from "./PrPreview.module.css";
 
 const comment = (
@@ -412,6 +418,48 @@ describe("Open's menu", () => {
     expect(screen.getByRole("menuitem", { name: "Copy link" })).toBeTruthy();
     fireEvent.touchEnd(open);
     expect(clickOpens(open)).toBe(false);
+  });
+
+  // What a phone sends as a finger lifts after the menu opened under it. The menu is
+  // in the way by then, so the press lands outside the menu.
+  function lift(link: Element) {
+    fireEvent.touchEnd(link);
+    fireEvent.pointerUp(document.body, { pointerType: "touch" });
+    fireEvent.mouseDown(document.body);
+    fireEvent.mouseUp(document.body);
+    fireEvent.click(document.body);
+  }
+
+  // A new tap outside the menu.
+  function tapOutside() {
+    fireEvent.pointerDown(document.body, { pointerType: "touch" });
+    fireEvent.touchStart(document.body, touch(5));
+    fireEvent.touchEnd(document.body);
+    fireEvent.pointerUp(document.body, { pointerType: "touch" });
+    fireEvent.mouseDown(document.body);
+    fireEvent.mouseUp(document.body);
+    fireEvent.click(document.body);
+  }
+
+  it("keeps the menu open as the holding finger lifts", async () => {
+    const { open } = setupOpen();
+    fireEvent.touchStart(open, touch(200));
+    wait(HOLD_MS);
+    expect(await screen.findByRole("menu")).toBeTruthy();
+    lift(open);
+    wait(100);
+    expect(screen.getByRole("menu")).toBeTruthy();
+  });
+
+  it("closes the menu on a tap outside, once the finger has lifted", async () => {
+    const { open } = setupOpen();
+    fireEvent.touchStart(open, touch(200));
+    wait(HOLD_MS);
+    await screen.findByRole("menu");
+    lift(open);
+    wait(LIFT_GRACE_MS);
+    tapOutside();
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
   });
 
   it("lets a drag move the sheet instead", () => {

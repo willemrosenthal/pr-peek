@@ -64,6 +64,13 @@ const CLOSE_MIN_PX = 80;
 export const HOLD_MS = 500;
 // A finger that moves further than this is dragging the sheet, not holding.
 const HOLD_SLOP_PX = 10;
+// After a held finger opens the menu, how long after it lifts the menu ignores taps
+// outside it. The lift, and the click a phone sends after it, land outside the menu.
+export const LIFT_GRACE_MS = 400;
+const LIFT_CLOSES: ReadonlySet<string> = new Set([
+  "outside-press",
+  "focus-out",
+]);
 // How long Open says "Copied" after its link is copied.
 export const COPIED_MS = 1_500;
 
@@ -284,34 +291,54 @@ function OpenLink({ url }: { url: string }) {
   const linkRef = useRef<HTMLAnchorElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  // The hold's timer, and what stops watching the finger move.
-  const hold = useRef<{ timer: number; stopWatching: () => void } | null>(null);
+  // The finger on Open, from touching down to lifting: its hold timer (gone once it
+  // moved or the menu opened), and what stops watching it.
+  const finger = useRef<{
+    holdTimer: number | undefined;
+    stopWatching: () => void;
+  } | null>(null);
+  // The menu opened under a finger that's still down or just lifted. See LIFT_GRACE_MS.
+  const guarding = useRef(false);
+  const guardTimer = useRef<number | undefined>(undefined);
   // Puts "Open" back after "Copied".
   const copiedTimer = useRef<number | undefined>(undefined);
 
-  const endHold = () => {
-    if (!hold.current) return;
-    clearTimeout(hold.current.timer);
-    hold.current.stopWatching();
-    hold.current = null;
+  const cancelHold = () => {
+    if (!finger.current) return;
+    clearTimeout(finger.current.holdTimer);
+    finger.current.holdTimer = undefined;
   };
+
+  const endTouch = () => {
+    cancelHold();
+    finger.current?.stopWatching();
+    finger.current = null;
+  };
+
   useEffect(
     () => () => {
-      endHold();
+      clearTimeout(finger.current?.holdTimer);
+      finger.current?.stopWatching();
+      clearTimeout(guardTimer.current);
       clearTimeout(copiedTimer.current);
     },
     [],
   );
 
+  // Also from a long press on Android, which sends a right click while the finger is down.
   const openMenu = () => {
-    endHold();
+    if (finger.current) {
+      cancelHold();
+      guarding.current = true;
+      clearTimeout(guardTimer.current);
+    }
     setMenuOpen(true);
   };
 
   // Watches the finger on the whole page, like the sheet does. Once the sheet starts
   // dragging, it stops the moves from reaching the link.
   const onTouchStart = (event: TouchEvent) => {
-    endHold();
+    endTouch();
     const touch = event.touches[0];
     if (event.touches.length !== 1 || !touch) return;
     const start = { x: touch.clientX, y: touch.clientY };
@@ -319,15 +346,43 @@ function OpenLink({ url }: { url: string }) {
       const now = move.touches[0];
       if (!now) return;
       const moved = Math.hypot(now.clientX - start.x, now.clientY - start.y);
-      if (moved > HOLD_SLOP_PX) endHold();
+      if (moved > HOLD_SLOP_PX) cancelHold();
+    };
+    const onEnd = () => {
+      endTouch();
+      if (!guarding.current) return;
+      guardTimer.current = window.setTimeout(
+        () => (guarding.current = false),
+        LIFT_GRACE_MS,
+      );
     };
     const options = { capture: true, passive: true };
-    document.addEventListener("touchmove", onMove, options);
-    hold.current = {
-      timer: window.setTimeout(openMenu, HOLD_MS),
-      stopWatching: () =>
-        document.removeEventListener("touchmove", onMove, options),
+    const listeners = [
+      ["touchmove", onMove],
+      ["touchend", onEnd],
+      ["touchcancel", onEnd],
+    ] as const;
+    for (const [type, listener] of listeners) {
+      document.addEventListener(type, listener, options);
+    }
+    finger.current = {
+      holdTimer: window.setTimeout(openMenu, HOLD_MS),
+      stopWatching: () => {
+        for (const [type, listener] of listeners) {
+          document.removeEventListener(type, listener, options);
+        }
+      },
     };
+  };
+
+  // While guarding, a press outside the menu, or focus leaving it, is the lift.
+  const onOpenChange = (
+    open: boolean,
+    { reason }: Menu.Root.ChangeEventDetails,
+  ) => {
+    if (!open && guarding.current && LIFT_CLOSES.has(reason)) return;
+    if (!open) guarding.current = false;
+    setMenuOpen(open);
   };
 
   // Open never says "Copied" if the browser refuses, which tells the person enough.
@@ -355,8 +410,6 @@ function OpenLink({ url }: { url: string }) {
         target="_blank"
         rel="noopener noreferrer"
         onTouchStart={onTouchStart}
-        onTouchEnd={endHold}
-        onTouchCancel={endHold}
         // A right click, or a long press where the browser sends one (Android).
         onContextMenu={(event) => {
           event.preventDefault();
@@ -374,7 +427,7 @@ function OpenLink({ url }: { url: string }) {
           <ExternalLink aria-hidden="true" />
         )}
       </a>
-      <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}>
+      <Menu.Root open={menuOpen} onOpenChange={onOpenChange}>
         <Menu.Portal>
           <Menu.Positioner
             className={styles.menuPositioner}
