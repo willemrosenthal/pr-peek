@@ -146,14 +146,6 @@
   cursor: pointer;
 }
 
-/* Only with a real pointer, so a tap doesn't leave it highlighted. */
-@media (hover: hover) {
-  .barButton:hover {
-    background: var(--color-hover);
-    color: var(--color-accent);
-  }
-}
-
 .barButton svg {
   width: 18px;
   height: 18px;
@@ -161,6 +153,66 @@
 
 .open {
   font-weight: 600;
+  /* A held finger opens our menu, not the phone's own link menu. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+}
+
+/* Open's menu, over the sheet. */
+.menuPositioner {
+  z-index: 110;
+  outline: 0;
+}
+
+.menu {
+  box-sizing: border-box;
+  min-width: 160px;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity 0.12s,
+    transform 0.12s;
+  outline: 0;
+}
+
+.menu[data-starting-style],
+.menu[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--text-lg);
+  cursor: default;
+  outline: 0;
+  user-select: none;
+}
+
+.menuItem[data-highlighted] {
+  background: var(--color-hover);
+}
+
+.menuItem svg {
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-secondary);
+}
+
+@media (pointer: coarse) {
+  .menuItem {
+    min-height: var(--touch-target);
+  }
 }
 
 /* Scrolls on its own, so the top bar stays put. */
@@ -543,6 +595,7 @@
 @media (prefers-reduced-motion: reduce) {
   .backdrop,
   .popup,
+  .menu,
   .earlier {
     transition: none;
   }

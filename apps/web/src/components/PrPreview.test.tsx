@@ -4,11 +4,25 @@ import type {
   PrPreviewResponse,
 } from "@pr-peek/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import { apiError, fakeApi, important, item, json } from "../test/fake-api";
-import { PrPreview, type PreviewTarget } from "./PrPreview";
+import { COPIED_MS, HOLD_MS, PrPreview, type PreviewTarget } from "./PrPreview";
 import styles from "./PrPreview.module.css";
 
 const comment = (
@@ -298,4 +312,122 @@ it("offers to try again when the details don't load", async () => {
   await waitFor(() =>
     expect(screen.getByText("See the screenshots.")).toBeTruthy(),
   );
+});
+
+describe("Open's menu", () => {
+  beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+  afterEach(() => vi.useRealTimers());
+
+  // user-event puts in its own clipboard, so these tests use fireEvent.
+  function stubClipboard() {
+    const writeText = vi.fn(() => Promise.resolve());
+    const before = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    onTestFinished(() => {
+      if (before) Object.defineProperty(navigator, "clipboard", before);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    });
+    return writeText;
+  }
+
+  const touch = (x: number) => ({ touches: [{ clientX: x, clientY: 20 }] });
+
+  const wait = (ms: number) =>
+    act(() => {
+      vi.advanceTimersByTime(ms);
+    });
+
+  // Whether a click on `link` would open it. The test browser can't open links, so the
+  // click is stopped after the check.
+  function clickOpens(link: Element) {
+    let opens = false;
+    const check = (event: Event) => {
+      opens = !event.defaultPrevented;
+      event.preventDefault();
+    };
+    document.addEventListener("click", check, { once: true });
+    fireEvent.click(link);
+    return opens;
+  }
+
+  function setupOpen() {
+    const sheet = setup(() => json(preview()));
+    return { ...sheet, open: screen.getByRole("link", { name: "Open" }) };
+  }
+
+  it("copies the PR's link from a right click, and says so for a moment", async () => {
+    const writeText = stubClipboard();
+    const { row, onClose, open } = setupOpen();
+    expect(fireEvent.contextMenu(open)).toBe(false);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Copy link" }));
+    expect(writeText).toHaveBeenCalledWith(row.pr.url);
+    expect(await screen.findByRole("link", { name: "Copied" })).toBeTruthy();
+    // The sheet stays open.
+    expect(onClose).not.toHaveBeenCalled();
+    // Halfway steps, since this fake clock also moves a little on its own.
+    wait(COPIED_MS / 2);
+    expect(screen.getByRole("link", { name: "Copied" })).toBeTruthy();
+    wait(COPIED_MS / 2);
+    expect(screen.getByRole("link", { name: "Open" })).toBeTruthy();
+  });
+
+  it("says Copied for the full time again after copying again", async () => {
+    stubClipboard();
+    const { open } = setupOpen();
+    const copy = async () => {
+      fireEvent.contextMenu(open);
+      fireEvent.click(
+        await screen.findByRole("menuitem", { name: "Copy link" }),
+      );
+      await screen.findByRole("link", { name: "Copied" });
+    };
+    await copy();
+    wait(COPIED_MS * 0.75);
+    await copy();
+    // Past the first copy's time, but not the second's.
+    wait(COPIED_MS * 0.75);
+    expect(screen.getByRole("link", { name: "Copied" })).toBeTruthy();
+    wait(COPIED_MS / 2);
+    expect(screen.getByRole("link", { name: "Open" })).toBeTruthy();
+  });
+
+  it("opens the link again once the menu closes", async () => {
+    const { open } = setupOpen();
+    fireEvent.contextMenu(open);
+    expect(clickOpens(open)).toBe(false);
+    fireEvent.keyDown(await screen.findByRole("menu"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(clickOpens(open)).toBe(true);
+  });
+
+  it("opens the menu after a held finger, and not the link", () => {
+    const { open } = setupOpen();
+    fireEvent.touchStart(open, touch(200));
+    wait(HOLD_MS - 1);
+    expect(screen.queryByRole("menuitem")).toBeNull();
+    wait(1);
+    expect(screen.getByRole("menuitem", { name: "Copy link" })).toBeTruthy();
+    fireEvent.touchEnd(open);
+    expect(clickOpens(open)).toBe(false);
+  });
+
+  it("lets a drag move the sheet instead", () => {
+    const { open } = setupOpen();
+    fireEvent.touchStart(open, touch(200));
+    fireEvent.touchMove(open, touch(230));
+    wait(HOLD_MS);
+    expect(screen.queryByRole("menuitem")).toBeNull();
+  });
+
+  it("leaves a tap to open the link", () => {
+    const { open } = setupOpen();
+    fireEvent.touchStart(open, touch(200));
+    fireEvent.touchEnd(open);
+    wait(HOLD_MS);
+    expect(screen.queryByRole("menuitem")).toBeNull();
+    expect(clickOpens(open)).toBe(true);
+  });
 });
