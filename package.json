@@ -30,6 +30,8 @@
     "e2e": "pnpm --filter @pr-peek/web e2e",
     "desktop": "pnpm --filter @pr-peek/desktop tauri dev",
     "desktop:build": "pnpm --filter @pr-peek/desktop tauri build --bundles app",
+    "ios": "pnpm --filter @pr-peek/ios open",
+    "ios:sync": "pnpm --filter @pr-peek/ios cap sync ios",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

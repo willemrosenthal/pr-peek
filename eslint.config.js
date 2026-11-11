@@ -12,6 +12,8 @@ export default defineConfig(
       "**/coverage/**",
       "apps/server/src/generated/**",
       "apps/desktop/src-tauri/target/**",
+      // Made by Capacitor (`cap add ios`), with a copy of the web assets.
+      "apps/ios/ios/**",
     ],
   },
   js.configs.recommended,
@@ -37,7 +39,7 @@ export default defineConfig(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
-    files: ["apps/server/**/*.ts"],
+    files: ["apps/server/**/*.ts", "apps/ios/**/*.ts"],
     languageOptions: { globals: globals.node },
   },
   {

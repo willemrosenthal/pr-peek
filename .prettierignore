@@ -4,3 +4,5 @@ pnpm-lock.yaml
 apps/server/src/generated
 apps/server/prisma/migrations
 pr-description.md
+# Made by Capacitor (`cap add ios`, `cap sync`).
+apps/ios/ios

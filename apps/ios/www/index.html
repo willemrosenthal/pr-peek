@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Git Buddy</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --page: #f2f2f5;
+        --text: #5a5a60;
+        --accent: #0b57d0;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --page: #111113;
+          --text: #b4b4bb;
+          --accent: #8ab4ff;
+        }
+      }
+
+      body {
+        margin: 0;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        padding: 24px;
+        box-sizing: border-box;
+        font-family: -apple-system, sans-serif;
+        text-align: center;
+        color: var(--text);
+        background: var(--page);
+      }
+
+      a {
+        color: var(--accent);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- The app shows this when it can't load www.git-buddy.com (capacitor.config.ts). -->
+    <div>
+      <p>Git Buddy needs the internet. Check your connection.</p>
+      <p><a href="https://www.git-buddy.com/?shell=ios">Try again</a></p>
+    </div>
+  </body>
+</html>
