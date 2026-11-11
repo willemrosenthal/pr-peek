@@ -74,6 +74,9 @@ describe("GET /api/settings", () => {
       quietWeekends: false,
       highBreaksQuiet: false,
       digestTime: null,
+      keptQuietStart: null,
+      keptQuietEnd: null,
+      keptDigestTime: null,
       hideBots: false,
       includeTeamRequests: true,
       showAuthors: "off",
@@ -111,6 +114,29 @@ describe("PATCH /api/settings", () => {
     });
     const cleared = await patchSettings(agent, { quietStart: null });
     expect(bodyOf<SettingsResponse>(cleared).settings.quietStart).toBeNull();
+  });
+
+  it("keeps the last times set while quiet hours and the summary are off", async () => {
+    const { agent } = await setup();
+    await patchSettings(agent, {
+      quietStart: "22:00",
+      quietEnd: "07:30",
+      digestTime: "08:15",
+    });
+    const off = await patchSettings(agent, {
+      quietStart: null,
+      quietEnd: null,
+      digestTime: null,
+    });
+
+    expect(bodyOf<SettingsResponse>(off).settings).toMatchObject({
+      quietStart: null,
+      quietEnd: null,
+      digestTime: null,
+      keptQuietStart: "22:00",
+      keptQuietEnd: "07:30",
+      keptDigestTime: "08:15",
+    });
   });
 
   it.each(["UTC", "US/Eastern", "Asia/Tokyo"])(

@@ -148,6 +148,11 @@ model UserSettings {
   // High severity notifications still arrive during quiet hours.
   highBreaksQuiet     Boolean     @default(false)
   digestTime          String?
+  // The last quiet hours and summary time set. They stay when those are turned off, so
+  // turning them back on brings the user's own times back.
+  keptQuietStart      String?
+  keptQuietEnd        String?
+  keptDigestTime      String?
   // The user's local date ("YYYY-MM-DD") of the last morning summary, so it goes once a day.
   lastSummaryDate     String?
   includeTeamRequests Boolean     @default(true)

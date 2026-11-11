@@ -6,6 +6,7 @@ import {
   type RuleSettingDto,
   type SettingsResponse,
   type UpdateRuleResponse,
+  type UpdateSettingsBody,
   type UpdateSettingsResponse,
   type UserSettingsDto,
 } from "@pr-peek/core";
@@ -35,9 +36,21 @@ function toSettingsDto(row: UserSettings): UserSettingsDto {
     quietWeekends: row.quietWeekends,
     highBreaksQuiet: row.highBreaksQuiet,
     digestTime: row.digestTime,
+    keptQuietStart: row.keptQuietStart,
+    keptQuietEnd: row.keptQuietEnd,
+    keptDigestTime: row.keptDigestTime,
     hideBots: row.hideBots,
     includeTeamRequests: row.includeTeamRequests,
     showAuthors: row.showAuthors,
+  };
+}
+
+// A time being set is also kept, so turning it off and on again brings it back.
+function keptTimes(changes: UpdateSettingsBody) {
+  return {
+    ...(changes.quietStart && { keptQuietStart: changes.quietStart }),
+    ...(changes.quietEnd && { keptQuietEnd: changes.quietEnd }),
+    ...(changes.digestTime && { keptDigestTime: changes.digestTime }),
   };
 }
 
@@ -111,7 +124,7 @@ export function settingsRouter(deps: SettingsDeps): Router {
 
     const updated = await db.userSettings.update({
       where: { userId },
-      data: sentFields(changes),
+      data: { ...sentFields(changes), ...keptTimes(changes) },
     });
     const affectsRules =
       updated.hideBots !== current.hideBots ||

@@ -49,11 +49,27 @@ export function useSaveSettings() {
   });
 }
 
-// The fields of `from` that `keysOf` has.
-const pick = (from: object, keysOf: object): Partial<UserSettingsDto> =>
-  Object.fromEntries(
-    Object.entries(from).filter(([key]) => Object.hasOwn(keysOf, key)),
+// The server keeps each time it's sent, so the kept copy changes along with it.
+const KEPT: Partial<Record<keyof UpdateSettingsBody, keyof UserSettingsDto>> = {
+  quietStart: "keptQuietStart",
+  quietEnd: "keptQuietEnd",
+  digestTime: "keptDigestTime",
+};
+
+// The fields of `from` that `keysOf` has, and their kept copies.
+function pick(
+  from: UserSettingsDto,
+  keysOf: UpdateSettingsBody,
+): Partial<UserSettingsDto> {
+  const keys = Object.keys(keysOf) as (keyof UpdateSettingsBody)[];
+  const wanted = new Set<string>([
+    ...keys,
+    ...keys.flatMap((key) => KEPT[key] ?? []),
+  ]);
+  return Object.fromEntries(
+    Object.entries(from).filter(([key]) => wanted.has(key)),
   );
+}
 
 // Saves settings, and shows them with the values being saved, so a control shows its
 // new value right away.

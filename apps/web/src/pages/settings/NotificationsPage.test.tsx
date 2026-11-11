@@ -32,6 +32,81 @@ const timingApi = (
 const patches = (fetch: ReturnType<typeof fakeApi>) =>
   sentBodies(fetch, "PATCH /api/settings");
 
+// A server that saves what's sent and keeps each time set, like the real one.
+function keepingApi(stored: Partial<UserSettingsDto>) {
+  const settings = { ...settingsResponse(stored).settings };
+  const fetch = fakeApi(
+    signedInApi({
+      "GET /api/settings": () => json({ ...settingsResponse(), settings }),
+      "PATCH /api/settings": () => {
+        const sent = sentBodies(fetch, "PATCH /api/settings").at(
+          -1,
+        ) as Partial<UserSettingsDto>;
+        Object.assign(settings, sent);
+        if (sent.quietStart) settings.keptQuietStart = sent.quietStart;
+        if (sent.quietEnd) settings.keptQuietEnd = sent.quietEnd;
+        if (sent.digestTime) settings.keptDigestTime = sent.digestTime;
+        return json({ settings });
+      },
+    }),
+  );
+  return fetch;
+}
+
+// Clicks a switch, and waits for its save to finish.
+async function flip(name: string) {
+  const toggle = await screen.findByRole("switch", { name });
+  await userEvent.click(toggle);
+  await waitFor(() => expect(toggle.hasAttribute("data-disabled")).toBe(false));
+}
+
+describe("turning back on", () => {
+  it("brings back the quiet hours set before", async () => {
+    const fetch = keepingApi({
+      keptQuietStart: "21:30",
+      keptQuietEnd: "06:00",
+    });
+    renderApp("/settings/notifications");
+
+    await flip("Quiet hours");
+    expect(patches(fetch)).toEqual([
+      { quietStart: "21:30", quietEnd: "06:00" },
+    ]);
+    expect(screen.getByLabelText<HTMLInputElement>("Quiet from").value).toBe(
+      "21:30",
+    );
+  });
+
+  it("brings back a time changed since, off and on again", async () => {
+    const fetch = keepingApi({ quietStart: "18:00", quietEnd: "09:00" });
+    renderApp("/settings/notifications");
+
+    const from = await screen.findByLabelText<HTMLInputElement>("Quiet from");
+    fireEvent.change(from, { target: { value: "20:00" } });
+    fireEvent.blur(from);
+    await waitFor(() => expect(patches(fetch)).toHaveLength(1));
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText<HTMLInputElement>("Quiet from").disabled,
+      ).toBe(false),
+    );
+    await flip("Quiet hours");
+    await flip("Quiet hours");
+    expect(patches(fetch).at(-1)).toEqual({
+      quietStart: "20:00",
+      quietEnd: "09:00",
+    });
+  });
+
+  it("brings back the summary time set before", async () => {
+    const fetch = keepingApi({ keptDigestTime: "07:45" });
+    renderApp("/settings/notifications");
+
+    await flip("Morning summary");
+    expect(patches(fetch)).toEqual([{ digestTime: "07:45" }]);
+  });
+});
+
 describe("quiet hours", () => {
   it("turns on from 6pm to 9am, then changes the start", async () => {
     const fetch = timingApi({}, { quietStart: "18:00", quietEnd: "09:00" });

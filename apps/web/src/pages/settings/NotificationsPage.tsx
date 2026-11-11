@@ -13,7 +13,8 @@ import { useSettingsSaver } from "../../hooks/useSaveSettings";
 import styles from "./NotificationsPage.module.css";
 import { SettingsPage, WithSettings } from "./SettingsLayout";
 
-// Times a setting starts at when it's turned on.
+// Times a setting starts at when it's turned on the first time. After that, it brings
+// back the user's own.
 const QUIET_FROM = "18:00";
 const QUIET_TO = "09:00";
 const SUMMARY_AT = "09:00";
@@ -118,7 +119,10 @@ function QuietHoursRow({ settings }: { settings: UserSettingsDto }) {
           onChange={(checked) =>
             save.mutate(
               checked
-                ? { quietStart: QUIET_FROM, quietEnd: QUIET_TO }
+                ? {
+                    quietStart: shown.keptQuietStart ?? QUIET_FROM,
+                    quietEnd: shown.keptQuietEnd ?? QUIET_TO,
+                  }
                 : { quietStart: null, quietEnd: null },
             )
           }
@@ -162,7 +166,9 @@ function SummaryRow({ settings }: { settings: UserSettingsDto }) {
           label="Morning summary"
           checked={on}
           onChange={(checked) =>
-            save.mutate({ digestTime: checked ? SUMMARY_AT : null })
+            save.mutate({
+              digestTime: checked ? (shown.keptDigestTime ?? SUMMARY_AT) : null,
+            })
           }
           disabled={save.isPending}
         />

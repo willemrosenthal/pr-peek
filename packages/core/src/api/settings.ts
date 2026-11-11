@@ -62,6 +62,10 @@ export interface UserSettingsDto {
   // High severity notifications still arrive during quiet hours.
   highBreaksQuiet: boolean;
   digestTime: string | null;
+  // The last quiet hours and summary time set, kept while those are off. Null until set.
+  keptQuietStart: string | null;
+  keptQuietEnd: string | null;
+  keptDigestTime: string | null;
   hideBots: boolean;
   includeTeamRequests: boolean;
   showAuthors: ShowAuthors;
