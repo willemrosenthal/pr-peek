@@ -146,14 +146,6 @@
   cursor: pointer;
 }
 
-/* Only with a real pointer, so a tap doesn't leave it highlighted. */
-@media (hover: hover) {
-  .barButton:hover {
-    background: var(--color-hover);
-    color: var(--color-accent);
-  }
-}
-
 .barButton svg {
   width: 18px;
   height: 18px;
@@ -163,6 +155,7 @@
   font-weight: 600;
   /* A held finger opens our menu, not the phone's own link menu. */
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
 }
 
 /* Open's menu, over the sheet. */

@@ -331,10 +331,7 @@ describe("Open's menu", () => {
   }
 
   const touch = (x: number) => ({
-    pointerId: 1,
-    pointerType: "touch",
-    clientX: x,
-    clientY: 20,
+    touches: [{ clientX: x, clientY: 20 }],
   });
 
   it("copies the PR's link from a right click, and says so for a moment", async () => {
@@ -360,7 +357,7 @@ describe("Open's menu", () => {
     it("opens the menu after a hold, and not the link", () => {
       setup(() => json(preview()));
       const open = screen.getByRole("link", { name: "Open" });
-      fireEvent.pointerDown(open, touch(200));
+      fireEvent.touchStart(open, touch(200));
       act(() => {
         vi.advanceTimersByTime(HOLD_MS - 1);
       });
@@ -369,15 +366,15 @@ describe("Open's menu", () => {
         vi.advanceTimersByTime(1);
       });
       expect(screen.getByRole("menuitem", { name: "Copy link" })).toBeTruthy();
-      fireEvent.pointerUp(open, touch(200));
+      fireEvent.touchEnd(open);
       expect(fireEvent.click(open)).toBe(false);
     });
 
     it("lets a drag move the sheet instead", () => {
       setup(() => json(preview()));
       const open = screen.getByRole("link", { name: "Open" });
-      fireEvent.pointerDown(open, touch(200));
-      fireEvent.pointerMove(open, touch(230));
+      fireEvent.touchStart(open, touch(200));
+      fireEvent.touchMove(open, touch(230));
       act(() => {
         vi.advanceTimersByTime(HOLD_MS);
       });
@@ -387,8 +384,8 @@ describe("Open's menu", () => {
     it("leaves a tap to open the link", () => {
       setup(() => json(preview()));
       const open = screen.getByRole("link", { name: "Open" });
-      fireEvent.pointerDown(open, touch(200));
-      fireEvent.pointerUp(open, touch(200));
+      fireEvent.touchStart(open, touch(200));
+      fireEvent.touchEnd(open);
       act(() => {
         vi.advanceTimersByTime(HOLD_MS);
       });

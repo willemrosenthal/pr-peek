@@ -28,7 +28,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type PointerEvent,
+  type TouchEvent,
   type ReactNode,
 } from "react";
 import { cx } from "../cx";
@@ -278,17 +278,21 @@ function Sheet({
 
 // Opens the PR on GitHub. A right click, or holding a finger on it, opens a menu to copy
 // its link instead. Our own hold, not Base UI's context menu, since that one keeps the
-// touch to itself and the sheet couldn't be dragged down from here.
+// touch to itself and the sheet couldn't be dragged down from here. It uses touch
+// events, not pointer ones, since an iPhone cancels a held pointer on a link.
 function OpenLink({ url }: { url: string }) {
   const linkRef = useRef<HTMLAnchorElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const hold = useRef<{ timer: number; x: number; y: number } | null>(null);
+  // The hold's timer, and what stops watching the finger move.
+  const hold = useRef<{ timer: number; stopWatching: () => void } | null>(null);
   // The menu opened from this press, so the click that may follow doesn't open the link.
   const held = useRef(false);
 
   const endHold = () => {
-    if (hold.current) clearTimeout(hold.current.timer);
+    if (!hold.current) return;
+    clearTimeout(hold.current.timer);
+    hold.current.stopWatching();
     hold.current = null;
   };
   useEffect(() => endHold, []);
@@ -305,23 +309,26 @@ function OpenLink({ url }: { url: string }) {
     setMenuOpen(true);
   };
 
-  // A mouse has its right click.
-  const onPointerDown = (event: PointerEvent) => {
-    held.current = false;
+  // Watches the finger on the whole page, before the sheet: once the sheet drags, it
+  // keeps the moves from reaching the link.
+  const onTouchStart = (event: TouchEvent) => {
     endHold();
-    if (event.pointerType === "mouse") return;
-    hold.current = {
-      x: event.clientX,
-      y: event.clientY,
-      timer: window.setTimeout(openMenu, HOLD_MS),
+    const touch = event.touches[0];
+    if (event.touches.length !== 1 || !touch) return;
+    const start = { x: touch.clientX, y: touch.clientY };
+    const onMove = (move: globalThis.TouchEvent) => {
+      const now = move.touches[0];
+      if (!now) return;
+      const moved = Math.hypot(now.clientX - start.x, now.clientY - start.y);
+      if (moved > HOLD_SLOP_PX) endHold();
     };
-  };
-
-  const onPointerMove = (event: PointerEvent) => {
-    const h = hold.current;
-    if (!h) return;
-    const moved = Math.hypot(event.clientX - h.x, event.clientY - h.y);
-    if (moved > HOLD_SLOP_PX) endHold();
+    const options = { capture: true, passive: true };
+    document.addEventListener("touchmove", onMove, options);
+    hold.current = {
+      timer: window.setTimeout(openMenu, HOLD_MS),
+      stopWatching: () =>
+        document.removeEventListener("touchmove", onMove, options),
+    };
   };
 
   const copy = () => {
@@ -339,10 +346,11 @@ function OpenLink({ url }: { url: string }) {
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endHold}
-        onPointerCancel={endHold}
+        // A new press, so a click is a click again.
+        onPointerDown={() => (held.current = false)}
+        onTouchStart={onTouchStart}
+        onTouchEnd={endHold}
+        onTouchCancel={endHold}
         // A right click, or a long press where the browser sends one (Android).
         onContextMenu={(event) => {
           event.preventDefault();
