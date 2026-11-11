@@ -40,6 +40,11 @@
   }
 }
 
+/* Above sheets, which it can open from. */
+.positioner {
+  z-index: 200;
+}
+
 .popup {
   display: flex;
   flex-direction: column;

@@ -1,0 +1,33 @@
+/* The button fills the row. */
+.row {
+  padding: 0;
+}
+
+/* A full-width button in a card, like Sign out. */
+.action {
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-2) 14px;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  font-size: var(--text-row);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .action:hover {
+    background: var(--color-hover);
+  }
+}
+
+.action:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.danger {
+  color: var(--color-danger);
+}

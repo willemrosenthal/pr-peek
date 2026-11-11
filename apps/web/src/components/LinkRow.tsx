@@ -10,13 +10,17 @@ type Target =
   // A page of the app. `newTab` opens it in a new tab (in the Mac app, the browser).
   | { to: string; newTab?: boolean }
   // Another site, opened in a new tab.
-  | { href: string };
+  | { href: string }
+  // Something on this page, like a sheet.
+  | { onClick: () => void };
 
-// A row of a Group that opens a page: an icon on a colored tile, a name, a line on how
-// it's set, and an arrow.
+// A row of a Group that opens something: a page, another site, or with `onClick`
+// something here, like a sheet. An icon on a colored tile, a name, a line on how it's
+// set, and an arrow.
 export function LinkRow({
   icon: Icon,
   color,
+  start,
   label,
   status,
   tone,
@@ -25,6 +29,8 @@ export function LinkRow({
   icon?: LucideIcon;
   // The tile's color, like "var(--color-kind-review)".
   color?: string;
+  // Something else before the name, in place of an icon, like a color dot.
+  start?: ReactNode;
   label: ReactNode;
   status?: ReactNode;
   tone?: Tone | undefined;
@@ -36,6 +42,7 @@ export function LinkRow({
           <Icon size={18} strokeWidth={2} aria-hidden="true" />
         </span>
       )}
+      {start}
       <span className={styles.text}>
         <span className={styles.label}>{label}</span>
         {status && (
@@ -57,7 +64,15 @@ export function LinkRow({
   );
   return (
     <li className={styles.item}>
-      {"href" in target ? (
+      {"onClick" in target ? (
+        <button
+          type="button"
+          className={cx(styles.link, styles.button)}
+          onClick={target.onClick}
+        >
+          {content}
+        </button>
+      ) : "href" in target ? (
         <a
           className={styles.link}
           href={target.href}

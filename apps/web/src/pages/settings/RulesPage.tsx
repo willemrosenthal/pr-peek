@@ -3,7 +3,8 @@ import { Bell, BellOff } from "lucide-react";
 import { Alert } from "../../components/Alert";
 import { CardRow } from "../../components/Card";
 import { Group } from "../../components/Group";
-import { Picker, type PickerOption } from "../../components/Picker";
+import type { Choice } from "../../components/choice";
+import { Picker } from "../../components/Picker";
 import { Switch } from "../../components/Switch";
 import { cx } from "../../cx";
 import { useSaveRule } from "../../hooks/useSaveSettings";
@@ -16,7 +17,7 @@ const GROUPS: { group: RuleGroup; title: string }[] = [
   { group: "My PRs", title: "My PRs" },
 ];
 
-const SEVERITIES: PickerOption<Severity>[] = [
+const SEVERITIES: Choice<Severity>[] = [
   { value: "high", label: "High" },
   { value: "normal", label: "Normal" },
   { value: "low", label: "Low" },

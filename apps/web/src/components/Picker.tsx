@@ -1,11 +1,7 @@
 import { Select } from "@base-ui/react/select";
 import { Check } from "lucide-react";
+import type { Choice } from "./choice";
 import styles from "./Picker.module.css";
-
-export interface PickerOption<Value extends string> {
-  value: Value;
-  label: string;
-}
 
 // A short menu of choices, drawn by the app instead of the browser. With a mouse, the
 // picked choice opens right over the button. On a phone, the menu opens below it. The
@@ -22,7 +18,7 @@ export function Picker<Value extends string>({
   // Read by screen readers, like "Urgency for Mentioned me".
   label: string;
   value: Value;
-  options: readonly PickerOption<Value>[];
+  options: readonly Choice<Value>[];
   onChange: (value: Value) => void;
   disabled?: boolean;
   // The button's look. The menu has its own.

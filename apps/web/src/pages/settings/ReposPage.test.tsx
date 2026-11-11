@@ -16,11 +16,9 @@ import {
   signedInApi,
   watchedRepo,
 } from "../../test/fake-api";
-import { SAVE_DELAY_MS } from "../../components/ColorPicker";
 import { MAX_REPO_PAGES } from "../../queries";
 import { renderApp } from "../../test/render";
 
-const watchedList = () => screen.findByRole("list", { name: "Watched repos" });
 const optionList = () =>
   screen.findByRole("list", { name: "Repos you can add" });
 
@@ -48,11 +46,38 @@ function reposApi(
   );
 }
 
+// A watched repo's row. Its name is the repo's, then how it's watched, if not Notify.
+const repoRow = (name: string) =>
+  screen.findByRole("button", { name: new RegExp(`^${name}`) });
+
+// Opens a watched repo's sheet.
+async function openSheet(name: string) {
+  await userEvent.click(await repoRow(name));
+  return screen.findByRole("dialog");
+}
+
 describe("watched repos", () => {
-  it("lists them", async () => {
-    reposApi([watchedRepo({ owner: "acme", name: "web" })]);
+  it("lists them by owner", async () => {
+    reposApi([
+      watchedRepo({ owner: "acme", name: "web" }),
+      watchedRepo({ owner: "octocat", name: "dotfiles", muted: true }),
+      watchedRepo({ owner: "acme", name: "api", enabled: false }),
+    ]);
     renderApp("/settings/repos");
-    expect(within(await watchedList()).getByText("web")).toBeTruthy();
+
+    const acme = await screen.findByRole("list", {
+      name: "Watched repos from acme",
+    });
+    expect(within(acme).getByRole("button", { name: "web" })).toBeTruthy();
+    expect(
+      within(acme).getByRole("button", { name: "api, Paused" }),
+    ).toBeTruthy();
+    const mine = screen.getByRole("list", {
+      name: "Watched repos from octocat",
+    });
+    expect(
+      within(mine).getByRole("button", { name: "dotfiles, List only" }),
+    ).toBeTruthy();
   });
 
   it("says when there are none", async () => {
@@ -63,56 +88,11 @@ describe("watched repos", () => {
     ).toBeTruthy();
   });
 
-  it("pauses one", async () => {
-    const repo = watchedRepo({ owner: "acme", name: "web" });
-    const fetch = reposApi([repo], [], {
-      [`PATCH /api/repos/${repo.id}`]: () => {
-        repo.enabled = false;
-        return json({ repo });
-      },
-    });
-    renderApp("/settings/repos");
-
-    const toggle = await screen.findByRole("switch", {
-      name: "Watch acme/web",
-    });
-    expect(toggle.getAttribute("aria-checked")).toBe("true");
-    await userEvent.click(toggle);
-    expect(await screen.findByText("Paused")).toBeTruthy();
-    expect(toggle.getAttribute("aria-checked")).toBe("false");
-    expect(sentBodies(fetch, `PATCH /api/repos/${repo.id}`)).toEqual([
-      { enabled: false },
-    ]);
-    const notify = screen.getByRole("switch", { name: "Notify for acme/web" });
-    expect(notify.getAttribute("aria-disabled")).toBe("true");
-  });
-
-  it("mutes one", async () => {
-    const repo = watchedRepo({ owner: "acme", name: "web" });
-    const fetch = reposApi([repo], [], {
-      [`PATCH /api/repos/${repo.id}`]: () => {
-        repo.muted = true;
-        return json({ repo });
-      },
-    });
-    renderApp("/settings/repos");
-
-    const toggle = await screen.findByRole("switch", {
-      name: "Notify for acme/web",
-    });
-    await userEvent.click(toggle);
-    expect(await screen.findByText("Muted")).toBeTruthy();
-    expect(toggle.getAttribute("aria-checked")).toBe("false");
-    expect(sentBodies(fetch, `PATCH /api/repos/${repo.id}`)).toEqual([
-      { muted: true },
-    ]);
-  });
-
   it.each([
-    ["a starting color", null, "#2563eb"],
-    ["its remembered color", "#e11d48", "#e11d48"],
-  ])("turns color on with %s, then off", async (_, kept, sent) => {
-    const repo = watchedRepo({ owner: "acme", name: "web", color: kept });
+    ["List only", { enabled: true, muted: true }, "web, List only"],
+    ["Paused", { enabled: false }, "web, Paused"],
+  ])("switches one to %s", async (choice, sent, rowName) => {
+    const repo = watchedRepo({ owner: "acme", name: "web" });
     const patch = `PATCH /api/repos/${repo.id}`;
     const fetch = reposApi([repo], [], {
       [patch]: () => {
@@ -122,30 +102,77 @@ describe("watched repos", () => {
     });
     renderApp("/settings/repos");
 
-    const toggle = await screen.findByRole("switch", {
-      name: "Color for acme/web",
-    });
-    expect(screen.queryByRole("button", { name: /Pick a color/ })).toBe(null);
-    await userEvent.click(toggle);
-    expect(
-      await screen.findByRole("button", { name: "Pick a color for acme/web" }),
-    ).toBeTruthy();
+    const sheet = await openSheet("web");
+    const notify = within(sheet).getByRole("radio", { name: "Notify" });
+    expect(notify).toHaveProperty("checked", true);
+    await userEvent.click(within(sheet).getByRole("radio", { name: choice }));
+    expect(sentBodies(fetch, patch)).toEqual([sent]);
     await waitFor(() =>
-      expect(toggle.getAttribute("aria-disabled")).not.toBe("true"),
+      expect(within(sheet).getByRole("radio", { name: choice })).toHaveProperty(
+        "checked",
+        true,
+      ),
     );
-    await userEvent.click(toggle);
-    await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /Pick a color/ })).toBe(null),
-    );
-    expect(sentBodies(fetch, patch)).toEqual([
-      { colorOn: true, color: sent },
-      { colorOn: false },
-    ]);
-    expect(repo.color).toBe(sent);
+    // The rows behind the sheet are hidden from screen readers until it closes.
+    await userEvent.keyboard("{Escape}");
+    expect(await repoRow(rowName)).toBeTruthy();
   });
 
-  // A colored repo with its picker open and `typed` in the hex field. Returns the color
-  // saves sent so far, read when called.
+  it("shows why a change couldn't be saved, only in that repo's sheet", async () => {
+    const web = watchedRepo({ owner: "acme", name: "web" });
+    reposApi([web, watchedRepo({ owner: "acme", name: "api" })], [], {
+      [`PATCH /api/repos/${web.id}`]: () =>
+        apiError(500, "internal_error", "Couldn't save"),
+    });
+    renderApp("/settings/repos");
+
+    const sheet = await openSheet("web");
+    await userEvent.click(within(sheet).getByRole("radio", { name: "Paused" }));
+    expect((await within(sheet).findByRole("alert")).textContent).toBe(
+      "Couldn't save",
+    );
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null));
+
+    const other = await openSheet("api");
+    expect(within(other).queryByRole("alert")).toBe(null);
+  });
+
+  it("picks a color, then takes it off", async () => {
+    const repo = watchedRepo({ owner: "acme", name: "web" });
+    const patch = `PATCH /api/repos/${repo.id}`;
+    const fetch = reposApi([repo], [], {
+      [patch]: () => {
+        Object.assign(repo, sentBodies(fetch, patch).at(-1));
+        return json({ repo });
+      },
+    });
+    renderApp("/settings/repos");
+
+    const sheet = await openSheet("web");
+    expect(
+      within(sheet).getByRole("radio", { name: "No color" }),
+    ).toHaveProperty("checked", true);
+    await userEvent.click(within(sheet).getByRole("radio", { name: "Green" }));
+    await waitFor(() =>
+      expect(
+        within(sheet).getByRole("radio", { name: "Green" }),
+      ).toHaveProperty("checked", true),
+    );
+    await userEvent.click(
+      within(sheet).getByRole("radio", { name: "No color" }),
+    );
+    await waitFor(() => expect(sentBodies(fetch, patch)).toHaveLength(2));
+    expect(sentBodies(fetch, patch)).toEqual([
+      { colorOn: true, color: "#16a34a" },
+      { colorOn: false },
+    ]);
+    // Taking it off keeps the color, for next time.
+    expect(repo.color).toBe("#16a34a");
+  });
+
+  // A colored repo with its sheet and color picker open, and `typed` in the hex field.
+  // Returns the color saves sent so far, read when called.
   async function typeColor(typed: string) {
     const repo = watchedRepo({
       owner: "acme",
@@ -157,8 +184,9 @@ describe("watched repos", () => {
     const fetch = reposApi([repo], [], { [patch]: () => json({ repo }) });
     renderApp("/settings/repos");
 
+    const sheet = await openSheet("web");
     await userEvent.click(
-      await screen.findByRole("button", { name: "Pick a color for acme/web" }),
+      within(sheet).getByRole("button", { name: "Pick a color for acme/web" }),
     );
     const input = await screen.findByLabelText("Hex color");
     await userEvent.clear(input);
@@ -167,24 +195,22 @@ describe("watched repos", () => {
   }
 
   it.each([
-    ["e11d48", "#e11d48"],
+    ["e11d47", "#e11d47"],
     ["ABC", "#aabbcc"],
   ])("saves a typed color %s", async (typed, saved) => {
     const saves = await typeColor(typed);
-    await waitFor(() => expect(saves().at(-1)).toEqual({ color: saved }));
-  });
-
-  it("saves the pick on close, then stays off when color is turned off", async () => {
-    const saves = await typeColor("e11d48");
-    await userEvent.click(
-      screen.getByRole("switch", { name: "Color for acme/web" }),
+    await waitFor(() =>
+      expect(saves().at(-1)).toEqual({ colorOn: true, color: saved }),
     );
-    // Past the point a waiting save would have gone out.
-    await new Promise((resolve) => setTimeout(resolve, SAVE_DELAY_MS + 100));
-    expect(saves()).toEqual([{ color: "#e11d48" }, { colorOn: false }]);
   });
 
-  it("removes one", async () => {
+  it("saves a typed color right away when the picker closes", async () => {
+    const saves = await typeColor("e11d47");
+    await userEvent.keyboard("{Escape}");
+    expect(saves()).toEqual([{ colorOn: true, color: "#e11d47" }]);
+  });
+
+  it("removes one, and closes its sheet", async () => {
     const watched = [watchedRepo({ owner: "acme", name: "web" })];
     reposApi(watched, [], {
       [`DELETE /api/repos/${watched[0]!.id}`]: () => {
@@ -194,11 +220,23 @@ describe("watched repos", () => {
     });
     renderApp("/settings/repos");
 
+    const sheet = await openSheet("web");
     await userEvent.click(
-      await screen.findByRole("button", { name: "Remove acme/web" }),
+      within(sheet).getByRole("button", { name: "Remove from Git Buddy" }),
     );
     expect(
       await screen.findByText("You're not watching any repos yet."),
+    ).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null));
+  });
+
+  it("opens Add repos from the header", async () => {
+    reposApi([]);
+    const { router } = renderApp("/settings/repos");
+    await userEvent.click(await screen.findByRole("link", { name: "Add" }));
+    expect(router.state.location.pathname).toBe("/settings/repos/add");
+    expect(
+      await screen.findByRole("heading", { name: "Add repos" }),
     ).toBeTruthy();
   });
 });
@@ -252,7 +290,7 @@ describe("adding repos", () => {
           };
         }),
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     const options = await optionList();
     expect(within(options).getByText(/^Private · pushed/)).toBeTruthy();
@@ -263,7 +301,6 @@ describe("adding repos", () => {
 
     act(() => finishAdd());
     expect(await within(options).findByText("Watching")).toBeTruthy();
-    expect(within(await watchedList()).getByText("api")).toBeTruthy();
     expect(sentBodies(fetch, "POST /api/repos")).toEqual([
       { owner: "acme", name: "api" },
     ]);
@@ -279,7 +316,7 @@ describe("adding repos", () => {
   ])("says when a repo was pushed, in %s", async (_, ageMs, details) => {
     const pushedAt = new Date(Date.now() - ageMs).toISOString();
     reposApi([], [repoOption({ pushedAt })]);
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
     expect(within(await optionList()).getByText(details)).toBeTruthy();
   });
 
@@ -289,7 +326,7 @@ describe("adding repos", () => {
       "GET /api/github/owners": () => new Promise<Response>(() => {}),
       "GET /api/github/repos?owner=acme": () => json(searchResults()),
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     await userEvent.click(await ownerMenu());
     const menu = await screen.findByRole("listbox");
@@ -303,7 +340,7 @@ describe("adding repos", () => {
       [repoOption({ name: "slow" }), repoOption({ name: "other" })],
       { "POST /api/repos": () => new Promise<Response>(() => {}) },
     );
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     await userEvent.click(await addButton("acme/slow"));
     expect((await addButton("acme/other")).hasAttribute("disabled")).toBe(
@@ -329,26 +366,28 @@ describe("adding repos", () => {
         return noContent();
       },
     });
-    renderApp("/settings/repos");
-    const options = await optionList();
+    const { router } = renderApp("/settings/repos/add");
 
+    await userEvent.click(await addButton("acme/web"));
+    await within(await optionList()).findByText("Watching");
+
+    // Back to the watched repos, to remove it, then back to add.
+    await act(() => router.navigate("/settings/repos"));
+    const sheet = await openSheet("web");
     await userEvent.click(
-      within(options).getByRole("button", { name: "Add acme/web" }),
+      within(sheet).getByRole("button", { name: "Remove from Git Buddy" }),
     );
-    await within(options).findByText("Watching");
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Remove acme/web" }),
-    );
-    expect(
-      await within(options).findByRole("button", { name: "Add acme/web" }),
-    ).toBeTruthy();
+    await screen.findByText("You're not watching any repos yet.");
+    await act(() => router.navigate("/settings/repos/add"));
+    expect(await addButton("acme/web")).toBeTruthy();
+    // The list of repos to add didn't load again.
     expect(callsTo(fetch, "/api/github/repos")).toHaveLength(1);
   });
 
   it(`loads every page in the background, up to ${MAX_REPO_PAGES}`, async () => {
     // Page 11 has no fake, so asking for it would fail the test.
     const fetch = reposApi([], [], repoPages(MAX_REPO_PAGES));
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     expect(await addButton(`acme/p${MAX_REPO_PAGES - 1}`)).toBeTruthy();
     expect((await ownerMenu()).textContent).toContain(
@@ -370,7 +409,7 @@ describe("adding repos", () => {
       "GET /api/github/repos?owner=acme": () =>
         json(searchResults([repoOption({ owner: "acme", name: "web" })])),
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     await userEvent.click(await ownerMenu());
     const menu = await screen.findByRole("listbox");
@@ -391,7 +430,7 @@ describe("adding repos", () => {
       "GET /api/github/repos?owner=acme": () =>
         json(searchResults([repoOption({ owner: "acme", name: "web" })])),
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     expect(await addButton("acme/web")).toBeTruthy();
     expect(callsTo(fetch, "/api/github/repos")).toHaveLength(0);
@@ -406,7 +445,7 @@ describe("adding repos", () => {
           searchResults([shared, repoOption({ owner: "globex", name: "app" })]),
         ),
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     expect(await addButton("globex/app")).toBeTruthy();
     expect(
@@ -421,7 +460,7 @@ describe("adding repos", () => {
       "GET /api/github/repos?cursor=page-1": () =>
         apiError(429, "rate_limited", "Wait a moment and try again"),
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     expect((await screen.findByRole("alert")).textContent).toBe(
       "Wait a moment and try again",
@@ -435,7 +474,7 @@ describe("adding repos", () => {
     reposApi([], [repoOption({ name: "mine" })], {
       "GET /api/github/repos?owner=gone": () => json(searchResults()),
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     expect(await addButton("acme/mine")).toBeTruthy();
     expect((await ownerMenu()).textContent).toContain("All my repos");
@@ -446,7 +485,7 @@ describe("adding repos", () => {
       [],
       ["web-app", "api", "docs"].map((name) => repoOption({ name })),
     );
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
     await addButton("acme/docs");
 
     await userEvent.type(await filterBox(), "wbapp");
@@ -464,7 +503,7 @@ describe("adding repos", () => {
 
   it("says when nothing matches", async () => {
     reposApi([], [repoOption({ name: "web" })]);
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
     await addButton("acme/web");
 
     await userEvent.type(await filterBox(), "zzzz");
@@ -480,7 +519,7 @@ describe("adding repos", () => {
       [],
       Array.from({ length: 60 }, (_, i) => repoOption({ name: `r${i}` })),
     );
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     const options = await optionList();
     expect(within(options).getAllByRole("button")).toHaveLength(50);
@@ -494,7 +533,7 @@ describe("adding repos", () => {
       [],
       [repoOption({ name: "own" }), repoOption({ name: "copy", isFork: true })],
     );
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     await addButton("acme/own");
     expect(screen.queryByRole("button", { name: "Add acme/copy" })).toBe(null);
@@ -510,7 +549,7 @@ describe("adding repos", () => {
       "GET /api/github/repos?owner=vercel": () =>
         json(searchResults([repoOption({ owner: "vercel", name: "next" })])),
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     await pickOwner("Other…");
     expect(screen.queryByLabelText("Filter repos")).toBe(null);
@@ -528,7 +567,7 @@ describe("adding repos", () => {
       "GET /api/github/repos?owner=nobody": () =>
         apiError(404, "not_found", "No GitHub user or org has that name"),
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     await pickOwner("Other…");
     const box = screen.getByLabelText("GitHub user or org");
@@ -553,7 +592,7 @@ describe("adding repos", () => {
       "GET /api/github/repos?owner=acme&query=far": () =>
         json(searchResults([repoOption({ owner: "acme", name: "far-away" })])),
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     await pickOwner("acme");
     expect(
@@ -581,7 +620,7 @@ describe("adding repos", () => {
         return json({ repo: watched[0] }, 201);
       },
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     await userEvent.type(await filterBox(), typed);
     const options = await optionList();
@@ -602,7 +641,7 @@ describe("adding repos", () => {
         return json({ repo: watched[0] }, 201);
       },
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     await userEvent.type(await filterBox(), "acme/old-name");
     await userEvent.click(await addButton("acme/old-name"));
@@ -616,7 +655,7 @@ describe("adding repos", () => {
       "POST /api/repos": () =>
         apiError(422, "too_many_repos", "You can watch up to 50 repos"),
     });
-    renderApp("/settings/repos");
+    renderApp("/settings/repos/add");
 
     await userEvent.click(await addButton("acme/api"));
     expect((await screen.findByRole("alert")).textContent).toBe(

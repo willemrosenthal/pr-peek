@@ -1,6 +1,6 @@
-/* Above the page and its sticky header. */
+/* Above the page, its sticky header, and sheets. */
 .positioner {
-  z-index: 50;
+  z-index: 200;
   outline: 0;
 }
 

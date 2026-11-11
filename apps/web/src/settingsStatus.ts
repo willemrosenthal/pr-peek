@@ -7,6 +7,7 @@ import {
   type WatchedRepoDto,
 } from "@pr-peek/core";
 import type { Tone } from "./components/LinkRow";
+import { watchOf, type Watch } from "./repoWatch";
 import { stateOf } from "./tokens";
 
 // The one-line statuses on the settings home screen, like "6 watched · 1 muted".
@@ -28,11 +29,13 @@ export function formatTime(time: string) {
 
 export function reposStatus(repos: WatchedRepoDto[]) {
   if (repos.length === 0) return "None yet";
-  const paused = repos.filter((repo) => !repo.enabled).length;
-  const muted = repos.filter((repo) => repo.enabled && repo.muted).length;
+  const count = (watch: Watch) =>
+    repos.filter((repo) => watchOf(repo) === watch).length;
+  const listOnly = count("list");
+  const paused = count("paused");
   return joined([
     `${repos.length} watched`,
-    muted > 0 && `${muted} muted`,
+    listOnly > 0 && `${listOnly} list only`,
     paused > 0 && `${paused} paused`,
   ]);
 }

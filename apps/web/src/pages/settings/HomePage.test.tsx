@@ -45,7 +45,7 @@ it("shows how each page is set", async () => {
   const on = settings.rules.filter((rule) => rule.enabled);
   const notify = on.filter((rule) => rule.channels.includes("push")).length;
   expect(
-    await row("Repositories", "3 watched · 1 muted · 1 paused"),
+    await row("Repositories", "3 watched · 1 list only · 1 paused"),
   ).toBeTruthy();
   expect(
     await row(

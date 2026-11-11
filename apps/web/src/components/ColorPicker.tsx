@@ -1,10 +1,11 @@
 import { Popover } from "@base-ui/react/popover";
 import { useRef, useState } from "react";
 import { HexColorInput, HexColorPicker } from "react-colorful";
+import { cx } from "../cx";
 import styles from "./ColorPicker.module.css";
 
 // Waits this long after the last drag before saving.
-export const SAVE_DELAY_MS = 300;
+const SAVE_DELAY_MS = 300;
 
 // "#abc" to "#aabbcc", so saved colors always have six digits.
 const longHex = (hex: string) =>
@@ -12,15 +13,21 @@ const longHex = (hex: string) =>
     ? `#${[...hex.slice(1)].map((digit) => digit + digit).join("")}`
     : hex;
 
-// A swatch that opens a color picker. Calls `onChange` once dragging pauses.
+// A swatch that opens a color picker. Calls `onChange` once dragging pauses. While
+// closed it shows `color`, or with `showColor` off, whatever `className` gives it.
+// `className` also sizes it.
 export function ColorPicker({
   label,
   color,
   onChange,
+  showColor = true,
+  className,
 }: {
   label: string;
   color: string;
   onChange: (color: string) => void;
+  showColor?: boolean;
+  className?: string | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(color);
@@ -63,12 +70,12 @@ export function ColorPicker({
       }}
     >
       <Popover.Trigger
-        className={styles.trigger}
-        style={{ background: shown }}
+        className={cx(styles.trigger, className)}
+        style={open || showColor ? { background: open ? draft : color } : {}}
         aria-label={label}
       />
       <Popover.Portal>
-        <Popover.Positioner sideOffset={8}>
+        <Popover.Positioner className={styles.positioner} sideOffset={8}>
           <Popover.Popup className={styles.popup}>
             <HexColorPicker color={shown} onChange={pick} />
             <HexColorInput
