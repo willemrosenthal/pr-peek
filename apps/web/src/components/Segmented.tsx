@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { cx } from "../cx";
-import type { PickerOption } from "./Picker";
+import type { Choice } from "./choice";
 import styles from "./Segmented.module.css";
 
 // A few choices side by side in a gray track, like the phone's own. Real radio buttons
@@ -15,7 +15,7 @@ export function Segmented<Value extends string>({
   // The group's name for screen readers.
   label: string;
   value: Value;
-  options: readonly PickerOption<Value>[];
+  options: readonly Choice<Value>[];
   onChange: (value: Value) => void;
   disabled?: boolean;
 }) {

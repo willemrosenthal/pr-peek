@@ -36,7 +36,9 @@ export const REPO_COLORS = [
 export function byOwner(repos: WatchedRepoDto[]) {
   const groups = new Map<string, WatchedRepoDto[]>();
   for (const repo of repos) {
-    groups.set(repo.owner, [...(groups.get(repo.owner) ?? []), repo]);
+    const owned = groups.get(repo.owner);
+    if (owned) owned.push(repo);
+    else groups.set(repo.owner, [repo]);
   }
   return [...groups];
 }

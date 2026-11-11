@@ -14,8 +14,9 @@ type Target =
   // Something on this page, like a sheet.
   | { onClick: () => void };
 
-// A row of a Group that opens a page: an icon on a colored tile, a name, a line on how
-// it's set, and an arrow.
+// A row of a Group that opens something: a page, another site, or with `onClick`
+// something here, like a sheet. An icon on a colored tile, a name, a line on how it's
+// set, and an arrow.
 export function LinkRow({
   icon: Icon,
   color,
