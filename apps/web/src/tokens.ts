@@ -6,6 +6,7 @@ import {
   type TokenKind,
   type TokensResponse,
 } from "@pr-peek/core";
+import type { Tone } from "./components/LinkRow";
 
 export const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
@@ -84,4 +85,12 @@ export function tokenProblem(token: TokenDto, now = Date.now()) {
   if (state === "working") return null;
   const days = daysLeft(token.expiresAt!, now);
   return days > 0 ? `Expires in ${plural(days, "day")}` : "Expired";
+}
+
+// The color of a token's problem: red once it stopped, orange while it's expiring, and
+// none while it's working.
+export function tokenTone(token: TokenDto, now = Date.now()): Tone | undefined {
+  const state = stateOf(token, now);
+  if (state === "stopped") return "danger";
+  return state === "expiring" ? "warning" : undefined;
 }

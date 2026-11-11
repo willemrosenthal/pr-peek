@@ -1,6 +1,14 @@
+import { EXPIRING_DAYS } from "@pr-peek/core";
 import { describe, expect, it } from "vitest";
 import { githubToken } from "./test/fake-api";
-import { reachText, stateOf, watchedReposOf } from "./tokens";
+import {
+  reachText,
+  stateOf,
+  tokenProblem,
+  tokenSummary,
+  tokenTone,
+  watchedReposOf,
+} from "./tokens";
 
 const NOW = Date.parse("2026-11-08T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -43,4 +51,40 @@ it("counts watched repos by owner, ignoring case", () => {
   expect(reachText({ kind: "fine_grained", owners: ["acme"] }, [])).toBe(
     "acme",
   );
+});
+
+describe("a token's row", () => {
+  const syncedBy = [{ owner: "acme", repos: 4, tokenId: "t1" }];
+
+  it("sums up its kind, what it covers, and how many watched repos", () => {
+    expect(tokenSummary(githubToken({ owners: ["acme"] }), syncedBy)).toBe(
+      "Fine-grained · covers acme · 4 repos",
+    );
+    // No count before it reaches a watched repo.
+    expect(tokenSummary(githubToken({ owners: ["globex"] }), syncedBy)).toBe(
+      "Fine-grained · covers globex",
+    );
+    expect(
+      tokenSummary(githubToken({ kind: "classic", owners: [] }), syncedBy),
+    ).toBe("Classic · every repo you can see");
+  });
+
+  it("says nothing while it works, and what's wrong once it doesn't", () => {
+    const working = githubToken({ expiresAt: inDays(EXPIRING_DAYS + 1) });
+    expect(tokenProblem(working, NOW)).toBe(null);
+    expect(tokenTone(working, NOW)).toBe(undefined);
+
+    const soon = githubToken({ expiresAt: inDays(EXPIRING_DAYS - 1) });
+    expect(tokenProblem(soon, NOW)).toBe(
+      `Expires in ${EXPIRING_DAYS - 1} days`,
+    );
+    expect(tokenTone(soon, NOW)).toBe("warning");
+
+    const expired = githubToken({ expiresAt: inDays(-1) });
+    expect(tokenProblem(expired, NOW)).toBe("Expired");
+
+    const stopped = githubToken({ status: "stopped" });
+    expect(tokenProblem(stopped, NOW)).toBe("Stopped working");
+    expect(tokenTone(stopped, NOW)).toBe("danger");
+  });
 });

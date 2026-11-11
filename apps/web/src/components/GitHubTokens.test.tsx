@@ -244,9 +244,12 @@ it("shows a token's details in its sheet, and replaces it from there", async () 
 
   const sheet = await openToken("acme");
   expect(within(sheet).getByRole("heading", { name: "acme" })).toBeTruthy();
-  expect(sheet.textContent).toContain("acme: 3 repos you watch");
-  expect(sheet.textContent).toContain("ExpiresNever");
-  expect(sheet.textContent).toContain("StatusWorking");
+  // Each fact's value, on the right of its name.
+  const detail = (name: string) =>
+    within(sheet).getByText(name).nextElementSibling?.textContent;
+  expect(detail("Covers")).toBe("acme: 3 repos you watch");
+  expect(detail("Expires")).toBe("Never");
+  expect(detail("Status")).toBe("Working");
 
   await userEvent.click(within(sheet).getByRole("button", { name: "Replace" }));
   expect(

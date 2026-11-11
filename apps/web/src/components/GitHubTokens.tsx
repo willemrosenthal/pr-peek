@@ -3,24 +3,14 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useItemSheet } from "../hooks/useItemSheet";
 import { useGitHubTokens } from "../queries";
-import { stateOf, tokenProblem, tokenSummary } from "../tokens";
+import { stateOf, tokenProblem, tokenSummary, tokenTone } from "../tokens";
 import { AddTokenSheet, type Adding } from "./AddToken";
 import { Alert } from "./Alert";
 import { CardRow } from "./Card";
 import styles from "./GitHubTokens.module.css";
 import { Group } from "./Group";
-import { LinkRow, type Tone } from "./LinkRow";
+import { LinkRow } from "./LinkRow";
 import { TokenSheet } from "./TokenSheet";
-
-// A token's problem's color, or none when it's working.
-function toneOf(token: TokenDto): Tone | undefined {
-  const state = stateOf(token);
-  return state === "stopped"
-    ? "danger"
-    : state === "expiring"
-      ? "warning"
-      : undefined;
-}
 
 // The user's personal access tokens, adding and replacing them, and which token syncs
 // each owner they watch.
@@ -75,7 +65,7 @@ export function GitHubTokens() {
             label={token.name}
             status={tokenSummary(token, syncedBy)}
             note={tokenProblem(token)}
-            tone={toneOf(token)}
+            tone={tokenTone(token)}
             after={
               stateOf(token) !== "working" && (
                 <button
