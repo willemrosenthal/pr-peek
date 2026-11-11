@@ -16,7 +16,7 @@ import { SettingSwitch } from "../../components/SettingSwitch";
 import { useSettingsSaver } from "../../hooks/useSaveSettings";
 import { useLocalSetting } from "../../localSetting";
 import { appScale, SCALES, setScale } from "../../scale";
-import { showsAuthors } from "../../sections";
+import { sectionTitle, showsAuthors } from "../../sections";
 import styles from "./DisplayPage.module.css";
 import { SettingsPage, WithSettings } from "./SettingsLayout";
 
@@ -79,15 +79,13 @@ const AUTHOR_CHOICES: Choice<ShowAuthors>[] = [
 
 // Two rows the way the list draws them, one under each of two sections, to show where
 // pictures go. Not a real list: nothing in it can be tapped.
-const PREVIEW: { group: ListSection; title: string; item: ItemDto }[] = [
+const PREVIEW: { group: ListSection; item: ItemDto }[] = [
   {
     group: "review",
-    title: "Needs my review",
     item: previewItem("review_requested", "Fix login redirect on Safari", "5h"),
   },
   {
     group: "replies",
-    title: "Replies to me",
     item: previewItem("reply", "Add rate limits to the API", "1d"),
   },
 ];
@@ -128,9 +126,9 @@ function ShowAuthorsRow({ settings }: { settings: UserSettingsDto }) {
   return (
     <>
       <div className={styles.preview} inert aria-hidden="true">
-        {PREVIEW.map(({ group, title, item }) => (
+        {PREVIEW.map(({ group, item }) => (
           <div key={group}>
-            <p className={styles.previewSection}>{title}</p>
+            <p className={styles.previewSection}>{sectionTitle(group)}</p>
             <ItemRow
               item={item}
               showAuthor={showsAuthors(shown.showAuthors, group)}

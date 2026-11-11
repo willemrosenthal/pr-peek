@@ -1,7 +1,6 @@
 /* The author pictures preview: two rows as the list draws them. */
 .preview {
   border-bottom: 1px solid var(--color-divider);
-  pointer-events: none;
 }
 
 .previewSection {

@@ -28,11 +28,11 @@ import {
   saveSectionOrder,
   SECTIONS,
   sectionOrder,
+  sectionTitle,
 } from "../sections";
 import styles from "./SectionOrder.module.css";
 
-const titleOf = (id: UniqueIdentifier) =>
-  SECTIONS.find((section) => section.group === id)?.title ?? String(id);
+const titleOf = (id: UniqueIdentifier) => sectionTitle(id as ListSection);
 
 // Where a row would land, like "place 2 of 4". Sortable rows keep their index in `data`.
 const placeOf = (over: Over) =>

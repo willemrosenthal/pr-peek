@@ -34,17 +34,22 @@ const patches = (fetch: ReturnType<typeof fakeApi>) =>
 const button = (name: string) => screen.findByRole("button", { name });
 
 describe("overdue hours", () => {
+  // Orange and red start at `stored`, with room between them.
   it.each([
-    ["Turn orange later", 4, { staleWarnHours: 8 }],
-    ["Turn orange sooner", 4, { staleWarnHours: 2 }],
+    ["Turn orange later", { staleWarnHours: 4 }, { staleWarnHours: 8 }],
+    ["Turn orange sooner", { staleWarnHours: 4 }, { staleWarnHours: 2 }],
     // A saved value between steps moves to the steps around it.
-    ["Turn orange later", 6, { staleWarnHours: 8 }],
-    ["Turn orange sooner", 6, { staleWarnHours: 4 }],
+    ["Turn orange later", { staleWarnHours: 6 }, { staleWarnHours: 8 }],
+    ["Turn orange sooner", { staleWarnHours: 6 }, { staleWarnHours: 4 }],
     // Past 12 hours, steps are whole days.
-    ["Turn orange later", 12, { staleWarnHours: 24 }],
-    ["Turn red later", 72, { staleLateHours: 96 }],
-  ])("%s from %s hours", async (name, staleWarnHours, sent) => {
-    const fetch = timingApi({ staleWarnHours, staleLateHours: 72 }, sent);
+    ["Turn orange later", { staleWarnHours: 12 }, { staleWarnHours: 24 }],
+    ["Turn red later", { staleLateHours: 72 }, { staleLateHours: 96 }],
+    ["Turn red sooner", { staleLateHours: 36 }, { staleLateHours: 24 }],
+  ])("%s from %o", async (name, stored, sent) => {
+    const fetch = timingApi(
+      { staleWarnHours: 4, staleLateHours: 72, ...stored },
+      sent,
+    );
     renderApp("/settings/overdue");
 
     await userEvent.click(await button(name));

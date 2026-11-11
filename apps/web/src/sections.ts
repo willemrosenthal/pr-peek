@@ -34,6 +34,10 @@ export function orderSections(order: string) {
 export const saveSectionOrder = (groups: ListSection[]) =>
   sectionOrder.set(groups.join(","));
 
+// A section's name, like "Needs my review".
+export const sectionTitle = (group: ListSection) =>
+  SECTIONS.find((section) => section.group === group)?.title ?? group;
+
 // Whether a section's rows show their authors' pictures.
 export const showsAuthors = (setting: ShowAuthors, group: ListSection) =>
   setting === "all" || (setting === "review" && group === "review");
