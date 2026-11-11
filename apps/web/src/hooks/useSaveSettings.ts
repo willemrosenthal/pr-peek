@@ -1,5 +1,5 @@
 import {
-  KEPT_TIMES,
+  keptTimes,
   type ItemKind,
   type SettingsResponse,
   type UpdateRuleBody,
@@ -56,12 +56,9 @@ function pick(
   from: UserSettingsDto,
   keysOf: UpdateSettingsBody,
 ): Partial<UserSettingsDto> {
-  const keys = Object.keys(keysOf) as (keyof UpdateSettingsBody)[];
-  const wanted = new Set<string>([
-    ...keys,
-    ...keys.flatMap((key) =>
-      key in KEPT_TIMES ? [KEPT_TIMES[key as keyof typeof KEPT_TIMES]] : [],
-    ),
+  const wanted = new Set([
+    ...Object.keys(keysOf),
+    ...Object.keys(keptTimes(keysOf)),
   ]);
   return Object.fromEntries(
     Object.entries(from).filter(([key]) => wanted.has(key)),

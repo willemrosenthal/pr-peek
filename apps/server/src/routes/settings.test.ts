@@ -137,6 +137,12 @@ describe("PATCH /api/settings", () => {
       keptQuietEnd: "07:30",
       keptDigestTime: "08:15",
     });
+
+    // A new time replaces the kept one.
+    const changed = await patchSettings(agent, { quietStart: "23:00" });
+    expect(bodyOf<SettingsResponse>(changed).settings.keptQuietStart).toBe(
+      "23:00",
+    );
   });
 
   it.each(["UTC", "US/Eastern", "Asia/Tokyo"])(

@@ -1,5 +1,5 @@
 import {
-  KEPT_TIMES,
+  keptTimes,
   ruleOptions,
   rules,
   updateRuleBody,
@@ -7,7 +7,6 @@ import {
   type RuleSettingDto,
   type SettingsResponse,
   type UpdateRuleResponse,
-  type UpdateSettingsBody,
   type UpdateSettingsResponse,
   type UserSettingsDto,
 } from "@pr-peek/core";
@@ -44,16 +43,6 @@ function toSettingsDto(row: UserSettings): UserSettingsDto {
     includeTeamRequests: row.includeTeamRequests,
     showAuthors: row.showAuthors,
   };
-}
-
-// A time being set is also kept, so turning it off and on again brings it back.
-function keptTimes(changes: UpdateSettingsBody) {
-  return Object.fromEntries(
-    Object.entries(KEPT_TIMES).flatMap(([field, kept]) => {
-      const time = changes[field as keyof typeof KEPT_TIMES];
-      return time ? [[kept, time]] : [];
-    }),
-  );
 }
 
 function toRuleDto(setting: EffectiveRuleSetting): RuleSettingDto {

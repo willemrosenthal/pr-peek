@@ -49,13 +49,28 @@ export const updateSettingsBody = z
   .refine((body) => Object.keys(body).length > 0, "Nothing to update");
 export type UpdateSettingsBody = z.infer<typeof updateSettingsBody>;
 
-// Each time the server keeps a copy of when it's set, so turning quiet hours or the
-// summary off and on again brings back the user's own time.
-export const KEPT_TIMES = {
+// The times the server keeps a copy of, and where. The copy stays when the time is
+// turned off, so turning quiet hours or the summary back on brings the user's own back.
+const KEPT_TIMES = {
   quietStart: "keptQuietStart",
   quietEnd: "keptQuietEnd",
   digestTime: "keptDigestTime",
 } as const;
+
+type KeptTime = keyof typeof KEPT_TIMES;
+
+// The kept copies a save changes: one for each time it sets. Turning a time off sets
+// nothing, so its copy stays.
+export function keptTimes(
+  changes: Partial<Record<KeptTime, string | null | undefined>>,
+): Partial<Record<(typeof KEPT_TIMES)[KeptTime], string>> {
+  return Object.fromEntries(
+    (Object.keys(KEPT_TIMES) as KeptTime[]).flatMap((field) => {
+      const time = changes[field];
+      return time ? [[KEPT_TIMES[field], time]] : [];
+    }),
+  );
+}
 
 export interface UserSettingsDto {
   timezone: string;

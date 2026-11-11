@@ -1,4 +1,4 @@
-import { KEPT_TIMES, type UserSettingsDto } from "@pr-peek/core";
+import { keptTimes, type UserSettingsDto } from "@pr-peek/core";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -42,11 +42,7 @@ function keepingApi(stored: Partial<UserSettingsDto>) {
         const sent = sentBodies(fetch, "PATCH /api/settings").at(
           -1,
         ) as Partial<UserSettingsDto>;
-        Object.assign(settings, sent);
-        for (const [field, kept] of Object.entries(KEPT_TIMES)) {
-          const time = sent[field as keyof typeof KEPT_TIMES];
-          if (time) settings[kept] = time;
-        }
+        Object.assign(settings, sent, keptTimes(sent));
         return json({ settings });
       },
     }),
