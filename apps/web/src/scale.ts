@@ -5,7 +5,8 @@ import { localSetting } from "./localSetting";
 export const SCALES = [0.95, 1, 1.05, 1.1, 1.15];
 export const NORMAL_SCALE = 1.05;
 
-// What Settings calls a size: the normal one is 100%, and each step 5% more or less.
+// What Settings calls a size: the normal one is 100%, and the others read how many
+// percent bigger or smaller they are, like 110%.
 export const scaleLabel = (scale: number) =>
   `${Math.round((scale - NORMAL_SCALE) * 100) + 100}%`;
 

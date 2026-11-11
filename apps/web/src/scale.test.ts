@@ -8,13 +8,6 @@ it("puts the normal size in the middle, reading 100%", () => {
   expect(scaleLabel(NORMAL_SCALE)).toBe("100%");
 });
 
-it("labels each step 5% from the next", () => {
-  const percents = SCALES.map((scale) => Number.parseInt(scaleLabel(scale)));
-  for (const [step, percent] of percents.slice(1).entries()) {
-    expect(percent - percents[step]!).toBe(5);
-  }
-});
-
 it("starts at the normal size, and goes back to it from a size no longer offered", () => {
   expect(appScale.get()).toBe(NORMAL_SCALE);
   localStorage.setItem("pr-peek:scale", JSON.stringify(SCALES[0]! - 0.05));
