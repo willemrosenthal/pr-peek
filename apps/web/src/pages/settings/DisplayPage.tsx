@@ -15,7 +15,13 @@ import { Segmented } from "../../components/Segmented";
 import { SettingSwitch } from "../../components/SettingSwitch";
 import { useSettingsSaver } from "../../hooks/useSaveSettings";
 import { useLocalSetting } from "../../localSetting";
-import { appScale, SCALES, setScale } from "../../scale";
+import {
+  appScale,
+  NORMAL_SCALE,
+  scaleLabel,
+  SCALES,
+  setScale,
+} from "../../scale";
 import { sectionTitle, showsAuthors } from "../../sections";
 import styles from "./DisplayPage.module.css";
 import { SettingsPage, WithSettings } from "./SettingsLayout";
@@ -151,9 +157,7 @@ function AuthorPictures({ settings }: { settings: UserSettingsDto }) {
   );
 }
 
-const percent = (scale: number) => `${Math.round(scale * 100)}%`;
-
-const scaleAt = (step: string) => SCALES[Number(step)] ?? 1;
+const scaleAt = (step: string) => SCALES[Number(step)] ?? NORMAL_SCALE;
 
 // Applies the size when the user lets go. Resizing mid-drag would move the slider under
 // the pointer and pick another size by accident.
@@ -190,7 +194,7 @@ function SizeRow() {
           step={1}
           value={SCALES.indexOf(scale)}
           aria-label="Size"
-          aria-valuetext={percent(scale)}
+          aria-valuetext={scaleLabel(scale)}
           onChange={(e) => setDragging(scaleAt(e.target.value))}
         />
         <span className={styles.bigA} aria-hidden="true">
@@ -198,7 +202,7 @@ function SizeRow() {
         </span>
       </div>
       <p className={styles.sizeValue} aria-hidden="true">
-        {percent(scale)}
+        {scaleLabel(scale)}
       </p>
     </div>
   );

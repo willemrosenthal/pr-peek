@@ -17,7 +17,7 @@ import {
   settingsResponse,
   signedInApi,
 } from "../../test/fake-api";
-import { appScale } from "../../scale";
+import { appScale, NORMAL_SCALE, scaleLabel, SCALES } from "../../scale";
 import { sectionOrder } from "../../sections";
 import { renderApp } from "../../test/render";
 
@@ -149,17 +149,19 @@ it("sizes the app on this device, once the slider is let go", async () => {
   renderApp("/settings/display");
   const size = await screen.findByRole("slider", { name: "Size" });
   const root = document.documentElement;
+  const biggest = SCALES.at(-1)!;
+  // The normal size reads 100%.
   expect(size.getAttribute("aria-valuetext")).toBe("100%");
   try {
     // Dragging fires input events. Letting go fires change.
-    fireEvent.input(size, { target: { value: "5" } });
-    expect(size.getAttribute("aria-valuetext")).toBe("115%");
-    expect(appScale.get()).toBe(1);
+    fireEvent.input(size, { target: { value: String(SCALES.length - 1) } });
+    expect(size.getAttribute("aria-valuetext")).toBe(scaleLabel(biggest));
+    expect(appScale.get()).toBe(NORMAL_SCALE);
     expect(root.style.getPropertyValue("--scale")).toBe("");
 
     fireEvent.change(size);
-    expect(appScale.get()).toBe(1.15);
-    expect(root.style.getPropertyValue("--scale")).toBe("1.15");
+    expect(appScale.get()).toBe(biggest);
+    expect(root.style.getPropertyValue("--scale")).toBe(String(biggest));
   } finally {
     document.documentElement.style.removeProperty("--scale");
   }
