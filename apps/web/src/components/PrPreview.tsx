@@ -67,7 +67,7 @@ const HOLD_SLOP_PX = 10;
 // After a held finger opens the menu, how long after it lifts the menu ignores taps
 // outside it. The lift, and the click a phone sends after it, land outside the menu.
 export const LIFT_GRACE_MS = 400;
-const LIFT_CLOSES: ReadonlySet<string> = new Set([
+const LIFT_CLOSES: ReadonlySet<Menu.Root.ChangeEventReason> = new Set([
   "outside-press",
   "focus-out",
 ]);
@@ -297,9 +297,9 @@ function OpenLink({ url }: { url: string }) {
     holdTimer: number | undefined;
     stopWatching: () => void;
   } | null>(null);
-  // The menu opened under a finger that's still down or just lifted. See LIFT_GRACE_MS.
-  const guarding = useRef(false);
-  const guardTimer = useRef<number | undefined>(undefined);
+  // Until when the menu ignores taps outside it, from performance.now(): forever while
+  // the finger that opened it is down, then LIFT_GRACE_MS after it lifts.
+  const guardUntil = useRef(0);
   // Puts "Open" back after "Copied".
   const copiedTimer = useRef<number | undefined>(undefined);
 
@@ -319,7 +319,6 @@ function OpenLink({ url }: { url: string }) {
     () => () => {
       clearTimeout(finger.current?.holdTimer);
       finger.current?.stopWatching();
-      clearTimeout(guardTimer.current);
       clearTimeout(copiedTimer.current);
     },
     [],
@@ -329,8 +328,7 @@ function OpenLink({ url }: { url: string }) {
   const openMenu = () => {
     if (finger.current) {
       cancelHold();
-      guarding.current = true;
-      clearTimeout(guardTimer.current);
+      guardUntil.current = Infinity;
     }
     setMenuOpen(true);
   };
@@ -350,11 +348,9 @@ function OpenLink({ url }: { url: string }) {
     };
     const onEnd = () => {
       endTouch();
-      if (!guarding.current) return;
-      guardTimer.current = window.setTimeout(
-        () => (guarding.current = false),
-        LIFT_GRACE_MS,
-      );
+      if (guardUntil.current === Infinity) {
+        guardUntil.current = performance.now() + LIFT_GRACE_MS;
+      }
     };
     const options = { capture: true, passive: true };
     const listeners = [
@@ -375,13 +371,14 @@ function OpenLink({ url }: { url: string }) {
     };
   };
 
-  // While guarding, a press outside the menu, or focus leaving it, is the lift.
+  // While guarded, a press outside the menu, or focus leaving it, is the lift.
   const onOpenChange = (
     open: boolean,
     { reason }: Menu.Root.ChangeEventDetails,
   ) => {
-    if (!open && guarding.current && LIFT_CLOSES.has(reason)) return;
-    if (!open) guarding.current = false;
+    const guarded = performance.now() < guardUntil.current;
+    if (!open && guarded && LIFT_CLOSES.has(reason)) return;
+    if (!open) guardUntil.current = 0;
     setMenuOpen(open);
   };
 
