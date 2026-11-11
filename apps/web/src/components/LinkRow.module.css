@@ -16,6 +16,16 @@
   text-decoration: none;
 }
 
+/* A button that looks like the link rows. */
+.button {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 @media (hover: hover) {
   .link:hover {
     background: var(--color-hover);

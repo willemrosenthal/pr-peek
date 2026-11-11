@@ -7,6 +7,7 @@ import { Onboarding } from "./pages/Onboarding";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { SharePage } from "./pages/SharePage";
 import { AccountPage } from "./pages/settings/AccountPage";
+import { AddReposPage } from "./pages/settings/AddReposPage";
 import { AdminPage } from "./pages/settings/AdminPage";
 import { DisplayPage } from "./pages/settings/DisplayPage";
 import { HomePage } from "./pages/settings/HomePage";
@@ -34,6 +35,7 @@ export const routes = [
           { index: true, element: <HomePage /> },
           { path: "account", element: <AccountPage /> },
           { path: "repos", element: <ReposPage /> },
+          { path: "repos/add", element: <AddReposPage /> },
           { path: "rules", element: <RulesPage /> },
           { path: "overdue", element: <OverduePage /> },
           { path: "display", element: <DisplayPage /> },

@@ -1,0 +1,43 @@
+.track {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--color-surface-muted);
+}
+
+.segment {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border-radius: 7px;
+  font-size: var(--text-md);
+  text-align: center;
+  cursor: pointer;
+}
+
+.picked {
+  background: var(--color-surface);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 14%);
+}
+
+/* The radio inside is hidden, so its focus ring goes on the segment. */
+.segment:has(:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.segment:has(:disabled) {
+  cursor: default;
+  opacity: 0.6;
+}
+
+@media (pointer: coarse) {
+  .segment {
+    min-height: 40px;
+  }
+}

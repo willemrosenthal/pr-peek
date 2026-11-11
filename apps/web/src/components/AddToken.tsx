@@ -1,4 +1,3 @@
-import { Drawer } from "@base-ui/react/drawer";
 import { Tabs } from "@base-ui/react/tabs";
 import type {
   CheckTokenResponse,
@@ -8,7 +7,7 @@ import type {
   TokensResponse,
 } from "@pr-peek/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, X } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../api";
 import { refreshTokens } from "../queries";
@@ -17,6 +16,7 @@ import { Alert } from "./Alert";
 import { Button, ButtonLink } from "./Button";
 import { Input, TextField } from "./Field";
 import styles from "./GitHubTokens.module.css";
+import { Sheet } from "./Sheet";
 
 const FINE_GRAINED_URL =
   "https://github.com/settings/personal-access-tokens/new";
@@ -55,30 +55,23 @@ export function AddTokenSheet({
   if (adding && adding !== shown.adding) {
     setShown({ adding, count: shown.count + 1 });
   }
+  const replacing = shown.adding?.replacing;
   return (
-    <Drawer.Root
+    <Sheet
       open={adding !== null}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
+      onClose={onClose}
+      title={replacing ? `Replace ${replacing.name}` : "Add a token"}
     >
-      <Drawer.Portal>
-        <Drawer.Backdrop className={styles.backdrop} />
-        <Drawer.Viewport className={styles.viewport}>
-          <Drawer.Popup className={styles.sheet}>
-            {shown.adding && (
-              <AddToken
-                key={shown.count}
-                replacing={shown.adding.replacing}
-                tokens={tokens}
-                syncedBy={syncedBy}
-                onSaved={onSaved}
-              />
-            )}
-          </Drawer.Popup>
-        </Drawer.Viewport>
-      </Drawer.Portal>
-    </Drawer.Root>
+      {shown.adding && (
+        <AddToken
+          key={shown.count}
+          replacing={shown.adding.replacing}
+          tokens={tokens}
+          syncedBy={syncedBy}
+          onSaved={onSaved}
+        />
+      )}
+    </Sheet>
   );
 }
 
@@ -147,17 +140,7 @@ function AddToken({
     );
 
   return (
-    <div className={styles.sheetBody}>
-      <div className={styles.handle} aria-hidden="true" />
-      <div className={styles.sheetTop}>
-        <Drawer.Title className={styles.heading}>
-          {replacing ? `Replace ${replacing.name}` : "Add a token"}
-        </Drawer.Title>
-        <Drawer.Close className={styles.close} aria-label="Close">
-          <X aria-hidden="true" />
-        </Drawer.Close>
-      </div>
-
+    <>
       {!checked ? (
         <>
           <Tabs.Root
@@ -274,7 +257,7 @@ function AddToken({
           )}
         </form>
       )}
-    </div>
+    </>
   );
 }
 

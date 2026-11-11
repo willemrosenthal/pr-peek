@@ -69,6 +69,18 @@
   }
 }
 
+/* A link on the header's right, like Add. */
+.headerAction {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--touch-target);
+  padding: 0 var(--space-2);
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
 /* A short line of gray text, like "Loading". */
 .hint {
   color: var(--color-text-secondary);

@@ -45,7 +45,7 @@ Mockups: [Git Buddy Settings Redesign](https://claude.ai/artifact/KjNx2Ze9bBJwKr
 
 - Switches get bigger on touch screens: 44 by 26.
 - Rules: one line per rule. A colored urgency chip (High, Normal, Low) opens a small menu the app draws (Base UI's Select). The browser's own menu took the chip's narrow width, and landed in odd places in Chrome's phone view. A bell turns notify on and off. A switch turns the rule on. Column labels sit above each group. "Include draft PRs" is a small row under Review requested.
-- Repos: watched repos grouped by owner, with a color dot and a Muted or Paused tag. Tap one for a sheet: a three-way choice (Notify, List only, Paused) in place of the Notify and Watch switches, color swatches with a preview row, and Remove. Swipe left to remove, like on the list. Adding repos gets its own page, `/settings/repos/add`. Onboarding keeps its own picker.
+- Repos: watched repos grouped by owner, with a color dot and a Muted or Paused tag. Tap one for a sheet: a three-way choice (Notify, List only, Paused) in place of the Notify and Watch switches, eight color swatches plus a picker for any other color, a preview, and Remove. Adding repos gets its own page, `/settings/repos/add`. Onboarding keeps its own picker.
 - Overdue reviews: a timeline bar, and − and + steppers. They step through 1, 2, 4, 8, and 12 hours, then whole days.
 - Times (quiet hours, summary) show as pills that open the phone's time picker.
 - Author pictures: a three-way choice (Off, My reviews, Everywhere), with a live preview of two list rows.
@@ -70,10 +70,10 @@ Four PRs, one per group.
 
 ### 3. Repos (PR 3)
 
-- [ ] 3.1 Watched repos grouped by owner, with the color dot and tag.
-- [ ] 3.2 The repo sheet: Notify, List only, Paused; colors with a preview; Remove.
-- [ ] 3.3 Swipe left to remove.
-- [ ] 3.4 Add repos on its own page.
+- [x] 3.1 Watched repos grouped by owner, with the color dot and tag.
+- [x] 3.2 The repo sheet: Notify, List only, Paused; colors with a preview; Remove.
+- [x] ~~3.3 Swipe left to remove.~~ Dropped: the list's swipe is built around quiet and important, and removing a repo by swipe is too easy to do by mistake. Remove is in the sheet.
+- [x] 3.4 Add repos on its own page.
 
 ### 4. Controls (PR 4)
 

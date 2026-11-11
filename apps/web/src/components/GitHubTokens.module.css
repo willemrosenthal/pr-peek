@@ -216,88 +216,6 @@
   }
 }
 
-/* The add a token sheet, slid up from the bottom like the PR preview. */
-.backdrop,
-.viewport {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-}
-
-.backdrop {
-  min-height: 100dvh;
-  background: rgb(0 0 0 / 40%);
-  opacity: calc(1 - var(--drawer-swipe-progress, 0));
-  transition: opacity 0.4s cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-.backdrop[data-starting-style],
-.backdrop[data-ending-style] {
-  opacity: 0;
-}
-
-.viewport {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-/* As tall as what's in it, up to most of a phone's screen or 820px on a computer, then
-   it scrolls. The app's gray, so each step's white card stands out, like in Settings. */
-.sheet {
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 680px;
-  max-height: min(820px, 90dvh);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  background: var(--color-page);
-  box-shadow:
-    0 0 0 1px var(--color-border),
-    var(--shadow-panel);
-  transform: translateY(var(--drawer-swipe-movement-y, 0));
-  transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-.sheet[data-starting-style],
-.sheet[data-ending-style] {
-  transform: translateY(100%);
-}
-
-.sheet[data-swiping] {
-  transition-duration: 0ms;
-}
-
-.sheetBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-2) var(--space-5)
-    calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
-}
-
-/* Shows it's a sheet that swipes down, like the PR preview's. */
-.handle {
-  align-self: center;
-  width: 36px;
-  height: 5px;
-  border-radius: 3px;
-  background: var(--color-border);
-}
-
-.sheetTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.sheetTop .heading {
-  margin: 0;
-  font-size: var(--text-xl);
-}
-
 .kindHint {
   margin: 0 0 var(--space-4);
   color: var(--color-text-secondary);
@@ -346,25 +264,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
-}
-
-.close {
-  display: grid;
-  place-items: center;
-  width: var(--touch-target);
-  height: var(--touch-target);
-  margin: calc(-1 * var(--space-2));
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-}
-
-.close svg {
-  width: 18px;
-  height: 18px;
 }
 
 /* Two buttons in a gray track, so they read as choices. */
@@ -421,17 +320,8 @@
   font-weight: 600;
 }
 
-/* Phones: the sheet can take most of the screen, and its buttons stack. */
+/* Phones: the sheet's buttons stack. */
 @media (max-width: 600px) {
-  .sheet {
-    max-height: 92dvh;
-  }
-
-  .sheetBody {
-    padding-right: var(--space-4);
-    padding-left: var(--space-4);
-  }
-
   .sheetActions {
     grid-template-columns: minmax(0, 1fr);
   }
