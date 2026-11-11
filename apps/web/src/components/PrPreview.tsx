@@ -1,4 +1,5 @@
 import { Drawer } from "@base-ui/react/drawer";
+import { Menu } from "@base-ui/react/menu";
 import type {
   ItemDto,
   ItemKind,
@@ -10,17 +11,26 @@ import type {
 import {
   Bell,
   BellOff,
+  Check,
   CircleAlert,
   CircleCheck,
   CircleX,
   Clock,
   ExternalLink,
   Flag,
+  Link,
   MessageCircle,
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import { cx } from "../cx";
 import { unflagAction } from "../important";
 import { usePrPreview } from "../queries";
@@ -49,6 +59,13 @@ const MAX_STAGGER = 8;
 // CLOSE_MIN_PX. Base UI alone needs half its height, which is a long pull on a tall sheet.
 const CLOSE_SHARE = 0.15;
 const CLOSE_MIN_PX = 80;
+
+// Holding a finger on Open this long opens its menu, like a right click.
+export const HOLD_MS = 500;
+// A finger that moves further than this is dragging the sheet, not holding.
+const HOLD_SLOP_PX = 10;
+// How long Open says "Copied" after its link is copied.
+export const COPIED_MS = 1_500;
 
 // The top bar's buttons: Quiet (or Bring back), and Important (or Remove flag).
 interface SheetActions {
@@ -178,15 +195,7 @@ function Sheet({
               {pr.important ? unflag.label : "Important"}
             </button>
           </div>
-          <a
-            className={cx(styles.barButton, styles.open)}
-            href={pr.url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open
-            <ExternalLink aria-hidden="true" />
-          </a>
+          <OpenLink url={pr.url} />
         </div>
       </div>
 
@@ -263,6 +272,111 @@ function Sheet({
           </Group>
         )}
       </Drawer.Content>
+    </>
+  );
+}
+
+// Opens the PR on GitHub. A right click, or holding a finger on it, opens a menu to copy
+// its link instead. Our own hold, not Base UI's context menu, since that one keeps the
+// touch to itself and the sheet couldn't be dragged down from here.
+function OpenLink({ url }: { url: string }) {
+  const linkRef = useRef<HTMLAnchorElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const hold = useRef<{ timer: number; x: number; y: number } | null>(null);
+  // The menu opened from this press, so the click that may follow doesn't open the link.
+  const held = useRef(false);
+
+  const endHold = () => {
+    if (hold.current) clearTimeout(hold.current.timer);
+    hold.current = null;
+  };
+  useEffect(() => endHold, []);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), COPIED_MS);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  const openMenu = () => {
+    endHold();
+    held.current = true;
+    setMenuOpen(true);
+  };
+
+  // A mouse has its right click.
+  const onPointerDown = (event: PointerEvent) => {
+    held.current = false;
+    endHold();
+    if (event.pointerType === "mouse") return;
+    hold.current = {
+      x: event.clientX,
+      y: event.clientY,
+      timer: window.setTimeout(openMenu, HOLD_MS),
+    };
+  };
+
+  const onPointerMove = (event: PointerEvent) => {
+    const h = hold.current;
+    if (!h) return;
+    const moved = Math.hypot(event.clientX - h.x, event.clientY - h.y);
+    if (moved > HOLD_SLOP_PX) endHold();
+  };
+
+  const copy = () => {
+    navigator.clipboard.writeText(url).then(
+      () => setCopied(true),
+      () => {},
+    );
+  };
+
+  return (
+    <>
+      <a
+        ref={linkRef}
+        className={cx(styles.barButton, styles.open)}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endHold}
+        onPointerCancel={endHold}
+        // A right click, or a long press where the browser sends one (Android).
+        onContextMenu={(event) => {
+          event.preventDefault();
+          openMenu();
+        }}
+        onClick={(event) => {
+          if (held.current) event.preventDefault();
+          held.current = false;
+        }}
+      >
+        {copied ? "Copied" : "Open"}
+        {copied ? (
+          <Check aria-hidden="true" />
+        ) : (
+          <ExternalLink aria-hidden="true" />
+        )}
+      </a>
+      <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}>
+        <Menu.Portal>
+          <Menu.Positioner
+            className={styles.menuPositioner}
+            anchor={linkRef}
+            align="end"
+            sideOffset={4}
+          >
+            <Menu.Popup className={styles.menu}>
+              <Menu.Item className={styles.menuItem} onClick={copy}>
+                <Link aria-hidden="true" />
+                Copy link
+              </Menu.Item>
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
     </>
   );
 }

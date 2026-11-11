@@ -4,11 +4,25 @@ import type {
   PrPreviewResponse,
 } from "@pr-peek/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import { apiError, fakeApi, important, item, json } from "../test/fake-api";
-import { PrPreview, type PreviewTarget } from "./PrPreview";
+import { COPIED_MS, HOLD_MS, PrPreview, type PreviewTarget } from "./PrPreview";
 import styles from "./PrPreview.module.css";
 
 const comment = (
@@ -298,4 +312,98 @@ it("offers to try again when the details don't load", async () => {
   await waitFor(() =>
     expect(screen.getByText("See the screenshots.")).toBeTruthy(),
   );
+});
+
+describe("Open's menu", () => {
+  // user-event puts in its own clipboard, so these tests use fireEvent.
+  function stubClipboard() {
+    const writeText = vi.fn(() => Promise.resolve());
+    const before = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    onTestFinished(() => {
+      if (before) Object.defineProperty(navigator, "clipboard", before);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    });
+    return writeText;
+  }
+
+  const touch = (x: number) => ({
+    pointerId: 1,
+    pointerType: "touch",
+    clientX: x,
+    clientY: 20,
+  });
+
+  it("copies the PR's link from a right click, and says so for a moment", async () => {
+    const writeText = stubClipboard();
+    const { row, onClose } = setup(() => json(preview()));
+    const open = screen.getByRole("link", { name: "Open" });
+    expect(fireEvent.contextMenu(open)).toBe(false);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Copy link" }));
+    expect(writeText).toHaveBeenCalledWith(row.pr.url);
+    expect(await screen.findByRole("link", { name: "Copied" })).toBeTruthy();
+    // The sheet stays open.
+    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(
+      () => expect(screen.getByRole("link", { name: "Open" })).toBeTruthy(),
+      { timeout: COPIED_MS + 1_000 },
+    );
+  });
+
+  describe("with a finger", () => {
+    beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+    afterEach(() => vi.useRealTimers());
+
+    it("opens the menu after a hold, and not the link", () => {
+      setup(() => json(preview()));
+      const open = screen.getByRole("link", { name: "Open" });
+      fireEvent.pointerDown(open, touch(200));
+      act(() => {
+        vi.advanceTimersByTime(HOLD_MS - 1);
+      });
+      expect(screen.queryByRole("menuitem")).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(screen.getByRole("menuitem", { name: "Copy link" })).toBeTruthy();
+      fireEvent.pointerUp(open, touch(200));
+      expect(fireEvent.click(open)).toBe(false);
+    });
+
+    it("lets a drag move the sheet instead", () => {
+      setup(() => json(preview()));
+      const open = screen.getByRole("link", { name: "Open" });
+      fireEvent.pointerDown(open, touch(200));
+      fireEvent.pointerMove(open, touch(230));
+      act(() => {
+        vi.advanceTimersByTime(HOLD_MS);
+      });
+      expect(screen.queryByRole("menuitem")).toBeNull();
+    });
+
+    it("leaves a tap to open the link", () => {
+      setup(() => json(preview()));
+      const open = screen.getByRole("link", { name: "Open" });
+      fireEvent.pointerDown(open, touch(200));
+      fireEvent.pointerUp(open, touch(200));
+      act(() => {
+        vi.advanceTimersByTime(HOLD_MS);
+      });
+      expect(screen.queryByRole("menuitem")).toBeNull();
+      // Opening a link isn't something the test browser does, so this only checks
+      // nothing stopped it.
+      let stopped = true;
+      const check = (event: Event) => {
+        stopped = event.defaultPrevented;
+        event.preventDefault();
+      };
+      document.addEventListener("click", check);
+      onTestFinished(() => document.removeEventListener("click", check));
+      fireEvent.click(open);
+      expect(stopped).toBe(false);
+    });
+  });
 });
