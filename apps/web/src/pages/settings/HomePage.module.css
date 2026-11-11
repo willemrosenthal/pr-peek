@@ -7,17 +7,10 @@
 }
 
 .avatar {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 50%;
   background: var(--color-surface-muted);
-  color: var(--color-accent);
   font-size: var(--text-lg);
-  font-weight: 700;
 }
 
 .who {

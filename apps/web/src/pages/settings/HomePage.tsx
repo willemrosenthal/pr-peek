@@ -9,6 +9,7 @@ import {
   Monitor,
 } from "lucide-react";
 import { AppVersion } from "../../components/AppVersion";
+import { Avatar } from "../../components/Avatar";
 import { Group } from "../../components/Group";
 import { LinkRow } from "../../components/LinkRow";
 import { ISSUES_URL } from "../../build";
@@ -47,13 +48,7 @@ export function HomePage() {
           to="/settings/account"
           label={
             <span className={styles.account}>
-              {me?.user.avatarUrl ? (
-                <img className={styles.avatar} src={me.user.avatarUrl} alt="" />
-              ) : (
-                <span className={styles.avatar} aria-hidden="true">
-                  {me?.user.login.slice(0, 1).toUpperCase()}
-                </span>
-              )}
+              <Avatar user={me?.user} className={styles.avatar} />
               <span className={styles.who}>
                 <span className={styles.login}>{me?.user.login}</span>{" "}
                 <span className={styles.signedIn}>Signed in with GitHub</span>

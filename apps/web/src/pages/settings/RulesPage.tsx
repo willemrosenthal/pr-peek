@@ -7,9 +7,9 @@ import { RowText } from "../../components/RowText";
 import { Group } from "../../components/Group";
 import { Switch } from "../../components/Switch";
 import { useSaveRule } from "../../hooks/useSaveSettings";
-import { useSettings } from "../../queries";
 import styles from "./RulesPage.module.css";
-import { SettingsPage } from "./SettingsLayout";
+import settingsStyles from "./Settings.module.css";
+import { SettingsPage, WithSettings } from "./SettingsLayout";
 
 const GROUPS: { group: RuleGroup; title: string }[] = [
   { group: "Other PRs", title: "Other people's PRs" },
@@ -23,26 +23,25 @@ const SEVERITIES: { value: Severity; label: string }[] = [
 ];
 
 export function RulesPage() {
-  const settings = useSettings();
-
   return (
     <SettingsPage title="Rules">
-      <p className={styles.hint}>
+      <p className={settingsStyles.hint}>
         Each rule decides what shows on your list. Urgency sorts the list.
         Notify sends a push notification to your devices.
       </p>
-      {settings.isPending && <p className={styles.hint}>Loading</p>}
-      {settings.isError && <Alert>{settings.error.message}</Alert>}
-      {settings.data &&
-        GROUPS.map(({ group, title }) => (
-          <Group key={group} title={title}>
-            {settings.data.rules
-              .filter((rule) => rule.group === group)
-              .map((rule) => (
-                <RuleRow key={rule.id} rule={rule} />
-              ))}
-          </Group>
-        ))}
+      <WithSettings>
+        {({ rules }) =>
+          GROUPS.map(({ group, title }) => (
+            <Group key={group} title={title}>
+              {rules
+                .filter((rule) => rule.group === group)
+                .map((rule) => (
+                  <RuleRow key={rule.id} rule={rule} />
+                ))}
+            </Group>
+          ))
+        }
+      </WithSettings>
     </SettingsPage>
   );
 }

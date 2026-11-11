@@ -13,41 +13,40 @@ import { SectionOrder } from "../../components/SectionOrder";
 import { SettingSwitch } from "../../components/SettingSwitch";
 import { useSettingsSaver } from "../../hooks/useSaveSettings";
 import { useLocalSetting } from "../../localSetting";
-import { useSettings } from "../../queries";
 import { appScale, SCALES, setScale } from "../../scale";
 import styles from "./DisplayPage.module.css";
-import { SettingsPage } from "./SettingsLayout";
+import { SettingsPage, WithSettings } from "./SettingsLayout";
 
 // What shows on the list, and how it looks on this device.
 export function DisplayPage() {
-  const settings = useSettings();
   return (
     <SettingsPage title="List display">
-      {settings.isError && <Alert>{settings.error.message}</Alert>}
-      {settings.data && (
-        <>
-          <Group title="What shows">
-            <SettingSwitch
-              settings={settings.data.settings}
-              field="hideBots"
-              label="Hide bots"
-              hint="Like dependabot and renovate"
-            />
-            <SettingSwitch
-              settings={settings.data.settings}
-              field="includeTeamRequests"
-              label="Team review requests"
-              hint="Not just ones that ask you"
-            />
-          </Group>
-          <Group
-            title="Authors"
-            footer="Shows the picture of who opened each PR. Why it's on your list moves to a small badge on the picture."
-          >
-            <ShowAuthorsRow settings={settings.data.settings} />
-          </Group>
-        </>
-      )}
+      <WithSettings>
+        {({ settings }) => (
+          <>
+            <Group title="What shows">
+              <SettingSwitch
+                settings={settings}
+                field="hideBots"
+                label="Hide bots"
+                hint="Like dependabot and renovate"
+              />
+              <SettingSwitch
+                settings={settings}
+                field="includeTeamRequests"
+                label="Team review requests"
+                hint="Not just ones that ask you"
+              />
+            </Group>
+            <Group
+              title="Authors"
+              footer="Shows the picture of who opened each PR. Why it's on your list moves to a small badge on the picture."
+            >
+              <ShowAuthorsRow settings={settings} />
+            </Group>
+          </>
+        )}
+      </WithSettings>
       <Group
         title="Section order"
         aside="This device"

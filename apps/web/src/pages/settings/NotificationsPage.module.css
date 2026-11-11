@@ -19,7 +19,3 @@
   font-size: var(--text-row);
   font-variant-numeric: tabular-nums;
 }
-
-.hint {
-  color: var(--color-text-secondary);
-}

@@ -1,8 +1,11 @@
+import type { SettingsResponse } from "@pr-peek/core";
 import type { ReactNode } from "react";
 import { Outlet } from "react-router";
+import { Alert } from "../../components/Alert";
 import { BackToList } from "../../components/BackToList";
 import { useListUpdating } from "../../hooks/useListUpdate";
 import { useReturnToList } from "../../hooks/useReturnToList";
+import { useSettings } from "../../queries";
 import styles from "./Settings.module.css";
 
 // Holds every settings page: the home screen and the page each of its rows opens.
@@ -49,4 +52,17 @@ export function SettingsPage({
       <div className={styles.body}>{children}</div>
     </>
   );
+}
+
+// The user's settings and rules once they load, with "Loading" until then, or why they
+// couldn't load.
+export function WithSettings({
+  children,
+}: {
+  children: (data: SettingsResponse) => ReactNode;
+}) {
+  const settings = useSettings();
+  if (settings.isPending) return <p className={styles.hint}>Loading</p>;
+  if (settings.isError) return <Alert>{settings.error.message}</Alert>;
+  return children(settings.data);
 }

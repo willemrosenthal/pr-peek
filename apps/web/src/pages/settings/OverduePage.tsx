@@ -8,23 +8,20 @@ import { Group } from "../../components/Group";
 import { RowText } from "../../components/RowText";
 import { SettingSwitch } from "../../components/SettingSwitch";
 import { useSaveSettings, useSettingsSaver } from "../../hooks/useSaveSettings";
-import { useSettings } from "../../queries";
 import { timezoneOptions } from "../../timezones";
 import styles from "./OverduePage.module.css";
-import { SettingsPage } from "./SettingsLayout";
+import { SettingsPage, WithSettings } from "./SettingsLayout";
 
 // The server's limit, 30 days.
 const MAX_HOURS = 24 * 30;
 
 // When a review request's age turns orange, then red.
 export function OverduePage() {
-  const settings = useSettings();
-
   return (
     <SettingsPage title="Overdue reviews">
-      {settings.isPending && <p className={styles.hint}>Loading</p>}
-      {settings.isError && <Alert>{settings.error.message}</Alert>}
-      {settings.data && <OverdueSettings settings={settings.data.settings} />}
+      <WithSettings>
+        {({ settings }) => <OverdueSettings settings={settings} />}
+      </WithSettings>
     </SettingsPage>
   );
 }

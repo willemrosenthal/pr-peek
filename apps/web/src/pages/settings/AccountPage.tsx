@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { api } from "../../api";
 import { setBadge } from "../../badge";
 import { Alert } from "../../components/Alert";
+import { Avatar } from "../../components/Avatar";
 import { Button } from "../../components/Button";
 import { CardRow } from "../../components/Card";
 import { GitHubTokens } from "../../components/GitHubTokens";
@@ -12,7 +13,6 @@ import { cx } from "../../cx";
 import { clearTrayState } from "../../desktop";
 import { useMe } from "../../queries";
 import styles from "./AccountPage.module.css";
-import settingsStyles from "./Settings.module.css";
 import { SettingsPage } from "./SettingsLayout";
 
 // Who's signed in, their GitHub tokens, signing out, and deleting the account.
@@ -35,13 +35,7 @@ export function AccountPage() {
   return (
     <SettingsPage title="Account">
       <div className={styles.profile}>
-        {user?.avatarUrl ? (
-          <img className={styles.avatar} src={user.avatarUrl} alt="" />
-        ) : (
-          <span className={styles.avatar} aria-hidden="true">
-            {user?.login.slice(0, 1).toUpperCase()}
-          </span>
-        )}
+        <Avatar user={user} className={styles.avatar} />
         <p className={styles.login}>{user?.login}</p>
         <p className={styles.hint}>Signed in with GitHub</p>
       </div>
@@ -50,7 +44,7 @@ export function AccountPage() {
         <CardRow className={styles.actionRow}>
           <button
             type="button"
-            className={settingsStyles.action}
+            className={styles.action}
             onClick={() => signOut.mutate()}
             disabled={signOut.isPending}
           >
@@ -79,7 +73,7 @@ function DeleteAccount({ onDeleted }: { onDeleted: () => Promise<void> }) {
         <CardRow className={styles.actionRow}>
           <button
             type="button"
-            className={cx(settingsStyles.action, settingsStyles.danger)}
+            className={cx(styles.action, styles.danger)}
             onClick={() => setAsking(true)}
           >
             Delete my account

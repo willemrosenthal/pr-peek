@@ -45,7 +45,7 @@ const MONTHS = [
 ];
 const dayLabel = (at: Date) => `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]}`;
 
-// How Git Buddy is running, and what it costs. Admins only: the tab only shows for them,
+// How Git Buddy is running, and what it costs. Admins only: Settings only links here for them,
 // and the server answers 404 to anyone else.
 export function AdminPage() {
   const overview = useAdminOverview();

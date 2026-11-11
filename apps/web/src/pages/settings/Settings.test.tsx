@@ -3,6 +3,7 @@ import { userEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GIVE_UP_MS, POLL_MS } from "../../hooks/useSync";
 import {
+  apiError,
   callsTo,
   fakeApi,
   json,
@@ -41,6 +42,24 @@ it("opens a page from the home screen, and goes back", async () => {
     screen.getByRole("link", { name: "Back to your list" }),
   );
   await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+});
+
+it.each([
+  "/settings/rules",
+  "/settings/overdue",
+  "/settings/notifications",
+  "/settings/display",
+])("says why settings couldn't load on %s", async (path) => {
+  fakeApi(
+    signedInApi({
+      "GET /api/settings": () =>
+        apiError(500, "internal_error", "Couldn't load settings"),
+    }),
+  );
+  renderApp(path);
+  expect((await screen.findByRole("alert")).textContent).toBe(
+    "Couldn't load settings",
+  );
 });
 
 describe("when the app hides", () => {

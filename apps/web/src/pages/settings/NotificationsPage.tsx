@@ -10,9 +10,8 @@ import { Switch } from "../../components/Switch";
 import { TurnOnNotifications } from "../../components/TurnOnNotifications";
 import { useInInstalledApp } from "../../hooks/useIsTray";
 import { useSettingsSaver } from "../../hooks/useSaveSettings";
-import { useSettings } from "../../queries";
 import styles from "./NotificationsPage.module.css";
-import { SettingsPage } from "./SettingsLayout";
+import { SettingsPage, WithSettings } from "./SettingsLayout";
 
 // Times a setting starts at when it's turned on.
 const QUIET_FROM = "18:00";
@@ -23,7 +22,6 @@ const REMIND_HOURS = [1, 2, 4, 8, 24];
 
 // Whether this device gets notifications, and when to stay quiet.
 export function NotificationsPage() {
-  const settings = useSettings();
   // Only the installed app sets up notifications. The Mac app notifies on its own.
   const inInstalledApp = useInInstalledApp();
 
@@ -36,11 +34,9 @@ export function NotificationsPage() {
           </CardRow>
         </Group>
       )}
-      {settings.isPending && <p className={styles.hint}>Loading</p>}
-      {settings.isError && <Alert>{settings.error.message}</Alert>}
-      {settings.data && (
-        <NotificationSettings settings={settings.data.settings} />
-      )}
+      <WithSettings>
+        {({ settings }) => <NotificationSettings settings={settings} />}
+      </WithSettings>
     </SettingsPage>
   );
 }
