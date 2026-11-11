@@ -76,6 +76,13 @@
 
   /* Smallest comfortable touch target. */
   --touch-target: 44px;
+
+  /* The list's header and Settings' header on a phone: a touch target, with a little
+     room above and below. */
+  --header-height: 52px;
+  /* The list's card on a computer, and Settings' too. */
+  --panel-width: 420px;
+  --header-padding: var(--space-1) var(--space-2) var(--space-1) 14px;
 }
 
 @media (prefers-color-scheme: dark) {

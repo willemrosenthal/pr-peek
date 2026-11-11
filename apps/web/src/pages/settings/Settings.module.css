@@ -1,28 +1,45 @@
-/* Desktop: a centered column on the gray page. */
+/* Desktop: the list's card, in the same place and size, so going between the list and
+   Settings changes only what's in it. The card is the page's gray, so the groups'
+   white cards stand out, like on a phone. */
 .page {
   display: flex;
   flex: 1;
+  align-items: flex-start;
   justify-content: center;
-  padding: var(--space-5) var(--space-4) var(--space-6);
+  padding: var(--space-5) var(--space-4);
 }
 
 .panel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
   width: 100%;
-  max-width: 560px;
+  max-width: var(--panel-width);
+  /* Clips the corners, but still lets the header stick. */
+  overflow: clip;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-page);
+  box-shadow: var(--shadow-panel);
 }
 
+/* The list's header: white, the same size, stuck to the top. The line under it sits
+   just below, where the list's first section draws its own. */
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
+  min-height: var(--header-height);
+  padding: var(--header-padding);
+  background: var(--color-surface);
+  box-shadow: 0 1px var(--color-divider);
 }
 
 .title {
-  font-size: var(--text-xl);
-  font-weight: 600;
+  font-size: var(--text-lg);
+  font-weight: 700;
 }
 
 /* "Updating your list…", at the end of the header. */
@@ -37,35 +54,25 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+  padding: var(--space-4);
 }
 
-/* Phone, and the Mac app's dropdown: the list's white header, stuck to the top. */
+/* Phone, and the Mac app's dropdown: the page fills the screen, like the list. */
 @media (max-width: 600px) {
   .page {
     padding: 0 0 var(--space-6);
   }
 
   .panel {
-    gap: 0;
-  }
-
-  .header {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    min-height: 52px;
-    padding: var(--space-1) var(--space-2) var(--space-1) 14px;
-    border-bottom: 1px solid var(--color-divider);
-    background: var(--color-surface);
-  }
-
-  .title {
-    font-size: var(--text-lg);
-    font-weight: 700;
+    max-width: none;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .body {
-    padding: var(--space-4) var(--space-4) 0;
+    padding-bottom: 0;
   }
 }
 

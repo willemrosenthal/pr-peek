@@ -1,9 +1,10 @@
 /* The list header's font size, so the arrow matches the mascot. The hover area spills
-   past the arrow, so the arrow lines up with the text around it. */
+   past the arrow by as much as its padding, so the arrow takes the mascot's room and
+   lines up with the text around it. */
 .back {
   display: flex;
   flex: none;
-  margin: -8px;
+  margin: -6px;
   padding: 6px;
   border-radius: var(--radius-sm);
   font-size: var(--text-lg);
