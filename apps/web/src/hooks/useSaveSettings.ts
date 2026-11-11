@@ -1,11 +1,12 @@
-import type {
-  ItemKind,
-  SettingsResponse,
-  UpdateRuleBody,
-  UpdateRuleResponse,
-  UpdateSettingsBody,
-  UpdateSettingsResponse,
-  UserSettingsDto,
+import {
+  keptTimes,
+  type ItemKind,
+  type SettingsResponse,
+  type UpdateRuleBody,
+  type UpdateRuleResponse,
+  type UpdateSettingsBody,
+  type UpdateSettingsResponse,
+  type UserSettingsDto,
 } from "@pr-peek/core";
 import {
   useMutation,
@@ -49,11 +50,20 @@ export function useSaveSettings() {
   });
 }
 
-// The fields of `from` that `keysOf` has.
-const pick = (from: object, keysOf: object): Partial<UserSettingsDto> =>
-  Object.fromEntries(
-    Object.entries(from).filter(([key]) => Object.hasOwn(keysOf, key)),
+// The fields of `from` that `keysOf` has, and the kept copies of times in it, which the
+// server changes along with them.
+function pick(
+  from: UserSettingsDto,
+  keysOf: UpdateSettingsBody,
+): Partial<UserSettingsDto> {
+  const wanted = new Set([
+    ...Object.keys(keysOf),
+    ...Object.keys(keptTimes(keysOf)),
+  ]);
+  return Object.fromEntries(
+    Object.entries(from).filter(([key]) => wanted.has(key)),
   );
+}
 
 // Saves settings, and shows them with the values being saved, so a control shows its
 // new value right away.

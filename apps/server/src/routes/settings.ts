@@ -1,4 +1,5 @@
 import {
+  keptTimes,
   ruleOptions,
   rules,
   updateRuleBody,
@@ -35,6 +36,9 @@ function toSettingsDto(row: UserSettings): UserSettingsDto {
     quietWeekends: row.quietWeekends,
     highBreaksQuiet: row.highBreaksQuiet,
     digestTime: row.digestTime,
+    keptQuietStart: row.keptQuietStart,
+    keptQuietEnd: row.keptQuietEnd,
+    keptDigestTime: row.keptDigestTime,
     hideBots: row.hideBots,
     includeTeamRequests: row.includeTeamRequests,
     showAuthors: row.showAuthors,
@@ -111,7 +115,7 @@ export function settingsRouter(deps: SettingsDeps): Router {
 
     const updated = await db.userSettings.update({
       where: { userId },
-      data: sentFields(changes),
+      data: { ...sentFields(changes), ...keptTimes(changes) },
     });
     const affectsRules =
       updated.hideBots !== current.hideBots ||
