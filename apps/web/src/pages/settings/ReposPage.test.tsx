@@ -56,6 +56,27 @@ async function openSheet(name: string) {
   return screen.findByRole("dialog");
 }
 
+// Whether a sheet starts sliding in while `open` runs. Base UI marks the sheet with
+// data-starting-style for a moment as it does. A sheet that's added to the page
+// already open never gets it, and just appears.
+async function slidesIn(open: () => Promise<void>) {
+  let slid = false;
+  const watcher = new MutationObserver(() => {
+    if (document.querySelector('[role="dialog"][data-starting-style]')) {
+      slid = true;
+    }
+  });
+  watcher.observe(document.body, {
+    attributes: true,
+    childList: true,
+    subtree: true,
+  });
+  await open();
+  await screen.findByRole("dialog");
+  watcher.disconnect();
+  return slid;
+}
+
 describe("watched repos", () => {
   it("lists them by owner", async () => {
     reposApi([
@@ -79,27 +100,6 @@ describe("watched repos", () => {
       within(mine).getByRole("button", { name: "dotfiles, List only" }),
     ).toBeTruthy();
   });
-
-  // Whether a sheet starts sliding in while `open` runs. Base UI marks the sheet with
-  // data-starting-style for a moment as it does. A sheet that's added to the page
-  // already open never gets it, and just appears.
-  async function slidesIn(open: () => Promise<void>) {
-    let slid = false;
-    const watcher = new MutationObserver(() => {
-      if (document.querySelector('[role="dialog"][data-starting-style]')) {
-        slid = true;
-      }
-    });
-    watcher.observe(document.body, {
-      attributes: true,
-      childList: true,
-      subtree: true,
-    });
-    await open();
-    await screen.findByRole("dialog");
-    watcher.disconnect();
-    return slid;
-  }
 
   it("slides the sheet in, the first time too", async () => {
     reposApi([
