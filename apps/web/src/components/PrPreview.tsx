@@ -286,6 +286,8 @@ function OpenLink({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
   // The hold's timer, and what stops watching the finger move.
   const hold = useRef<{ timer: number; stopWatching: () => void } | null>(null);
+  // Puts "Open" back after "Copied".
+  const copiedTimer = useRef<number | undefined>(undefined);
 
   const endHold = () => {
     if (!hold.current) return;
@@ -293,13 +295,13 @@ function OpenLink({ url }: { url: string }) {
     hold.current.stopWatching();
     hold.current = null;
   };
-  useEffect(() => endHold, []);
-
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), COPIED_MS);
-    return () => clearTimeout(timer);
-  }, [copied]);
+  useEffect(
+    () => () => {
+      endHold();
+      clearTimeout(copiedTimer.current);
+    },
+    [],
+  );
 
   const openMenu = () => {
     endHold();
@@ -329,9 +331,17 @@ function OpenLink({ url }: { url: string }) {
   };
 
   // Open never says "Copied" if the browser refuses, which tells the person enough.
+  // Copying again starts the time over.
   const copy = () => {
     navigator.clipboard.writeText(url).then(
-      () => setCopied(true),
+      () => {
+        setCopied(true);
+        clearTimeout(copiedTimer.current);
+        copiedTimer.current = window.setTimeout(
+          () => setCopied(false),
+          COPIED_MS,
+        );
+      },
       () => {},
     );
   };

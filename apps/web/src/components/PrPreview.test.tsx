@@ -367,7 +367,30 @@ describe("Open's menu", () => {
     expect(await screen.findByRole("link", { name: "Copied" })).toBeTruthy();
     // The sheet stays open.
     expect(onClose).not.toHaveBeenCalled();
-    wait(COPIED_MS);
+    // Halfway steps, since this fake clock also moves a little on its own.
+    wait(COPIED_MS / 2);
+    expect(screen.getByRole("link", { name: "Copied" })).toBeTruthy();
+    wait(COPIED_MS / 2);
+    expect(screen.getByRole("link", { name: "Open" })).toBeTruthy();
+  });
+
+  it("says Copied for the full time again after copying again", async () => {
+    stubClipboard();
+    const { open } = setupOpen();
+    const copy = async () => {
+      fireEvent.contextMenu(open);
+      fireEvent.click(
+        await screen.findByRole("menuitem", { name: "Copy link" }),
+      );
+      await screen.findByRole("link", { name: "Copied" });
+    };
+    await copy();
+    wait(COPIED_MS * 0.75);
+    await copy();
+    // Past the first copy's time, but not the second's.
+    wait(COPIED_MS * 0.75);
+    expect(screen.getByRole("link", { name: "Copied" })).toBeTruthy();
+    wait(COPIED_MS / 2);
     expect(screen.getByRole("link", { name: "Open" })).toBeTruthy();
   });
 
