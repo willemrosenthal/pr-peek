@@ -1,9 +1,4 @@
-import type {
-  ItemDto,
-  ItemsResponse,
-  ListSection,
-  ShowAuthors,
-} from "@pr-peek/core";
+import type { ItemDto, ItemsResponse, ListSection } from "@pr-peek/core";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Navigate, useSearchParams } from "react-router";
 import { AddPrDialog } from "../components/AddPrDialog";
@@ -35,12 +30,13 @@ import {
   useSettings,
   useToggleImportant,
 } from "../queries";
-import { orderSections, SECTIONS, sectionOrder } from "../sections";
+import {
+  orderSections,
+  SECTIONS,
+  sectionOrder,
+  showsAuthors,
+} from "../sections";
 import styles from "./ListPage.module.css";
-
-// Whether a section's rows show their authors' pictures.
-const showsAuthors = (setting: ShowAuthors, group: ListSection) =>
-  setting === "all" || (setting === "review" && group === "review");
 
 // A section's items. Watching has none: only PRs with nothing to do go there.
 const itemsIn = (groups: ItemsResponse, group: ListSection): ItemDto[] =>

@@ -1,4 +1,4 @@
-import type { ListSection } from "@pr-peek/core";
+import type { ListSection, ShowAuthors } from "@pr-peek/core";
 import { localSetting } from "./localSetting";
 
 // The list's sections, in their default order. Quiet always comes last, so it's not here.
@@ -33,3 +33,11 @@ export function orderSections(order: string) {
 
 export const saveSectionOrder = (groups: ListSection[]) =>
   sectionOrder.set(groups.join(","));
+
+// A section's name, like "Needs my review".
+export const sectionTitle = (group: ListSection) =>
+  SECTIONS.find((section) => section.group === group)?.title ?? group;
+
+// Whether a section's rows show their authors' pictures.
+export const showsAuthors = (setting: ShowAuthors, group: ListSection) =>
+  setting === "all" || (setting === "review" && group === "review");

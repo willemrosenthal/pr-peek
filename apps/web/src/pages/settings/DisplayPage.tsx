@@ -1,19 +1,22 @@
-import {
-  SHOW_AUTHORS,
-  type ShowAuthors,
-  type UserSettingsDto,
+import type {
+  ItemDto,
+  ItemKind,
+  ListSection,
+  ShowAuthors,
+  UserSettingsDto,
 } from "@pr-peek/core";
 import { useEffect, useRef, useState } from "react";
 import { Alert } from "../../components/Alert";
-import { CardRow } from "../../components/Card";
-import { Select } from "../../components/Field";
+import type { Choice } from "../../components/choice";
 import { Group } from "../../components/Group";
-import { RowText } from "../../components/RowText";
+import { ItemRow } from "../../components/ItemRow";
 import { SectionOrder } from "../../components/SectionOrder";
+import { Segmented } from "../../components/Segmented";
 import { SettingSwitch } from "../../components/SettingSwitch";
 import { useSettingsSaver } from "../../hooks/useSaveSettings";
 import { useLocalSetting } from "../../localSetting";
 import { appScale, SCALES, setScale } from "../../scale";
+import { sectionTitle, showsAuthors } from "../../sections";
 import styles from "./DisplayPage.module.css";
 import { SettingsPage, WithSettings } from "./SettingsLayout";
 
@@ -39,10 +42,11 @@ export function DisplayPage() {
               />
             </Group>
             <Group
-              title="Authors"
+              title="Author pictures"
               footer="Shows the picture of who opened each PR. Why it's on your list moves to a small badge on the picture."
+              box
             >
-              <ShowAuthorsRow settings={settings} />
+              <AuthorPictures settings={settings} />
             </Group>
           </>
         )}
@@ -59,6 +63,7 @@ export function DisplayPage() {
         title="Size"
         aside="This device"
         footer="Makes everything bigger or smaller, like zooming in a browser."
+        box
       >
         <SizeRow />
       </Group>
@@ -66,33 +71,83 @@ export function DisplayPage() {
   );
 }
 
-const SHOW_AUTHORS_LABELS: Record<ShowAuthors, string> = {
-  off: "Off",
-  review: "Needs my review only",
-  all: "Everywhere",
-};
+const AUTHOR_CHOICES: Choice<ShowAuthors>[] = [
+  { value: "off", label: "Off" },
+  { value: "review", label: "My reviews" },
+  { value: "all", label: "Everywhere" },
+];
 
-function ShowAuthorsRow({ settings }: { settings: UserSettingsDto }) {
+// Two rows the way the list draws them, one under each of two sections, to show where
+// pictures go. Not a real list: nothing in it can be tapped.
+const PREVIEW: { group: ListSection; item: ItemDto }[] = [
+  {
+    group: "review",
+    item: previewItem("review_requested", "Fix login redirect on Safari", "5h"),
+  },
+  {
+    group: "replies",
+    item: previewItem("reply", "Add rate limits to the API", "1d"),
+  },
+];
+
+function previewItem(kind: ItemKind, title: string, age: string): ItemDto {
+  return {
+    id: `preview-${kind}`,
+    kind,
+    summary: kind === "reply" ? "Replied to you" : "Asked for your review",
+    actorLogin: "",
+    actorIsBot: false,
+    occurredAt: "",
+    waitingSince: null,
+    age,
+    staleLevel: "fresh",
+    waitingOnAuthor: false,
+    assignedState: null,
+    assigned: false,
+    severity: "normal",
+    unseen: false,
+    otherIds: [],
+    pr: {
+      id: `preview-${kind}`,
+      title,
+      owner: "acme",
+      repo: "web-app",
+      number: 1,
+      url: "",
+      author: "octocat",
+      color: null,
+      important: false,
+    },
+  };
+}
+
+// The preview of where pictures go, and the choice of where.
+function AuthorPictures({ settings }: { settings: UserSettingsDto }) {
   const { save, shown } = useSettingsSaver(settings);
   return (
-    <CardRow>
-      <RowText label="Show authors" />
-      <Select
-        aria-label="Show authors"
-        value={shown.showAuthors}
-        onChange={(e) =>
-          save.mutate({ showAuthors: e.target.value as ShowAuthors })
-        }
-        disabled={save.isPending}
-      >
-        {SHOW_AUTHORS.map((value) => (
-          <option key={value} value={value}>
-            {SHOW_AUTHORS_LABELS[value]}
-          </option>
+    <>
+      <div className={styles.preview} inert aria-hidden="true">
+        {PREVIEW.map(({ group, item }) => (
+          <div key={group}>
+            <p className={styles.previewSection}>{sectionTitle(group)}</p>
+            <ItemRow
+              item={item}
+              showAuthor={showsAuthors(shown.showAuthors, group)}
+            />
+          </div>
         ))}
-      </Select>
-      {save.isError && <Alert>{save.error.message}</Alert>}
-    </CardRow>
+      </div>
+      <div className={styles.authorChoice}>
+        <Segmented
+          label="Author pictures"
+          value={shown.showAuthors}
+          options={AUTHOR_CHOICES}
+          onChange={(showAuthors) => save.mutate({ showAuthors })}
+          disabled={save.isPending}
+        />
+        {save.isError && <Alert>{save.error.message}</Alert>}
+      </div>
+    </>
   );
 }
 
@@ -122,9 +177,11 @@ function SizeRow() {
   }, []);
 
   return (
-    <CardRow>
-      <RowText label="Size" />
-      <span className={styles.size}>
+    <div className={styles.size}>
+      <div className={styles.sizeTrack}>
+        <span className={styles.smallA} aria-hidden="true">
+          A
+        </span>
         <input
           ref={slider}
           type="range"
@@ -136,8 +193,13 @@ function SizeRow() {
           aria-valuetext={percent(scale)}
           onChange={(e) => setDragging(scaleAt(e.target.value))}
         />
-        <span aria-hidden="true">{percent(scale)}</span>
-      </span>
-    </CardRow>
+        <span className={styles.bigA} aria-hidden="true">
+          A
+        </span>
+      </div>
+      <p className={styles.sizeValue} aria-hidden="true">
+        {percent(scale)}
+      </p>
+    </div>
   );
 }

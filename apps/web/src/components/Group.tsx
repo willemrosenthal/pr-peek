@@ -12,7 +12,7 @@ export function Group({
   box = false,
   children,
 }: {
-  title?: string;
+  title?: string | undefined;
   // On the title's right, like "This device".
   aside?: ReactNode;
   // The card's name for screen readers. The title, unless set.

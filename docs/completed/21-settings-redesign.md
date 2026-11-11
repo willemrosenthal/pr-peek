@@ -77,16 +77,17 @@ Four PRs, one per group.
 
 ### 4. Controls (PR 4)
 
-- [ ] 4.1 Overdue reviews: the timeline and the steppers.
+- [x] 4.1 Overdue reviews: the timeline and the steppers.
 - [x] 4.2 Time pills for quiet hours and the summary. Done early, in PR 1: the times sat badly under their switches.
-- [ ] 4.3 Author pictures choice and the list preview.
-- [ ] 4.4 The size slider.
-- [ ] 4.5 Token rows that match the rest.
+- [x] 4.3 Author pictures choice and the list preview.
+- [x] 4.4 The size slider.
+- [x] 4.5 Token rows that match the rest.
 
 ## Done when
 
-- [ ] On an iPhone 15 or bigger, no settings row wraps its control onto a second line.
-- [ ] Every setting from before is still there, and saves.
-- [ ] Old links (`/settings/general`, `/settings/timing`) land on the right page.
-- [ ] Settings works in the Mac menu bar dropdown and in a desktop browser.
+- [x] On an iPhone 15 or bigger, no settings row wraps its control onto a second line. Checked in screenshots at 393 points wide, in light and dark mode.
+- [x] Every setting from before is still there, and saves. Each has a test.
+- [x] Old links (`/settings/general`, `/settings/timing`) land on the right page. Tested.
+- [x] Settings works in a desktop browser. Checked in screenshots.
+- [ ] (You) Settings works in the Mac menu bar dropdown. The Mac app rebuilds only when `apps/desktop` changes, but it loads the web app, so this shows once the release deploys.
 - [ ] (You) Try each page on your phone, in light and dark mode.
