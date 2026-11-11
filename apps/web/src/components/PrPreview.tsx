@@ -286,8 +286,6 @@ function OpenLink({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
   // The hold's timer, and what stops watching the finger move.
   const hold = useRef<{ timer: number; stopWatching: () => void } | null>(null);
-  // The menu is open from a press, so the click that may follow doesn't open the link.
-  const held = useRef(false);
 
   const endHold = () => {
     if (!hold.current) return;
@@ -305,12 +303,11 @@ function OpenLink({ url }: { url: string }) {
 
   const openMenu = () => {
     endHold();
-    held.current = true;
     setMenuOpen(true);
   };
 
-  // Watches the finger on the whole page, before the sheet: once the sheet drags, it
-  // keeps the moves from reaching the link.
+  // Watches the finger on the whole page, like the sheet does. Once the sheet starts
+  // dragging, it stops the moves from reaching the link.
   const onTouchStart = (event: TouchEvent) => {
     endHold();
     const touch = event.touches[0];
@@ -329,11 +326,6 @@ function OpenLink({ url }: { url: string }) {
       stopWatching: () =>
         document.removeEventListener("touchmove", onMove, options),
     };
-  };
-
-  const onOpenChange = (open: boolean) => {
-    setMenuOpen(open);
-    if (!open) held.current = false;
   };
 
   // Open never says "Copied" if the browser refuses, which tells the person enough.
@@ -360,8 +352,9 @@ function OpenLink({ url }: { url: string }) {
           event.preventDefault();
           openMenu();
         }}
+        // The finger that opened the menu lifting isn't a click on the link.
         onClick={(event) => {
-          if (held.current) event.preventDefault();
+          if (menuOpen) event.preventDefault();
         }}
       >
         {copied ? "Copied" : "Open"}
@@ -371,7 +364,7 @@ function OpenLink({ url }: { url: string }) {
           <ExternalLink aria-hidden="true" />
         )}
       </a>
-      <Menu.Root open={menuOpen} onOpenChange={onOpenChange}>
+      <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <Menu.Portal>
           <Menu.Positioner
             className={styles.menuPositioner}
