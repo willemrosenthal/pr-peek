@@ -1,7 +1,8 @@
-import type {
-  CheckTokenResponse,
-  TokenDto,
-  TokensResponse,
+import {
+  MAX_TOKENS,
+  type CheckTokenResponse,
+  type TokenDto,
+  type TokensResponse,
 } from "@pr-peek/core";
 import { screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -243,18 +244,23 @@ it("asks before removing a token, saying which repos move", async () => {
   );
 });
 
-it("stops offering Add at 5 tokens", async () => {
+it("shows the most allowed, and stops offering Add there", async () => {
   settingsApi({
     "GET /api/github-tokens": () =>
       json(
         tokensResponse(
-          ["a", "b", "c", "d", "e"].map((id) => githubToken({ id, name: id })),
+          Array.from({ length: MAX_TOKENS }, (_, n) =>
+            githubToken({ id: `t${n}`, name: `t${n}` }),
+          ),
         ),
       ),
   });
   renderApp("/settings/account");
 
-  expect(await screen.findByText(/You have 5 tokens/)).toBeTruthy();
+  expect(
+    await screen.findByText(new RegExp(`You have ${MAX_TOKENS} tokens`)),
+  ).toBeTruthy();
+  expect(screen.getByText(`${MAX_TOKENS} (max ${MAX_TOKENS})`)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Add a token" })).toBe(null);
 });
 

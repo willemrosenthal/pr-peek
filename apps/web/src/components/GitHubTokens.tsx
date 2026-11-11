@@ -66,7 +66,7 @@ export function GitHubTokens() {
       {list.length > 0 && (
         <Group
           title="GitHub tokens"
-          aside={`${list.length} of ${MAX_TOKENS}`}
+          aside={`${list.length} (max ${MAX_TOKENS})`}
           label="Your tokens"
           footer={full ? about : undefined}
         >
