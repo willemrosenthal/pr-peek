@@ -80,6 +80,15 @@ describe("the Rules page", () => {
     expect(sentBodies(fetch, "PATCH /api/rules/commented")).toEqual([
       { channels: ["list", "push"] },
     ]);
+
+    // Review requests notify by default.
+    expect(defaultRule("review_requested").channels).toContain("push");
+    await userEvent.click(
+      screen.getByRole("switch", { name: "Notify for Review requested" }),
+    );
+    expect(sentBodies(fetch, "PATCH /api/rules/review_requested")).toEqual([
+      { channels: ["list"] },
+    ]);
   });
 
   it("includes drafts for review requests", async () => {

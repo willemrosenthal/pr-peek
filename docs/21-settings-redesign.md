@@ -65,8 +65,8 @@ Four PRs, one per group.
 
 ### 2. Rules (PR 2)
 
-- [ ] 2.1 One line per rule, with the urgency chip, the bell, and the switch.
-- [ ] 2.2 "Include draft PRs" as a small row under Review requested.
+- [x] 2.1 One line per rule, with the urgency chip, the bell, and the switch.
+- [x] 2.2 "Include draft PRs" as a small row under Review requested, with a switch in place of the checkbox.
 
 ### 3. Repos (PR 3)
 

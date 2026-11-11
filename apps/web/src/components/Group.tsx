@@ -13,8 +13,8 @@ export function Group({
   children,
 }: {
   title?: string;
-  // A few words on the title's right, like "This device".
-  aside?: string;
+  // On the title's right, like "This device".
+  aside?: ReactNode;
   // The card's name for screen readers. The title, unless set.
   label?: string | undefined;
   footer?: ReactNode;

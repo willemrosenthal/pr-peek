@@ -1,11 +1,10 @@
 import type { RuleGroup, RuleSettingDto, Severity } from "@pr-peek/core";
+import { Bell, BellOff } from "lucide-react";
 import { Alert } from "../../components/Alert";
 import { CardRow } from "../../components/Card";
-import { Control, Controls } from "../../components/Control";
-import { Select } from "../../components/Field";
-import { RowText } from "../../components/RowText";
 import { Group } from "../../components/Group";
 import { Switch } from "../../components/Switch";
+import { cx } from "../../cx";
 import { useSaveRule } from "../../hooks/useSaveSettings";
 import styles from "./RulesPage.module.css";
 import settingsStyles from "./Settings.module.css";
@@ -26,13 +25,23 @@ export function RulesPage() {
   return (
     <SettingsPage title="Rules">
       <p className={settingsStyles.hint}>
-        Each rule decides what shows on your list. Urgency sorts the list.
-        Notify sends a push notification to your devices.
+        Each rule puts PRs on your list. Urgency sorts them. The bell sends a
+        notification to your devices.
       </p>
       <WithSettings>
         {({ rules }) =>
-          GROUPS.map(({ group, title }) => (
-            <Group key={group} title={title}>
+          GROUPS.map(({ group, title }, index) => (
+            <Group
+              key={group}
+              title={title}
+              // Column names over the first group, lined up with the controls.
+              aside={index === 0 ? <ColumnNames /> : undefined}
+              footer={
+                index === GROUPS.length - 1
+                  ? "High urgency can break quiet hours, if you let it in Notifications."
+                  : undefined
+              }
+            >
               {rules
                 .filter((rule) => rule.group === group)
                 .map((rule) => (
@@ -46,7 +55,19 @@ export function RulesPage() {
   );
 }
 
-// One rule's switch, urgency, and notify setting. Shows new values while they save.
+// Screen readers hear each control's own label instead.
+function ColumnNames() {
+  return (
+    <span className={styles.columns} aria-hidden="true">
+      <span className={styles.urgencyColumn}>Urgency</span>
+      <span className={styles.bellColumn}>Notify</span>
+      <span className={styles.switchColumn}>On</span>
+    </span>
+  );
+}
+
+// One rule on one line: its name, urgency, bell, and switch. Shows new values while
+// they save.
 function RuleRow({ rule }: { rule: RuleSettingDto }) {
   const save = useSaveRule(rule.id);
   const saving = save.isPending ? save.variables : {};
@@ -57,60 +78,74 @@ function RuleRow({ rule }: { rule: RuleSettingDto }) {
     includeDrafts:
       saving.options?.includeDrafts ?? rule.options.includeDrafts ?? false,
   };
+  const BellIcon = shown.notify ? Bell : BellOff;
 
   return (
-    <CardRow>
-      <RowText label={rule.name} full />
-      <Controls>
-        <Control name="Urgency">
-          <Select
-            aria-label={`Urgency for ${rule.name}`}
-            value={shown.severity}
-            onChange={(e) =>
-              save.mutate({ severity: e.target.value as Severity })
-            }
-            disabled={save.isPending}
-          >
-            {SEVERITIES.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
-        </Control>
-        <Control name="Notify">
-          <Switch
-            label={`Notify for ${rule.name}`}
-            checked={shown.notify}
-            onChange={(on) =>
-              save.mutate({ channels: on ? ["list", "push"] : ["list"] })
-            }
-            disabled={save.isPending}
+    <>
+      <CardRow className={cx(styles.row, !shown.enabled && styles.off)}>
+        <span className={styles.name}>{rule.name}</span>
+        {/* The phone's own menu, dressed as a colored chip. */}
+        <select
+          className={cx(styles.urgency, styles[shown.severity])}
+          aria-label={`Urgency for ${rule.name}`}
+          value={shown.severity}
+          onChange={(e) =>
+            save.mutate({ severity: e.target.value as Severity })
+          }
+          disabled={save.isPending}
+        >
+          {SEVERITIES.map(({ value, label }) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          role="switch"
+          className={cx(styles.bell, shown.notify && styles.notifying)}
+          aria-label={`Notify for ${rule.name}`}
+          aria-checked={shown.notify}
+          onClick={() =>
+            save.mutate({
+              channels: shown.notify ? ["list"] : ["list", "push"],
+            })
+          }
+          disabled={save.isPending}
+        >
+          <BellIcon
+            size={20}
+            fill={shown.notify ? "currentColor" : "none"}
+            aria-hidden="true"
           />
-        </Control>
-        <Control name="On">
+        </button>
+        <span className={styles.switchColumn}>
           <Switch
             label={`Turn on ${rule.name}`}
             checked={shown.enabled}
             onChange={(enabled) => save.mutate({ enabled })}
             disabled={save.isPending}
           />
-        </Control>
-      </Controls>
+        </span>
+        {save.isError && <Alert>{save.error.message}</Alert>}
+      </CardRow>
       {rule.id === "review_requested" && (
-        <label className={styles.option}>
-          <input
-            type="checkbox"
-            checked={shown.includeDrafts}
-            onChange={(e) =>
-              save.mutate({ options: { includeDrafts: e.target.checked } })
-            }
-            disabled={save.isPending}
-          />
-          Include draft PRs
-        </label>
+        <CardRow className={styles.option}>
+          <span className={styles.optionName} aria-hidden="true">
+            Include draft PRs
+          </span>
+          <span className={styles.switchColumn}>
+            <Switch
+              label="Include draft PRs"
+              checked={shown.includeDrafts}
+              onChange={(includeDrafts) =>
+                save.mutate({ options: { includeDrafts } })
+              }
+              disabled={save.isPending}
+            />
+          </span>
+        </CardRow>
       )}
-      {save.isError && <Alert>{save.error.message}</Alert>}
-    </CardRow>
+    </>
   );
 }
