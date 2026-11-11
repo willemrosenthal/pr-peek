@@ -10,7 +10,7 @@ const isBoolean = (value: unknown): value is boolean =>
 
 // Above the list in the installed app, until this device gets notifications. Most people
 // set up in a browser first, so the app is where they turn them on. "Not now" hides it
-// on this device. Settings, General has the same button.
+// on this device. Settings, Notifications has the same button.
 export function NotificationPrompt() {
   const push = usePushSetup();
   const [dismissed, setDismissed] = useStoredState(

@@ -10,7 +10,7 @@ export function addPrError(err: Error): ReactNode {
     return (
       <>
         Your GitHub token can't see this PR. Check its repo access in{" "}
-        <Link to="/settings/general">Settings</Link>.
+        <Link to="/settings/account">Settings</Link>.
       </>
     );
   }

@@ -312,7 +312,7 @@ export const summary = (
 
 export const noContent = () => new Response(null, { status: 204 });
 
-// What signed in pages ask for, including the settings the settings tabs load, and the
+// What signed in pages ask for, including the settings that settings pages load, and the
 // Mac menu bar app's heartbeat.
 export const signedInApi = (overrides: Handlers = {}): Handlers => ({
   "GET /api/me": () => json(me()),
@@ -321,6 +321,7 @@ export const signedInApi = (overrides: Handlers = {}): Handlers => ({
   "POST /api/desktop/heartbeat": () => noContent(),
   "GET /api/github/owners": () => json(repoOwners()),
   "GET /api/github-tokens": () => json({ tokens: [], syncedBy: [] }),
+  "GET /api/repos": () => json({ repos: [] }),
   ...overrides,
 });
 

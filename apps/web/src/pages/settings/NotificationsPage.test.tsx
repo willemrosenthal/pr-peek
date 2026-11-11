@@ -1,9 +1,8 @@
 import type { UserSettingsDto } from "@pr-peek/core";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
-  apiError,
   fakeApi,
   json,
   sentBodies,
@@ -11,6 +10,8 @@ import {
   signedInApi,
   type Handlers,
 } from "../../test/fake-api";
+import { stubDisplayMode } from "../../test/install";
+import { PUBLIC_KEY, stubPush } from "../../test/push";
 import { renderApp } from "../../test/render";
 
 // Settings that start with `stored`, and answer a save with `saved`.
@@ -31,91 +32,10 @@ const timingApi = (
 const patches = (fetch: ReturnType<typeof fakeApi>) =>
   sentBodies(fetch, "PATCH /api/settings");
 
-// Types `value` into a box and leaves it, which saves.
-async function enter(label: string, value: string) {
-  const box = await screen.findByLabelText(label);
-  await userEvent.clear(box);
-  if (value) await userEvent.type(box, value);
-  await userEvent.tab();
-}
-
-describe("overdue hours", () => {
-  it("saves when the box loses focus", async () => {
-    const fetch = timingApi({}, { staleWarnHours: 6 });
-    renderApp("/settings/timing");
-
-    await enter("Turn orange after", "6");
-    expect(patches(fetch)).toEqual([{ staleWarnHours: 6 }]);
-  });
-
-  it("doesn't save a value that didn't change", async () => {
-    const fetch = timingApi();
-    renderApp("/settings/timing");
-
-    await enter("Turn red after", "24");
-    expect(patches(fetch)).toEqual([]);
-  });
-
-  it.each([
-    ["Turn orange after", "30", "Orange must come before red."],
-    ["Turn red after", "2", "Red must come after orange."],
-    ["Turn red after", "", "Use a whole number of hours, 1 to 720."],
-    ["Turn red after", "1000", "Use a whole number of hours, 1 to 720."],
-  ])("refuses %s %j", async (label, value, message) => {
-    const fetch = timingApi();
-    renderApp("/settings/timing");
-
-    await enter(label, value);
-    expect((await screen.findByRole("alert")).textContent).toBe(message);
-    expect(patches(fetch)).toEqual([]);
-  });
-
-  it("goes back to the saved value when saving fails", async () => {
-    timingApi(
-      {},
-      {},
-      {
-        "PATCH /api/settings": () =>
-          apiError(500, "internal_error", "Couldn't save"),
-      },
-    );
-    renderApp("/settings/timing");
-
-    await enter("Turn orange after", "6");
-    expect((await screen.findByRole("alert")).textContent).toBe(
-      "Couldn't save",
-    );
-    expect(
-      screen.getByLabelText<HTMLInputElement>("Turn orange after").value,
-    ).toBe("4");
-  });
-});
-
-it("counts only work hours", async () => {
-  const fetch = timingApi({}, { workHoursOnly: true });
-  renderApp("/settings/timing");
-
-  await userEvent.click(
-    await screen.findByRole("switch", { name: "Only count work hours" }),
-  );
-  expect(patches(fetch)).toEqual([{ workHoursOnly: true }]);
-});
-
-it("changes the timezone", async () => {
-  const fetch = timingApi({}, { timezone: "Europe/Paris" });
-  renderApp("/settings/timing");
-
-  await userEvent.selectOptions(
-    await screen.findByLabelText("Timezone"),
-    "Europe/Paris",
-  );
-  expect(patches(fetch)).toEqual([{ timezone: "Europe/Paris" }]);
-});
-
 describe("quiet hours", () => {
   it("turns on from 6pm to 9am, then changes the start", async () => {
     const fetch = timingApi({}, { quietStart: "18:00", quietEnd: "09:00" });
-    renderApp("/settings/timing");
+    renderApp("/settings/notifications");
 
     await userEvent.click(
       await screen.findByRole("switch", { name: "Quiet hours" }),
@@ -146,7 +66,7 @@ describe("quiet hours", () => {
         quietEnd: null,
       },
     );
-    renderApp("/settings/timing");
+    renderApp("/settings/notifications");
 
     await userEvent.click(
       await screen.findByRole("switch", { name: "Quiet hours" }),
@@ -157,7 +77,7 @@ describe("quiet hours", () => {
 
   it("is quiet all weekend", async () => {
     const fetch = timingApi({}, { quietWeekends: true });
-    renderApp("/settings/timing");
+    renderApp("/settings/notifications");
 
     await userEvent.click(
       await screen.findByRole("switch", { name: "Quiet all weekend" }),
@@ -167,7 +87,7 @@ describe("quiet hours", () => {
 
   it("lets high urgency through", async () => {
     const fetch = timingApi({}, { highBreaksQuiet: true });
-    renderApp("/settings/timing");
+    renderApp("/settings/notifications");
 
     await userEvent.click(
       await screen.findByRole("switch", { name: "Let high urgency through" }),
@@ -178,13 +98,13 @@ describe("quiet hours", () => {
 
 it("sets and clears how often to remind after red", async () => {
   const fetch = timingApi({ remindEveryHours: 4 }, { remindEveryHours: null });
-  renderApp("/settings/timing");
+  renderApp("/settings/notifications");
 
-  const select = await screen.findByLabelText("Remind me again every");
+  const select = await screen.findByLabelText("After red, remind me");
   expect(select).toHaveProperty("value", "4");
   await userEvent.selectOptions(select, "Never");
   await waitFor(() => expect(select).toHaveProperty("value", ""));
-  await userEvent.selectOptions(select, "8 hours");
+  await userEvent.selectOptions(select, "Every 8 hours");
   expect(patches(fetch)).toEqual([
     { remindEveryHours: null },
     { remindEveryHours: 8 },
@@ -193,7 +113,7 @@ it("sets and clears how often to remind after red", async () => {
 
 it("turns on the morning summary at 9am", async () => {
   const fetch = timingApi({}, { digestTime: "09:00" });
-  renderApp("/settings/timing");
+  renderApp("/settings/notifications");
 
   await userEvent.click(
     await screen.findByRole("switch", { name: "Morning summary" }),
@@ -202,4 +122,49 @@ it("turns on the morning summary at 9am", async () => {
   expect(
     (await screen.findByLabelText<HTMLInputElement>("Summary at")).value,
   ).toBe("09:00");
+});
+
+// Turning them on is tested in NotificationPrompt.test.tsx.
+it("offers notifications on this device in the installed app, for after Not now", async () => {
+  stubDisplayMode({ standalone: true });
+  stubPush();
+  localStorage.setItem("pr-peek:notification-prompt-dismissed", "true");
+  fakeApi(
+    signedInApi({
+      "GET /api/push/key": () => json({ publicKey: PUBLIC_KEY }),
+      "GET /api/push/subscriptions": () => json({ subscriptions: [] }),
+    }),
+  );
+  renderApp("/settings/notifications");
+  const card = await screen.findByRole("list", { name: "This device" });
+  expect(
+    await within(card).findByRole("button", { name: "Turn on notifications" }),
+  ).toBeTruthy();
+  // Its own card, above the others.
+  const quiet = await screen.findByRole("list", { name: "Quiet times" });
+  expect(
+    card.compareDocumentPosition(quiet) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+});
+
+it("says when notifications are blocked on this device", async () => {
+  stubDisplayMode({ standalone: true });
+  stubPush({ permission: "denied" });
+  fakeApi(
+    signedInApi({
+      "GET /api/push/key": () => json({ publicKey: PUBLIC_KEY }),
+      "GET /api/push/subscriptions": () => json({ subscriptions: [] }),
+    }),
+  );
+  renderApp("/settings/notifications");
+  expect(
+    await screen.findByText(/Notifications are blocked for Git Buddy/),
+  ).toBeTruthy();
+});
+
+it("leaves notifications out in a browser tab", async () => {
+  fakeApi(signedInApi());
+  renderApp("/settings/notifications");
+  await screen.findByRole("list", { name: "Quiet times" });
+  expect(screen.queryByRole("list", { name: "This device" })).toBe(null);
 });

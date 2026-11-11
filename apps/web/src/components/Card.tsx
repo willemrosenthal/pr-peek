@@ -6,12 +6,14 @@ import styles from "./Card.module.css";
 export function Card({
   children,
   label,
+  className,
 }: {
   children: ReactNode;
-  label?: string;
+  label?: string | undefined;
+  className?: string | undefined;
 }) {
   return (
-    <ul className={styles.card} aria-label={label}>
+    <ul className={cx(styles.card, className)} aria-label={label}>
       {children}
     </ul>
   );

@@ -1,0 +1,72 @@
+.item {
+  border-top: 1px solid var(--color-divider);
+}
+
+.item:first-child {
+  border-top: 0;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+  padding: var(--space-2) 14px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .link:hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
+}
+
+.link:focus-visible {
+  outline-offset: -2px;
+}
+
+/* A white icon on a colored square, like the phone's own settings. */
+.tile {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: #ffffff;
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--text-row);
+}
+
+.status {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.warning {
+  color: var(--color-warning);
+}
+
+.danger {
+  color: var(--color-danger);
+}
+
+.arrow {
+  flex: none;
+  color: var(--color-text-tertiary);
+}

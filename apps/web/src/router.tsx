@@ -6,11 +6,15 @@ import { ListPage } from "./pages/ListPage";
 import { Onboarding } from "./pages/Onboarding";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { SharePage } from "./pages/SharePage";
-import { AdminTab } from "./pages/settings/AdminTab";
-import { GeneralTab } from "./pages/settings/GeneralTab";
-import { ReposTab } from "./pages/settings/ReposTab";
-import { RulesTab } from "./pages/settings/RulesTab";
-import { TimingTab } from "./pages/settings/TimingTab";
+import { AccountPage } from "./pages/settings/AccountPage";
+import { AdminPage } from "./pages/settings/AdminPage";
+import { DisplayPage } from "./pages/settings/DisplayPage";
+import { HomePage } from "./pages/settings/HomePage";
+import { MenuBarPage } from "./pages/settings/MenuBarPage";
+import { NotificationsPage } from "./pages/settings/NotificationsPage";
+import { OverduePage } from "./pages/settings/OverduePage";
+import { ReposPage } from "./pages/settings/ReposPage";
+import { RulesPage } from "./pages/settings/RulesPage";
 import { SettingsLayout } from "./pages/settings/SettingsLayout";
 import { SignIn } from "./pages/SignIn";
 
@@ -27,13 +31,25 @@ export const routes = [
         path: "/settings",
         element: <SettingsLayout />,
         children: [
-          { path: "general", element: <GeneralTab /> },
-          { path: "repos", element: <ReposTab /> },
-          { path: "rules", element: <RulesTab /> },
-          { path: "timing", element: <TimingTab /> },
-          { path: "admin", element: <AdminTab /> },
-          { index: true, element: <Navigate to="/settings/general" replace /> },
-          { path: "*", element: <Navigate to="/settings/general" replace /> },
+          { index: true, element: <HomePage /> },
+          { path: "account", element: <AccountPage /> },
+          { path: "repos", element: <ReposPage /> },
+          { path: "rules", element: <RulesPage /> },
+          { path: "overdue", element: <OverduePage /> },
+          { path: "display", element: <DisplayPage /> },
+          { path: "notifications", element: <NotificationsPage /> },
+          { path: "menu-bar", element: <MenuBarPage /> },
+          { path: "admin", element: <AdminPage /> },
+          // Old pages, from links in pushes and older apps. General held the tokens.
+          {
+            path: "general",
+            element: <Navigate to="/settings/account" replace />,
+          },
+          {
+            path: "timing",
+            element: <Navigate to="/settings/overdue" replace />,
+          },
+          { path: "*", element: <Navigate to="/settings" replace /> },
         ],
       },
       { path: "/onboarding", element: <Onboarding /> },

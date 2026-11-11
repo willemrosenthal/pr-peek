@@ -16,7 +16,7 @@ import { renderApp } from "../test/render";
 it("shows the page when signed in", async () => {
   fakeApi(signedInApi());
   renderApp("/settings");
-  expect(await screen.findByText("Signed in as octocat")).toBeTruthy();
+  expect(await screen.findByRole("heading", { name: "Settings" })).toBeTruthy();
 });
 
 it("sends signed out users to sign in", async () => {
@@ -39,7 +39,7 @@ it("offers a retry when the server can't be reached", async () => {
   expect(await screen.findByText("Server is down")).toBeTruthy();
   down = false;
   await userEvent.click(screen.getByRole("button", { name: "Try again" }));
-  expect(await screen.findByText("Signed in as octocat")).toBeTruthy();
+  expect(await screen.findByRole("heading", { name: "Settings" })).toBeTruthy();
 });
 
 it("says it can't reach Git Buddy when offline, once retries run out", async () => {

@@ -38,6 +38,10 @@
   --color-on-merged: #ffffff;
   /* Bot comments. */
   --color-bot: #9a7fb8;
+  /* Icon tiles on the settings home screen, beside the kind colors. */
+  --color-tile-overdue: #f08c00;
+  --color-tile-gray: #6e6e73;
+  --color-tile-dark: #3a3a40;
 
   --font-family:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial,
@@ -46,6 +50,8 @@
   --text-xs: 12px;
   --text-sm: 13px;
   --text-md: 14px;
+  /* A settings row's name. */
+  --text-row: 15px;
   --text-lg: 16px;
   --text-xl: 20px;
   --text-2xl: 26px;
@@ -101,6 +107,8 @@
     --color-kind-merged: #a371f7;
     --color-on-merged: #1d1d1f;
     --color-bot: #b78dc9;
+    --color-tile-gray: #8e8e93;
+    --color-tile-dark: #5a5a60;
     --shadow-panel: 0 12px 32px rgb(0 0 0 / 50%);
     --color-scrollbar: rgb(255 255 255 / 35%);
   }

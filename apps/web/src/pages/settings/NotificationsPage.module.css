@@ -1,0 +1,21 @@
+/* A time under its switch, set in a little from the rows around it. */
+.timeRow {
+  padding-left: 30px;
+}
+
+.timeName {
+  flex: 1;
+  font-size: var(--text-row);
+  color: var(--color-text-secondary);
+}
+
+/* A gray pill, like the phone's own time settings. */
+.time {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  font-size: var(--text-row);
+  font-variant-numeric: tabular-nums;
+}

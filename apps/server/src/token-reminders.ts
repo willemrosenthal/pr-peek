@@ -28,7 +28,7 @@ function reminderFor(
   return {
     title: "A GitHub token needs you",
     body,
-    url: "/settings/general",
+    url: "/settings/account",
     tag: `token-${token.id}`,
   };
 }

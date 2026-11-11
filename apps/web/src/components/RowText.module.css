@@ -1,14 +1,21 @@
+/* Takes the room the control leaves, so the control stays on the same line. */
 .text {
   display: flex;
-  flex: 1 1 var(--row-label-min);
+  flex: 1 1 0;
   flex-direction: column;
   gap: 2px;
-  min-width: min(100%, var(--row-label-min));
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 
+/* Fills its line, with the controls on the next. */
+.full {
+  flex-basis: 100%;
+}
+
 .label {
-  font-weight: 600;
+  font-size: var(--text-row);
+  font-weight: 500;
 }
 
 .hint {

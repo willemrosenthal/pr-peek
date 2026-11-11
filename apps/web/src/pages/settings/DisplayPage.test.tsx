@@ -1,7 +1,6 @@
 import type { UserSettingsDto } from "@pr-peek/core";
 import {
   act,
-  cleanup,
   fireEvent,
   screen,
   waitFor,
@@ -18,13 +17,9 @@ import {
   settingsResponse,
   signedInApi,
 } from "../../test/fake-api";
-import { coloredIcon, countStyle } from "../../desktop";
-import { stubDisplayMode } from "../../test/install";
-import { PUBLIC_KEY, stubPush } from "../../test/push";
 import { appScale } from "../../scale";
 import { sectionOrder } from "../../sections";
 import { renderApp } from "../../test/render";
-import { callsOf, stubTauri } from "../../test/tauri";
 
 it("turns hiding bots on, and reloads the list", async () => {
   let hideBots = false;
@@ -37,7 +32,7 @@ it("turns hiding bots on, and reloads the list", async () => {
       },
     }),
   );
-  renderApp("/settings/general");
+  renderApp("/settings/display");
 
   const toggle = await screen.findByRole("switch", { name: "Hide bots" });
   expect(toggle.getAttribute("aria-checked")).toBe("false");
@@ -60,7 +55,7 @@ it("turns team review requests off", async () => {
         }),
     }),
   );
-  renderApp("/settings/general");
+  renderApp("/settings/display");
 
   const toggle = await screen.findByRole("switch", {
     name: "Team review requests",
@@ -81,7 +76,7 @@ it("shows authors only under Needs my review", async () => {
         }),
     }),
   );
-  renderApp("/settings/general");
+  renderApp("/settings/display");
 
   const select = await screen.findByRole<HTMLSelectElement>("combobox", {
     name: "Show authors",
@@ -111,7 +106,7 @@ it("keeps both changes when an earlier save answers last", async () => {
       },
     }),
   );
-  renderApp("/settings/general");
+  renderApp("/settings/display");
 
   const bots = await screen.findByRole("switch", { name: "Hide bots" });
   const teams = screen.getByRole("switch", { name: "Team review requests" });
@@ -133,7 +128,7 @@ it("shows why a setting couldn't be saved, and keeps it as it was", async () => 
         apiError(500, "internal_error", "Couldn't save"),
     }),
   );
-  renderApp("/settings/general");
+  renderApp("/settings/display");
 
   const toggle = await screen.findByRole("switch", { name: "Hide bots" });
   await userEvent.click(toggle);
@@ -141,30 +136,9 @@ it("shows why a setting couldn't be saved, and keeps it as it was", async () => 
   expect(toggle.getAttribute("aria-checked")).toBe("false");
 });
 
-it("sets the menu bar count and icon color, only inside the Mac app", async () => {
-  fakeApi(signedInApi());
-  renderApp("/settings/general");
-  await screen.findByRole("switch", { name: "Hide bots" });
-  expect(screen.queryByLabelText("Menu bar count")).toBe(null);
-  cleanup();
-
-  stubTauri({ launch_at_login: true });
-  renderApp("/settings/general");
-  const select = await screen.findByLabelText("Menu bar count");
-  expect(select).toHaveProperty("value", "total");
-  await userEvent.selectOptions(select, "A dot");
-  expect(select).toHaveProperty("value", "dot");
-  expect(countStyle.get()).toBe("dot");
-
-  const colored = screen.getByRole("switch", { name: "Colored icon" });
-  expect(colored.getAttribute("aria-checked")).toBe("true");
-  await userEvent.click(colored);
-  expect(coloredIcon.get()).toBe(false);
-});
-
 it("sizes the app on this device, once the slider is let go", async () => {
   fakeApi(signedInApi());
-  renderApp("/settings/general");
+  renderApp("/settings/display");
   const size = await screen.findByRole("slider", { name: "Size" });
   const root = document.documentElement;
   expect(size.getAttribute("aria-valuetext")).toBe("100%");
@@ -196,7 +170,7 @@ it("moves a section with the keyboard, and saves the order on this device", asyn
     },
   );
   fakeApi(signedInApi());
-  renderApp("/settings/general");
+  renderApp("/settings/display");
   const order = await screen.findByRole("list", { name: "Section order" });
   const names = () =>
     within(order)
@@ -232,65 +206,4 @@ it("moves a section with the keyboard, and saves the order on this device", asyn
   expect(
     screen.getByText("Dropped Needs my review in place 2 of 5."),
   ).toBeTruthy();
-});
-
-it("turns launching at login off, only inside the Mac app", async () => {
-  fakeApi(signedInApi());
-  renderApp("/settings/general");
-  await screen.findByRole("switch", { name: "Hide bots" });
-  expect(screen.queryByRole("switch", { name: "Launch at login" })).toBe(null);
-  cleanup();
-
-  const invoke = stubTauri({ launch_at_login: true });
-  renderApp("/settings/general");
-  const toggle = await screen.findByRole("switch", { name: "Launch at login" });
-  await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("true"));
-
-  await userEvent.click(toggle);
-  expect(callsOf(invoke, "set_launch_at_login")).toEqual([{ on: false }]);
-});
-
-// Turning them on is tested in NotificationPrompt.test.tsx.
-it("offers notifications on this device in the installed app, for after Not now", async () => {
-  stubDisplayMode({ standalone: true });
-  stubPush();
-  localStorage.setItem("pr-peek:notification-prompt-dismissed", "true");
-  fakeApi(
-    signedInApi({
-      "GET /api/push/key": () => json({ publicKey: PUBLIC_KEY }),
-      "GET /api/push/subscriptions": () => json({ subscriptions: [] }),
-    }),
-  );
-  renderApp("/settings/general");
-  const card = await screen.findByRole("list", { name: "Notifications" });
-  expect(
-    await within(card).findByRole("button", { name: "Turn on notifications" }),
-  ).toBeTruthy();
-  // Its own card, above the others.
-  const general = await screen.findByRole("list", { name: "General settings" });
-  expect(
-    card.compareDocumentPosition(general) & Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
-});
-
-it("says when notifications are blocked on this device", async () => {
-  stubDisplayMode({ standalone: true });
-  stubPush({ permission: "denied" });
-  fakeApi(
-    signedInApi({
-      "GET /api/push/key": () => json({ publicKey: PUBLIC_KEY }),
-      "GET /api/push/subscriptions": () => json({ subscriptions: [] }),
-    }),
-  );
-  renderApp("/settings/general");
-  expect(
-    await screen.findByText(/Notifications are blocked for Git Buddy/),
-  ).toBeTruthy();
-});
-
-it("leaves notifications out in a browser tab", async () => {
-  fakeApi(signedInApi());
-  renderApp("/settings/general");
-  await screen.findByRole("list", { name: "This device" });
-  expect(screen.queryByRole("list", { name: "Notifications" })).toBe(null);
 });

@@ -31,7 +31,9 @@ describe("a sign-up request that waits", () => {
     await screen.findByText("Thanks, octocat. Your request is in.");
     pending = false;
     await userEvent.click(screen.getByRole("button", { name: "Check again" }));
-    expect(await screen.findByText("Signed in as octocat")).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Settings" }),
+    ).toBeTruthy();
   });
 
   it("withdraws after asking, then goes to sign in", async () => {

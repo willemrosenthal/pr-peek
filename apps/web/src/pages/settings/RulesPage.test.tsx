@@ -27,7 +27,7 @@ const rulesApi = () =>
     ),
   );
 
-describe("the Rules tab", () => {
+describe("the Rules page", () => {
   it("lists each rule under its group", async () => {
     rulesApi();
     renderApp("/settings/rules");

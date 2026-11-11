@@ -5,8 +5,11 @@ import { fakeApi, signedInApi, signedOut } from "../test/fake-api";
 import { renderApp } from "../test/render";
 import { stubTauri } from "../test/tauri";
 
+// Settings rows hold more than their name, like an arrow, so the name only starts them.
 const hrefOf = (name: string) =>
-  screen.getByRole("link", { name }).getAttribute("href");
+  screen
+    .getByRole("link", { name: new RegExp(`^${name}`) })
+    .getAttribute("href");
 
 it("links to privacy, installing, and feedback from sign in", async () => {
   fakeApi({ "GET /api/me": signedOut });
@@ -19,8 +22,8 @@ it("links to privacy, installing, and feedback from sign in", async () => {
 
 it("links to privacy and feedback from Settings, without install", async () => {
   fakeApi(signedInApi());
-  renderApp("/settings/general");
-  await screen.findByRole("navigation", { name: "Help" });
+  renderApp("/settings");
+  await screen.findByRole("heading", { name: "Help" });
   expect(hrefOf("How Git Buddy uses your data")).toBe("/privacy");
   expect(hrefOf("Report a bug or ask for something")).toBe(ISSUES_URL);
   expect(
@@ -31,10 +34,10 @@ it("links to privacy and feedback from Settings, without install", async () => {
 it("opens privacy in the browser from the Mac app, where email links work", async () => {
   stubTauri();
   fakeApi(signedInApi());
-  renderApp("/settings/general");
-  await screen.findByRole("navigation", { name: "Help" });
+  renderApp("/settings");
+  await screen.findByRole("heading", { name: "Help" });
   const privacy = screen.getByRole("link", {
-    name: "How Git Buddy uses your data",
+    name: /^How Git Buddy uses your data/,
   });
   expect(privacy.getAttribute("target")).toBe("_blank");
 });

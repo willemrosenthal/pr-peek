@@ -154,7 +154,7 @@ describe("why a link can't be added", () => {
         apiError(404, "not_found", "Your GitHub token can't see this PR."),
     });
     const settings = await screen.findByRole("link", { name: "Settings" });
-    expect(settings.getAttribute("href")).toBe("/settings/general");
+    expect(settings.getAttribute("href")).toBe("/settings/account");
     expect(dialogButton("Add as important")).toHaveProperty("disabled", true);
   });
 

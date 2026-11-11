@@ -1,0 +1,74 @@
+/* The user's picture and login, centered at the top. */
+.profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  margin-bottom: var(--space-2);
+  background: var(--color-surface);
+  font-size: var(--text-2xl);
+}
+
+.login {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* The button fills the row. */
+.actionRow {
+  padding: 0;
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) 14px;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.confirmActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* A full-width button in a card, like Sign out. */
+.action {
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-2) 14px;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  font-size: var(--text-row);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .action:hover {
+    background: var(--color-hover);
+  }
+}
+
+.action:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.danger {
+  color: var(--color-danger);
+}

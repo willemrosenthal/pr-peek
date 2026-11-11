@@ -258,7 +258,7 @@ describe("the Mac menu bar", () => {
         },
       }),
     );
-    renderApp("/settings");
+    renderApp("/settings/account");
     await waitFor(() =>
       expect(callsOf(invoke, "set_tray_state")).toHaveLength(1),
     );
@@ -309,7 +309,7 @@ describe("the app badge", () => {
         },
       }),
     );
-    renderApp("/settings");
+    renderApp("/settings/account");
     await waitFor(() => expect(setAppBadge).toHaveBeenLastCalledWith(4));
 
     await userEvent.click(screen.getByRole("button", { name: "Sign out" }));

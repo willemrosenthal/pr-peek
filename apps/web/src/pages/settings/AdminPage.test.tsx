@@ -26,20 +26,34 @@ function adminApi(overrides: Handlers = {}) {
   );
 }
 
-const nav = () => screen.findByRole("navigation", { name: "Settings" });
-
-describe("the Admin tab", () => {
+describe("the Admin page", () => {
   it.each([
     [true, "shows"],
     [false, "hides"],
   ])("isAdmin %s %s it in Settings", async (isAdmin) => {
-    fakeApi(signedInApi({ "GET /api/me": () => json(me({ isAdmin })) }));
-    renderApp("/settings/general");
+    fakeApi(
+      signedInApi({
+        "GET /api/me": () => json(me({ isAdmin })),
+        "GET /api/admin/requests": () => json({ requests: [] }),
+      }),
+    );
+    renderApp("/settings");
 
-    await within(await nav()).findByRole("link", { name: "General" });
+    await screen.findByRole("link", { name: /^Rules/ });
+    expect(screen.queryByRole("link", { name: /^Admin/ }) !== null).toBe(
+      isAdmin,
+    );
+  });
+
+  it("counts sign-ups waiting on the home screen", async () => {
+    adminApi({
+      "GET /api/admin/requests": () =>
+        json({ requests: [signUpRequest(), signUpRequest({ id: "r2" })] }),
+    });
+    renderApp("/settings");
     expect(
-      within(await nav()).queryByRole("link", { name: "Admin" }) !== null,
-    ).toBe(isAdmin);
+      await screen.findByRole("link", { name: "Admin, 2 waiting to sign up" }),
+    ).toBeTruthy();
   });
 
   it("shows each section, asking the server once", async () => {
