@@ -113,27 +113,6 @@
   font-weight: 600;
 }
 
-.removeRow {
-  list-style: none;
-}
-
-.remove {
-  width: 100%;
-  min-height: var(--touch-target);
-  border: 0;
-  background: none;
-  color: var(--color-danger);
-  font: inherit;
-  font-size: var(--text-row);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.remove:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-
 .adding {
   display: flex;
   align-items: center;

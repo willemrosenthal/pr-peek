@@ -11,6 +11,7 @@ import {
   WATCH_LABELS,
   type Watch,
 } from "../repoWatch";
+import { ActionRow } from "./ActionRow";
 import { Alert } from "./Alert";
 import { ColorPicker } from "./ColorPicker";
 import { Group } from "./Group";
@@ -139,7 +140,7 @@ export function RepoSheet({
               label={`Pick a color for ${name}`}
               color={ownColor ?? shown.color ?? FIRST_COLOR}
               // The rainbow from the class, until it has its own color.
-              {...(ownColor ? {} : { idle: null })}
+              showColor={ownColor !== null}
               className={cx(
                 styles.swatch,
                 styles.ownColor,
@@ -158,16 +159,12 @@ export function RepoSheet({
         </div>
       </Group>
       <Group label="Remove">
-        <li className={styles.removeRow}>
-          <button
-            type="button"
-            className={styles.remove}
-            onClick={() => remove.mutate()}
-            disabled={remove.isPending}
-          >
-            Remove from Git Buddy
-          </button>
-        </li>
+        <ActionRow
+          label="Remove from Git Buddy"
+          onClick={() => remove.mutate()}
+          disabled={remove.isPending}
+          danger
+        />
       </Group>
     </Sheet>
   );

@@ -118,6 +118,26 @@ describe("watched repos", () => {
     expect(await repoRow(rowName)).toBeTruthy();
   });
 
+  it("shows why a change couldn't be saved, only in that repo's sheet", async () => {
+    const web = watchedRepo({ owner: "acme", name: "web" });
+    reposApi([web, watchedRepo({ owner: "acme", name: "api" })], [], {
+      [`PATCH /api/repos/${web.id}`]: () =>
+        apiError(500, "internal_error", "Couldn't save"),
+    });
+    renderApp("/settings/repos");
+
+    const sheet = await openSheet("web");
+    await userEvent.click(within(sheet).getByRole("radio", { name: "Paused" }));
+    expect((await within(sheet).findByRole("alert")).textContent).toBe(
+      "Couldn't save",
+    );
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null));
+
+    const other = await openSheet("api");
+    expect(within(other).queryByRole("alert")).toBe(null);
+  });
+
   it("picks a color, then takes it off", async () => {
     const repo = watchedRepo({ owner: "acme", name: "web" });
     const patch = `PATCH /api/repos/${repo.id}`;

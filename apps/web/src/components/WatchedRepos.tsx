@@ -48,6 +48,7 @@ export function WatchedRepos() {
       )}
       {current && (
         <RepoSheet
+          key={current.id}
           repo={current}
           open={openId !== null && list.some((repo) => repo.id === openId)}
           onClose={() => setOpenId(null)}

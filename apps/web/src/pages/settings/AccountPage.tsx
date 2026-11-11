@@ -3,13 +3,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { api } from "../../api";
 import { setBadge } from "../../badge";
+import { ActionRow } from "../../components/ActionRow";
 import { Alert } from "../../components/Alert";
 import { Avatar } from "../../components/Avatar";
 import { Button } from "../../components/Button";
-import { CardRow } from "../../components/Card";
 import { GitHubTokens } from "../../components/GitHubTokens";
 import { Group } from "../../components/Group";
-import { cx } from "../../cx";
 import { clearTrayState } from "../../desktop";
 import { useMe } from "../../queries";
 import styles from "./AccountPage.module.css";
@@ -41,16 +40,11 @@ export function AccountPage() {
       </div>
       <GitHubTokens />
       <Group label="Sign out">
-        <CardRow className={styles.actionRow}>
-          <button
-            type="button"
-            className={styles.action}
-            onClick={() => signOut.mutate()}
-            disabled={signOut.isPending}
-          >
-            Sign out
-          </button>
-        </CardRow>
+        <ActionRow
+          label="Sign out"
+          onClick={() => signOut.mutate()}
+          disabled={signOut.isPending}
+        />
       </Group>
       <DeleteAccount onDeleted={leave} />
     </SettingsPage>
@@ -70,15 +64,11 @@ function DeleteAccount({ onDeleted }: { onDeleted: () => Promise<void> }) {
         label="Delete account"
         footer="Deletes everything Git Buddy keeps about you, after you confirm."
       >
-        <CardRow className={styles.actionRow}>
-          <button
-            type="button"
-            className={cx(styles.action, styles.danger)}
-            onClick={() => setAsking(true)}
-          >
-            Delete my account
-          </button>
-        </CardRow>
+        <ActionRow
+          label="Delete my account"
+          onClick={() => setAsking(true)}
+          danger
+        />
       </Group>
     );
   }

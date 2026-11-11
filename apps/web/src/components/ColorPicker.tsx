@@ -14,19 +14,19 @@ const longHex = (hex: string) =>
     : hex;
 
 // A swatch that opens a color picker. Calls `onChange` once dragging pauses. While
-// closed it shows `color`, or with `idle` null, whatever `className` gives it.
+// closed it shows `color`, or with `showColor` off, whatever `className` gives it.
 // `className` also sizes it.
 export function ColorPicker({
   label,
   color,
   onChange,
-  idle,
+  showColor = true,
   className,
 }: {
   label: string;
   color: string;
   onChange: (color: string) => void;
-  idle?: null;
+  showColor?: boolean;
   className?: string | undefined;
 }) {
   const [open, setOpen] = useState(false);
@@ -71,9 +71,7 @@ export function ColorPicker({
     >
       <Popover.Trigger
         className={cx(styles.trigger, className)}
-        style={
-          open || idle !== null ? { background: open ? draft : color } : {}
-        }
+        style={open || showColor ? { background: open ? draft : color } : {}}
         aria-label={label}
       />
       <Popover.Portal>
