@@ -57,7 +57,7 @@ The web's tick (`haptics.ts`) only works right after a tap or a finger lifting, 
 
 ### 12.1 Accounts and check
 
-- [ ] **(You)** Join the Apple Developer Program ($99 a year): developer.apple.com, Account, Enroll.
+- [x] **(You)** Join the Apple Developer Program ($99 a year). Done for the Mac app's signing, as an Individual ([plan 09](completed/09-apple-signing.md)). The same membership and Team ID cover the iPhone app.
 - [ ] **(You)** In Certificates, Identifiers & Profiles, Keys: make an APNs key (Apple Push Notification service). Download the `.p8` file once and keep it safe. Note its Key ID and your Team ID.
 - [x] Check Tauri's iOS push support. If it now handles server push and notification extensions well, say so in this plan and ask before switching. It doesn't yet: see "Why not Tauri for iOS" above.
 - [ ] **(You)** Install Xcode from the Mac App Store. Only the command line tools are on this Mac, and the app can't build without Xcode.
