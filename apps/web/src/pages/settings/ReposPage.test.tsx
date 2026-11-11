@@ -80,6 +80,44 @@ describe("watched repos", () => {
     ).toBeTruthy();
   });
 
+  // Whether a sheet starts sliding in while `open` runs. Base UI marks the sheet with
+  // data-starting-style for a moment as it does. A sheet that's added to the page
+  // already open never gets it, and just appears.
+  async function slidesIn(open: () => Promise<void>) {
+    let slid = false;
+    const watcher = new MutationObserver(() => {
+      if (document.querySelector('[role="dialog"][data-starting-style]')) {
+        slid = true;
+      }
+    });
+    watcher.observe(document.body, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+    });
+    await open();
+    await screen.findByRole("dialog");
+    watcher.disconnect();
+    return slid;
+  }
+
+  it("slides the sheet in, the first time too", async () => {
+    reposApi([
+      watchedRepo({ owner: "acme", name: "web" }),
+      watchedRepo({ owner: "acme", name: "api" }),
+    ]);
+    renderApp("/settings/repos");
+
+    const web = await repoRow("web");
+    expect(await slidesIn(() => userEvent.click(web))).toBe(true);
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null));
+
+    // Another repo slides in too.
+    const api = await repoRow("api");
+    expect(await slidesIn(() => userEvent.click(api))).toBe(true);
+  });
+
   it("says when there are none", async () => {
     reposApi([]);
     renderApp("/settings/repos");
