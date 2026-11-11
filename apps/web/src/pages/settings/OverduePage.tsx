@@ -3,17 +3,17 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { Alert } from "../../components/Alert";
 import { CardRow } from "../../components/Card";
-import { Input, Select } from "../../components/Field";
+import { Select } from "../../components/Field";
 import { Group } from "../../components/Group";
 import { RowText } from "../../components/RowText";
 import { SettingSwitch } from "../../components/SettingSwitch";
-import { useSaveSettings, useSettingsSaver } from "../../hooks/useSaveSettings";
+import { Stepper } from "../../components/Stepper";
+import { useSettingsSaver } from "../../hooks/useSaveSettings";
+import { stepAfter, stepBefore } from "../../overdueSteps";
+import { formatHours } from "../../settingsStatus";
 import { timezoneOptions } from "../../timezones";
 import styles from "./OverduePage.module.css";
 import { SettingsPage, WithSettings } from "./SettingsLayout";
-
-// The server's limit, 30 days.
-const MAX_HOURS = 24 * 30;
 
 // When a review request's age turns orange, then red.
 export function OverduePage() {
@@ -27,34 +27,51 @@ export function OverduePage() {
 }
 
 function OverdueSettings({ settings }: { settings: UserSettingsDto }) {
+  // Both rows share one save, so each keeps to its side of the other's new value.
+  const { save, shown } = useSettingsSaver(settings);
+  const warn = shown.staleWarnHours;
+  const late = shown.staleLateHours;
+  const later = stepAfter(warn);
+  const sooner = stepBefore(late);
+
   return (
     <>
+      <Group label="Timeline" box>
+        <Timeline warn={warn} late={late} />
+      </Group>
       <Group
         title="When"
-        footer="How long a review request waits before its age turns orange, then red."
+        footer="Steps of 1, 2, 4, 8, and 12 hours, then whole days. Red always comes after orange."
       >
-        <HoursRow
-          key={`warn-${settings.staleWarnHours}`}
-          settings={settings}
-          field="staleWarnHours"
-          label="Turn orange after"
-          problem={(hours) =>
-            hours >= settings.staleLateHours
-              ? "Orange must come before red."
-              : null
-          }
-        />
-        <HoursRow
-          key={`late-${settings.staleLateHours}`}
-          settings={settings}
-          field="staleLateHours"
-          label="Turn red after"
-          problem={(hours) =>
-            hours <= settings.staleWarnHours
-              ? "Red must come after orange."
-              : null
-          }
-        />
+        <CardRow>
+          <RowText label="Turn orange after" />
+          <Stepper
+            value={formatHours(warn)}
+            less={stepBefore(warn)}
+            more={later !== null && later < late ? later : null}
+            lessLabel="Turn orange sooner"
+            moreLabel="Turn orange later"
+            onStep={(staleWarnHours) => save.mutate({ staleWarnHours })}
+            disabled={save.isPending}
+          />
+        </CardRow>
+        <CardRow>
+          <RowText label="Turn red after" />
+          <Stepper
+            value={formatHours(late)}
+            less={sooner !== null && sooner > warn ? sooner : null}
+            more={stepAfter(late)}
+            lessLabel="Turn red sooner"
+            moreLabel="Turn red later"
+            onStep={(staleLateHours) => save.mutate({ staleLateHours })}
+            disabled={save.isPending}
+          />
+        </CardRow>
+        {save.isError && (
+          <CardRow>
+            <Alert>{save.error.message}</Alert>
+          </CardRow>
+        )}
       </Group>
       <Group
         title="Counting"
@@ -77,60 +94,25 @@ function OverdueSettings({ settings }: { settings: UserSettingsDto }) {
   );
 }
 
-// A number of hours. Saves when the box loses focus.
-function HoursRow({
-  settings,
-  field,
-  label,
-  problem,
-}: {
-  settings: UserSettingsDto;
-  field: "staleWarnHours" | "staleLateHours";
-  label: string;
-  // Why `hours` can't be saved, or null.
-  problem: (hours: number) => string | null;
-}) {
-  const save = useSaveSettings();
-  const stored = settings[field];
-  const [draft, setDraft] = useState(String(stored));
-  const [mistake, setMistake] = useState<string | null>(null);
-
-  const commit = () => {
-    const hours = Number(draft);
-    const why =
-      draft === "" || !Number.isInteger(hours) || hours < 1 || hours > MAX_HOURS
-        ? `Use a whole number of hours, 1 to ${MAX_HOURS}.`
-        : problem(hours);
-    setMistake(why);
-    if (why || hours === stored) return;
-    save.mutate(
-      { [field]: hours },
-      { onError: () => setDraft(String(stored)) },
-    );
-  };
-
+// A review request's age, from requested to orange to red. Just a picture: the rows say
+// the same.
+function Timeline({ warn, late }: { warn: number; late: number }) {
   return (
-    <CardRow>
-      <RowText label={label} />
-      <span className={styles.inline}>
-        <Input
-          className={styles.hours}
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={MAX_HOURS}
-          aria-label={label}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          disabled={save.isPending}
-        />
-        hours
-      </span>
-      {(mistake ?? save.error) && (
-        <Alert>{mistake ?? save.error?.message}</Alert>
-      )}
-    </CardRow>
+    <div className={styles.timeline} aria-hidden="true">
+      <p className={styles.timelineHint}>
+        A review request's age turns orange, then red, the longer it waits.
+      </p>
+      <div className={styles.bar}>
+        <span />
+        <span className={styles.warn} />
+        <span className={styles.late} />
+      </div>
+      <div className={styles.marks}>
+        <span>Requested</span>
+        <span className={styles.warnText}>After {formatHours(warn)}</span>
+        <span className={styles.lateText}>After {formatHours(late)}</span>
+      </div>
+    </div>
   );
 }
 

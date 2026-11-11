@@ -67,7 +67,7 @@ it("turns team review requests off", async () => {
   expect(toggle.getAttribute("aria-checked")).toBe("false");
 });
 
-it("shows authors only under Needs my review", async () => {
+it("shows authors only under Needs my review, in the preview too", async () => {
   const fetch = fakeApi(
     signedInApi({
       "PATCH /api/settings": () =>
@@ -77,16 +77,24 @@ it("shows authors only under Needs my review", async () => {
     }),
   );
   renderApp("/settings/display");
+  // The preview's pictures. It's hidden from screen readers, so found by its tags.
+  const pictures = () => document.querySelectorAll("[inert] img").length;
 
-  const select = await screen.findByRole<HTMLSelectElement>("combobox", {
-    name: "Show authors",
-  });
-  expect(select.value).toBe("off");
-  await userEvent.selectOptions(select, "Needs my review only");
+  const off = await screen.findByRole("radio", { name: "Off" });
+  expect(off).toHaveProperty("checked", true);
+  expect(pictures()).toBe(0);
+  await userEvent.click(screen.getByRole("radio", { name: "My reviews" }));
   expect(sentBodies(fetch, "PATCH /api/settings")).toEqual([
     { showAuthors: "review" },
   ]);
-  await waitFor(() => expect(select.value).toBe("review"));
+  await waitFor(() =>
+    expect(screen.getByRole("radio", { name: "My reviews" })).toHaveProperty(
+      "checked",
+      true,
+    ),
+  );
+  // Needs my review shows its picture. Replies to me doesn't.
+  expect(pictures()).toBe(1);
 });
 
 it("keeps both changes when an earlier save answers last", async () => {

@@ -1,15 +1,62 @@
-.inline {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-text-secondary);
-}
-
-.hours {
-  width: 80px;
-}
-
 /* Long zone names are cut off, so the row keeps its name. */
 .zone {
   max-width: 60%;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.timelineHint {
+  margin-bottom: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Three equal parts: gray while on time, then orange, then red. */
+.bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  height: 10px;
+}
+
+.bar > span {
+  background: var(--color-border);
+}
+
+.bar > span:first-child {
+  border-radius: 5px 0 0 5px;
+}
+
+.bar > span:last-child {
+  border-radius: 0 5px 5px 0;
+}
+
+.bar > .warn {
+  background: var(--color-tile-overdue);
+}
+
+.bar > .late {
+  background: var(--color-kind-failed);
+}
+
+.marks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.warnText {
+  font-weight: 600;
+  color: var(--color-warning);
+}
+
+.lateText {
+  font-weight: 600;
+  color: var(--color-danger);
 }

@@ -19,7 +19,10 @@ import {
 } from "../tokens";
 import { AddTokenSheet, type Adding } from "./AddToken";
 import { Alert } from "./Alert";
+import { ActionRow } from "./ActionRow";
 import { Button } from "./Button";
+import { CardRow } from "./Card";
+import { Group } from "./Group";
 import styles from "./GitHubTokens.module.css";
 
 // The user's personal access tokens, adding and replacing them, and which token syncs
@@ -36,54 +39,56 @@ export function GitHubTokens() {
   const { tokens: list, syncedBy } = tokens.data;
   const nameOf = (id: string | null) =>
     list.find((token) => token.id === id)?.name ?? "GitHub sign in";
+  const full = list.length >= MAX_TOKENS;
+  // Under the Add button, or under the tokens once there's no room for more.
+  const about = (
+    <>
+      For orgs that block Git Buddy's GitHub app. A fine-grained token covers
+      one org, so add one for each.{" "}
+      {full
+        ? `You have ${MAX_TOKENS} tokens, the most Git Buddy allows. Remove one to add another.`
+        : "Each one adds a search to every sync."}{" "}
+      Tokens are encrypted, and only ever read your repos.
+    </>
+  );
   const startAdding = (replacing: TokenDto | null = null) => {
     setSaved(null);
     setAdding({ replacing });
   };
 
   return (
-    <div className={styles.tokens}>
-      <section className={styles.section} aria-labelledby="tokens-heading">
-        <div className={styles.header}>
-          <div className={styles.headerText}>
-            <h2 id="tokens-heading" className={styles.heading}>
-              GitHub tokens
-            </h2>
-            <p className={styles.hint}>
-              For orgs that block Git Buddy's GitHub app. A fine-grained token
-              covers one org, so add one for each.
-            </p>
-          </div>
-          {list.length < MAX_TOKENS && (
-            <Button variant="primary" onClick={() => startAdding()}>
-              Add a token
-            </Button>
-          )}
-        </div>
-        {saved && (
-          <p className={styles.saved} role="status">
-            {saved}
-          </p>
-        )}
-        {list.length > 0 && (
-          <ul className={styles.list} aria-label="Your tokens">
-            {list.map((token) => (
-              <TokenCard
-                key={token.id}
-                token={token}
-                syncedBy={syncedBy}
-                onReplace={() => startAdding(token)}
-              />
-            ))}
-          </ul>
-        )}
-        <p className={styles.hint}>
-          {list.length >= MAX_TOKENS
-            ? `You have ${MAX_TOKENS} tokens, the most Git Buddy allows. Remove one to add another.`
-            : `Up to ${MAX_TOKENS} tokens. Each one adds a search to every sync.`}{" "}
-          Tokens are encrypted, and only ever read your repos.
+    <>
+      {saved && (
+        <p className={styles.saved} role="status">
+          {saved}
         </p>
-      </section>
+      )}
+      {list.length > 0 && (
+        <Group
+          title="GitHub tokens"
+          aside={`${list.length} of ${MAX_TOKENS}`}
+          label="Your tokens"
+          footer={full ? about : undefined}
+        >
+          {list.map((token) => (
+            <TokenRow
+              key={token.id}
+              token={token}
+              syncedBy={syncedBy}
+              onReplace={() => startAdding(token)}
+            />
+          ))}
+        </Group>
+      )}
+      {!full && (
+        <Group
+          title={list.length === 0 ? "GitHub tokens" : undefined}
+          label="Add a token"
+          footer={about}
+        >
+          <ActionRow label="Add a token" onClick={() => startAdding()} />
+        </Group>
+      )}
 
       <AddTokenSheet
         adding={adding}
@@ -97,32 +102,24 @@ export function GitHubTokens() {
       />
 
       {syncedBy.length > 0 && (
-        <section className={styles.section} aria-labelledby="owners-heading">
-          <div className={styles.headerText}>
-            <h2 id="owners-heading" className={styles.heading}>
-              Which token syncs each owner
-            </h2>
-            <p className={styles.hint}>
-              The owners of the repos you watch. Git Buddy picks a working token
-              for each, or your GitHub sign in.
-            </p>
-          </div>
-          <ul className={styles.list}>
-            {syncedBy.map((row) => (
-              <li key={row.owner} className={styles.ownerRow}>
-                <span>
-                  <strong>{row.owner}</strong>{" "}
-                  <span className={styles.muted}>
-                    · {plural(row.repos, "repo")}
-                  </span>
+        <Group
+          title="Which token syncs each owner"
+          footer="The owners of the repos you watch. Git Buddy picks a working token for each, or your GitHub sign in."
+        >
+          {syncedBy.map((row) => (
+            <CardRow key={row.owner} className={styles.ownerRow}>
+              <span className={styles.owner}>
+                <strong>{row.owner}</strong>{" "}
+                <span className={styles.muted}>
+                  · {plural(row.repos, "repo")}
                 </span>
-                <span>{nameOf(row.tokenId)}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+              </span>
+              <span className={styles.muted}>{nameOf(row.tokenId)}</span>
+            </CardRow>
+          ))}
+        </Group>
       )}
-    </div>
+    </>
   );
 }
 
@@ -133,7 +130,7 @@ function expiringText(expiresAt: string) {
     : "Expired. Replace it to keep syncing.";
 }
 
-function TokenCard({
+function TokenRow({
   token,
   syncedBy,
   onReplace,
@@ -156,7 +153,7 @@ function TokenCard({
     : "Never expires.";
 
   return (
-    <li className={styles.card}>
+    <CardRow className={styles.tokenRow}>
       <div className={styles.cardText}>
         <span className={styles.cardTitle}>
           <strong>{token.name}</strong>
@@ -205,6 +202,6 @@ function TokenCard({
           <Button onClick={() => setConfirming(true)}>Remove</Button>
         </div>
       )}
-    </li>
+    </CardRow>
   );
 }

@@ -1,0 +1,41 @@
+/* Two buttons and the value between them, in one gray pill. */
+.stepper {
+  display: flex;
+  flex: none;
+  align-items: center;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.button {
+  display: grid;
+  place-items: center;
+  width: var(--touch-target);
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.button:disabled {
+  color: var(--color-text-tertiary);
+  cursor: default;
+  opacity: 0.5;
+}
+
+@media (hover: hover) {
+  .button:not(:disabled):hover {
+    background: var(--color-hover);
+  }
+}
+
+.value {
+  min-width: 64px;
+  font-size: var(--text-row);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}

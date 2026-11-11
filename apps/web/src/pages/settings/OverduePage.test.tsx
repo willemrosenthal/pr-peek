@@ -31,46 +31,49 @@ const timingApi = (
 const patches = (fetch: ReturnType<typeof fakeApi>) =>
   sentBodies(fetch, "PATCH /api/settings");
 
-// Types `value` into a box and leaves it, which saves.
-async function enter(label: string, value: string) {
-  const box = await screen.findByLabelText(label);
-  await userEvent.clear(box);
-  if (value) await userEvent.type(box, value);
-  await userEvent.tab();
-}
+const button = (name: string) => screen.findByRole("button", { name });
 
 describe("overdue hours", () => {
-  it("saves when the box loses focus", async () => {
-    const fetch = timingApi({}, { staleWarnHours: 6 });
-    renderApp("/settings/overdue");
-
-    await enter("Turn orange after", "6");
-    expect(patches(fetch)).toEqual([{ staleWarnHours: 6 }]);
-  });
-
-  it("doesn't save a value that didn't change", async () => {
-    const fetch = timingApi();
-    renderApp("/settings/overdue");
-
-    await enter("Turn red after", "24");
-    expect(patches(fetch)).toEqual([]);
-  });
-
   it.each([
-    ["Turn orange after", "30", "Orange must come before red."],
-    ["Turn red after", "2", "Red must come after orange."],
-    ["Turn red after", "", "Use a whole number of hours, 1 to 720."],
-    ["Turn red after", "1000", "Use a whole number of hours, 1 to 720."],
-  ])("refuses %s %j", async (label, value, message) => {
-    const fetch = timingApi();
+    ["Turn orange later", 4, { staleWarnHours: 8 }],
+    ["Turn orange sooner", 4, { staleWarnHours: 2 }],
+    // A saved value between steps moves to the steps around it.
+    ["Turn orange later", 6, { staleWarnHours: 8 }],
+    ["Turn orange sooner", 6, { staleWarnHours: 4 }],
+    // Past 12 hours, steps are whole days.
+    ["Turn orange later", 12, { staleWarnHours: 24 }],
+    ["Turn red later", 72, { staleLateHours: 96 }],
+  ])("%s from %s hours", async (name, staleWarnHours, sent) => {
+    const fetch = timingApi({ staleWarnHours, staleLateHours: 72 }, sent);
     renderApp("/settings/overdue");
 
-    await enter(label, value);
-    expect((await screen.findByRole("alert")).textContent).toBe(message);
-    expect(patches(fetch)).toEqual([]);
+    await userEvent.click(await button(name));
+    expect(patches(fetch)).toEqual([sent]);
   });
 
-  it("goes back to the saved value when saving fails", async () => {
+  it("keeps orange before red", async () => {
+    timingApi({ staleWarnHours: 12, staleLateHours: 24 });
+    renderApp("/settings/overdue");
+
+    expect(await button("Turn orange later")).toHaveProperty("disabled", true);
+    expect(await button("Turn red sooner")).toHaveProperty("disabled", true);
+    expect(await button("Turn orange sooner")).toHaveProperty(
+      "disabled",
+      false,
+    );
+    expect(await button("Turn red later")).toHaveProperty("disabled", false);
+  });
+
+  it("stops at an hour and at 30 days", async () => {
+    timingApi({ staleWarnHours: 1, staleLateHours: 24 * 30 });
+    renderApp("/settings/overdue");
+
+    expect(await button("Turn orange sooner")).toHaveProperty("disabled", true);
+    expect(await button("Turn red later")).toHaveProperty("disabled", true);
+    expect(screen.getByText("30 days")).toBeTruthy();
+  });
+
+  it("shows why a change couldn't be saved, and keeps the value", async () => {
     timingApi(
       {},
       {},
@@ -81,13 +84,12 @@ describe("overdue hours", () => {
     );
     renderApp("/settings/overdue");
 
-    await enter("Turn orange after", "6");
+    await userEvent.click(await button("Turn orange later"));
     expect((await screen.findByRole("alert")).textContent).toBe(
       "Couldn't save",
     );
-    expect(
-      screen.getByLabelText<HTMLInputElement>("Turn orange after").value,
-    ).toBe("4");
+    // The stepper's value. The timeline says "After 4 h".
+    expect(screen.getByText("4 h")).toBeTruthy();
   });
 });
 
