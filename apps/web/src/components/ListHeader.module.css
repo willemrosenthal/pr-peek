@@ -1,8 +1,10 @@
+/* The same size as Settings' header (tokens.css). */
 .header {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-3) var(--space-2) 10px 14px;
+  min-height: var(--header-height);
+  padding: var(--header-padding);
   background: var(--color-surface);
 }
 
