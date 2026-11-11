@@ -14,7 +14,7 @@ import { SelectField } from "../components/Field";
 import { TurnOnNotifications } from "../components/TurnOnNotifications";
 import { WatchedRepos } from "../components/WatchedRepos";
 import { cx } from "../cx";
-import { useIsTray } from "../hooks/useIsTray";
+import { useInNativeApp } from "../hooks/useIsTray";
 import { detectPlatform, isStandalone } from "../install";
 import { useGitHubTokens, useRepos } from "../queries";
 import { detectedTimezone, timezoneOptions } from "../timezones";
@@ -315,14 +315,14 @@ function TimezoneStep({ onNext }: { onNext: () => void }) {
 
 function DoneStep() {
   const navigate = useNavigate();
-  const isTray = useIsTray();
+  const inNativeApp = useInNativeApp();
   return (
     <section className={styles.step}>
       <h2 className={styles.stepTitle}>You're set</h2>
       <p className={styles.hint}>Your list fills in within a minute.</p>
-      {/* The menu bar app already notifies. Elsewhere, notifications come with the
-          installed app, so a browser tab offers the install first. */}
-      {!isTray &&
+      {/* The Mac and iPhone apps notify on their own. Elsewhere, notifications come
+          with the installed app, so a browser tab offers the install first. */}
+      {!inNativeApp &&
         (isStandalone() ? (
           <>
             <h3 className={styles.subTitle}>Get notifications</h3>

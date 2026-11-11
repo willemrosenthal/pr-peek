@@ -6,6 +6,7 @@ import { RouterProvider } from "react-router";
 import { AppUpdatePrompt } from "./components/AppUpdatePrompt";
 import { UpdatePrompt } from "./components/UpdatePrompt";
 import { startDesktop } from "./desktop";
+import { startIos } from "./ios";
 import { createRouter } from "./router";
 import { applyScale } from "./scale";
 import { initSentry, reportReactError } from "./sentry";
@@ -20,6 +21,7 @@ const queryClient = new QueryClient();
 // Before the first render, so the app never shows at the wrong size.
 applyScale();
 startDesktop();
+startIos();
 // iPhones ignore the viewport's user-scalable=no, so this stops pinch zoom there.
 // Touch screens only: a Mac's trackpad pinch sends this too, and keeps its zoom.
 if (window.matchMedia("(pointer: coarse)").matches) {

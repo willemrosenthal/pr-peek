@@ -20,6 +20,15 @@ it("links to privacy, installing, and feedback from sign in", async () => {
   expect(hrefOf("Report a bug or ask for something")).toBe(ISSUES_URL);
 });
 
+it("leaves out the install link when signing in to the iPhone app", async () => {
+  fakeApi({ "GET /api/me": signedOut });
+  renderApp("/signin?shell=ios");
+  await screen.findByRole("navigation", { name: "Help" });
+  expect(
+    screen.queryByRole("link", { name: "Install on your phone or Mac" }),
+  ).toBe(null);
+});
+
 it("links to privacy and feedback from Settings, without install", async () => {
   fakeApi(signedInApi());
   renderApp("/settings");

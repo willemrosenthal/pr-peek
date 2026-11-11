@@ -27,9 +27,22 @@ export function useIsTray(): boolean {
   return shell === "tray" || shell === "window";
 }
 
+// True in the iPhone app (plan 12), which opens the site with `?shell=ios`.
+export const useInIosApp = () => useShell() === "ios";
+
+// The same as useInIosApp, outside React, like at startup.
+export const inIosApp = () => shellOf(shellInUrl()) === "ios";
+
+// True in an app that notifies on its own: the Mac menu bar app or the iPhone app. They
+// don't need installing, or the web's notifications.
+export const useInNativeApp = () => {
+  const shell = useShell();
+  return shell === "tray" || shell === "window" || shell === "ios";
+};
+
 // True in the installed web app, on a phone or a computer, where notifications are set
-// up. Not the Mac menu bar app, which notifies on its own.
-export const useInInstalledApp = () => !useIsTray() && isStandalone();
+// up. Not the native apps, which notify on their own.
+export const useInInstalledApp = () => !useInNativeApp() && isStandalone();
 
 // True in the dropdown under the icon.
 export const useIsDropdown = () => useShell() === "tray";

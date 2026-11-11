@@ -3,7 +3,7 @@
 A tool that tracks GitHub PRs that need your attention. Web app (PWA), Mac menu bar app (Tauri), push notifications.
 
 - Call it **Git Buddy** in anything people see: UI text, notifications, docs.
-- Keep `pr-peek` for internal names: packages, storage keys, DOM events, the database. The Mac app's ID (`com.git-buddy.pr-peek`) must never change, or users lose their login and launch at login.
+- Keep `pr-peek` for internal names: packages, storage keys, DOM events, the database. The Mac and iPhone apps' ID (`com.git-buddy.pr-peek`) must never change, or users lose their login and launch at login, and the iPhone app its App Store listing and pushes.
 
 - What we're building and the tech stack: [docs/overview.md](docs/overview.md)
 - Build plans, in order: [docs/README.md](docs/README.md)
@@ -125,7 +125,7 @@ Merging a PR can release it. PRs are squash merged, so the PR title becomes the 
 | `fix`, `perf`                                      | Releases a patch (1.2.0 to 1.2.1), and deploys         |
 | `chore`, `docs`, `test`, `refactor`, `ci`, `style` | Nothing. It ships with the next release                |
 
-- Scopes: `web`, `server`, `core`, `desktop`, `ci`, `deps`. Like `fix(desktop): keep the dropdown open`. The scope is only a label: the changed files decide what ships.
+- Scopes: `web`, `server`, `core`, `desktop`, `ios`, `ci`, `deps`. Like `fix(desktop): keep the dropdown open`. The scope is only a label: the changed files decide what ships.
 - A change that must ship but isn't a feature, like a security update to a dependency, is `fix(deps): ...`.
 - A release deploys the web app, and builds the Mac app only when `apps/desktop` or `.github/workflows/desktop-release.yml` changed since the last Mac release.
 - Breaking changes (`feat!:`, or `BREAKING CHANGE:` in any commit message) release a major version. Only when the user agrees.

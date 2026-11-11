@@ -8,7 +8,7 @@
 
 Capacitor puts the web app in a native iPhone app. The screens stay the React app we have. Only the notification parts are native.
 
-- **Why not Tauri for iOS:** it would keep one toolchain, but its support for push from a server is thinner. It likely needs a community plugin or our own Swift plugin. Capacitor has a mature push plugin. Check Tauri's current state once in 12.1 before committing.
+- **Why not Tauri for iOS:** it would keep one toolchain, but its support for push from a server is thinner. It likely needs a community plugin or our own Swift plugin. Capacitor has a mature push plugin. Checked in 12.1 (November 2026): Tauri still has no official push plugin for iOS, only community ones (`tauri-plugin-remote-push`, `tauri-plugin-mobile-push`), and the notification extension is hand-made in Xcode either way. Capacitor stays.
 - **Why not React Native or Swift:** both mean building the screens a second time.
 - **Feel:** the app is a list with swipes and links. It runs in the same browser engine (WebKit) as the Mac app, so the swipe and animation work carries over.
 
@@ -38,18 +38,19 @@ The extension (12.4) shows the tile for each kind from images inside the app. Th
 
 - [ ] **(You)** Join the Apple Developer Program ($99 a year): developer.apple.com, Account, Enroll.
 - [ ] **(You)** In Certificates, Identifiers & Profiles, Keys: make an APNs key (Apple Push Notification service). Download the `.p8` file once and keep it safe. Note its Key ID and your Team ID.
-- [ ] Check Tauri's iOS push support. If it now handles server push and notification extensions well, say so in this plan and ask before switching.
+- [x] Check Tauri's iOS push support. If it now handles server push and notification extensions well, say so in this plan and ask before switching. It doesn't yet: see "Why not Tauri for iOS" above.
+- [ ] **(You)** Install Xcode from the Mac App Store. Only the command line tools are on this Mac, and the app can't build without Xcode.
 
 ### 12.2 The shell
 
-- [ ] A new workspace package, `apps/ios`, with Capacitor and its iOS project (`ios/`). The bundle ID is `com.git-buddy.pr-peek` (the same rule as the Mac app: never change it).
-- [ ] `capacitor.config.ts` points `server.url` at `https://www.git-buddy.com/?shell=ios`. Allow only our domain to call native code.
-- [ ] App icon from `apps/web/public/icon.svg` (the full size iOS icon, no padding).
-- [ ] The web app knows it's in the iPhone app (`?shell=ios`, kept like the tray shell). It then:
+- [x] A new workspace package, `apps/ios`, with Capacitor 8 and its iOS project (`ios/`), which uses Swift Package Manager, not CocoaPods. The bundle ID is `com.git-buddy.pr-peek` (the same rule as the Mac app: never change it). Capacitor's CLI refuses dashes in app IDs (an Android rule), so the project was made with a stand-in ID, then given the real one. `cap sync` accepts it.
+- [x] `capacitor.config.ts` points `server.url` at `https://www.git-buddy.com/?shell=ios`. Only our site and `github.com` (for signing in) load inside the app. Anything else opens in Safari. Capacitor's bridge also reaches GitHub's sign in pages, so the app only adds plugins that are safe to call from them.
+- [x] App icon and launch screen from `apps/web/public/icon.svg` (`pnpm --filter @pr-peek/ios icons`). The icon is a full square: iOS rounds the corners.
+- [x] The web app knows it's in the iPhone app (`?shell=ios`, kept like the tray shell). It then:
   - hides the "Add to Home Screen" steps and the web push switch,
-  - respects the safe areas (notch and home bar),
-  - opens PR links in Safari (or the GitHub app), not inside the app.
-- [ ] GitHub sign in works inside the app and returns to the list.
+  - respects the safe areas (notch and home bar), with Capacitor's `contentInset`,
+  - opens PR links in Safari (or the GitHub app), not inside the app, with `window.open`.
+- [ ] GitHub sign in works inside the app and returns to the list. Built, but only a real build can show it: **(You)** check it once Xcode is in.
 - [ ] **(You)** In Xcode, sign in with your Apple account, pick your team, and run the app on your iPhone.
 - [ ] **(You)** Upload a build to TestFlight and install it from there.
 

@@ -2,6 +2,7 @@ import type { PushPayload, SummaryResponse } from "@pr-peek/core";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { inDropdown, rememberShell } from "./hooks/useIsTray";
 import { localSetting } from "./localSetting";
+import { linkLeavingApp } from "./links";
 
 // The Mac menu bar app (apps/desktop). Everything here does nothing in a browser. The
 // native side fires `pr-peek:hidden`, `pr-peek:shown`, `pr-peek:refresh`, and
@@ -93,12 +94,10 @@ export const coloredIcon = localSetting<boolean>(
 
 // Links that would open a new window open in the default browser instead.
 function openLinksInBrowser(event: MouseEvent) {
-  const link = (event.target as Element | null)?.closest("a[href]");
-  if (!(link instanceof HTMLAnchorElement)) return;
-  const external = new URL(link.href).origin !== location.origin;
-  if (link.target !== "_blank" && !external) return;
+  const href = linkLeavingApp(event);
+  if (!href) return;
   event.preventDefault();
-  openExternal(link.href, event.metaKey);
+  openExternal(href, event.metaKey);
 }
 
 // Timers stop while the Mac sleeps, so a long gap between ticks means it woke up.

@@ -55,6 +55,17 @@ it("offers to turn on notifications at the end, in the installed app", async () 
   expect(screen.queryByRole("heading", { name: "Install the app" })).toBe(null);
 });
 
+it("offers neither the install nor web notifications in the iPhone app", async () => {
+  stubPush();
+  onboardingApi();
+  renderApp("/onboarding?shell=ios");
+  await finishSteps();
+  expect(screen.queryByRole("heading", { name: "Install the app" })).toBe(null);
+  expect(screen.queryByRole("button", { name: "Turn on notifications" })).toBe(
+    null,
+  );
+});
+
 it("offers the install, not notifications, in a browser tab", async () => {
   stubUserAgent(USER_AGENTS.chrome);
   stubPush();

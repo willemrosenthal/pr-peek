@@ -4,6 +4,7 @@ import { Navigate, useSearchParams } from "react-router";
 import { Alert } from "../components/Alert";
 import { ButtonLink } from "../components/Button";
 import { HelpLinks } from "../components/HelpLinks";
+import { useInIosApp } from "../hooks/useIsTray";
 import { useMe } from "../queries";
 import styles from "./SignIn.module.css";
 
@@ -41,6 +42,8 @@ export function SignIn() {
   const me = useMe();
   const [params] = useSearchParams();
   const [publicOnly, setPublicOnly] = useState(false);
+  // Already the app on this phone.
+  const inIosApp = useInIosApp();
 
   // A failed check keeps the old data, so check it succeeded.
   if (me.isSuccess && !me.data.needsReauth) return <Navigate to="/" replace />;
@@ -110,7 +113,7 @@ export function SignIn() {
           </p>
         </section>
 
-        <HelpLinks install />
+        <HelpLinks install={!inIosApp} />
       </div>
     </main>
   );

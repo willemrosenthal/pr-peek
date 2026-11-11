@@ -9,6 +9,7 @@ import {
 } from "./desktop";
 import { summary } from "./test/fake-api";
 import { callsOf, stubTauri } from "./test/tauri";
+import { clickLink } from "./test/clicks";
 
 describe("the menu bar", () => {
   const counts = summary({ total: 7, review: 3, replies: 1, mine: 3 });
@@ -58,27 +59,6 @@ describe("updateReady", () => {
 });
 
 describe("startDesktop", () => {
-  // Clicks a link. True if pr-peek stopped the click. The test stops it after, since
-  // jsdom can't load other pages.
-  const clickLink = (href: string, target?: string, metaKey = false) => {
-    const link = document.createElement("a");
-    link.href = href;
-    if (target) link.target = target;
-    document.body.append(link);
-    let stopped = false;
-    const after = (event: Event) => {
-      stopped = event.defaultPrevented;
-      event.preventDefault();
-    };
-    document.addEventListener("click", after);
-    link.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true, metaKey }),
-    );
-    document.removeEventListener("click", after);
-    link.remove();
-    return stopped;
-  };
-
   it("opens new window and other site links in the browser", () => {
     const invoke = stubTauri();
     const stop = startDesktop();
