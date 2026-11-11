@@ -130,7 +130,7 @@ function RuleRow({ rule }: { rule: RuleSettingDto }) {
         {save.isError && <Alert>{save.error.message}</Alert>}
       </CardRow>
       {rule.id === "review_requested" && (
-        <CardRow className={styles.option}>
+        <CardRow className={cx(styles.option, !shown.enabled && styles.off)}>
           <span className={styles.optionName} aria-hidden="true">
             Include draft PRs
           </span>

@@ -82,10 +82,11 @@ describe("the Rules page", () => {
     ]);
 
     // Review requests notify by default.
-    expect(defaultRule("review_requested").channels).toContain("push");
-    await userEvent.click(
-      screen.getByRole("switch", { name: "Notify for Review requested" }),
-    );
+    const reviews = screen.getByRole("switch", {
+      name: "Notify for Review requested",
+    });
+    expect(reviews.getAttribute("aria-checked")).toBe("true");
+    await userEvent.click(reviews);
     expect(sentBodies(fetch, "PATCH /api/rules/review_requested")).toEqual([
       { channels: ["list"] },
     ]);

@@ -21,13 +21,12 @@
 .columns {
   display: flex;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 600;
 }
 
 /* On one line, with the name taking what the controls leave. */
 .row {
-  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -100,7 +99,8 @@
 }
 
 /* A rule that's off: its name and controls fade, but still work. */
-.off .name {
+.off .name,
+.off .optionName {
   color: var(--color-text-tertiary);
 }
 
