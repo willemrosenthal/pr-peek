@@ -315,6 +315,9 @@ it("offers to try again when the details don't load", async () => {
 });
 
 describe("Open's menu", () => {
+  beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+  afterEach(() => vi.useRealTimers());
+
   // user-event puts in its own clipboard, so these tests use fireEvent.
   function stubClipboard() {
     const writeText = vi.fn(() => Promise.resolve());
@@ -330,77 +333,78 @@ describe("Open's menu", () => {
     return writeText;
   }
 
-  const touch = (x: number) => ({
-    touches: [{ clientX: x, clientY: 20 }],
-  });
+  const touch = (x: number) => ({ touches: [{ clientX: x, clientY: 20 }] });
+
+  const wait = (ms: number) =>
+    act(() => {
+      vi.advanceTimersByTime(ms);
+    });
+
+  // Whether a click on `link` would open it. The test browser can't open links, so the
+  // click is stopped after the check.
+  function clickOpens(link: Element) {
+    let opens = false;
+    const check = (event: Event) => {
+      opens = !event.defaultPrevented;
+      event.preventDefault();
+    };
+    document.addEventListener("click", check, { once: true });
+    fireEvent.click(link);
+    return opens;
+  }
+
+  function setupOpen() {
+    const sheet = setup(() => json(preview()));
+    return { ...sheet, open: screen.getByRole("link", { name: "Open" }) };
+  }
 
   it("copies the PR's link from a right click, and says so for a moment", async () => {
     const writeText = stubClipboard();
-    const { row, onClose } = setup(() => json(preview()));
-    const open = screen.getByRole("link", { name: "Open" });
+    const { row, onClose, open } = setupOpen();
     expect(fireEvent.contextMenu(open)).toBe(false);
     fireEvent.click(await screen.findByRole("menuitem", { name: "Copy link" }));
     expect(writeText).toHaveBeenCalledWith(row.pr.url);
     expect(await screen.findByRole("link", { name: "Copied" })).toBeTruthy();
     // The sheet stays open.
     expect(onClose).not.toHaveBeenCalled();
-    await waitFor(
-      () => expect(screen.getByRole("link", { name: "Open" })).toBeTruthy(),
-      { timeout: COPIED_MS + 1_000 },
-    );
+    wait(COPIED_MS);
+    expect(screen.getByRole("link", { name: "Open" })).toBeTruthy();
   });
 
-  describe("with a finger", () => {
-    beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
-    afterEach(() => vi.useRealTimers());
+  it("opens the link again once the menu closes", async () => {
+    const { open } = setupOpen();
+    fireEvent.contextMenu(open);
+    expect(clickOpens(open)).toBe(false);
+    fireEvent.keyDown(await screen.findByRole("menu"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(clickOpens(open)).toBe(true);
+  });
 
-    it("opens the menu after a hold, and not the link", () => {
-      setup(() => json(preview()));
-      const open = screen.getByRole("link", { name: "Open" });
-      fireEvent.touchStart(open, touch(200));
-      act(() => {
-        vi.advanceTimersByTime(HOLD_MS - 1);
-      });
-      expect(screen.queryByRole("menuitem")).toBeNull();
-      act(() => {
-        vi.advanceTimersByTime(1);
-      });
-      expect(screen.getByRole("menuitem", { name: "Copy link" })).toBeTruthy();
-      fireEvent.touchEnd(open);
-      expect(fireEvent.click(open)).toBe(false);
-    });
+  it("opens the menu after a held finger, and not the link", () => {
+    const { open } = setupOpen();
+    fireEvent.touchStart(open, touch(200));
+    wait(HOLD_MS - 1);
+    expect(screen.queryByRole("menuitem")).toBeNull();
+    wait(1);
+    expect(screen.getByRole("menuitem", { name: "Copy link" })).toBeTruthy();
+    fireEvent.touchEnd(open);
+    expect(clickOpens(open)).toBe(false);
+  });
 
-    it("lets a drag move the sheet instead", () => {
-      setup(() => json(preview()));
-      const open = screen.getByRole("link", { name: "Open" });
-      fireEvent.touchStart(open, touch(200));
-      fireEvent.touchMove(open, touch(230));
-      act(() => {
-        vi.advanceTimersByTime(HOLD_MS);
-      });
-      expect(screen.queryByRole("menuitem")).toBeNull();
-    });
+  it("lets a drag move the sheet instead", () => {
+    const { open } = setupOpen();
+    fireEvent.touchStart(open, touch(200));
+    fireEvent.touchMove(open, touch(230));
+    wait(HOLD_MS);
+    expect(screen.queryByRole("menuitem")).toBeNull();
+  });
 
-    it("leaves a tap to open the link", () => {
-      setup(() => json(preview()));
-      const open = screen.getByRole("link", { name: "Open" });
-      fireEvent.touchStart(open, touch(200));
-      fireEvent.touchEnd(open);
-      act(() => {
-        vi.advanceTimersByTime(HOLD_MS);
-      });
-      expect(screen.queryByRole("menuitem")).toBeNull();
-      // Opening a link isn't something the test browser does, so this only checks
-      // nothing stopped it.
-      let stopped = true;
-      const check = (event: Event) => {
-        stopped = event.defaultPrevented;
-        event.preventDefault();
-      };
-      document.addEventListener("click", check);
-      onTestFinished(() => document.removeEventListener("click", check));
-      fireEvent.click(open);
-      expect(stopped).toBe(false);
-    });
+  it("leaves a tap to open the link", () => {
+    const { open } = setupOpen();
+    fireEvent.touchStart(open, touch(200));
+    fireEvent.touchEnd(open);
+    wait(HOLD_MS);
+    expect(screen.queryByRole("menuitem")).toBeNull();
+    expect(clickOpens(open)).toBe(true);
   });
 });

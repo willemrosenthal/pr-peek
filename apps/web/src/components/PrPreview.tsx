@@ -28,8 +28,8 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type TouchEvent,
   type ReactNode,
+  type TouchEvent,
 } from "react";
 import { cx } from "../cx";
 import { unflagAction } from "../important";
@@ -286,7 +286,7 @@ function OpenLink({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
   // The hold's timer, and what stops watching the finger move.
   const hold = useRef<{ timer: number; stopWatching: () => void } | null>(null);
-  // The menu opened from this press, so the click that may follow doesn't open the link.
+  // The menu is open from a press, so the click that may follow doesn't open the link.
   const held = useRef(false);
 
   const endHold = () => {
@@ -331,6 +331,12 @@ function OpenLink({ url }: { url: string }) {
     };
   };
 
+  const onOpenChange = (open: boolean) => {
+    setMenuOpen(open);
+    if (!open) held.current = false;
+  };
+
+  // Open never says "Copied" if the browser refuses, which tells the person enough.
   const copy = () => {
     navigator.clipboard.writeText(url).then(
       () => setCopied(true),
@@ -346,8 +352,6 @@ function OpenLink({ url }: { url: string }) {
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        // A new press, so a click is a click again.
-        onPointerDown={() => (held.current = false)}
         onTouchStart={onTouchStart}
         onTouchEnd={endHold}
         onTouchCancel={endHold}
@@ -358,7 +362,6 @@ function OpenLink({ url }: { url: string }) {
         }}
         onClick={(event) => {
           if (held.current) event.preventDefault();
-          held.current = false;
         }}
       >
         {copied ? "Copied" : "Open"}
@@ -368,7 +371,7 @@ function OpenLink({ url }: { url: string }) {
           <ExternalLink aria-hidden="true" />
         )}
       </a>
-      <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}>
+      <Menu.Root open={menuOpen} onOpenChange={onOpenChange}>
         <Menu.Portal>
           <Menu.Positioner
             className={styles.menuPositioner}
