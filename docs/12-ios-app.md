@@ -58,9 +58,10 @@ The web's tick (`haptics.ts`) only works right after a tap or a finger lifting, 
 ### 12.1 Accounts and check
 
 - [x] **(You)** Join the Apple Developer Program ($99 a year). Done for the Mac app's signing, as an Individual ([plan 09](completed/09-apple-signing.md)). The same membership and Team ID cover the iPhone app.
-- [ ] **(You)** In Certificates, Identifiers & Profiles, Keys: make an APNs key (Apple Push Notification service). Download the `.p8` file once and keep it safe. Note its Key ID and your Team ID.
+- [x] **(You)** In Certificates, Identifiers & Profiles, Keys: make an APNs key (Apple Push Notification service). Download the `.p8` file once and keep it safe. Note its Key ID and your Team ID. Done, and saved on Render in `git-buddy-env` as `APNS_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID`, and `APNS_TOPIC`.
 - [x] Check Tauri's iOS push support. If it now handles server push and notification extensions well, say so in this plan and ask before switching. It doesn't yet: see "Why not Tauri for iOS" above.
-- [ ] **(You)** Install Xcode from the Mac App Store. Only the command line tools are on this Mac, and the app can't build without Xcode.
+- [x] **(You)** Install Xcode from the Mac App Store. Xcode 27.2.
+- [ ] **(You)** Accept Xcode's license and point the command line at it, once, in Terminal: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`, then `sudo xcodebuild -license accept`.
 
 ### 12.2 The shell
 
@@ -94,7 +95,7 @@ The web's tick (`haptics.ts`) only works right after a tap or a finger lifting, 
   - `thread-id` from the tag, so a PR's notifications group together.
 - [ ] Remove a token when Apple says it's gone, like web push devices.
 - [ ] A "Send a test" endpoint that sends one sample of each kind to the user's iPhone app, for 12.4's button and 12.6's check.
-- [ ] **(You)** Add the APNs env vars on Render, for the web service and the worker.
+- [x] **(You)** Add the APNs env vars on Render, for the web service and the worker. Done in 12.1.
 
 ### 12.4 App push
 

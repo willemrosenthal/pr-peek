@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   // Never change it: the App Store, TestFlight, and push all know the app by it.
   appId: "com.git-buddy.pr-peek",
   appName: "Git Buddy",
-  // Only shown if the hosted app can't load. See www/index.html.
+  // The page shown when the hosted app can't load, like offline (errorPath).
   webDir: "www",
   server: {
     // The app loads the live site, so UI changes ship with each deploy. `shell=ios`
@@ -15,12 +15,16 @@ const config: CapacitorConfig = {
     // here so the session cookie lands in the app. Anything else opens in Safari, and
     // the web app sends links to PRs there too (ios.ts).
     allowNavigation: ["github.com"],
+    // Without it, a failed load leaves a blank screen.
+    errorPath: "index.html",
   },
   ios: {
     // Keeps the page clear of the notch and the home bar.
     contentInset: "always",
     // Under the page while it loads, and behind the notch: the app's gray (tokens.css).
     backgroundColor: "#f2f2f5",
+    // A long press on a row opens Git Buddy's PR preview, not iOS's link preview.
+    allowsLinkPreview: false,
   },
 };
 

@@ -36,8 +36,9 @@ export const inIosApp = () => shellOf(shellInUrl()) === "ios";
 // True in an app that notifies on its own: the Mac menu bar app or the iPhone app. They
 // don't need installing, or the web's notifications.
 export const useInNativeApp = () => {
-  const shell = useShell();
-  return shell === "tray" || shell === "window" || shell === "ios";
+  const isTray = useIsTray();
+  const inIosApp = useInIosApp();
+  return isTray || inIosApp;
 };
 
 // True in the installed web app, on a phone or a computer, where notifications are set

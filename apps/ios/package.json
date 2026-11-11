@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "cap": "cap",
+    "open": "cap sync ios && cap open ios",
     "icons": "node icons.ts",
     "typecheck": "tsc --noEmit"
   },
