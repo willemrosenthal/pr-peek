@@ -3,6 +3,7 @@ import { Bell, BellOff } from "lucide-react";
 import { Alert } from "../../components/Alert";
 import { CardRow } from "../../components/Card";
 import { Group } from "../../components/Group";
+import { Picker, type PickerOption } from "../../components/Picker";
 import { Switch } from "../../components/Switch";
 import { cx } from "../../cx";
 import { useSaveRule } from "../../hooks/useSaveSettings";
@@ -15,7 +16,7 @@ const GROUPS: { group: RuleGroup; title: string }[] = [
   { group: "My PRs", title: "My PRs" },
 ];
 
-const SEVERITIES: { value: Severity; label: string }[] = [
+const SEVERITIES: PickerOption<Severity>[] = [
   { value: "high", label: "High" },
   { value: "normal", label: "Normal" },
   { value: "low", label: "Low" },
@@ -84,22 +85,14 @@ function RuleRow({ rule }: { rule: RuleSettingDto }) {
     <>
       <CardRow className={cx(styles.row, !shown.enabled && styles.off)}>
         <span className={styles.name}>{rule.name}</span>
-        {/* The phone's own menu, dressed as a colored chip. */}
-        <select
+        <Picker
           className={cx(styles.urgency, styles[shown.severity])}
-          aria-label={`Urgency for ${rule.name}`}
+          label={`Urgency for ${rule.name}`}
           value={shown.severity}
-          onChange={(e) =>
-            save.mutate({ severity: e.target.value as Severity })
-          }
+          options={SEVERITIES}
+          onChange={(severity) => save.mutate({ severity })}
           disabled={save.isPending}
-        >
-          {SEVERITIES.map(({ value, label }) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        />
         <button
           type="button"
           role="switch"

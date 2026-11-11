@@ -38,7 +38,7 @@
   overflow-wrap: anywhere;
 }
 
-/* A colored chip that opens the phone's own menu. Colors follow urgency. */
+/* A colored chip that opens a menu of urgencies. Colors follow urgency. */
 .urgency {
   composes: urgencyColumn;
   height: 30px;
@@ -48,8 +48,6 @@
   font: inherit;
   font-size: var(--text-sm);
   font-weight: 600;
-  text-align-last: center;
-  appearance: none;
   cursor: pointer;
 }
 
