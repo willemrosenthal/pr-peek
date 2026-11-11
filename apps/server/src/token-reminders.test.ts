@@ -69,7 +69,7 @@ it("pushes once when a token stops working", async () => {
 
   expect(await run()).toBe(1);
   const [, payload] = send.mock.calls[0]!;
-  expect(payload.url).toBe("/settings/general");
+  expect(payload.url).toBe("/settings/account");
   expect(payload.body).toContain("Your acme token stopped working.");
   expect(await run(hours(1))).toBe(0);
 });

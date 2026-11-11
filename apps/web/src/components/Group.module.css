@@ -1,0 +1,38 @@
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Small and gray, above the card, lined up with the rows' text. */
+.title {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 14px 6px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.aside {
+  font-weight: 500;
+}
+
+/* White on the gray page, without a border, like the phone's own settings. */
+.card {
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-lg);
+}
+
+.box {
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.footer {
+  margin: 6px 14px 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}

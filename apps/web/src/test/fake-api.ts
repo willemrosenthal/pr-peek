@@ -321,6 +321,7 @@ export const signedInApi = (overrides: Handlers = {}): Handlers => ({
   "POST /api/desktop/heartbeat": () => noContent(),
   "GET /api/github/owners": () => json(repoOwners()),
   "GET /api/github-tokens": () => json({ tokens: [], syncedBy: [] }),
+  "GET /api/repos": () => json({ repos: [] }),
   ...overrides,
 });
 

@@ -9,7 +9,6 @@ import {
   listApi,
   me,
   noContent,
-  searchResults,
   settingsResponse,
   signedInApi,
   signedOut,
@@ -20,28 +19,28 @@ import { renderApp } from "../../test/render";
 import { stubTauri } from "../../test/tauri";
 import { hideWindow, setVisibility } from "../../test/visibility";
 
-it.each(["/settings", "/settings/nope"])(
-  "opens General from %s",
-  async (path) => {
-    fakeApi(signedInApi());
-    const { router } = renderApp(path);
-    expect(
-      await screen.findByRole("heading", { name: "General" }),
-    ).toBeTruthy();
-    expect(router.state.location.pathname).toBe("/settings/general");
-  },
-);
+it.each([
+  ["/settings/nope", "/settings"],
+  ["/settings/general", "/settings/account"],
+  ["/settings/timing", "/settings/overdue"],
+])("takes the old link %s to %s", async (from, to) => {
+  fakeApi(signedInApi());
+  const { router } = renderApp(from);
+  await waitFor(() => expect(router.state.location.pathname).toBe(to));
+});
 
-it("switches tabs", async () => {
-  fakeApi(listApi({ "GET /api/github/repos": () => json(searchResults()) }));
-  renderApp("/settings/general");
-  await userEvent.click(await screen.findByRole("link", { name: "Repos" }));
-  expect(
-    await screen.findByRole("heading", { name: "Repositories" }),
-  ).toBeTruthy();
-  expect(
-    screen.getByRole("link", { name: "Repos" }).getAttribute("aria-current"),
-  ).toBe("page");
+it("opens a page from the home screen, and goes back", async () => {
+  fakeApi(listApi());
+  const { router } = renderApp("/settings");
+  await userEvent.click(await screen.findByRole("link", { name: /^Rules/ }));
+  expect(await screen.findByRole("heading", { name: "Rules" })).toBeTruthy();
+
+  await userEvent.click(screen.getByRole("link", { name: "Back to Settings" }));
+  expect(await screen.findByRole("heading", { name: "Settings" })).toBeTruthy();
+  await userEvent.click(
+    screen.getByRole("link", { name: "Back to your list" }),
+  );
+  await waitFor(() => expect(router.state.location.pathname).toBe("/"));
 });
 
 describe("when the app hides", () => {
@@ -50,8 +49,8 @@ describe("when the app hides", () => {
   it("goes back to the list in the Mac app", async () => {
     stubTauri();
     fakeApi(listApi());
-    const { router } = renderApp("/settings/general?shell=tray");
-    await screen.findByRole("heading", { name: "General" });
+    const { router } = renderApp("/settings/display?shell=tray");
+    await screen.findByRole("heading", { name: "List display" });
     hide();
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
   });
@@ -59,18 +58,18 @@ describe("when the app hides", () => {
   it("goes back to the list when the installed app is hidden", async () => {
     stubDisplayMode({ standalone: true });
     fakeApi(listApi());
-    const { router } = renderApp("/settings/general");
-    await screen.findByRole("heading", { name: "General" });
+    const { router } = renderApp("/settings/display");
+    await screen.findByRole("heading", { name: "List display" });
     act(() => setVisibility("hidden"));
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
   });
 
   it("stays put in a browser tab", async () => {
     fakeApi(signedInApi());
-    const { router } = renderApp("/settings/general");
-    await screen.findByRole("heading", { name: "General" });
+    const { router } = renderApp("/settings/display");
+    await screen.findByRole("heading", { name: "List display" });
     hide();
-    expect(router.state.location.pathname).toBe("/settings/general");
+    expect(router.state.location.pathname).toBe("/settings/display");
   });
 });
 
@@ -85,7 +84,7 @@ it("signs out and goes to sign in", async () => {
       },
     }),
   );
-  const { router } = renderApp("/settings");
+  const { router } = renderApp("/settings/account");
 
   await userEvent.click(
     await screen.findByRole("button", { name: "Sign out" }),
@@ -105,7 +104,7 @@ it("asks before deleting the account, then deletes it and goes to sign in", asyn
       },
     }),
   );
-  const { router } = renderApp("/settings");
+  const { router } = renderApp("/settings/account");
 
   await userEvent.click(
     await screen.findByRole("button", { name: "Delete my account" }),
@@ -152,7 +151,7 @@ describe("after a change to what the rules find", () => {
           json(syncStatus({ lastSyncedAt: lastSyncedAt() })),
       }),
     );
-    renderApp("/settings/general");
+    renderApp("/settings/display");
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     await user.click(await screen.findByRole("switch", { name: "Hide bots" }));
     await waitFor(() => expect(updating()).toBe(true));

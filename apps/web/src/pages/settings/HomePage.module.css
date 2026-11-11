@@ -1,0 +1,44 @@
+/* The account row: the user's picture, login, and how they signed in. */
+.account {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+}
+
+.avatar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-surface-muted);
+  color: var(--color-accent);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.login {
+  overflow: hidden;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.signedIn {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.version {
+  display: flex;
+  justify-content: center;
+}

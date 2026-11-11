@@ -86,7 +86,7 @@ it("lists each token with what it covers, and offers Replace only when it needs 
         ),
       ),
   });
-  renderApp("/settings");
+  renderApp("/settings/account");
 
   const acme = await cardFor("acme");
   expect(acme.textContent).toContain("Covers acme: 14 repos you watch.");
@@ -122,7 +122,7 @@ it("adds a token: checks it, shows what it reaches, then saves it with a name", 
       return json({ token: tokens[0] }, 201);
     },
   });
-  renderApp("/settings");
+  renderApp("/settings/account");
 
   await pasteAndCheck("github_pat_abc");
   const status = await screen.findByText("GitHub accepted it.");
@@ -151,7 +151,7 @@ it("shows the server's message when the token is refused", async () => {
     "POST /api/github-tokens/check": () =>
       apiError(400, "wrong_account", "This token belongs to someone-else."),
   });
-  renderApp("/settings");
+  renderApp("/settings/account");
 
   await pasteAndCheck("github_pat_other");
   expect((await screen.findByRole("alert")).textContent).toBe(
@@ -167,7 +167,7 @@ it("offers to replace a token that reaches the same orgs", async () => {
       json(checked({ owners: ["acme"], name: "acme", sameOwnersAs: "old" })),
     "PUT /api/github-tokens/old": () => json({ token: githubToken() }),
   });
-  renderApp("/settings");
+  renderApp("/settings/account");
 
   await pasteAndCheck("github_pat_new");
   await userEvent.click(
@@ -191,7 +191,7 @@ it("replaces a token from its card, keeping its name", async () => {
     "POST /api/github-tokens/check": () => json(checked({ name: "acme" })),
     "PUT /api/github-tokens/old": () => json({ token: githubToken() }),
   });
-  renderApp("/settings");
+  renderApp("/settings/account");
 
   await userEvent.click(
     within(await cardFor("Work")).getByRole("button", { name: "Replace" }),
@@ -225,7 +225,7 @@ it("asks before removing a token, saying which repos move", async () => {
       return noContent();
     },
   });
-  renderApp("/settings");
+  renderApp("/settings/account");
 
   const card = await cardFor("acme");
   await userEvent.click(within(card).getByRole("button", { name: "Remove" }));
@@ -252,7 +252,7 @@ it("stops offering Add at 5 tokens", async () => {
         ),
       ),
   });
-  renderApp("/settings");
+  renderApp("/settings/account");
 
   expect(await screen.findByText(/You have 5 tokens/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Add a token" })).toBe(null);
@@ -272,7 +272,7 @@ it("opens the sheet on the recommended fine-grained tab, with a tab for classic 
         ]),
       ),
   });
-  renderApp("/settings");
+  renderApp("/settings/account");
 
   await userEvent.click(
     await screen.findByRole("button", { name: "Add a token" }),

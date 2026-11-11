@@ -52,7 +52,8 @@ const announcements: Announcements = {
 };
 
 // The list's sections as rows you drag by their handle. Quiet always stays last.
-export function SectionOrder() {
+// `inCard` drops its own border, for inside a Group.
+export function SectionOrder({ inCard = false }: { inCard?: boolean }) {
   const sections = orderSections(useLocalSetting(sectionOrder));
   const groups = sections.map((section) => section.group);
   const sensors = useSensors(
@@ -84,7 +85,10 @@ export function SectionOrder() {
       }}
     >
       <SortableContext items={groups} strategy={verticalListSortingStrategy}>
-        <ol className={styles.list} aria-label="Section order">
+        <ol
+          className={cx(styles.list, inCard && styles.inCard)}
+          aria-label="Section order"
+        >
           {sections.map(({ group, title }) => (
             <SectionRow key={group} group={group} title={title} />
           ))}

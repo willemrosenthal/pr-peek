@@ -22,8 +22,8 @@ interface Banner {
 export const SYNC_FAILED =
   "Can't sync with GitHub right now, so your list may be out of date. Git Buddy keeps trying.";
 
-// Settings, where tokens are added and replaced.
-const TOKENS_PAGE = "/settings/general";
+// Where tokens are added and replaced.
+const TOKENS_PAGE = "/settings/account";
 
 const ReplaceLink = ({ count }: { count: number }) => (
   <Link to={TOKENS_PAGE}>{count === 1 ? "Replace it" : "Replace them"}</Link>

@@ -25,9 +25,9 @@ import { BarChart, type Bar } from "../../components/BarChart";
 import { Button } from "../../components/Button";
 import { cx } from "../../cx";
 import { useAdminOverview } from "../../queries";
-import styles from "./AdminTab.module.css";
+import styles from "./AdminPage.module.css";
 import { SignUpRequests } from "./SignUpRequests";
-import { TabHeading } from "./SettingsLayout";
+import { SettingsPage } from "./SettingsLayout";
 
 const MONTHS = [
   "Jan",
@@ -47,13 +47,13 @@ const dayLabel = (at: Date) => `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]}`;
 
 // How Git Buddy is running, and what it costs. Admins only: the tab only shows for them,
 // and the server answers 404 to anyone else.
-export function AdminTab() {
+export function AdminPage() {
   const overview = useAdminOverview();
   return (
-    <>
-      <TabHeading title="Admin">
+    <SettingsPage title="Admin">
+      <p className={styles.hint}>
         How Git Buddy is running, and what it costs. Days and hours are UTC.
-      </TabHeading>
+      </p>
       <SignUpRequests />
       <TestAlert />
       {overview.isPending && <p className={styles.hint}>Loading</p>}
@@ -65,7 +65,7 @@ export function AdminTab() {
         </Alert>
       )}
       {overview.data && <Overview overview={overview.data} />}
-    </>
+    </SettingsPage>
   );
 }
 

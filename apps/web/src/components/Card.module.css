@@ -22,3 +22,8 @@
 .row:first-child {
   border-top: 0;
 }
+
+/* An error under a row's text and control, on its own line. */
+.row > [role="alert"] {
+  flex-basis: 100%;
+}

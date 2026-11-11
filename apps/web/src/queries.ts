@@ -407,9 +407,10 @@ export function useSyncStatus(
 
 // Sign-up requests waiting for an admin. Asked when the admin page opens, like the
 // overview. The push for a new request opens the page.
-export function useSignUpRequests() {
+export function useSignUpRequests(enabled = true) {
   return useQuery({
     queryKey: queryKeys.signUpRequests,
+    enabled,
     queryFn: () => api<SignUpRequestsResponse>("/admin/requests"),
     refetchOnWindowFocus: false,
     retry: retryServerErrors,

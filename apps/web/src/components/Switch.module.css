@@ -28,3 +28,16 @@
   background: var(--color-surface);
   box-shadow: 0 1px 2px rgb(0 0 0 / 30%);
 }
+
+/* Bigger on touch screens, like the phone's own. */
+@media (pointer: coarse) {
+  .root {
+    width: 44px;
+    height: 26px;
+  }
+
+  .thumb {
+    width: 22px;
+    height: 22px;
+  }
+}

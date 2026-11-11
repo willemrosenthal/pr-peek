@@ -9,6 +9,10 @@
   border-radius: var(--radius-sm);
 }
 
+.inCard {
+  border: 0;
+}
+
 .row {
   position: relative;
   display: flex;

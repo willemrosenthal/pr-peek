@@ -4,12 +4,12 @@ import { CardRow } from "../../components/Card";
 import { Control, Controls } from "../../components/Control";
 import { Select } from "../../components/Field";
 import { RowText } from "../../components/RowText";
-import { SettingsGroup } from "../../components/SettingsGroup";
+import { Group } from "../../components/Group";
 import { Switch } from "../../components/Switch";
 import { useSaveRule } from "../../hooks/useSaveSettings";
 import { useSettings } from "../../queries";
-import styles from "./RulesTab.module.css";
-import { TabHeading } from "./SettingsLayout";
+import styles from "./RulesPage.module.css";
+import { SettingsPage } from "./SettingsLayout";
 
 const GROUPS: { group: RuleGroup; title: string }[] = [
   { group: "Other PRs", title: "Other people's PRs" },
@@ -22,28 +22,28 @@ const SEVERITIES: { value: Severity; label: string }[] = [
   { value: "low", label: "Low" },
 ];
 
-export function RulesTab() {
+export function RulesPage() {
   const settings = useSettings();
 
   return (
-    <>
-      <TabHeading title="Rules">
+    <SettingsPage title="Rules">
+      <p className={styles.hint}>
         Each rule decides what shows on your list. Urgency sorts the list.
         Notify sends a push notification to your devices.
-      </TabHeading>
+      </p>
       {settings.isPending && <p className={styles.hint}>Loading</p>}
       {settings.isError && <Alert>{settings.error.message}</Alert>}
       {settings.data &&
         GROUPS.map(({ group, title }) => (
-          <SettingsGroup key={group} title={title}>
+          <Group key={group} title={title}>
             {settings.data.rules
               .filter((rule) => rule.group === group)
               .map((rule) => (
                 <RuleRow key={rule.id} rule={rule} />
               ))}
-          </SettingsGroup>
+          </Group>
         ))}
-    </>
+    </SettingsPage>
   );
 }
 
@@ -61,7 +61,7 @@ function RuleRow({ rule }: { rule: RuleSettingDto }) {
 
   return (
     <CardRow>
-      <RowText label={rule.name} />
+      <RowText label={rule.name} full />
       <Controls>
         <Control name="Urgency">
           <Select
