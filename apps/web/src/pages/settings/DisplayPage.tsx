@@ -46,7 +46,7 @@ export function DisplayPage() {
               footer="Shows the picture of who opened each PR. Why it's on your list moves to a small badge on the picture."
               box
             >
-              <ShowAuthorsRow settings={settings} />
+              <AuthorPictures settings={settings} />
             </Group>
           </>
         )}
@@ -121,7 +121,8 @@ function previewItem(kind: ItemKind, title: string, age: string): ItemDto {
   };
 }
 
-function ShowAuthorsRow({ settings }: { settings: UserSettingsDto }) {
+// The preview of where pictures go, and the choice of where.
+function AuthorPictures({ settings }: { settings: UserSettingsDto }) {
   const { save, shown } = useSettingsSaver(settings);
   return (
     <>
