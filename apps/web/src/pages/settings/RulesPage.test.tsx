@@ -27,12 +27,16 @@ const rulesApi = () =>
     ),
   );
 
+const urgencyName = (rule: string) => `Urgency for ${rule}`;
+// A rule's urgency chip. Its text is the urgency it shows.
 const urgency = (rule: string) =>
-  screen.findByRole("combobox", { name: `Urgency for ${rule}` });
+  screen.getByRole("combobox", { name: urgencyName(rule) });
 
 // Opens a rule's urgency menu and picks one.
 async function pickUrgency(rule: string, label: string) {
-  await userEvent.click(await urgency(rule));
+  await userEvent.click(
+    await screen.findByRole("combobox", { name: urgencyName(rule) }),
+  );
   await userEvent.click(await screen.findByRole("option", { name: label }));
 }
 
@@ -118,8 +122,8 @@ describe("the Rules page", () => {
     renderApp("/settings/rules");
 
     await pickUrgency("Reply to my comment", "High");
-    await waitFor(async () =>
-      expect((await urgency("Reply to my comment")).textContent).toBe("High"),
+    await waitFor(() =>
+      expect(urgency("Reply to my comment").textContent).toBe("High"),
     );
   });
 
@@ -134,6 +138,6 @@ describe("the Rules page", () => {
 
     await pickUrgency("Reply to my comment", "Low");
     expect((await screen.findByRole("alert")).textContent).toBe("Bad severity");
-    expect((await urgency("Reply to my comment")).textContent).toBe("Normal");
+    expect(urgency("Reply to my comment").textContent).toBe("Normal");
   });
 });

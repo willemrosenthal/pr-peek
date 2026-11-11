@@ -25,13 +25,12 @@ function git(...args: string[]) {
 // A commit with no tag of its own, like on a branch, gets the last release before it.
 function buildInfo() {
   const commit = process.env.RENDER_GIT_COMMIT || git("rev-parse", "HEAD");
-  const release = (...args: string[]) =>
-    commit
-      ? git("describe", "--tags", "--match", "v*", ...args, commit).replace(
-          /^v/,
-          "",
-        )
-      : "";
+  // A release tag `git describe` finds for the commit, like "1.2.0", or "".
+  const release = (how: string) => {
+    if (!commit) return "";
+    const tag = git("describe", "--tags", "--match", "v*", how, commit);
+    return tag.replace(/^v/, "");
+  };
   const version = release("--exact-match");
   return { version, after: version ? "" : release("--abbrev=0"), commit };
 }

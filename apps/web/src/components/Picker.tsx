@@ -53,7 +53,9 @@ export function Picker<Value extends string>({
                   <Select.ItemIndicator className={styles.check}>
                     <Check size={16} strokeWidth={2.5} aria-hidden="true" />
                   </Select.ItemIndicator>
-                  <Select.ItemText>{option.label}</Select.ItemText>
+                  <Select.ItemText className={styles.text}>
+                    {option.label}
+                  </Select.ItemText>
                 </Select.Item>
               ))}
             </Select.List>

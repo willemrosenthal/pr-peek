@@ -49,7 +49,7 @@
   color: var(--color-accent);
 }
 
-.item > :last-child {
+.text {
   grid-column: 2;
 }
 
