@@ -147,15 +147,17 @@ function AddToken({
             value={kind}
             onValueChange={(value: TokenKind) => setKind(value)}
           >
-            <Tabs.List className={styles.tabs}>
-              <Tabs.Tab value="fine_grained" className={styles.tab}>
-                Fine-grained
-                <span className={styles.recommended}>Recommended</span>
-              </Tabs.Tab>
-              <Tabs.Tab value="classic" className={styles.tab}>
-                Classic token
-              </Tabs.Tab>
-            </Tabs.List>
+            <div className={styles.tabsCard}>
+              <Tabs.List className={styles.tabs}>
+                <Tabs.Tab value="fine_grained" className={styles.tab}>
+                  Fine-grained
+                  <span className={styles.recommended}>Recommended</span>
+                </Tabs.Tab>
+                <Tabs.Tab value="classic" className={styles.tab}>
+                  Classic token
+                </Tabs.Tab>
+              </Tabs.List>
+            </div>
             <Tabs.Panel value="fine_grained" className={styles.step}>
               <FineGrainedSteps />
             </Tabs.Panel>
