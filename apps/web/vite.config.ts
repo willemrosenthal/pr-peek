@@ -22,12 +22,18 @@ function git(...args: string[]) {
 
 // What's being built, for Settings. Render gives the commit. The version comes from the
 // release tag on it, when this copy of the repo has the tag (docs/completed/15-auto-release.md).
+// A commit with no tag of its own, like on a branch, gets the last release before it.
 function buildInfo() {
   const commit = process.env.RENDER_GIT_COMMIT || git("rev-parse", "HEAD");
-  const tag = commit
-    ? git("describe", "--tags", "--exact-match", "--match", "v*", commit)
-    : "";
-  return { version: tag.replace(/^v/, ""), commit };
+  const release = (...args: string[]) =>
+    commit
+      ? git("describe", "--tags", "--match", "v*", ...args, commit).replace(
+          /^v/,
+          "",
+        )
+      : "";
+  const version = release("--exact-match");
+  return { version, after: version ? "" : release("--abbrev=0"), commit };
 }
 
 const build = buildInfo();

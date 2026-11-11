@@ -2,8 +2,11 @@
 declare const __BUILD__: Build;
 
 export interface Build {
-  // Like "1.2.0". Empty when the build couldn't find a release tag.
+  // Like "1.2.0". Empty when the commit has no release tag of its own.
   version: string;
+  // Without a version, the last release before the commit, like "1.2.0". Empty when
+  // there's none, or the build couldn't see the tags.
+  after: string;
   commit: string;
 }
 
