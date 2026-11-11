@@ -36,36 +36,6 @@
   font-weight: 600;
 }
 
-.cardText {
-  display: flex;
-  flex: 1 1 100%;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  font-size: var(--text-sm);
-}
-
-.cardTitle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-md);
-  overflow-wrap: anywhere;
-}
-
-.badge {
-  flex: none;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--color-surface-muted);
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-}
-
-.status {
-  font-weight: 600;
-}
-
 .workingText {
   color: var(--color-success);
 }
@@ -78,9 +48,72 @@
   color: var(--color-danger);
 }
 
-/* A token: its name and state, with its buttons under them. */
-.tokenRow {
-  padding-block: var(--space-3);
+/* A small pill beside a token that needs replacing. */
+.replace {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 17px;
+  background: var(--color-surface);
+  color: var(--color-accent);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .replace:hover {
+    background: var(--color-hover);
+  }
+}
+
+/* "Add a token", the last row of the tokens' card, with a line above it like the
+   rows before. */
+.addRow {
+  border-top: 1px solid var(--color-divider);
+}
+
+.addRow:first-child {
+  border-top: 0;
+}
+
+.add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-2) 14px;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  font-size: var(--text-row);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .add:hover {
+    background: var(--color-hover);
+  }
+}
+
+/* A fact about a token in its sheet: its name on the left, its value on the right. */
+.detail {
+  justify-content: space-between;
+}
+
+.detailName {
+  color: var(--color-text-secondary);
+}
+
+.detailValue {
+  min-width: 0;
+  font-weight: 500;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 /* An owner, and the token that syncs it on the right. */
