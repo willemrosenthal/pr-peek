@@ -33,16 +33,45 @@ const WATCH_OPTIONS = (["notify", "list", "paused"] as const).map((value) => ({
 // The picker's starting color for a repo that never had its own.
 const FIRST_COLOR = REPO_COLORS[0]!.value;
 
-// One watched repo: how Git Buddy watches it, its color, and removing it. Shows new
-// values while they save.
+// The sheet for one watched repo. It stays on the page while closed, so it slides in
+// every time: a sheet that's added already open just appears. Its contents start fresh
+// for each repo, so one repo's error never shows on another.
 export function RepoSheet({
   repo,
   open,
   onClose,
 }: {
-  repo: WatchedRepoDto;
+  // The last repo opened. It stays while the sheet slides away, even once removed.
+  repo: WatchedRepoDto | null;
   open: boolean;
   onClose: () => void;
+}) {
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={
+        repo && (
+          <>
+            <span className={styles.owner}>{repo.owner}/</span>
+            {repo.name}
+          </>
+        )
+      }
+    >
+      {repo && <RepoSettings key={repo.id} repo={repo} onRemoved={onClose} />}
+    </Sheet>
+  );
+}
+
+// How Git Buddy watches a repo, its color, and removing it. Shows new values while
+// they save.
+function RepoSettings({
+  repo,
+  onRemoved,
+}: {
+  repo: WatchedRepoDto;
+  onRemoved: () => void;
 }) {
   const queryClient = useQueryClient();
   const reloadWatchList = useReloadWatchList();
@@ -58,7 +87,7 @@ export function RepoSheet({
   const remove = useMutation({
     mutationFn: () => api(`/repos/${repo.id}`, { method: "DELETE" }),
     onSuccess: async () => {
-      onClose();
+      onRemoved();
       await reloadWatchList();
     },
   });
@@ -86,16 +115,7 @@ export function RepoSheet({
   const swatchGroup = useId();
 
   return (
-    <Sheet
-      open={open}
-      onClose={onClose}
-      title={
-        <>
-          <span className={styles.owner}>{repo.owner}/</span>
-          {repo.name}
-        </>
-      }
-    >
+    <>
       {error && <Alert>{error.message}</Alert>}
       <Group title="On your list" footer={WATCH_HINTS[watch]} box>
         <div className={styles.sheetBox}>
@@ -166,7 +186,7 @@ export function RepoSheet({
           danger
         />
       </Group>
-    </Sheet>
+    </>
   );
 }
 
