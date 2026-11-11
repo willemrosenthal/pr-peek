@@ -49,6 +49,14 @@ export const updateSettingsBody = z
   .refine((body) => Object.keys(body).length > 0, "Nothing to update");
 export type UpdateSettingsBody = z.infer<typeof updateSettingsBody>;
 
+// Each time the server keeps a copy of when it's set, so turning quiet hours or the
+// summary off and on again brings back the user's own time.
+export const KEPT_TIMES = {
+  quietStart: "keptQuietStart",
+  quietEnd: "keptQuietEnd",
+  digestTime: "keptDigestTime",
+} as const;
+
 export interface UserSettingsDto {
   timezone: string;
   staleWarnHours: number;

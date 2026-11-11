@@ -1,4 +1,4 @@
-import type { UserSettingsDto } from "@pr-peek/core";
+import { KEPT_TIMES, type UserSettingsDto } from "@pr-peek/core";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -43,9 +43,10 @@ function keepingApi(stored: Partial<UserSettingsDto>) {
           -1,
         ) as Partial<UserSettingsDto>;
         Object.assign(settings, sent);
-        if (sent.quietStart) settings.keptQuietStart = sent.quietStart;
-        if (sent.quietEnd) settings.keptQuietEnd = sent.quietEnd;
-        if (sent.digestTime) settings.keptDigestTime = sent.digestTime;
+        for (const [field, kept] of Object.entries(KEPT_TIMES)) {
+          const time = sent[field as keyof typeof KEPT_TIMES];
+          if (time) settings[kept] = time;
+        }
         return json({ settings });
       },
     }),

@@ -1,4 +1,5 @@
 import {
+  KEPT_TIMES,
   ruleOptions,
   rules,
   updateRuleBody,
@@ -47,11 +48,12 @@ function toSettingsDto(row: UserSettings): UserSettingsDto {
 
 // A time being set is also kept, so turning it off and on again brings it back.
 function keptTimes(changes: UpdateSettingsBody) {
-  return {
-    ...(changes.quietStart && { keptQuietStart: changes.quietStart }),
-    ...(changes.quietEnd && { keptQuietEnd: changes.quietEnd }),
-    ...(changes.digestTime && { keptDigestTime: changes.digestTime }),
-  };
+  return Object.fromEntries(
+    Object.entries(KEPT_TIMES).flatMap(([field, kept]) => {
+      const time = changes[field as keyof typeof KEPT_TIMES];
+      return time ? [[kept, time]] : [];
+    }),
+  );
 }
 
 function toRuleDto(setting: EffectiveRuleSetting): RuleSettingDto {

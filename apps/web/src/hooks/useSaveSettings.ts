@@ -1,11 +1,12 @@
-import type {
-  ItemKind,
-  SettingsResponse,
-  UpdateRuleBody,
-  UpdateRuleResponse,
-  UpdateSettingsBody,
-  UpdateSettingsResponse,
-  UserSettingsDto,
+import {
+  KEPT_TIMES,
+  type ItemKind,
+  type SettingsResponse,
+  type UpdateRuleBody,
+  type UpdateRuleResponse,
+  type UpdateSettingsBody,
+  type UpdateSettingsResponse,
+  type UserSettingsDto,
 } from "@pr-peek/core";
 import {
   useMutation,
@@ -49,14 +50,8 @@ export function useSaveSettings() {
   });
 }
 
-// The server keeps each time it's sent, so the kept copy changes along with it.
-const KEPT: Partial<Record<keyof UpdateSettingsBody, keyof UserSettingsDto>> = {
-  quietStart: "keptQuietStart",
-  quietEnd: "keptQuietEnd",
-  digestTime: "keptDigestTime",
-};
-
-// The fields of `from` that `keysOf` has, and their kept copies.
+// The fields of `from` that `keysOf` has, and the kept copies of times in it, which the
+// server changes along with them.
 function pick(
   from: UserSettingsDto,
   keysOf: UpdateSettingsBody,
@@ -64,7 +59,9 @@ function pick(
   const keys = Object.keys(keysOf) as (keyof UpdateSettingsBody)[];
   const wanted = new Set<string>([
     ...keys,
-    ...keys.flatMap((key) => KEPT[key] ?? []),
+    ...keys.flatMap((key) =>
+      key in KEPT_TIMES ? [KEPT_TIMES[key as keyof typeof KEPT_TIMES]] : [],
+    ),
   ]);
   return Object.fromEntries(
     Object.entries(from).filter(([key]) => wanted.has(key)),
