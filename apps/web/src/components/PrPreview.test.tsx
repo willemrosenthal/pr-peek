@@ -22,7 +22,13 @@ import {
   vi,
 } from "vitest";
 import { apiError, fakeApi, important, item, json } from "../test/fake-api";
-import { COPIED_MS, HOLD_MS, PrPreview, type PreviewTarget } from "./PrPreview";
+import {
+  COPIED_MS,
+  HOLD_MS,
+  LIFT_GRACE_MS,
+  PrPreview,
+  type PreviewTarget,
+} from "./PrPreview";
 import styles from "./PrPreview.module.css";
 
 const comment = (
@@ -412,6 +418,53 @@ describe("Open's menu", () => {
     expect(screen.getByRole("menuitem", { name: "Copy link" })).toBeTruthy();
     fireEvent.touchEnd(open);
     expect(clickOpens(open)).toBe(false);
+  });
+
+  // What a phone sends as a finger lifts from `link`. With the menu open under it, the
+  // press lands outside the menu.
+  function lift(link: Element) {
+    fireEvent.touchEnd(link);
+    fireEvent.pointerUp(document.body, { pointerType: "touch" });
+    fireEvent.mouseDown(document.body);
+    fireEvent.mouseUp(document.body);
+    fireEvent.click(document.body);
+  }
+
+  function tapOutside() {
+    fireEvent.pointerDown(document.body, { pointerType: "touch" });
+    fireEvent.touchStart(document.body, touch(5));
+    lift(document.body);
+  }
+
+  // Holds a finger on Open until the menu opens, then lifts it. `rightClick` is how
+  // Android opens it, before our own hold would.
+  async function holdAndLift(open: Element, rightClick = false) {
+    fireEvent.touchStart(open, touch(200));
+    if (rightClick) fireEvent.contextMenu(open);
+    else wait(HOLD_MS);
+    await screen.findByRole("menu");
+    lift(open);
+  }
+
+  it("keeps the menu open as the holding finger lifts", async () => {
+    const { open } = setupOpen();
+    await holdAndLift(open);
+    wait(LIFT_GRACE_MS);
+    expect(screen.getByRole("menu")).toBeTruthy();
+  });
+
+  it("keeps the menu open as the finger lifts after an Android long press", async () => {
+    const { open } = setupOpen();
+    await holdAndLift(open, true);
+    expect(screen.getByRole("menu")).toBeTruthy();
+  });
+
+  it("closes the menu on a tap outside, once the finger has lifted", async () => {
+    const { open } = setupOpen();
+    await holdAndLift(open);
+    wait(LIFT_GRACE_MS);
+    tapOutside();
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
   });
 
   it("lets a drag move the sheet instead", () => {
