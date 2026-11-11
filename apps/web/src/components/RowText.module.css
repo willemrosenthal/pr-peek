@@ -8,11 +8,6 @@
   overflow-wrap: anywhere;
 }
 
-/* Fills its line, with the controls on the next. */
-.full {
-  flex-basis: 100%;
-}
-
 .label {
   font-size: var(--text-row);
   font-weight: 500;

@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
@@ -26,6 +26,19 @@ const rulesApi = () =>
       ),
     ),
   );
+
+const urgencyName = (rule: string) => `Urgency for ${rule}`;
+// A rule's urgency chip. Its text is the urgency it shows.
+const urgency = (rule: string) =>
+  screen.getByRole("combobox", { name: urgencyName(rule) });
+
+// Opens a rule's urgency menu and picks one.
+async function pickUrgency(rule: string, label: string) {
+  await userEvent.click(
+    await screen.findByRole("combobox", { name: urgencyName(rule) }),
+  );
+  await userEvent.click(await screen.findByRole("option", { name: label }));
+}
 
 describe("the Rules page", () => {
   it("lists each rule under its group", async () => {
@@ -58,10 +71,7 @@ describe("the Rules page", () => {
     const fetch = rulesApi();
     renderApp("/settings/rules");
 
-    await userEvent.selectOptions(
-      await screen.findByLabelText("Urgency for Reply to my comment"),
-      "high",
-    );
+    await pickUrgency("Reply to my comment", "High");
     expect(sentBodies(fetch, "PATCH /api/rules/reply")).toEqual([
       { severity: "high" },
     ]);
@@ -79,6 +89,16 @@ describe("the Rules page", () => {
     await userEvent.click(notify);
     expect(sentBodies(fetch, "PATCH /api/rules/commented")).toEqual([
       { channels: ["list", "push"] },
+    ]);
+
+    // Review requests notify by default.
+    const reviews = screen.getByRole("switch", {
+      name: "Notify for Review requested",
+    });
+    expect(reviews.getAttribute("aria-checked")).toBe("true");
+    await userEvent.click(reviews);
+    expect(sentBodies(fetch, "PATCH /api/rules/review_requested")).toEqual([
+      { channels: ["list"] },
     ]);
   });
 
@@ -101,11 +121,10 @@ describe("the Rules page", () => {
     );
     renderApp("/settings/rules");
 
-    const urgency = await screen.findByLabelText<HTMLSelectElement>(
-      "Urgency for Reply to my comment",
+    await pickUrgency("Reply to my comment", "High");
+    await waitFor(() =>
+      expect(urgency("Reply to my comment").textContent).toBe("High"),
     );
-    await userEvent.selectOptions(urgency, "high");
-    expect(urgency.value).toBe("high");
   });
 
   it("shows why a change couldn't be saved", async () => {
@@ -117,11 +136,8 @@ describe("the Rules page", () => {
     );
     renderApp("/settings/rules");
 
-    const urgency = await screen.findByLabelText<HTMLSelectElement>(
-      "Urgency for Reply to my comment",
-    );
-    await userEvent.selectOptions(urgency, "low");
+    await pickUrgency("Reply to my comment", "Low");
     expect((await screen.findByRole("alert")).textContent).toBe("Bad severity");
-    expect(urgency.value).toBe("normal");
+    expect(urgency("Reply to my comment").textContent).toBe("Normal");
   });
 });

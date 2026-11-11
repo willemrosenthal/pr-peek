@@ -1,7 +1,123 @@
-.option {
+/* Each control gets a fixed column, so they line up under the column names. */
+.urgencyColumn {
+  flex: none;
+  width: 64px;
+  text-align: center;
+}
+
+.bellColumn {
+  flex: none;
+  width: 36px;
+  text-align: center;
+}
+
+.switchColumn {
   display: flex;
-  flex-basis: 100%;
-  align-items: center;
-  gap: var(--space-2);
+  flex: none;
+  justify-content: flex-end;
+  width: 44px;
+}
+
+.columns {
+  display: flex;
+  gap: 6px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+/* On one line, with the name taking what the controls leave. */
+.row {
+  gap: 6px;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-row);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* A colored chip that opens a menu of urgencies. Colors follow urgency. */
+.urgency {
+  composes: urgencyColumn;
+  height: 30px;
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: 15px;
+  font: inherit;
   font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.high {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.normal {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+}
+
+.low {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
+.bell {
+  composes: bellColumn;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--touch-target);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+.notifying {
+  color: var(--color-accent);
+}
+
+@media (hover: hover) {
+  .bell:hover,
+  .urgency:hover {
+    filter: brightness(0.95);
+  }
+}
+
+.urgency:disabled,
+.bell:disabled {
+  cursor: default;
+}
+
+/* A rule that's off: its name and controls fade, but still work. */
+.off .name,
+.off .optionName {
+  color: var(--color-text-tertiary);
+}
+
+.off .urgency,
+.off .bell {
+  opacity: 0.5;
+}
+
+/* A rule's option, in a smaller row under it, with no line between. */
+.option {
+  min-height: 36px;
+  margin-top: calc(-1 * var(--space-2));
+  padding-top: 0;
+  padding-left: 30px;
+  border-top: 0;
+}
+
+.optionName {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
 }

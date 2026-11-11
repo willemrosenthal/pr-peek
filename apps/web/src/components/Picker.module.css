@@ -1,0 +1,60 @@
+/* Above the page and its sticky header. */
+.positioner {
+  z-index: 50;
+  outline: 0;
+}
+
+/* A rounded card, like the phone's own menus. At least as wide as its button. */
+.popup {
+  min-width: max(var(--anchor-width), 140px);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity 0.12s,
+    transform 0.12s;
+}
+
+.popup[data-starting-style],
+.popup[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-row);
+  cursor: pointer;
+  outline: 0;
+  user-select: none;
+}
+
+.item[data-highlighted] {
+  background: var(--color-hover);
+}
+
+/* The check sits in the first column, so the names line up whether picked or not. */
+.check {
+  display: flex;
+  grid-column: 1;
+  color: var(--color-accent);
+}
+
+.text {
+  grid-column: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popup {
+    transition: none;
+  }
+}

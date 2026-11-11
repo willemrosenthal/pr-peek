@@ -2,7 +2,7 @@ import { BUILD, REPO_URL, type Build } from "../build";
 import styles from "./AppVersion.module.css";
 
 // Which release is running, like "Version 1.2.0 (cb85fd4)", with the commit linking to
-// GitHub. Just the commit when the build had no release tag.
+// GitHub. A build between releases, like a branch, shows "Build cb85fd4, after 1.2.0".
 export function AppVersion({ build = BUILD }: { build?: Build }) {
   if (!build.commit) return null;
   const commit = (
@@ -21,7 +21,10 @@ export function AppVersion({ build = BUILD }: { build?: Build }) {
           Version {build.version} ({commit})
         </>
       ) : (
-        <>Build {commit}</>
+        <>
+          Build {commit}
+          {build.after && `, after ${build.after}`}
+        </>
       )}
     </p>
   );
