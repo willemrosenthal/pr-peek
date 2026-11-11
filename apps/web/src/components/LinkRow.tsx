@@ -23,7 +23,9 @@ export function LinkRow({
   start,
   label,
   status,
+  note,
   tone,
+  after,
   ...target
 }: {
   icon?: LucideIcon;
@@ -33,7 +35,13 @@ export function LinkRow({
   start?: ReactNode;
   label: ReactNode;
   status?: ReactNode;
+  // A line under the status, in `tone`'s color, like "Expires in 5 days". Without it,
+  // `tone` colors the status.
+  note?: ReactNode;
   tone?: Tone | undefined;
+  // Beside the row, outside what opens it, like a Replace button. Takes the arrow's
+  // place.
+  after?: ReactNode;
 } & Target) {
   const content = (
     <>
@@ -49,13 +57,21 @@ export function LinkRow({
           <>
             {/* So screen readers pause between the name and the status. */}
             <span className="visually-hidden">,</span>{" "}
-            <span className={cx(styles.status, tone && styles[tone])}>
+            <span className={cx(styles.status, !note && tone && styles[tone])}>
               {status}
             </span>
           </>
         )}
+        {note && (
+          <>
+            <span className="visually-hidden">,</span>{" "}
+            <span className={cx(styles.note, tone && styles[tone])}>
+              {note}
+            </span>
+          </>
+        )}
       </span>
-      {"href" in target ? (
+      {after ? null : "href" in target ? (
         <ExternalLink className={styles.arrow} size={16} aria-hidden="true" />
       ) : (
         <ChevronRight className={styles.arrow} size={18} aria-hidden="true" />
@@ -90,6 +106,7 @@ export function LinkRow({
           {content}
         </Link>
       )}
+      {after && <span className={styles.after}>{after}</span>}
     </li>
   );
 }

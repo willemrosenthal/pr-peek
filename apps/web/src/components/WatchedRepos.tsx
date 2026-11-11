@@ -1,5 +1,5 @@
 import type { WatchedRepoDto } from "@pr-peek/core";
-import { useState } from "react";
+import { useItemSheet } from "../hooks/useItemSheet";
 import { useRepos } from "../queries";
 import { byOwner, watchOf, WATCH_LABELS } from "../repoWatch";
 import { Alert } from "./Alert";
@@ -11,15 +11,11 @@ import styles from "./Repos.module.css";
 // The repos Git Buddy watches, grouped by owner. Tapping one opens its sheet.
 export function WatchedRepos() {
   const repos = useRepos();
-  // The repo whose sheet is open, and the last one opened, which stays in the sheet
-  // while it slides away, even once removed.
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [last, setLast] = useState<WatchedRepoDto | null>(null);
+  const list = repos.data?.repos ?? [];
+  const sheet = useItemSheet(list);
 
   if (repos.isPending) return <p className={styles.hint}>Loading</p>;
   if (repos.isError) return <Alert>{repos.error.message}</Alert>;
-  const list = repos.data.repos;
-  const current = list.find((repo) => repo.id === last?.id) ?? last;
 
   return (
     <>
@@ -37,20 +33,13 @@ export function WatchedRepos() {
               <WatchedRepo
                 key={repo.id}
                 repo={repo}
-                onOpen={() => {
-                  setLast(repo);
-                  setOpenId(repo.id);
-                }}
+                onOpen={() => sheet.show(repo)}
               />
             ))}
           </Group>
         ))
       )}
-      <RepoSheet
-        repo={current}
-        open={openId !== null && list.some((repo) => repo.id === openId)}
-        onClose={() => setOpenId(null)}
-      />
+      <RepoSheet repo={sheet.item} open={sheet.open} onClose={sheet.close} />
     </>
   );
 }

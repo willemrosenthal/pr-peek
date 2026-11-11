@@ -1,7 +1,8 @@
-import type {
-  CheckTokenResponse,
-  TokenDto,
-  TokensResponse,
+import {
+  MAX_TOKENS,
+  type CheckTokenResponse,
+  type TokenDto,
+  type TokensResponse,
 } from "@pr-peek/core";
 import { screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -41,10 +42,21 @@ const checked = (
 
 const settingsApi = (handlers: Handlers) => fakeApi(signedInApi(handlers));
 
+// A token's row, found by its name.
 const cardFor = async (name: string) =>
   within(await screen.findByRole("list", { name: "Your tokens" }))
-    .getByText(name, { selector: "strong" })
+    .getByText(name, { selector: "span" })
     .closest("li")!;
+
+// Opens a token's sheet from its row.
+async function openToken(name: string) {
+  await userEvent.click(
+    within(await cardFor(name)).getByRole("button", {
+      name: new RegExp(`^${name}`),
+    }),
+  );
+  return screen.findByRole("dialog");
+}
 
 async function pasteAndCheck(token: string) {
   await userEvent.click(
@@ -89,18 +101,21 @@ it("lists each token with what it covers, and offers Replace only when it needs 
   renderApp("/settings/account");
 
   const acme = await cardFor("acme");
-  expect(acme.textContent).toContain("Covers acme: 14 repos you watch.");
-  expect(acme.textContent).toContain("Working.");
-  expect(within(acme).queryByRole("button", { name: "Replace" })).toBe(null);
+  expect(acme.textContent).toContain("Fine-grained · covers acme · 14 repos");
+  expect(within(acme).queryByRole("button", { name: /^Replace/ })).toBe(null);
 
   const labs = await cardFor("acme-labs");
-  expect(labs.textContent).toContain("Expires in 5 days.");
-  expect(within(labs).getByRole("button", { name: "Replace" })).toBeTruthy();
+  expect(labs.textContent).toContain("Expires in 5 days");
+  expect(
+    within(labs).getByRole("button", { name: "Replace acme-labs" }),
+  ).toBeTruthy();
 
   const side = await cardFor("Side projects");
-  expect(side.textContent).toContain("Classic");
-  expect(side.textContent).toContain("Stopped working.");
-  expect(within(side).getByRole("button", { name: "Replace" })).toBeTruthy();
+  expect(side.textContent).toContain("Classic · every repo you can see");
+  expect(side.textContent).toContain("Stopped working");
+  expect(
+    within(side).getByRole("button", { name: "Replace Side projects" }),
+  ).toBeTruthy();
 
   const owners = screen
     .getByRole("heading", { name: "Which token syncs each owner" })
@@ -194,7 +209,7 @@ it("replaces a token from its card, keeping its name", async () => {
   renderApp("/settings/account");
 
   await userEvent.click(
-    within(await cardFor("Work")).getByRole("button", { name: "Replace" }),
+    within(await cardFor("Work")).getByRole("button", { name: "Replace Work" }),
   );
   expect(screen.getByRole("heading", { name: "Replace Work" })).toBeTruthy();
   await userEvent.type(
@@ -215,6 +230,33 @@ it("replaces a token from its card, keeping its name", async () => {
   );
 });
 
+it("shows a token's details in its sheet, and replaces it from there", async () => {
+  settingsApi({
+    "GET /api/github-tokens": () =>
+      json(
+        tokensResponse(
+          [githubToken({ id: "a", name: "acme", expiresAt: null })],
+          [{ owner: "acme", repos: 3, tokenId: "a" }],
+        ),
+      ),
+  });
+  renderApp("/settings/account");
+
+  const sheet = await openToken("acme");
+  expect(within(sheet).getByRole("heading", { name: "acme" })).toBeTruthy();
+  // Each fact's value, on the right of its name.
+  const detail = (name: string) =>
+    within(sheet).getByText(name).nextElementSibling?.textContent;
+  expect(detail("Covers")).toBe("acme: 3 repos you watch");
+  expect(detail("Expires")).toBe("Never");
+  expect(detail("Status")).toBe("Working");
+
+  await userEvent.click(within(sheet).getByRole("button", { name: "Replace" }));
+  expect(
+    await screen.findByRole("heading", { name: "Replace acme" }),
+  ).toBeTruthy();
+});
+
 it("asks before removing a token, saying which repos move", async () => {
   let tokens = [githubToken({ id: "a", name: "acme" })];
   const fetch = settingsApi({
@@ -227,12 +269,13 @@ it("asks before removing a token, saying which repos move", async () => {
   });
   renderApp("/settings/account");
 
-  const card = await cardFor("acme");
-  await userEvent.click(within(card).getByRole("button", { name: "Remove" }));
-  expect(within(card).getByRole("alert").textContent).toContain(
+  const sheet = await openToken("acme");
+  await userEvent.click(within(sheet).getByRole("button", { name: "Remove" }));
+  const asking = within(sheet).getByRole("alert");
+  expect(asking.textContent).toContain(
     "Its 3 repos sync with another token or your GitHub sign in",
   );
-  await userEvent.click(within(card).getByRole("button", { name: "Remove" }));
+  await userEvent.click(within(asking).getByRole("button", { name: "Remove" }));
 
   await expect
     .poll(() => screen.queryByRole("list", { name: "Your tokens" }))
@@ -243,18 +286,23 @@ it("asks before removing a token, saying which repos move", async () => {
   );
 });
 
-it("stops offering Add at 5 tokens", async () => {
+it("shows the most allowed, and stops offering Add there", async () => {
   settingsApi({
     "GET /api/github-tokens": () =>
       json(
         tokensResponse(
-          ["a", "b", "c", "d", "e"].map((id) => githubToken({ id, name: id })),
+          Array.from({ length: MAX_TOKENS }, (_, n) =>
+            githubToken({ id: `t${n}`, name: `t${n}` }),
+          ),
         ),
       ),
   });
   renderApp("/settings/account");
 
-  expect(await screen.findByText(/You have 5 tokens/)).toBeTruthy();
+  expect(
+    await screen.findByText(new RegExp(`You have ${MAX_TOKENS} tokens`)),
+  ).toBeTruthy();
+  expect(screen.getByText(`${MAX_TOKENS} (max ${MAX_TOKENS})`)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Add a token" })).toBe(null);
 });
 
@@ -302,7 +350,7 @@ it("opens the sheet on the recommended fine-grained tab, with a tab for classic 
   await userEvent.click(within(sheet).getByRole("button", { name: "Close" }));
   await userEvent.click(
     within(await cardFor("Everything")).getByRole("button", {
-      name: "Replace",
+      name: "Replace Everything",
     }),
   );
   expect(
