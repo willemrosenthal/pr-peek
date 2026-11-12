@@ -308,6 +308,12 @@
   overflow-y: auto;
 }
 
+/* Rows keep their full height and the card scrolls. The card is a flex column, so
+   rows would otherwise shrink to their 44px minimum and overlap. */
+.results > li {
+  flex: none;
+}
+
 /* A thin scrollbar with no track. The Mac app styles its own, shown only while
    scrolling (global.css). */
 :global(:root:not(.desktop-app)) .results {
