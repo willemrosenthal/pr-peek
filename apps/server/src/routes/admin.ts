@@ -1,3 +1,4 @@
+import type { SendApple } from "../apns";
 import type {
   AdminOverviewResponse,
   SignUpRequestsResponse,
@@ -21,6 +22,8 @@ const MAX_REQUESTS = 100;
 export interface AdminDeps extends AccountDeps {
   // Null when push is off, because the VAPID keys aren't set.
   send: SendPush | null;
+  // Null when Apple push is off, because the APNs settings aren't set.
+  apple?: SendApple | null;
   now?: () => Date;
 }
 
@@ -113,7 +116,7 @@ export function adminRouter(deps: AdminDeps): Router {
       where: { userId: user.id },
     });
     const sent = await deliver(
-      { db: deps.db, send: deps.send, logger: deps.logger },
+      { db: deps.db, send: deps.send, apple: deps.apple, logger: deps.logger },
       user,
       devices,
       {

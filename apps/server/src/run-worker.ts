@@ -25,6 +25,7 @@ import {
 } from "./jobs";
 import { createLogger } from "./logger";
 import { notifyItems, notifyMerged } from "./notify";
+import { apnsFrom, appleSender } from "./apns";
 import { vapidFrom, webPushSender } from "./push";
 import { sendDueReminders } from "./reminders";
 import { onShutdown } from "./shutdown";
@@ -131,12 +132,21 @@ await work<{ userId: string }>(
 );
 
 const vapid = vapidFrom(config);
-const send = vapid ? webPushSender(vapid) : null;
+const apns = apnsFrom(config);
+if (!apns)
+  logger.warn("APNs settings not set, so the iPhone app gets no pushes");
+// Everything that sends notifications gets these.
+const pushDeps = {
+  db,
+  send: vapid ? webPushSender(vapid) : null,
+  apple: apns ? appleSender(apns) : null,
+  logger,
+};
 await work<{ itemIds: string[] }>(NOTIFY_ITEMS, jobs, async ([job]) => {
   if (!job) return;
   const { itemIds } = job.data;
   const outcomes = await notifyItems(
-    { db, send, logger },
+    pushDeps,
     itemIds.map((itemId) => ({ itemId })),
   );
   logger.info({ itemIds, outcomes }, "notify items");
@@ -145,27 +155,27 @@ await work<{ itemIds: string[] }>(NOTIFY_ITEMS, jobs, async ([job]) => {
 await work<{ prIds: string[] }>(NOTIFY_MERGED, jobs, async ([job]) => {
   if (!job) return;
   const { prIds } = job.data;
-  const outcomes = await notifyMerged({ db, send, logger }, prIds);
+  const outcomes = await notifyMerged(pushDeps, prIds);
   logger.info({ prIds, outcomes }, "notify merged");
 });
 
 await boss.schedule(SUMMARY_DISPATCH, "*/15 * * * *");
 await work(SUMMARY_DISPATCH, scheduled, async () => {
-  const sent = await sendDueSummaries({ db, send, logger }, new Date());
+  const sent = await sendDueSummaries(pushDeps, new Date());
   if (sent > 0) logger.info({ sent }, "morning summaries sent");
 });
 
 await boss.schedule(REMINDER_DISPATCH, "*/5 * * * *");
 await work(REMINDER_DISPATCH, scheduled, async () => {
-  const sent = await sendDueReminders({ db, send, logger }, new Date());
+  const sent = await sendDueReminders(pushDeps, new Date());
   if (sent > 0) logger.info({ sent }, "reminders sent");
 });
 
 await boss.schedule(HEALTH_CHECK, "0 * * * *");
 await work(HEALTH_CHECK, scheduled, async () => {
   const now = new Date();
-  await checkHealth({ db, send, logger }, now);
-  const reminded = await sendTokenReminders({ db, send, logger }, now);
+  await checkHealth(pushDeps, now);
+  const reminded = await sendTokenReminders(pushDeps, now);
   if (reminded > 0) logger.info({ reminded }, "token reminders sent");
   const deleted = await cleanUpOldData(db, now);
   if (deleted.items + deleted.prs > 0) logger.info(deleted, "old data deleted");
@@ -174,7 +184,7 @@ await work(HEALTH_CHECK, scheduled, async () => {
 const stopSavingUsage = usage.saveHourly(db, logger);
 
 logger.info("worker started");
-void checkTokenKey({ db, send, logger }, tokenKeys(config), new Date()).catch(
+void checkTokenKey(pushDeps, tokenKeys(config), new Date()).catch(
   (err: unknown) => logger.error({ err }, "couldn't check the token key"),
 );
 

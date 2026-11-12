@@ -12,6 +12,14 @@ const required = {
   GITHUB_CLIENT_SECRET: "secret",
 };
 
+// APNs settings as Render keeps them: the key on one line.
+const APNS = {
+  APNS_KEY: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
+  APNS_KEY_ID: "KEY1234567",
+  APNS_TEAM_ID: "TEAM123456",
+  APNS_TOPIC: "com.git-buddy.pr-peek",
+};
+
 describe("loadConfig", () => {
   it("applies defaults", () => {
     expect(loadConfig(required)).toMatchObject({
@@ -53,6 +61,13 @@ describe("loadConfig", () => {
     ).toBeUndefined();
   });
 
+  it("reads the APNs key with its line breaks written as \\n", () => {
+    const config = loadConfig({ ...required, ...APNS });
+    expect(config.APNS_KEY).toBe(
+      "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----",
+    );
+  });
+
   it("names each missing variable", () => {
     expect(() => loadConfig({})).toThrow(
       /APP_URL[\s\S]*DATABASE_URL[\s\S]*SESSION_SECRET[\s\S]*TOKEN_ENC_KEY[\s\S]*GITHUB_CLIENT_ID[\s\S]*GITHUB_CLIENT_SECRET/,
@@ -81,6 +96,17 @@ describe("loadConfig", () => {
         VAPID_SUBJECT: "you@example.com",
       },
       /VAPID_SUBJECT/,
+    ],
+    [
+      "only some of the APNs settings",
+      { ...APNS, APNS_TOPIC: undefined },
+      /APNS_TOPIC, or none/,
+    ],
+    ["an APNs key that isn't one", { ...APNS, APNS_KEY: "abc" }, /APNS_KEY/],
+    [
+      "an APNs key ID of the wrong length",
+      { ...APNS, APNS_KEY_ID: "ABC" },
+      /APNS_KEY_ID/,
     ],
   ])("rejects %s", (_name, overrides, error) => {
     expect(() => loadConfig({ ...required, ...overrides })).toThrow(error);

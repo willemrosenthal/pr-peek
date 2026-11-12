@@ -1,9 +1,10 @@
 import { DESKTOP_ONLINE_MS, type PushPayload } from "@pr-peek/core";
 import type { Logger } from "pino";
 import webpush from "web-push";
+import { isGoneFromApple, type SendApple } from "./apns";
 import type { Config } from "./config";
 import type { Db } from "./db";
-import type { PushSubscription } from "./generated/prisma/client";
+import type { AppleDevice, PushSubscription } from "./generated/prisma/client";
 
 // Failed sends in a row before a device is removed.
 export const MAX_PUSH_FAILURES = 5;
@@ -62,6 +63,8 @@ export function webPushSender(vapid: Vapid): SendPush {
 export interface PushDeps {
   db: Db;
   send: SendPush;
+  // Null or missing when Apple push is off, because the APNs settings aren't set.
+  apple?: SendApple | null | undefined;
   logger: Logger;
 }
 
@@ -72,43 +75,84 @@ const isGone = (err: unknown) =>
   err instanceof webpush.WebPushError &&
   (err.statusCode === 404 || err.statusCode === 410);
 
-// Sends to one device and keeps its record up to date. Removes it when the push service
-// says it's gone, or after too many failures in a row.
-export async function pushToDevice(
-  deps: PushDeps,
-  device: PushSubscription,
-  payload: PushPayload,
-  options: PushOptions,
+// The parts of a device table that sending touches: web push devices or Apple devices.
+interface DeviceTable {
+  deleteMany(args: {
+    where: { id: string; failureCount?: { gte: number } };
+  }): Promise<{ count: number }>;
+  updateMany(args: {
+    where: { id: string };
+    data:
+      | { failureCount: { increment: number } }
+      | { lastSuccessAt: Date; failureCount: number };
+  }): Promise<{ count: number }>;
+}
+
+// Sends to one device with `send`, and keeps its record up to date. Removes it when the
+// push service says it's gone, or after too many failures in a row.
+async function sendAndTrack(
+  { logger }: Pick<PushDeps, "logger">,
+  table: DeviceTable,
+  deviceId: string,
+  send: () => Promise<void>,
+  isGoneError: (err: unknown) => boolean,
 ): Promise<PushResult> {
-  const { db, logger } = deps;
-  const where = { id: device.id };
+  const where = { id: deviceId };
   try {
-    await deps.send(device, payload, options);
+    await send();
   } catch (err) {
-    if (isGone(err)) {
-      await db.pushSubscription.deleteMany({ where });
-      logger.info({ deviceId: device.id }, "push device gone, removed");
+    if (isGoneError(err)) {
+      await table.deleteMany({ where });
+      logger.info({ deviceId }, "push device gone, removed");
       return "removed";
     }
-    logger.warn({ err, deviceId: device.id }, "push failed");
-    await db.pushSubscription.updateMany({
-      where,
-      data: { failureCount: { increment: 1 } },
-    });
-    const { count } = await db.pushSubscription.deleteMany({
+    logger.warn({ err, deviceId }, "push failed");
+    await table.updateMany({ where, data: { failureCount: { increment: 1 } } });
+    const { count } = await table.deleteMany({
       where: { ...where, failureCount: { gte: MAX_PUSH_FAILURES } },
     });
     if (count === 0) return "failed";
-    logger.info({ deviceId: device.id }, "push device kept failing, removed");
+    logger.info({ deviceId }, "push device kept failing, removed");
     return "removed";
   }
   // updateMany, since the user may have removed the device while it sent.
-  await db.pushSubscription.updateMany({
+  await table.updateMany({
     where,
     data: { lastSuccessAt: new Date(), failureCount: 0 },
   });
   return "sent";
 }
+
+// Sends to one web push device. See sendAndTrack.
+export const pushToDevice = (
+  deps: PushDeps,
+  device: PushSubscription,
+  payload: PushPayload,
+  options: PushOptions,
+): Promise<PushResult> =>
+  sendAndTrack(
+    deps,
+    deps.db.pushSubscription,
+    device.id,
+    () => deps.send(device, payload, options),
+    isGone,
+  );
+
+// Sends to one iPhone app. See sendAndTrack.
+const pushToAppleDevice = (
+  deps: PushDeps,
+  apple: SendApple,
+  device: AppleDevice,
+  payload: PushPayload,
+  options: PushOptions,
+): Promise<PushResult> =>
+  sendAndTrack(
+    deps,
+    deps.db.appleDevice,
+    device.id,
+    () => apple(device, payload, options),
+    isGoneFromApple,
+  );
 
 // Postgres NOTIFY channel for notifications to the Mac menu bar app. The payload is
 // `{ userId, payload }`. The web service passes it down the user's live streams.
@@ -117,16 +161,29 @@ export const DESKTOP_CHANNEL = "user_desktop_notify";
 export const isDesktopOnline = (seenAt: Date | null, now: Date) =>
   seenAt !== null && now.getTime() - seenAt.getTime() < DESKTOP_ONLINE_MS;
 
-// Users with somewhere to send a notification: a push device, or the running Mac app.
+// Users with somewhere to send a notification: a push device, the iPhone app, or the
+// running Mac app.
 export const reachableUsers = (now: Date) => ({
   OR: [
     { pushSubscriptions: { some: {} } },
+    { appleDevices: { some: {} } },
     { desktopSeenAt: { gt: new Date(now.getTime() - DESKTOP_ONLINE_MS) } },
   ],
 });
 
-// Sends a notification to the user's `devices`. While their Mac menu bar app runs, it
-// goes to the app instead of the browsers on that Mac. "sent" if anything got it.
+// Web push to an iPhone or iPad: Apple's push service, from a browser that isn't a Mac's.
+export const isIosWebPush = (
+  device: Pick<PushSubscription, "endpoint" | "onMac">,
+) =>
+  device.onMac === false &&
+  new URL(device.endpoint).hostname.endsWith(".push.apple.com");
+
+// Sends a notification to the user's web push `devices` and their iPhone apps.
+// - While their Mac menu bar app runs, it goes to the app instead of the browsers on
+//   that Mac.
+// - With the iPhone app, it goes to the app instead of the web app on iPhones and iPads,
+//   so the phone gets it once.
+// "sent" if anything got it.
 export async function deliver(
   deps: PushDeps,
   user: { id: string; desktopSeenAt: Date | null },
@@ -134,28 +191,27 @@ export async function deliver(
   payload: PushPayload,
   { now, ...options }: PushOptions & { now: Date },
 ): Promise<"sent" | "failed"> {
+  const { apple } = deps;
   const desktop = isDesktopOnline(user.desktopSeenAt, now);
   if (desktop) {
     const message = JSON.stringify({ userId: user.id, payload });
     await deps.db.$executeRaw`SELECT pg_notify(${DESKTOP_CHANNEL}, ${message})`;
   }
-  const targets = desktop ? devices.filter((device) => !device.onMac) : devices;
-  const pushed =
-    targets.length > 0
-      ? await pushToDevices(deps, targets, payload, options)
-      : "failed";
-  return desktop || pushed === "sent" ? "sent" : "failed";
-}
-
-// Sends to each device at once. "sent" if any device got it.
-export async function pushToDevices(
-  deps: PushDeps,
-  devices: PushSubscription[],
-  payload: PushPayload,
-  options: PushOptions,
-): Promise<"sent" | "failed"> {
-  const results = await Promise.all(
-    devices.map((device) => pushToDevice(deps, device, payload, options)),
+  const phones = apple
+    ? await deps.db.appleDevice.findMany({ where: { userId: user.id } })
+    : [];
+  const browsers = devices.filter(
+    (device) =>
+      !(desktop && device.onMac) &&
+      !(phones.length > 0 && isIosWebPush(device)),
   );
-  return results.includes("sent") ? "sent" : "failed";
+  const results = await Promise.all([
+    ...browsers.map((device) => pushToDevice(deps, device, payload, options)),
+    ...(apple
+      ? phones.map((device) =>
+          pushToAppleDevice(deps, apple, device, payload, options),
+        )
+      : []),
+  ]);
+  return desktop || results.includes("sent") ? "sent" : "failed";
 }

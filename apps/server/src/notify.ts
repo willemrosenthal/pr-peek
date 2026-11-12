@@ -1,3 +1,4 @@
+import type { SendApple } from "./apns";
 import {
   formatAge,
   isQuiet,
@@ -30,6 +31,8 @@ export interface NotifyDeps {
   db: Db;
   // Null when push is off, because the VAPID keys aren't set.
   send: SendPush | null;
+  // Null when Apple push is off, because the APNs settings aren't set.
+  apple?: SendApple | null;
   logger: Logger;
   now?: () => Date;
 }
@@ -193,8 +196,9 @@ type Reachable = Pick<User, "id" | "desktopSeenAt"> & {
   pushSubscriptions: PushSubscription[];
 };
 
-// The user's devices that take a notification of this severity about a PR in this repo,
-// or why none do. Every device takes every severity.
+// The user's web push devices that take a notification of this severity about a PR in
+// this repo, or why none do. Every device takes every severity. deliver() adds their
+// iPhone apps.
 async function reach(
   db: Db,
   now: Date,
@@ -213,9 +217,12 @@ async function reach(
   if (settings && isQuiet(settings, now) && !breaksQuiet) return "quiet";
 
   const devices = user.pushSubscriptions;
-  // The running Mac menu bar app takes every severity.
+  // The running Mac menu bar app takes every severity, and so does the iPhone app.
   const desktop = isDesktopOnline(user.desktopSeenAt, now);
-  if (devices.length === 0 && !desktop) return "no_devices";
+  if (devices.length === 0 && !desktop) {
+    const phones = await db.appleDevice.count({ where: { userId: user.id } });
+    if (phones === 0) return "no_devices";
+  }
   return devices;
 }
 
@@ -265,7 +272,7 @@ async function notifyOneMerged(
   try {
     const badge = summarize(await openItems(db, pr.userId, now)).total;
     return await deliver(
-      { db, send, logger },
+      { db, send, apple: deps.apple, logger },
       pr.user,
       devices,
       {
@@ -307,7 +314,7 @@ async function sendClaimed(
     ];
     const urgent = readies.some((r) => r.severity === "high");
     outcome = await deliver(
-      { db, send, logger },
+      { db, send, apple: deps.apple, logger },
       { id: userId, desktopSeenAt: first?.desktopSeenAt ?? null },
       devices,
       { ...payload, badge },

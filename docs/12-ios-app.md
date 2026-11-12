@@ -46,7 +46,9 @@ The web's tick (`haptics.ts`) only works right after a tap or a finger lifting, 
 ## PRs
 
 1. Shell: 12.1 and 12.2.
-2. Server: 12.3, Apple push next to web push. Does nothing until an iPhone app registers.
+2. Server: 12.3, Apple push next to web push. Does nothing until an iPhone app registers. Split in two:
+   - 2a: the device table, endpoints, the Apple sender, sending from `deliver()`, and no duplicates.
+   - 2b: the payload extras for the tiles, and "Send a test".
 3. App push: 12.4, turning notifications on, tap to open, the badge, sign out.
 4. Haptics: 12.5.
 5. Rich notifications: 12.6, the notification extension.
@@ -82,18 +84,17 @@ The web's tick (`haptics.ts`) only works right after a tap or a finger lifting, 
 
 ### 12.3 Apple push on the server
 
-- [ ] A new `AppleDevice` table, kept apart from web push devices (`PushSubscription`) so web push stays simple. Each has the device token, a label, whether it's a development build (Xcode builds use Apple's sandbox, TestFlight builds don't), and the last success and failure count, like web push devices.
-- [ ] Endpoints for the app to register and unregister its token. Signing out unregisters it. Deleting the account deletes them, like other devices.
-- [ ] Send with token based auth (the `.p8` key), over HTTP/2 to Apple. Env vars: `APNS_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC` (the bundle ID). Pick a small library, or sign the JWT ourselves.
-- [ ] Send from `deliver()` (`push.ts`), so every push reaches the app: list items, merged PRs, the morning summary, token reminders, and admin alerts. The menu bar app's rule stays: it only skips web push on Macs.
-- [ ] No duplicates: when someone has the iPhone app, skip their web push devices on iPhones and iPads (Apple's push service, and not `onMac`). Their Mac's Safari still gets web push.
-- [ ] The Apple payload carries the same title, body, URL, tag, item, and badge as a web push, plus:
-  - `mutable-content: 1`, so the extension runs,
+- [x] A new `AppleDevice` table, kept apart from web push devices (`PushSubscription`) so web push stays simple. Each has the device token, a label, whether it's a development build (Xcode builds use Apple's sandbox, TestFlight builds don't), and the last success and failure count, like web push devices.
+- [x] Endpoints for the app to register and unregister its token. Signing out unregisters it (the app does that, in 12.4). Deleting the account deletes them, like other devices.
+- [x] Send with token based auth (the `.p8` key), over HTTP/2 to Apple. Env vars: `APNS_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC` (the bundle ID). We sign the token ourselves with `node:crypto`, and send with `node:http2`: no library needed.
+- [x] Send from `deliver()` (`push.ts`), so every push reaches the app: list items, merged PRs, the morning summary, token reminders, and admin alerts. The menu bar app's rule stays: it only skips web push on Macs.
+- [x] No duplicates: when someone has the iPhone app, skip their web push devices on iPhones and iPads (Apple's push service, and not `onMac`). Their Mac's Safari still gets web push. Apple push only sends while web push (the VAPID keys) is set up too, since every sender checks that first.
+- [x] The Apple payload carries the same title, body, URL, tag, item, and badge as a web push, plus `mutable-content: 1`, so the extension runs, and `thread-id` from the tag, so a PR's notifications group together.
+- [ ] In 2b, the payload also carries:
   - `kind`, for the tile: each rule's kind, `merged`, or none for the summary, token reminders, and admin alerts,
   - the review state for `reviewed` (approved or changes requested), so each gets its own tile,
-  - `actor` (login) and `avatar` (picture URL), when a person did it,
-  - `thread-id` from the tag, so a PR's notifications group together.
-- [ ] Remove a token when Apple says it's gone, like web push devices.
+  - `actor` (login) and `avatar` (picture URL), when a person did it.
+- [x] Remove a token when Apple says it's gone, like web push devices.
 - [ ] A "Send a test" endpoint that sends one sample of each kind to the user's iPhone app, for 12.4's button and 12.6's check.
 - [x] **(You)** Add the APNs env vars on Render, for the web service and the worker. Done in 12.1.
 

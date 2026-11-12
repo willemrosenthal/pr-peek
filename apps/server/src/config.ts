@@ -13,6 +13,22 @@ const encryptionKey = z
     message: `Must be ${KEY_BYTES} bytes, base64 encoded`,
   });
 
+// A refine for settings that only work together: all set, or none.
+function allOrNone<Key extends string>(
+  keys: Key[],
+): [
+  check: (env: Partial<Record<Key, unknown>>) => boolean,
+  error: { message: string; path: string[] },
+] {
+  return [
+    (env) => {
+      const set = keys.map((key) => env[key]);
+      return set.every(Boolean) || !set.some(Boolean);
+    },
+    { message: `Set all of ${keys.join(", ")}, or none`, path: [keys[0]!] },
+  ];
+}
+
 const schema = z
   .object({
     NODE_ENV: z
@@ -49,6 +65,25 @@ const schema = z
         .string()
         .regex(/^(mailto:|https:)/, "Must start with mailto: or https:"),
     ),
+    // Signs pushes to the iPhone app (plan 12): the APNs key from Apple's developer site.
+    // Without them, the app gets no pushes. APNS_KEY is the whole .p8 file. A value with
+    // "\n" in place of its line breaks works too.
+    APNS_KEY: optional(
+      z
+        .string()
+        .transform((key) => key.replaceAll("\\n", "\n"))
+        .refine((key) => key.includes("BEGIN PRIVATE KEY"), {
+          message: "Must be the .p8 file's text",
+        }),
+    ),
+    APNS_KEY_ID: optional(
+      z.string().regex(/^[A-Z0-9]{10}$/, "Must be 10 characters"),
+    ),
+    APNS_TEAM_ID: optional(
+      z.string().regex(/^[A-Z0-9]{10}$/, "Must be 10 characters"),
+    ),
+    // The app's bundle ID, com.git-buddy.pr-peek.
+    APNS_TOPIC: optional(z.string().min(1)),
     // Proxies between users and us, so rate limits see each user's real IP. On Render,
     // 2: Cloudflare, then Render's own. Check with GET /api/admin/ip (see
     // docs/security.md, "Rate limits and IPs").
@@ -57,19 +92,10 @@ const schema = z
     RENDER_GIT_COMMIT: z.string().optional(),
   })
   .refine(
-    (env) => {
-      const set = [
-        env.VAPID_PUBLIC_KEY,
-        env.VAPID_PRIVATE_KEY,
-        env.VAPID_SUBJECT,
-      ];
-      return set.every(Boolean) || !set.some(Boolean);
-    },
-    {
-      message:
-        "Set all of VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, or none",
-      path: ["VAPID_PUBLIC_KEY"],
-    },
+    ...allOrNone(["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]),
+  )
+  .refine(
+    ...allOrNone(["APNS_KEY", "APNS_KEY_ID", "APNS_TEAM_ID", "APNS_TOPIC"]),
   );
 
 export type Config = z.infer<typeof schema>;
