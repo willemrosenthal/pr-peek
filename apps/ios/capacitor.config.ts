@@ -26,6 +26,12 @@ const config: CapacitorConfig = {
     // A long press on a row opens Git Buddy's PR preview, not iOS's link preview.
     allowsLinkPreview: false,
   },
+  plugins: {
+    PushNotifications: {
+      // Shows a notification that arrives while the app is open, like when it's closed.
+      presentationOptions: ["badge", "sound", "alert"],
+    },
+  },
 };
 
 export default config;

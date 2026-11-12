@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Outlet } from "react-router";
 import { api } from "../api";
-import { setBadge } from "../badge";
+import { setAppBadge } from "../appBadge";
 import {
   coloredIcon,
   countStyle,
@@ -9,21 +9,23 @@ import {
   inDesktopApp,
   setTrayState,
 } from "../desktop";
+import { useIosPush } from "../hooks/useIosPush";
 import { useLiveUpdates } from "../hooks/useLiveUpdates";
 import { useLocalSetting } from "../localSetting";
 import { recheckPush } from "../push";
 import { useReloadDevices, useSummary } from "../queries";
 
 // Wraps every signed in page. Keeps the list, the app badge, the Mac menu bar, and this
-// device's notifications current.
+// device's notifications current, in the iPhone app too.
 export function SignedIn() {
   useLiveUpdates();
+  useIosPush();
   const summary = useSummary().data;
   const style = useLocalSetting(countStyle);
   const colored = useLocalSetting(coloredIcon);
   useEffect(() => {
     if (!summary) return;
-    void setBadge(summary.total);
+    void setAppBadge(summary.total);
     setTrayState(summary, style, colored);
   }, [summary, style, colored]);
 

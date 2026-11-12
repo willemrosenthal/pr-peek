@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { api } from "../../api";
-import { setBadge } from "../../badge";
+import { setAppBadge } from "../../appBadge";
 import { ActionRow } from "../../components/ActionRow";
 import { Alert } from "../../components/Alert";
 import { Avatar } from "../../components/Avatar";
@@ -11,6 +11,7 @@ import { GitHubTokens } from "../../components/GitHubTokens";
 import { Group } from "../../components/Group";
 import { clearTrayState } from "../../desktop";
 import { useMe } from "../../queries";
+import { requestSignOut } from "../../signOut";
 import styles from "./AccountPage.module.css";
 import { SettingsPage } from "./SettingsLayout";
 
@@ -22,12 +23,12 @@ export function AccountPage() {
   // After signing out or deleting the account: nothing of theirs stays on this device.
   const leave = async () => {
     queryClient.clear();
-    void setBadge(0);
+    void setAppBadge(0);
     clearTrayState();
     await navigate("/signin", { replace: true });
   };
   const signOut = useMutation({
-    mutationFn: () => api("/auth/signout", { method: "POST" }),
+    mutationFn: requestSignOut,
     onSuccess: leave,
   });
 

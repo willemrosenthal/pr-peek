@@ -4,6 +4,7 @@ import type {
 } from "@pr-peek/core";
 import { api } from "./api";
 import { detectPlatform, isStandalone } from "./install";
+import { store, stored } from "./storage";
 
 export type PushSupport = "supported" | "needs-install" | "unsupported";
 
@@ -99,23 +100,6 @@ export async function thisDeviceEndpoint() {
 const SAVED_ENDPOINT_KEY = "push-endpoint";
 // The endpoint whose device the server knows is or isn't on a Mac.
 const MAC_SENT_KEY = "push-on-mac-sent";
-
-function stored(key: string) {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function store(key: string, value: string | null) {
-  try {
-    if (value) localStorage.setItem(key, value);
-    else localStorage.removeItem(key);
-  } catch {
-    // Private windows can block storage. The next check just finds nothing to compare.
-  }
-}
 
 // Run when the app opens. If the browser replaced its subscription, moves this device to
 // the new one. Tells the server once whether the device is on a Mac, for devices saved
