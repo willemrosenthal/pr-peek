@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { generateKeyPairSync, randomBytes, type KeyObject } from "node:crypto";
 import { vi } from "vitest";
 import { KEY_BYTES } from "../src/crypto";
 import type {
@@ -8,6 +8,14 @@ import type {
 } from "../src/github/oauth";
 
 export const TEST_KEY = randomBytes(KEY_BYTES);
+
+// A private key as a PEM file's text, like Apple's .p8 push key.
+export const pemOf = (key: KeyObject) =>
+  key.export({ type: "pkcs8", format: "pem" }).toString().trim();
+
+// A new key of Apple's push key kind: P-256.
+export const apnsKeyPair = () =>
+  generateKeyPairSync("ec", { namedCurve: "P-256" });
 
 export const NOW = new Date("2026-10-21T12:00:00Z");
 // A time `n` hours after NOW (negative for before).

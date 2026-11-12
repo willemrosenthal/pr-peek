@@ -174,9 +174,11 @@ export function appleSender(
       });
       request.on("end", () => {
         if (status === 200) return resolve();
-        // Apple refused our signed token, like "ExpiredProviderToken": make a new one.
-        if (status === 403) token = null;
-        reject(new ApnsError(status, reasonOf(answer)));
+        const reason = reasonOf(answer);
+        // Apple says our signed token is too old: make a new one. Not for other refusals,
+        // since Apple also refuses new tokens made too often.
+        if (reason === "ExpiredProviderToken") token = null;
+        reject(new ApnsError(status, reason));
       });
       request.end(JSON.stringify(apnsBody(payload)));
     });

@@ -1,5 +1,5 @@
 import type { PushPayload } from "@pr-peek/core";
-import { generateKeyPairSync, verify } from "node:crypto";
+import { verify } from "node:crypto";
 import {
   createServer,
   type Http2Server,
@@ -7,6 +7,7 @@ import {
 } from "node:http2";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
+import { apnsKeyPair, pemOf } from "../test/fakes";
 import {
   ApnsError,
   APNS_TOKEN_MS,
@@ -18,11 +19,9 @@ import {
   type Apns,
 } from "./apns";
 
-const { privateKey, publicKey } = generateKeyPairSync("ec", {
-  namedCurve: "P-256",
-});
+const { privateKey, publicKey } = apnsKeyPair();
 const APNS: Apns = {
-  key: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+  key: pemOf(privateKey),
   keyId: "KEY1234567",
   teamId: "TEAM123456",
   topic: "com.git-buddy.pr-peek",
@@ -190,25 +189,32 @@ describe("appleSender", () => {
     expect(c).not.toBe(a);
   });
 
-  it("makes a new signed token after Apple refuses one", async () => {
-    const apple = await fakeApple([
-      { status: 403, body: JSON.stringify({ reason: "ExpiredProviderToken" }) },
-    ]);
-    let now = 1_700_000_000_000;
-    const send = appleSender(
-      APNS,
-      { production: apple.origin, sandbox: apple.origin },
-      () => now,
-    );
-    const target = { token: TOKEN, sandbox: false };
-    await expect(send(target, PAYLOAD, NORMAL)).rejects.toBeInstanceOf(
-      ApnsError,
-    );
-    now += 1000;
-    await send(target, PAYLOAD, NORMAL);
-    const [refused, fresh] = apple.received.map((r) => r.headers.authorization);
-    expect(fresh).not.toBe(refused);
-  });
+  // Apple refuses new tokens more often than every 20 minutes, so only an expired one is
+  // made again. Another refusal, like a wrong key, keeps it.
+  it.each([
+    ["ExpiredProviderToken", true],
+    ["InvalidProviderToken", false],
+  ])(
+    "after Apple answers 403 %s, makes a new token: %s",
+    async (reason, fresh) => {
+      const apple = await fakeApple([
+        { status: 403, body: JSON.stringify({ reason }) },
+      ]);
+      const send = appleSender(APNS, {
+        production: apple.origin,
+        sandbox: apple.origin,
+      });
+      const target = { token: TOKEN, sandbox: false };
+      await expect(send(target, PAYLOAD, NORMAL)).rejects.toEqual(
+        new ApnsError(403, reason),
+      );
+      await send(target, PAYLOAD, NORMAL);
+      const [refused, next] = apple.received.map(
+        (r) => r.headers.authorization,
+      );
+      expect(next !== refused).toBe(fresh);
+    },
+  );
 
   it("throws Apple's status and reason when it refuses", async () => {
     const apple = await fakeApple([

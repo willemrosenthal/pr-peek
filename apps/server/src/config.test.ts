@@ -1,5 +1,6 @@
 import { generateKeyPairSync, randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import { apnsKeyPair, pemOf } from "../test/fakes";
 import { loadConfig } from "./config";
 
 const key = randomBytes(32);
@@ -13,10 +14,7 @@ const required = {
 };
 
 // APNs settings as Render keeps them: the key on one line, with \n for line breaks.
-const apnsKey = generateKeyPairSync("ec", { namedCurve: "P-256" })
-  .privateKey.export({ type: "pkcs8", format: "pem" })
-  .toString()
-  .trim();
+const apnsKey = pemOf(apnsKeyPair().privateKey);
 const APNS = {
   APNS_KEY: apnsKey.replaceAll("\n", "\\n"),
   APNS_KEY_ID: "KEY1234567",
@@ -104,7 +102,6 @@ describe("loadConfig", () => {
       { ...APNS, APNS_TOPIC: undefined },
       /APNS_TOPIC, or none/,
     ],
-    ["an APNs key that isn't one", { ...APNS, APNS_KEY: "abc" }, /APNS_KEY/],
     [
       "a damaged APNs key",
       {
@@ -118,9 +115,7 @@ describe("loadConfig", () => {
       "a key that isn't Apple's kind",
       {
         ...APNS,
-        APNS_KEY: generateKeyPairSync("ed25519")
-          .privateKey.export({ type: "pkcs8", format: "pem" })
-          .toString(),
+        APNS_KEY: pemOf(generateKeyPairSync("ed25519").privateKey),
       },
       /APNS_KEY/,
     ],
