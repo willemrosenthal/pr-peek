@@ -355,6 +355,8 @@ describe("the iPhone app's devices", () => {
 });
 
 describe("Send a test", () => {
+  const sendTest = (agent: Agent) =>
+    agent.post("/api/apple-devices/test").set("Origin", APP_URL);
   const PHONE = "ab".repeat(32);
   const OTHER_PHONE = "cd".repeat(32);
 
@@ -364,14 +366,12 @@ describe("Send a test", () => {
     await db.appleDevice.createMany({
       data: [PHONE, OTHER_PHONE].map((token) => ({ userId: user.id, token })),
     });
-    const test = () =>
-      agent.post("/api/apple-devices/test").set("Origin", APP_URL);
-    return { apple, test };
+    return { apple, sendTest: () => sendTest(agent) };
   }
 
   it("sends one of each kind to each phone, with the user's own picture", async () => {
-    const { apple, test } = await withPhones();
-    const res = await test();
+    const { apple, sendTest } = await withPhones();
+    const res = await sendTest();
     expect(bodyOf<AppleTestResponse>(res)).toEqual({ sent: 2, failed: 0 });
 
     const toPhone = apple.mock.calls.filter(
@@ -386,8 +386,13 @@ describe("Send a test", () => {
       actor: "octocat",
     });
     // Like the real ones, these show no person.
-    expect(byKind.get("check_failed")).not.toHaveProperty("actor");
-    expect(byKind.get("merged")).not.toHaveProperty("actor");
+    for (const kind of [
+      "review_requested",
+      "check_failed",
+      "merged",
+    ] as const) {
+      expect(byKind.get(kind)).not.toHaveProperty("actor");
+    }
   });
 
   it("stops at a phone's first failure, so it counts once", async () => {
@@ -396,8 +401,8 @@ describe("Send a test", () => {
         ? Promise.reject(new Error("network down"))
         : Promise.resolve(),
     );
-    const { test } = await withPhones(apple);
-    expect(bodyOf<AppleTestResponse>(await test())).toEqual({
+    const { sendTest } = await withPhones(apple);
+    expect(bodyOf<AppleTestResponse>(await sendTest())).toEqual({
       sent: 1,
       failed: 1,
     });
@@ -408,17 +413,14 @@ describe("Send a test", () => {
     ).toMatchObject({ failureCount: 1 });
   });
 
-  it("says when there's no phone, or Apple push isn't set up", async () => {
+  it("says when there's no phone", async () => {
     const { agent } = await setup({ apple: vi.fn<SendApple>() });
-    const test = () =>
-      agent.post("/api/apple-devices/test").set("Origin", APP_URL);
-    expect((await test()).status).toBe(404);
+    expect((await sendTest(agent)).status).toBe(404);
+  });
 
-    const off = await setup();
-    const res = await off.agent
-      .post("/api/apple-devices/test")
-      .set("Origin", APP_URL);
-    expect(res.status).toBe(503);
+  it("says when Apple push isn't set up", async () => {
+    const { agent } = await setup();
+    expect((await sendTest(agent)).status).toBe(503);
   });
 });
 

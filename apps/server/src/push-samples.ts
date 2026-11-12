@@ -20,8 +20,14 @@ const TITLES: Record<PushKind, (who: string) => string> = {
   merged: () => "Important PR merged",
 };
 
-// Kinds whose real notifications have no person, so they show the app icon.
-const NOBODY = new Set<PushKind>(["check_failed", "merged"]);
+// Kinds whose real notifications have no person, so they show the app icon. Review
+// requests don't know who asked (the rule's actorLogin is null).
+const NOBODY = new Set<PushKind>([
+  "review_requested",
+  "re_requested",
+  "check_failed",
+  "merged",
+]);
 
 // One notification of each kind for "Send a test", with `login` as the person, so their
 // own picture shows. Then a plain one, like the morning summary.

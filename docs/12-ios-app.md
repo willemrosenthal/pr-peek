@@ -128,7 +128,7 @@ A Notification Service Extension: a small Swift target in the Xcode project that
   - approved: green check, changes requested: orange alert,
   - new comment: pink message, reply and mention: purple,
   - check failed: red X, assigned: teal person, merged: purple merge.
-- [ ] No person (checks failed, the summary, reminders): the plain notification, with the app icon.
+- [ ] No person (review requests, checks failed, merged PRs, the summary, reminders): the plain notification, with the app icon. Review requests don't know who asked yet: the sync doesn't read the request's actor.
 - [ ] If anything fails or runs out of time, show the plain notification. Never drop it.
 - [ ] Check early that the tile still shows on the right of a communication notification. If iOS hides it, decide between the avatar and the tile.
 
