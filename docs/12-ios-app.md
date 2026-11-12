@@ -49,7 +49,9 @@ The web's tick (`haptics.ts`) only works right after a tap or a finger lifting, 
 2. Server: 12.3, Apple push next to web push. Does nothing until an iPhone app registers. Split in two:
    - 2a: the device table, endpoints, the Apple sender, sending from `deliver()`, and no duplicates.
    - 2b: the payload extras for the tiles, and "Send a test".
-3. App push: 12.4, turning notifications on, tap to open, the badge, sign out.
+3. App push: 12.4. Split in two:
+   - 3a: the push plugin and the app's own plugin, saving the token, tap to open, banners while open, the badge, and sign out.
+   - 3b: Settings' "This iPhone" with "Send a test", and onboarding's last step.
 4. Haptics: 12.5.
 5. Rich notifications: 12.6, the notification extension.
 6. Sharing: 12.7, the share extension.
@@ -100,11 +102,12 @@ The web's tick (`haptics.ts`) only works right after a tap or a finger lifting, 
 
 ### 12.4 App push
 
-- [ ] Use `@capacitor/push-notifications`: ask for permission, get the token, send it to 12.3's endpoint, with whether it's a development build.
+- [x] Use `@capacitor/push-notifications`: ask for permission, get the token, send it to 12.3's endpoint, with whether it's a development build. The web app loads Capacitor's code only inside the app (`native.ts`). The app's own small plugin (`AppPlugin.swift`, `PrPeek` in the web app) says whether it's an Xcode build, and sets the badge. The token is saved again each time the app opens, since Apple can change it.
 - [ ] Settings, Notifications shows "This iPhone": a Turn on button, On, or "Turned off in iPhone Settings" with a way there. It replaces the web push row in the app. A "Send a test" button sends 12.3's samples.
-- [ ] Tapping a notification opens its PR, and marks the item seen, like the service worker does.
-- [ ] A notification that arrives while the app is open still shows as a banner.
-- [ ] The app icon's badge shows the open count, and keeps up as the list changes in the app (`badge.ts`), not only when a push arrives.
+- [x] Tapping a notification opens its PR, and marks the item seen, like the service worker does. PRs open in Safari, Git Buddy's own pages in the app.
+- [x] A notification that arrives while the app is open still shows as a banner (`presentationOptions`).
+- [x] The app icon's badge shows the open count, and keeps up as the list changes in the app (`appBadge.ts`), not only when a push arrives.
+- [x] Signing out removes the phone from the server first (`signOut.ts`), so it stops getting that account's notifications.
 - [ ] Onboarding's last step offers to turn on notifications in the app.
 
 ### 12.5 Haptics

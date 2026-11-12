@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { api } from "../api";
+import { requestSignOut } from "../signOut";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import styles from "./SignUpPending.module.css";
@@ -27,7 +28,7 @@ export function SignUpPending({
     await navigate("/signin", { replace: true });
   };
   const signOut = useMutation({
-    mutationFn: () => api("/auth/signout", { method: "POST" }),
+    mutationFn: requestSignOut,
     onSuccess: leave,
   });
   const withdraw = useMutation({
