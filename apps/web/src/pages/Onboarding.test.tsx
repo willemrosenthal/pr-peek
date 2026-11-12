@@ -1,5 +1,5 @@
 import type { CheckTokenResponse, TokenDto } from "@pr-peek/core";
-import { screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import {
@@ -12,6 +12,7 @@ import {
   type Handlers,
   searchResults,
   sentBodies,
+  settingsResponse,
 } from "../test/fake-api";
 import { stubDisplayMode, stubUserAgent, USER_AGENTS } from "../test/install";
 import { PUBLIC_KEY, stubPush } from "../test/push";
@@ -22,7 +23,11 @@ const onboardingApi = (overrides: Handlers = {}) =>
     listApi({
       "GET /api/github/repos": () => json(searchResults()),
       "POST /api/sync": () => json({ queued: true }, 202),
-      "PATCH /api/settings": () => json({}),
+      "PATCH /api/settings": () =>
+        json({
+          settings: settingsResponse().settings,
+          listUpdatingSince: null,
+        }),
       "GET /api/push/key": () => json({ publicKey: PUBLIC_KEY }),
       "GET /api/push/subscriptions": () => json({ subscriptions: [] }),
       ...overrides,
@@ -308,15 +313,73 @@ it("starts at the first step when the URL's step is unknown", async () => {
   ).toBeTruthy();
 });
 
-it("needs a repo before going on, since the list would send them back", async () => {
-  onboardingApi({ "GET /api/repos": () => json({ repos: [] }) });
+it("can skip the repos for later, with no first sync", async () => {
+  const fetch = onboardingApi({ "GET /api/repos": () => json({ repos: [] }) });
   renderApp("/onboarding?step=repos");
-  expect(
-    await screen.findByText("Pick at least one repo to go on."),
-  ).toBeTruthy();
+  const later = await screen.findByRole("button", { name: "Set up later" });
   expect(
     screen.getByRole<HTMLButtonElement>("button", { name: "Next" }).disabled,
   ).toBe(true);
+
+  await userEvent.click(later);
+  expect(await screen.findByLabelText("Timezone")).toBeTruthy();
+  expect(callsTo(fetch, "/api/sync")).toHaveLength(0);
+});
+
+it("goes back to the last step seen when the list sends them here", async () => {
+  onboardingApi({
+    "GET /api/repos": () => json({ repos: [] }),
+    "GET /api/settings": () => json(settingsResponse({ onboarded: false })),
+  });
+  renderApp("/onboarding?step=repos");
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Set up later" }),
+  );
+  await screen.findByLabelText("Timezone");
+  cleanup();
+
+  // Like a reload of the list.
+  const { router } = renderApp("/");
+  expect(await screen.findByLabelText("Timezone")).toBeTruthy();
+  expect(router.state.location.pathname).toBe("/onboarding");
+});
+
+it("stays on the list once the timezone finishes onboarding", async () => {
+  let onboarded = false;
+  onboardingApi({
+    "GET /api/settings": () => json(settingsResponse({ onboarded })),
+    "PATCH /api/settings": () => {
+      onboarded = true;
+      return json({
+        settings: settingsResponse({ onboarded }).settings,
+        listUpdatingSince: null,
+      });
+    },
+  });
+  localStorage.setItem("pr-peek:onboarding-step", "timezone");
+  // The list loads the settings first, and sends them to onboarding.
+  const { router } = renderApp("/");
+  await screen.findByLabelText("Timezone");
+  await next();
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Go to your list" }),
+  );
+
+  await screen.findByText("Nothing needs you right now");
+  expect(router.state.location.pathname).toBe("/");
+});
+
+it("starts over once it's done", async () => {
+  onboardingApi();
+  renderApp("/onboarding?step=timezone");
+  await next();
+  await screen.findByRole("heading", { name: "You're set" });
+  cleanup();
+
+  renderApp("/onboarding");
+  expect(
+    await screen.findByRole("heading", { name: "Repos from your orgs" }),
+  ).toBeTruthy();
 });
 
 it("doesn't block Next when the watched repos can't load", async () => {

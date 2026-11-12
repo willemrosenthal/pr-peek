@@ -30,10 +30,12 @@ import {
   me,
   mergedPr,
   noContent,
+  searchResults,
   sentBodies,
   settingsResponse,
   syncStatus,
 } from "../test/fake-api";
+import { stubDisplayMode } from "../test/install";
 import { renderApp } from "../test/render";
 import {
   drag,
@@ -850,13 +852,60 @@ describe("empty and error states", () => {
     expect(await screen.findByText("Nothing needs you right now")).toBeTruthy();
   });
 
-  it("goes to onboarding when nothing is watched and nothing shows", async () => {
-    fakeApi(listApi({ "GET /api/repos": () => json({ repos: [] }) }));
+  it("goes to onboarding until it's finished", async () => {
+    fakeApi(
+      listApi({
+        "GET /api/settings": () => json(settingsResponse({ onboarded: false })),
+      }),
+    );
     const { router } = renderApp("/");
     expect(
       await screen.findByRole("heading", { name: "Repos from your orgs" }),
     ).toBeTruthy();
     expect(router.state.location.pathname).toBe("/onboarding");
+  });
+
+  it("asks for repos past onboarding with none watched, and opens Add repos", async () => {
+    fakeApi(
+      listApi({
+        "GET /api/repos": () => json({ repos: [] }),
+        "GET /api/github/repos": () => json(searchResults()),
+      }),
+    );
+    const { router } = renderApp("/");
+    expect(
+      await screen.findByText("You're not watching any repos yet"),
+    ).toBeTruthy();
+    await screen.findByRole("heading", { name: "Pick repos to watch" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Pick repos" }));
+    expect(router.state.location.pathname).toBe("/settings/repos/add");
+  });
+
+  it("asks once per visit, and again after the app hides", async () => {
+    stubDisplayMode({ standalone: true });
+    fakeApi(listApi({ "GET /api/repos": () => json({ repos: [] }) }));
+    const { router } = renderApp("/");
+    await screen.findByRole("heading", { name: "Pick repos to watch" });
+    await userEvent.click(screen.getByRole("button", { name: "Later" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", { name: "Pick repos to watch" }),
+      ).toBe(null),
+    );
+
+    // Back to the list from another page: not again.
+    await act(() => router.navigate("/install"));
+    await act(() => router.navigate("/"));
+    await screen.findByText("You're not watching any repos yet");
+    expect(screen.queryByRole("heading", { name: "Pick repos to watch" })).toBe(
+      null,
+    );
+
+    act(() => setVisibility("hidden"));
+    expect(
+      await screen.findByRole("heading", { name: "Pick repos to watch" }),
+    ).toBeTruthy();
   });
 
   it("stays on the list with no repos when something shows, like an added PR", async () => {

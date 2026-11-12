@@ -1,5 +1,6 @@
 import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, expect, vi } from "vitest";
+import { resetPickReposAsked } from "../components/PickReposSheet";
 import { resetInstall } from "../install";
 import { unknownRequests } from "./fake-api";
 import { fakeStream } from "./fake-stream";
@@ -18,6 +19,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   resetInstall();
+  resetPickReposAsked();
   localStorage.clear();
   sessionStorage.clear();
   resetVisibility();

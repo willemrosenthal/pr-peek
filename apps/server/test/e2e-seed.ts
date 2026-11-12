@@ -30,7 +30,8 @@ try {
       login: "octocat",
       approvedAt: new Date(now),
       lastSyncedAt: new Date(now),
-      settings: { create: {} },
+      // Past onboarding, or the list would send it there.
+      settings: { create: { onboardedAt: new Date(now) } },
       watchedRepos: {
         create: { githubRepoId: 1, owner: "acme", name: "web-app" },
       },

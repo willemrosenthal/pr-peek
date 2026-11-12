@@ -1,20 +1,21 @@
 import { MAX_TOKENS, type TokenDto, type TokensResponse } from "@pr-peek/core";
-import { useMutation } from "@tanstack/react-query";
 import { Building2, Check, User } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { api } from "../api";
-import { AddTokenSheet, type Adding } from "../components/AddToken";
+import { AddTokenSheet, newToken, type Adding } from "../components/AddToken";
 import { Alert } from "../components/Alert";
 import { Button } from "../components/Button";
 import { Card, CardRow } from "../components/Card";
 import { InstallHere } from "../components/InstallSteps";
 import { RepoPicker } from "../components/RepoPicker";
+import { RepoTokenNote } from "../components/RepoTokenNote";
 import { SelectField } from "../components/Field";
 import { TurnOnNotifications } from "../components/TurnOnNotifications";
 import { WatchedRepos } from "../components/WatchedRepos";
 import { cx } from "../cx";
 import { useInNativeApp } from "../hooks/useIsTray";
+import { useSaveSettings } from "../hooks/useSaveSettings";
 import { detectPlatform, isStandalone } from "../install";
 import { useGitHubTokens, useRepos } from "../queries";
 import { detectedTimezone, timezoneOptions } from "../timezones";
@@ -28,14 +29,36 @@ type Step = (typeof STEPS)[number];
 const isStep = (value: string | null): value is Step =>
   STEPS.includes(value as Step);
 
+// The step the user was on, for when the list sends them back here.
+const STEP_KEY = "pr-peek:onboarding-step";
+
+function rememberedStep(): string | null {
+  try {
+    return localStorage.getItem(STEP_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function rememberStep(step: Step) {
+  try {
+    // Done is the end, so the next visit starts over.
+    if (step === "done") localStorage.removeItem(STEP_KEY);
+    else localStorage.setItem(STEP_KEY, step);
+  } catch {
+    // Private windows can block storage. The URL still holds the step.
+  }
+}
+
 // First run, after signing in with GitHub for the first time. Also where the list
-// sends anyone who watches no repos. The step is in the URL, so a reload stays on it,
-// and Back goes to the step before.
+// sends anyone who hasn't finished it. The step is in the URL, so a reload stays on it,
+// and Back goes to the step before. Without one, it goes back to the last step seen.
 export function Onboarding() {
   const [params, setParams] = useSearchParams();
-  const asked = params.get("step");
+  const asked = params.get("step") ?? rememberedStep();
   const step = isStep(asked) ? asked : "orgs";
   const at = STEPS.indexOf(step);
+  useEffect(() => rememberStep(step), [step]);
   // Keeps the other params, like the menu bar app's `shell=tray`.
   const next = () =>
     setParams((current) => {
@@ -68,31 +91,6 @@ export function Onboarding() {
         {step === "done" && <DoneStep />}
       </div>
     </main>
-  );
-}
-
-// Set as a new object each time, so the sheet starts a fresh form.
-const newToken = (): Adding => ({ replacing: null });
-
-// The add token sheet, with the user's tokens. Null `adding` closes it.
-function TokenSheet({
-  adding,
-  onSaved,
-  onClose,
-}: {
-  adding: Adding | null;
-  onSaved: () => void;
-  onClose: () => void;
-}) {
-  const tokens = useGitHubTokens();
-  return (
-    <AddTokenSheet
-      adding={adding}
-      tokens={tokens.data?.tokens ?? []}
-      syncedBy={tokens.data?.syncedBy ?? []}
-      onSaved={onSaved}
-      onClose={onClose}
-    />
   );
 }
 
@@ -210,8 +208,10 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
             : "A fine-grained token covers one org. Add one for each org you work in."}{" "}
         Tokens are encrypted, and only ever read your repos.
       </p>
-      <TokenSheet
+      <AddTokenSheet
         adding={adding}
+        tokens={list}
+        syncedBy={syncedBy}
         onSaved={() => setAdding(null)}
         onClose={() => setAdding(null)}
       />
@@ -219,12 +219,10 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
   );
 }
 
+// Skippable too. With no repos, the list asks again for them.
 function ReposStep({ onNext }: { onNext: () => void }) {
   const repos = useRepos();
-  // With none, the list would only send them back here.
   const none = repos.data?.repos.length === 0;
-  const [adding, setAdding] = useState<Adding | null>(null);
-  const [saved, setSaved] = useState(false);
   const finish = () => {
     // Starts a first sync, so the list isn't empty. A refused one waits for the schedule.
     api("/sync", { method: "POST" }).catch(() => undefined);
@@ -236,19 +234,7 @@ function ReposStep({ onNext }: { onNext: () => void }) {
       <p className={styles.hint}>
         Git Buddy only looks at these. You can change them later in settings.
       </p>
-      {/* Stays after a save, for a second org. */}
-      <p className={styles.hint}>
-        {saved ? (
-          <span className={styles.saved} role="status">
-            Token saved. Its repos show below.
-          </span>
-        ) : (
-          "Missing an org's repos?"
-        )}{" "}
-        <Button variant="link" onClick={() => setAdding(newToken())}>
-          {saved ? "Add another" : "Add a token"}
-        </Button>
-      </p>
+      <RepoTokenNote />
       <WatchedRepos />
       <RepoPicker />
       <div className={styles.actions}>
@@ -260,18 +246,8 @@ function ReposStep({ onNext }: { onNext: () => void }) {
         >
           Next
         </Button>
-        {none && (
-          <span className={styles.note}>Pick at least one repo to go on.</span>
-        )}
+        {none && <Button onClick={onNext}>Set up later</Button>}
       </div>
-      <TokenSheet
-        adding={adding}
-        onSaved={() => {
-          setAdding(null);
-          setSaved(true);
-        }}
-        onClose={() => setAdding(null)}
-      />
     </section>
   );
 }
@@ -279,13 +255,12 @@ function ReposStep({ onNext }: { onNext: () => void }) {
 function TimezoneStep({ onNext }: { onNext: () => void }) {
   const [timezone, setTimezone] = useState(detectedTimezone);
   const [zones] = useState(() => timezoneOptions(timezone));
-  const save = useMutation({
-    mutationFn: () => api("/settings", { method: "PATCH", body: { timezone } }),
-    onSuccess: onNext,
-  });
+  // Also marks onboarding finished in the cached settings, so the list doesn't send
+  // them back here.
+  const save = useSaveSettings();
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    save.mutate();
+    save.mutate({ timezone }, { onSuccess: onNext });
   };
 
   return (

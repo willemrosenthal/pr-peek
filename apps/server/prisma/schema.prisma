@@ -159,6 +159,9 @@ model UserSettings {
   includeTeamRequests Boolean     @default(true)
   hideBots            Boolean     @default(false)
   showAuthors         ShowAuthors @default(off)
+  // When the user finished onboarding: the first time they saved a timezone. Until
+  // then, the list sends them back to it.
+  onboardedAt         DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

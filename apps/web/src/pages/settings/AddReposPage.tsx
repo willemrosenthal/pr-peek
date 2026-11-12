@@ -1,4 +1,5 @@
 import { RepoPicker } from "../../components/RepoPicker";
+import { RepoTokenNote } from "../../components/RepoTokenNote";
 import styles from "./Settings.module.css";
 import { SettingsPage } from "./SettingsLayout";
 
@@ -9,6 +10,7 @@ export function AddReposPage() {
       <p className={styles.hint}>
         New repos show up in your list within a minute.
       </p>
+      <RepoTokenNote />
       <RepoPicker />
     </SettingsPage>
   );

@@ -1,10 +1,11 @@
 import type { ItemDto, ItemsResponse, ListSection } from "@pr-peek/core";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
-import { Navigate, useSearchParams } from "react-router";
+import { Link, Navigate, useSearchParams } from "react-router";
 import { AddPrDialog } from "../components/AddPrDialog";
 import { Toast, type ToastMessage } from "../components/Toast";
 import { Banners } from "../components/Banners";
 import { NotificationPrompt } from "../components/NotificationPrompt";
+import { PickReposSheet } from "../components/PickReposSheet";
 import { Button } from "../components/Button";
 import { ItemSection } from "../components/ItemSection";
 import { ListHeader } from "../components/ListHeader";
@@ -52,7 +53,15 @@ const isSectionList = (value: unknown): value is SectionKey[] =>
       key === "quiet" || SECTIONS.some((section) => section.group === key),
   );
 
+// Anyone who hasn't finished onboarding goes back to it, like after a reload partway
+// through.
 export function ListPage() {
+  const onboarded = useSettings().data?.settings.onboarded;
+  if (onboarded === false) return <Navigate to="/onboarding" replace />;
+  return <List />;
+}
+
+function List() {
   const me = useMe();
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const endToast = useCallback(() => setToast(null), []);
@@ -128,6 +137,7 @@ export function ListPage() {
         }}
       />
       <Toast toast={toast} onDone={endToast} />
+      <PickReposSheet />
       <PrPreview
         target={preview}
         // The row moves, like after a swipe, so the sheet closes.
@@ -303,10 +313,17 @@ function Sections({
 function EmptyList() {
   const repos = useRepos();
   if (repos.isPending) return null;
-  // Nothing to show and nothing watched: setting up isn't done, like after a reload
-  // partway through onboarding, or a sign in after approval.
+  // Like after skipping that step in onboarding. PickReposSheet asks too.
   if (repos.data?.repos.length === 0) {
-    return <Navigate to="/onboarding" replace />;
+    return (
+      <div className={styles.message}>
+        <p className={styles.emptyTitle}>You're not watching any repos yet</p>
+        <p>
+          <Link to="/settings/repos/add">Pick repos to watch</Link> and their
+          PRs show up here.
+        </p>
+      </div>
+    );
   }
   return (
     <div className={styles.message}>

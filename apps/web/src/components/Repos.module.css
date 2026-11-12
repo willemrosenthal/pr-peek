@@ -264,3 +264,53 @@
   background: none;
   color: var(--color-accent);
 }
+
+/* Above the picker, with no tokens yet: org repos usually need one. */
+.tokenNote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--text-md);
+  color: var(--color-text-secondary);
+}
+
+.tokenNote p {
+  flex: 1 1 14rem;
+}
+
+.tokenNote strong {
+  color: var(--color-text);
+}
+
+.saved {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+/* About five and a half repos tall, so the half row shows there are more. A row is its
+   padding, the taller of its Add button and its two lines of text, and the divider. */
+.results {
+  --repo-row: calc(
+    20px +
+      max(
+        var(--touch-target),
+        var(--text-lg) * 1.4 + 2px + var(--text-sm) * 1.4
+      ) +
+      1px
+  );
+  max-height: calc(5.5 * var(--repo-row));
+  overflow-y: auto;
+}
+
+/* A thin scrollbar with no track. The Mac app styles its own, shown only while
+   scrolling (global.css). */
+:global(:root:not(.desktop-app)) .results {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar) transparent;
+}

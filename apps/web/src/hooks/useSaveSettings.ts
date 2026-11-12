@@ -50,8 +50,8 @@ export function useSaveSettings() {
   });
 }
 
-// The fields of `from` that `keysOf` has, and the kept copies of times in it, which the
-// server changes along with them.
+// The fields of `from` that `keysOf` has, and what the server changes along with them:
+// the kept copies of times, and finishing onboarding with a timezone.
 function pick(
   from: UserSettingsDto,
   keysOf: UpdateSettingsBody,
@@ -59,6 +59,7 @@ function pick(
   const wanted = new Set([
     ...Object.keys(keysOf),
     ...Object.keys(keptTimes(keysOf)),
+    ...(keysOf.timezone === undefined ? [] : ["onboarded"]),
   ]);
   return Object.fromEntries(
     Object.entries(from).filter(([key]) => wanted.has(key)),

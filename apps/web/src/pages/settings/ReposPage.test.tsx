@@ -6,6 +6,7 @@ import {
   apiError,
   callsTo,
   fakeApi,
+  githubToken,
   json,
   type Handlers,
   noContent,
@@ -266,6 +267,23 @@ describe("watched repos", () => {
       await screen.findByText("You're not watching any repos yet."),
     ).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null));
+  });
+
+  it("suggests a token on Add repos until there is one", async () => {
+    reposApi([]);
+    renderApp("/settings/repos/add");
+    expect(await screen.findByText("Repos from an org?")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add a token" })).toBeTruthy();
+  });
+
+  it("offers only a small link on Add repos with a token", async () => {
+    reposApi([], [], {
+      "GET /api/github-tokens": () =>
+        json({ tokens: [githubToken()], syncedBy: [] }),
+    });
+    renderApp("/settings/repos/add");
+    expect(await screen.findByText(/Missing an org's repos/)).toBeTruthy();
+    expect(screen.queryByText("Repos from an org?")).toBe(null);
   });
 
   it("opens Add repos from the header", async () => {
