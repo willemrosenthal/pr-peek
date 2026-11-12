@@ -35,6 +35,9 @@ export interface Adding {
   replacing: TokenDto | null;
 }
 
+// Adds a new token. A new object each time, so the sheet starts a fresh form.
+export const newToken = (): Adding => ({ replacing: null });
+
 // A sheet that adds a token, or replaces one. Null `adding` closes it.
 export function AddTokenSheet({
   adding,

@@ -23,7 +23,11 @@ const onboardingApi = (overrides: Handlers = {}) =>
     listApi({
       "GET /api/github/repos": () => json(searchResults()),
       "POST /api/sync": () => json({ queued: true }, 202),
-      "PATCH /api/settings": () => json({}),
+      "PATCH /api/settings": () =>
+        json({
+          settings: settingsResponse().settings,
+          listUpdatingSince: null,
+        }),
       "GET /api/push/key": () => json({ publicKey: PUBLIC_KEY }),
       "GET /api/push/subscriptions": () => json({ subscriptions: [] }),
       ...overrides,
@@ -338,6 +342,31 @@ it("goes back to the last step seen when the list sends them here", async () => 
   const { router } = renderApp("/");
   expect(await screen.findByLabelText("Timezone")).toBeTruthy();
   expect(router.state.location.pathname).toBe("/onboarding");
+});
+
+it("stays on the list once the timezone finishes onboarding", async () => {
+  let onboarded = false;
+  onboardingApi({
+    "GET /api/settings": () => json(settingsResponse({ onboarded })),
+    "PATCH /api/settings": () => {
+      onboarded = true;
+      return json({
+        settings: settingsResponse({ onboarded }).settings,
+        listUpdatingSince: null,
+      });
+    },
+  });
+  localStorage.setItem("pr-peek:onboarding-step", "timezone");
+  // The list loads the settings first, and sends them to onboarding.
+  const { router } = renderApp("/");
+  await screen.findByLabelText("Timezone");
+  await next();
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Go to your list" }),
+  );
+
+  await screen.findByText("Nothing needs you right now");
+  expect(router.state.location.pathname).toBe("/");
 });
 
 it("starts over once it's done", async () => {

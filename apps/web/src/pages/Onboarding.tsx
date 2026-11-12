@@ -1,10 +1,9 @@
 import { MAX_TOKENS, type TokenDto, type TokensResponse } from "@pr-peek/core";
-import { useMutation } from "@tanstack/react-query";
 import { Building2, Check, User } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { api } from "../api";
-import { AddTokenSheet, type Adding } from "../components/AddToken";
+import { AddTokenSheet, newToken, type Adding } from "../components/AddToken";
 import { Alert } from "../components/Alert";
 import { Button } from "../components/Button";
 import { Card, CardRow } from "../components/Card";
@@ -16,6 +15,7 @@ import { TurnOnNotifications } from "../components/TurnOnNotifications";
 import { WatchedRepos } from "../components/WatchedRepos";
 import { cx } from "../cx";
 import { useInNativeApp } from "../hooks/useIsTray";
+import { useSaveSettings } from "../hooks/useSaveSettings";
 import { detectPlatform, isStandalone } from "../install";
 import { useGitHubTokens, useRepos } from "../queries";
 import { detectedTimezone, timezoneOptions } from "../timezones";
@@ -91,31 +91,6 @@ export function Onboarding() {
         {step === "done" && <DoneStep />}
       </div>
     </main>
-  );
-}
-
-// Set as a new object each time, so the sheet starts a fresh form.
-const newToken = (): Adding => ({ replacing: null });
-
-// The add token sheet, with the user's tokens. Null `adding` closes it.
-function TokenSheet({
-  adding,
-  onSaved,
-  onClose,
-}: {
-  adding: Adding | null;
-  onSaved: () => void;
-  onClose: () => void;
-}) {
-  const tokens = useGitHubTokens();
-  return (
-    <AddTokenSheet
-      adding={adding}
-      tokens={tokens.data?.tokens ?? []}
-      syncedBy={tokens.data?.syncedBy ?? []}
-      onSaved={onSaved}
-      onClose={onClose}
-    />
   );
 }
 
@@ -233,8 +208,10 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
             : "A fine-grained token covers one org. Add one for each org you work in."}{" "}
         Tokens are encrypted, and only ever read your repos.
       </p>
-      <TokenSheet
+      <AddTokenSheet
         adding={adding}
+        tokens={list}
+        syncedBy={syncedBy}
         onSaved={() => setAdding(null)}
         onClose={() => setAdding(null)}
       />
@@ -278,13 +255,12 @@ function ReposStep({ onNext }: { onNext: () => void }) {
 function TimezoneStep({ onNext }: { onNext: () => void }) {
   const [timezone, setTimezone] = useState(detectedTimezone);
   const [zones] = useState(() => timezoneOptions(timezone));
-  const save = useMutation({
-    mutationFn: () => api("/settings", { method: "PATCH", body: { timezone } }),
-    onSuccess: onNext,
-  });
+  // Also marks onboarding finished in the cached settings, so the list doesn't send
+  // them back here.
+  const save = useSaveSettings();
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    save.mutate();
+    save.mutate({ timezone }, { onSuccess: onNext });
   };
 
   return (

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useGitHubTokens } from "../queries";
-import { AddTokenSheet, type Adding } from "./AddToken";
+import { AddTokenSheet, newToken, type Adding } from "./AddToken";
 import { Button } from "./Button";
 import styles from "./Repos.module.css";
 
@@ -8,11 +8,10 @@ import styles from "./Repos.module.css";
 // repos usually need one. With some, a smaller link to add another.
 export function RepoTokenNote() {
   const tokens = useGitHubTokens();
-  // Set as a new object each time, so the sheet starts a fresh form.
   const [adding, setAdding] = useState<Adding | null>(null);
   const [saved, setSaved] = useState(false);
   const list = tokens.data?.tokens ?? [];
-  const add = () => setAdding({ replacing: null });
+  const add = () => setAdding(newToken());
 
   return (
     <>

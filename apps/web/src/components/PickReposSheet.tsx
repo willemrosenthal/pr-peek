@@ -47,10 +47,7 @@ export function PickReposSheet() {
       <div className={styles.actions}>
         <Button
           variant="primary"
-          onClick={() => {
-            setOpen(false);
-            void navigate("/settings/repos/add");
-          }}
+          onClick={() => void navigate("/settings/repos/add")}
         >
           Pick repos
         </Button>
