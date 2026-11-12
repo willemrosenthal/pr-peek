@@ -1,4 +1,3 @@
-import type { SendApple } from "../apns";
 import type {
   AdminOverviewResponse,
   SignUpRequestsResponse,
@@ -7,6 +6,7 @@ import type {
 import express, { type RequestHandler, type Router } from "express";
 import { readOverview } from "../admin";
 import { deleteAccount, type AccountDeps } from "../account";
+import type { SendApple } from "../apns";
 import { HttpError } from "../http-error";
 import { deliver, NOTIFY_TTL_SECONDS, type SendPush } from "../push";
 import { userLimiter } from "../rate-limit";

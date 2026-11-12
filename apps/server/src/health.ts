@@ -1,6 +1,6 @@
-import type { SendApple } from "./apns";
 import type { Logger } from "pino";
 import { awakeAdmins, pushToAdmins, type Admin } from "./admin-push";
+import type { SendApple } from "./apns";
 import { decrypt } from "./crypto";
 import type { Db } from "./db";
 import { keysOf, type TokenKeys } from "./github/tokens";

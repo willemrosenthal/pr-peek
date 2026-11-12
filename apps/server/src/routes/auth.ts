@@ -1,4 +1,3 @@
-import type { SendApple } from "../apns";
 import { randomBytes } from "node:crypto";
 import type { MeResponse } from "@pr-peek/core";
 import express, {
@@ -8,6 +7,7 @@ import express, {
 } from "express";
 import type { Logger } from "pino";
 import { awakeAdmins, pushToAdmins } from "../admin-push";
+import type { SendApple } from "../apns";
 import type { Db } from "../db";
 import type { User } from "../generated/prisma/client";
 import { GitHubAuthError, type ScopeChoice } from "../github/oauth";

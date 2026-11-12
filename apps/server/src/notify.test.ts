@@ -196,6 +196,11 @@ describe("notifyItem", () => {
     ).toBe("sent");
     expect(apple).toHaveBeenCalledOnce();
     expect((await db.notificationLog.findFirstOrThrow()).status).toBe("sent");
+    // Without Apple push set up, the phone doesn't count.
+    await db.notificationLog.deleteMany();
+    expect(
+      await notifyItem({ db, send, logger, now: () => NOW }, item.id),
+    ).toBe("no_devices");
   });
 
   describe("quiet hours", () => {

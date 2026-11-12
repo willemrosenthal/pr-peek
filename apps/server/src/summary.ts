@@ -1,6 +1,6 @@
-import type { SendApple } from "./apns";
 import { summaryDueDate, summaryText } from "@pr-peek/core";
 import type { Logger } from "pino";
+import type { SendApple } from "./apns";
 import type { Db } from "./db";
 import { openItems, summarize } from "./item-list";
 import {
