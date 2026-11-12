@@ -46,6 +46,7 @@ export function AccountPage() {
           onClick={() => signOut.mutate()}
           disabled={signOut.isPending}
         />
+        {signOut.isError && <Alert>{signOut.error.message}</Alert>}
       </Group>
       <DeleteAccount onDeleted={leave} />
     </SettingsPage>

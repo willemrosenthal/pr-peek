@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { forgetIosPush, startIosPush, turnOnIosPush } from "./iosPush";
 import { USER_AGENTS, stubUserAgent } from "./test/install";
-import { callsTo, fakeApi, json, noContent, sentBodies } from "./test/fake-api";
+import {
+  apiError,
+  callsTo,
+  fakeApi,
+  json,
+  noContent,
+  offline,
+  sentBodies,
+} from "./test/fake-api";
 
 const TOKEN = "ab".repeat(32);
 const PR = "https://github.com/acme/web-app/pull/7";
@@ -28,6 +36,7 @@ const native = vi.hoisted(() => {
 vi.mock("./native", () => native);
 
 beforeEach(() => {
+  vi.clearAllMocks();
   native.listeners.clear();
   native.permission.receive = "granted";
   localStorage.clear();
@@ -52,7 +61,6 @@ describe("startIosPush", () => {
 
   it("doesn't register before notifications are allowed", async () => {
     native.permission.receive = "prompt";
-    native.PushNotifications.register.mockClear();
     await startIosPush(vi.fn());
     expect(native.PushNotifications.register).not.toHaveBeenCalled();
   });
@@ -97,7 +105,6 @@ describe("turnOnIosPush", () => {
 
   it("is false when notifications aren't allowed", async () => {
     native.permission.receive = "denied";
-    native.PushNotifications.register.mockClear();
     expect(await turnOnIosPush()).toBe(false);
     expect(native.PushNotifications.register).not.toHaveBeenCalled();
   });
@@ -120,6 +127,24 @@ describe("forgetIosPush", () => {
     // Only once: it's forgotten.
     await forgetIosPush();
     expect(callsTo(fetch, `/api/apple-devices/${TOKEN}`)).toHaveLength(1);
+  });
+
+  it("keeps the token when the server can't be reached, to try again", async () => {
+    localStorage.setItem("pr-peek:apple-token", TOKEN);
+    const fetch = fakeApi({ [`DELETE /api/apple-devices/${TOKEN}`]: offline });
+    await expect(forgetIosPush()).rejects.toThrow();
+    await expect(forgetIosPush()).rejects.toThrow();
+    expect(callsTo(fetch, `/api/apple-devices/${TOKEN}`)).toHaveLength(2);
+  });
+
+  it("forgets a token the server no longer has", async () => {
+    localStorage.setItem("pr-peek:apple-token", TOKEN);
+    fakeApi({
+      [`DELETE /api/apple-devices/${TOKEN}`]: () =>
+        apiError(404, "not_found", "Device not found"),
+    });
+    await forgetIosPush();
+    expect(localStorage.getItem("pr-peek:apple-token")).toBeNull();
   });
 
   it("does nothing on a device that never saved one, like a computer", async () => {

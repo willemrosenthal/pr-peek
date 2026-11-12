@@ -1,10 +1,12 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { setAppBadge } from "./appBadge";
 
 const native = vi.hoisted(() => ({
   PrPeek: { setBadge: vi.fn(() => Promise.resolve()) },
 }));
 vi.mock("./native", () => native);
+
+beforeEach(() => vi.clearAllMocks());
 
 afterEach(() => {
   history.replaceState(null, "", "/");
@@ -18,9 +20,8 @@ it("sets the iPhone app's own badge inside the app", async () => {
 });
 
 it("uses the web's badge elsewhere", async () => {
-  native.PrPeek.setBadge.mockClear();
   const setAppBadgeOnWeb = vi.fn(() => Promise.resolve());
-  vi.stubGlobal("navigator", { ...navigator, setAppBadge: setAppBadgeOnWeb });
+  vi.stubGlobal("navigator", { setAppBadge: setAppBadgeOnWeb });
   await setAppBadge(2);
   expect(setAppBadgeOnWeb).toHaveBeenCalledWith(2);
   expect(native.PrPeek.setBadge).not.toHaveBeenCalled();

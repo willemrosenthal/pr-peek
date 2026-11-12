@@ -1,5 +1,5 @@
 import type { AppleDeviceResponse } from "@pr-peek/core";
-import { api } from "./api";
+import { api, ApiError } from "./api";
 import { deviceLabel } from "./push";
 import { store, stored } from "./storage";
 
@@ -22,11 +22,11 @@ interface TapData {
 export async function startIosPush(
   open: (path: string) => void,
 ): Promise<() => void> {
-  const { PushNotifications, PrPeek } = await loadNative();
+  const { PushNotifications } = await loadNative();
   const handles = await Promise.all([
     PushNotifications.addListener("registration", ({ value }) => {
       // The next open tries again.
-      saveToken(value, () => PrPeek.build()).catch(() => undefined);
+      saveToken(value).catch(() => undefined);
     }),
     PushNotifications.addListener(
       "pushNotificationActionPerformed",
@@ -52,22 +52,23 @@ export async function turnOnIosPush(): Promise<boolean> {
 }
 
 // Before signing out: the server stops sending to this phone. Signing in again saves
-// the token again.
+// the token again. Throws when the server couldn't remove it, like offline, so signing
+// out stops and can be tried again with the token still known.
 export async function forgetIosPush() {
   const token = stored(TOKEN_KEY);
   if (!token) return;
-  // Already gone is fine, like after Apple said the app was removed.
-  await api(`/apple-devices/${token}`, { method: "DELETE" }).catch(
-    () => undefined,
-  );
+  try {
+    await api(`/apple-devices/${token}`, { method: "DELETE" });
+  } catch (err) {
+    // Already gone is fine, like after Apple said the app was removed.
+    if (!(err instanceof ApiError && err.status === 404)) throw err;
+  }
   store(TOKEN_KEY, null);
 }
 
-async function saveToken(
-  token: string,
-  build: () => Promise<{ sandbox: boolean }>,
-) {
-  const { sandbox } = await build();
+async function saveToken(token: string) {
+  const { PrPeek } = await loadNative();
+  const { sandbox } = await PrPeek.build();
   await api<AppleDeviceResponse>("/apple-devices", {
     method: "POST",
     body: { token, label: deviceLabel(), sandbox },

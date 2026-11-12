@@ -1,6 +1,7 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { UNREACHABLE } from "../../api";
 import { GIVE_UP_MS, POLL_MS } from "../../hooks/useSync";
 import {
   apiError,
@@ -10,6 +11,7 @@ import {
   listApi,
   me,
   noContent,
+  offline,
   settingsResponse,
   signedInApi,
   signedOut,
@@ -110,6 +112,17 @@ it("signs out and goes to sign in", async () => {
   );
   await screen.findByRole("link", { name: "Sign in with GitHub" });
   expect(router.state.location.pathname).toBe("/signin");
+});
+
+it("says why it couldn't sign out, and stays", async () => {
+  fakeApi(signedInApi({ "POST /api/auth/signout": offline }));
+  const { router } = renderApp("/settings/account");
+
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Sign out" }),
+  );
+  expect((await screen.findByRole("alert")).textContent).toBe(UNREACHABLE);
+  expect(router.state.location.pathname).toBe("/settings/account");
 });
 
 it("asks before deleting the account, then deletes it and goes to sign in", async () => {
