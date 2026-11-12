@@ -129,6 +129,7 @@ model User {
   items             Item[]
   ruleSettings      RuleSetting[]
   pushSubscriptions PushSubscription[]
+  appleDevices      AppleDevice[]
   notificationLogs  NotificationLog[]
   githubTokens      GitHubToken[]
 }
@@ -267,6 +268,25 @@ model RuleSetting {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, ruleId])
+}
+
+// The iPhone app's devices, for Apple push (plan 12). Web push devices are PushSubscription.
+model AppleDevice {
+  id            String    @id @default(cuid())
+  userId        String
+  // The device token Apple gives the app.
+  token         String    @unique
+  label         String?
+  // An Xcode build, which only Apple's sandbox reaches. TestFlight and App Store builds
+  // use the main service.
+  sandbox       Boolean   @default(false)
+  lastSuccessAt DateTime?
+  failureCount  Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model PushSubscription {

@@ -6,6 +6,7 @@ import {
   type Severity,
 } from "@pr-peek/core";
 import type { Logger } from "pino";
+import type { SendApple } from "./apns";
 import type { Db } from "./db";
 import type {
   PushSubscription,
@@ -30,6 +31,8 @@ export interface NotifyDeps {
   db: Db;
   // Null when push is off, because the VAPID keys aren't set.
   send: SendPush | null;
+  // Null when Apple push is off, because the APNs settings aren't set.
+  apple?: SendApple | null;
   logger: Logger;
   now?: () => Date;
 }
@@ -88,7 +91,8 @@ export async function notifyItems(
 
   // Checks everything before writing, so an error here leaves nothing claimed to retry.
   const decided: (NotifyOutcome | Ready)[] = [];
-  for (const request of requests) decided.push(await decide(db, now, request));
+  for (const request of requests)
+    decided.push(await decide(deps, now, request));
 
   // Claims each event before sending. A second run finds the row and stops.
   const outcomes: NotifyOutcome[] = [];
@@ -139,10 +143,11 @@ const PUSH_PR_FIELDS = {
 } as const;
 
 async function decide(
-  db: Db,
+  deps: NotifyDeps,
   now: Date,
   { itemId, reminder }: NotifyRequest,
 ): Promise<NotifyOutcome | Ready> {
+  const { db } = deps;
   const item = await db.item.findUnique({
     where: { id: itemId },
     include: {
@@ -160,7 +165,13 @@ async function decide(
   if (!setting?.enabled || !setting.channels.includes("push")) {
     return "rule_off";
   }
-  const devices = await reach(db, now, user, pr.githubRepoId, setting.severity);
+  const devices = await reach(
+    deps,
+    now,
+    user,
+    pr.githubRepoId,
+    setting.severity,
+  );
   if (typeof devices === "string") return devices;
 
   return {
@@ -193,10 +204,11 @@ type Reachable = Pick<User, "id" | "desktopSeenAt"> & {
   pushSubscriptions: PushSubscription[];
 };
 
-// The user's devices that take a notification of this severity about a PR in this repo,
-// or why none do. Every device takes every severity.
+// The user's web push devices that take a notification of this severity about a PR in
+// this repo, or why none do. Every device takes every severity. deliver() adds their
+// iPhone apps, when Apple push is on.
 async function reach(
-  db: Db,
+  { db, apple }: Pick<NotifyDeps, "db" | "apple">,
   now: Date,
   user: Reachable,
   githubRepoId: number,
@@ -213,9 +225,14 @@ async function reach(
   if (settings && isQuiet(settings, now) && !breaksQuiet) return "quiet";
 
   const devices = user.pushSubscriptions;
-  // The running Mac menu bar app takes every severity.
+  // The running Mac menu bar app takes every severity, and so does the iPhone app.
   const desktop = isDesktopOnline(user.desktopSeenAt, now);
-  if (devices.length === 0 && !desktop) return "no_devices";
+  if (devices.length === 0 && !desktop) {
+    const phones = apple
+      ? await db.appleDevice.count({ where: { userId: user.id } })
+      : 0;
+    if (phones === 0) return "no_devices";
+  }
   return devices;
 }
 
@@ -253,7 +270,7 @@ async function notifyOneMerged(
     },
   });
   if (!pr || pr.state !== "merged" || !pr.importantAt) return "not_important";
-  const devices = await reach(db, now, pr.user, pr.githubRepoId, "high");
+  const devices = await reach(deps, now, pr.user, pr.githubRepoId, "high");
   if (typeof devices === "string") return devices;
 
   // Claims it before sending. A second run finds it claimed and stops.
@@ -265,7 +282,7 @@ async function notifyOneMerged(
   try {
     const badge = summarize(await openItems(db, pr.userId, now)).total;
     return await deliver(
-      { db, send, logger },
+      { db, send, apple: deps.apple, logger },
       pr.user,
       devices,
       {
@@ -307,7 +324,7 @@ async function sendClaimed(
     ];
     const urgent = readies.some((r) => r.severity === "high");
     outcome = await deliver(
-      { db, send, logger },
+      { db, send, apple: deps.apple, logger },
       { id: userId, desktopSeenAt: first?.desktopSeenAt ?? null },
       devices,
       { ...payload, badge },

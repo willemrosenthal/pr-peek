@@ -1,5 +1,6 @@
-import { randomBytes } from "node:crypto";
+import { generateKeyPairSync, randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import { apnsKeyPair, pemOf } from "../test/fakes";
 import { loadConfig } from "./config";
 
 const key = randomBytes(32);
@@ -10,6 +11,15 @@ const required = {
   TOKEN_ENC_KEY: key.toString("base64"),
   GITHUB_CLIENT_ID: "Iv1.test",
   GITHUB_CLIENT_SECRET: "secret",
+};
+
+// APNs settings as Render keeps them: the key on one line, with \n for line breaks.
+const apnsKey = pemOf(apnsKeyPair().privateKey);
+const APNS = {
+  APNS_KEY: apnsKey.replaceAll("\n", "\\n"),
+  APNS_KEY_ID: "KEY1234567",
+  APNS_TEAM_ID: "TEAM123456",
+  APNS_TOPIC: "com.git-buddy.pr-peek",
 };
 
 describe("loadConfig", () => {
@@ -53,6 +63,11 @@ describe("loadConfig", () => {
     ).toBeUndefined();
   });
 
+  it("reads the APNs key with its line breaks written as \\n", () => {
+    const config = loadConfig({ ...required, ...APNS });
+    expect(config.APNS_KEY).toBe(apnsKey);
+  });
+
   it("names each missing variable", () => {
     expect(() => loadConfig({})).toThrow(
       /APP_URL[\s\S]*DATABASE_URL[\s\S]*SESSION_SECRET[\s\S]*TOKEN_ENC_KEY[\s\S]*GITHUB_CLIENT_ID[\s\S]*GITHUB_CLIENT_SECRET/,
@@ -81,6 +96,33 @@ describe("loadConfig", () => {
         VAPID_SUBJECT: "you@example.com",
       },
       /VAPID_SUBJECT/,
+    ],
+    [
+      "only some of the APNs settings",
+      { ...APNS, APNS_TOPIC: undefined },
+      /APNS_TOPIC, or none/,
+    ],
+    [
+      "a damaged APNs key",
+      {
+        ...APNS,
+        APNS_KEY:
+          "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
+      },
+      /APNS_KEY/,
+    ],
+    [
+      "a key that isn't Apple's kind",
+      {
+        ...APNS,
+        APNS_KEY: pemOf(generateKeyPairSync("ed25519").privateKey),
+      },
+      /APNS_KEY/,
+    ],
+    [
+      "an APNs key ID of the wrong length",
+      { ...APNS, APNS_KEY_ID: "ABC" },
+      /APNS_KEY_ID/,
     ],
   ])("rejects %s", (_name, overrides, error) => {
     expect(() => loadConfig({ ...required, ...overrides })).toThrow(error);

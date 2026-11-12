@@ -45,6 +45,33 @@ export type UpdatePushSubscriptionBody = z.infer<
   typeof updatePushSubscriptionBody
 >;
 
+// The token Apple gives the iPhone app for push: hex, 64 characters today. Apple says it
+// may grow, so longer ones are allowed.
+const appleToken = z
+  .string()
+  .regex(/^[0-9a-fA-F]{64,200}$/, "Not an Apple device token")
+  .transform((token) => token.toLowerCase());
+
+// The iPhone app registers its token each time it opens (plan 12).
+export const addAppleDeviceBody = z.object({
+  token: appleToken,
+  label: deviceLabel,
+  // An Xcode build, which only Apple's sandbox reaches.
+  sandbox: z.boolean(),
+});
+export type AddAppleDeviceBody = z.infer<typeof addAppleDeviceBody>;
+
+export interface AppleDeviceDto {
+  id: string;
+  label: string | null;
+  lastSuccessAt: string | null;
+  createdAt: string;
+}
+
+export interface AppleDeviceResponse {
+  device: AppleDeviceDto;
+}
+
 export interface PushKeyResponse {
   // The VAPID public key, for pushManager.subscribe().
   publicKey: string;

@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { promisify } from "node:util";
 import connectPgSimple from "connect-pg-simple";
 import session from "express-session";
+import { apnsFrom, appleSender } from "./apns";
 import { createApp } from "./app";
 import { loadConfig } from "./config";
 import { checkDb, createDb, createPool } from "./db";
@@ -45,6 +46,10 @@ const github: GitHubFor = (userId, choice) =>
 const vapid = vapidFrom(config);
 if (!vapid) logger.warn("VAPID keys not set, so push notifications are off");
 const send = vapid ? webPushSender(vapid) : null;
+const apns = apnsFrom(config);
+if (!apns)
+  logger.warn("APNs settings not set, so the iPhone app gets no pushes");
+const apple = apns ? appleSender(apns) : null;
 const PgStore = connectPgSimple(session);
 // The table comes from a Prisma migration.
 const sessionStore = new PgStore({ pool, tableName: "session" });
@@ -84,13 +89,14 @@ const app = createApp({
       ...tokenKeys(config),
       appUrl: config.APP_URL,
       send,
+      apple,
       logger,
     }),
     githubTokenRouter({ db, oauth, key: config.TOKEN_ENC_KEY }),
     reposRouter({ db, github }),
     // Before itemsRouter, whose sign in check covers all of /prs.
     previewRouter({ db, github }),
-    adminRouter({ db, logger, send, oauth, ...tokenKeys(config) }),
+    adminRouter({ db, logger, send, apple, oauth, ...tokenKeys(config) }),
     addedPrsRouter({ db, github, requestSync }),
     itemsRouter({ db, requestSync }),
     settingsRouter({ db, requestSync }),
@@ -109,8 +115,12 @@ const app = createApp({
 const server = app.listen(config.PORT, () => {
   logger.info({ port: config.PORT }, "server listening");
 });
-void checkTokenKey({ db, send, logger }, tokenKeys(config), new Date()).catch(
-  (err: unknown) => logger.error({ err }, "couldn't check the token key"),
+void checkTokenKey(
+  { db, send, apple, logger },
+  tokenKeys(config),
+  new Date(),
+).catch((err: unknown) =>
+  logger.error({ err }, "couldn't check the token key"),
 );
 
 onShutdown(logger, async () => {

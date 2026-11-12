@@ -1,7 +1,10 @@
 import {
+  addAppleDeviceBody,
   addPushSubscriptionBody,
   MAX_PUSH_DEVICES,
   updatePushSubscriptionBody,
+  type AppleDeviceDto,
+  type AppleDeviceResponse,
   type PushKeyResponse,
   type PushSubscriptionDto,
   type PushSubscriptionResponse,
@@ -9,7 +12,7 @@ import {
 } from "@pr-peek/core";
 import express, { type Router } from "express";
 import type { Db } from "../db";
-import type { PushSubscription } from "../generated/prisma/client";
+import type { AppleDevice, PushSubscription } from "../generated/prisma/client";
 import { HttpError, parseInput, sentFields } from "../http-error";
 import { currentUser, requireUser } from "./auth";
 
@@ -29,6 +32,22 @@ function toDto(row: PushSubscription): PushSubscriptionDto {
   };
 }
 
+function toAppleDto(row: AppleDevice): AppleDeviceDto {
+  return {
+    id: row.id,
+    label: row.label,
+    lastSuccessAt: row.lastSuccessAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+const tooMany = () =>
+  new HttpError(
+    422,
+    "too_many_devices",
+    `You can have up to ${MAX_PUSH_DEVICES} devices`,
+  );
+
 const notFound = () => new HttpError(404, "not_found", "Device not found");
 const pushOff = () =>
   new HttpError(503, "push_off", "Push notifications aren't set up");
@@ -36,7 +55,7 @@ const pushOff = () =>
 export function pushRouter(deps: PushRouteDeps): Router {
   const router = express.Router();
   const { db } = deps;
-  router.use("/push/subscriptions", requireUser(db));
+  router.use(["/push/subscriptions", "/apple-devices"], requireUser(db));
 
   router.get("/push/key", (_req, res) => {
     if (!deps.push) throw pushOff();
@@ -65,13 +84,7 @@ export function pushRouter(deps: PushRouteDeps): Router {
     const others = await db.pushSubscription.count({
       where: { userId, endpoint: { not: endpoint } },
     });
-    if (others >= MAX_PUSH_DEVICES) {
-      throw new HttpError(
-        422,
-        "too_many_devices",
-        `You can have up to ${MAX_PUSH_DEVICES} devices`,
-      );
-    }
+    if (others >= MAX_PUSH_DEVICES) throw tooMany();
 
     const existing = await db.pushSubscription.findUnique({
       where: { endpoint },
@@ -135,6 +148,43 @@ export function pushRouter(deps: PushRouteDeps): Router {
   router.delete("/push/subscriptions/:id", async (req, res) => {
     const { count } = await db.pushSubscription.deleteMany({
       where: { id: req.params.id, userId: currentUser(res).id },
+    });
+    if (count === 0) throw notFound();
+    res.sendStatus(204);
+  });
+
+  // The iPhone app (plan 12). Called each time it opens, so the same phone just updates.
+  router.post("/apple-devices", async (req, res) => {
+    const userId = currentUser(res).id;
+    const { token, label, sandbox } = parseInput(addAppleDeviceBody, req.body);
+
+    const others = await db.appleDevice.count({
+      where: { userId, token: { not: token } },
+    });
+    if (others >= MAX_PUSH_DEVICES) throw tooMany();
+
+    const existing = await db.appleDevice.findUnique({ where: { token } });
+    const isMine = existing?.userId === userId;
+    const fresh = { userId, label, sandbox };
+    const saved = await db.appleDevice.upsert({
+      where: { token },
+      create: { token, ...fresh },
+      // Someone else signed in on this phone: start over as their device.
+      update: isMine
+        ? { label, sandbox }
+        : { ...fresh, lastSuccessAt: null, failureCount: 0 },
+    });
+    const body: AppleDeviceResponse = { device: toAppleDto(saved) };
+    res.status(isMine ? 200 : 201).json(body);
+  });
+
+  // By token, since the app knows its own token, like when signing out.
+  router.delete("/apple-devices/:token", async (req, res) => {
+    const { count } = await db.appleDevice.deleteMany({
+      where: {
+        token: req.params.token.toLowerCase(),
+        userId: currentUser(res).id,
+      },
     });
     if (count === 0) throw notFound();
     res.sendStatus(204);

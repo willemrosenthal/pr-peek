@@ -1,5 +1,6 @@
 import type { Logger } from "pino";
 import { awakeAdmins, pushToAdmins, type Admin } from "./admin-push";
+import type { SendApple } from "./apns";
 import { decrypt } from "./crypto";
 import type { Db } from "./db";
 import { keysOf, type TokenKeys } from "./github/tokens";
@@ -29,6 +30,8 @@ export interface HealthDeps {
   db: Db;
   // Null when push is off, because the VAPID keys aren't set.
   send: SendPush | null;
+  // Null when Apple push is off, because the APNs settings aren't set.
+  apple?: SendApple | null;
   logger: Logger;
 }
 

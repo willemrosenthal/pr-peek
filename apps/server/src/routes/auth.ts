@@ -7,6 +7,7 @@ import express, {
 } from "express";
 import type { Logger } from "pino";
 import { awakeAdmins, pushToAdmins } from "../admin-push";
+import type { SendApple } from "../apns";
 import type { Db } from "../db";
 import type { User } from "../generated/prisma/client";
 import { GitHubAuthError, type ScopeChoice } from "../github/oauth";
@@ -26,6 +27,8 @@ export interface AuthDeps extends TokenDeps {
   appUrl: string;
   // Null when push is off, because the VAPID keys aren't set.
   send: SendPush | null;
+  // Null when Apple push is off, because the APNs settings aren't set.
+  apple?: SendApple | null;
   logger: Logger;
 }
 
@@ -145,7 +148,7 @@ export function authRouter(deps: AuthDeps): Router {
     const at = now();
     const admins = await awakeAdmins(deps.db, deps.logger, at);
     await pushToAdmins(
-      { db: deps.db, send: deps.send, logger: deps.logger },
+      { db: deps.db, send: deps.send, apple: deps.apple, logger: deps.logger },
       admins,
       {
         title: "Git Buddy sign-up request",

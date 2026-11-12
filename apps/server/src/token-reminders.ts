@@ -82,7 +82,7 @@ export async function sendTokenReminders(
     if (user.settings && isQuiet(user.settings, now)) continue;
     try {
       const result = await deliver(
-        { db, send, logger },
+        { db, send, apple: deps.apple, logger },
         user,
         user.pushSubscriptions,
         reminderFor(token, now),

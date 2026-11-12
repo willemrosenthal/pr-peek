@@ -1,5 +1,6 @@
 import {
   MAX_PUSH_DEVICES,
+  type AppleDeviceResponse,
   type PushSubscriptionResponse,
   type PushSubscriptionsResponse,
 } from "@pr-peek/core";
@@ -254,9 +255,102 @@ describe("listing, changing, and removing devices", () => {
   });
 });
 
+describe("the iPhone app's devices", () => {
+  const TOKEN = "ab".repeat(32);
+  const register = (agent: Agent, body: object = {}) =>
+    agent
+      .post("/api/apple-devices")
+      .set("Origin", APP_URL)
+      .send({ token: TOKEN, label: "iPhone", sandbox: false, ...body });
+  const saved = () => db.appleDevice.findUnique({ where: { token: TOKEN } });
+
+  it("adds the phone, then updates it", async () => {
+    const { agent } = await setup();
+    const res = await register(agent, { token: TOKEN.toUpperCase() });
+    expect(res.status).toBe(201);
+    expect(bodyOf<AppleDeviceResponse>(res).device.label).toBe("iPhone");
+
+    const again = await register(agent, {
+      label: "Kim's phone",
+      sandbox: true,
+    });
+    expect(again.status).toBe(200);
+    expect(await saved()).toMatchObject({
+      label: "Kim's phone",
+      sandbox: true,
+    });
+    expect(await db.appleDevice.count()).toBe(1);
+  });
+
+  it("moves the phone to whoever signed in on it last, starting over", async () => {
+    const { agent } = await setup();
+    const other = await db.user.create({
+      data: { githubId: 99, login: "sam" },
+    });
+    await db.appleDevice.create({
+      data: {
+        userId: other.id,
+        token: TOKEN,
+        lastSuccessAt: new Date(),
+        failureCount: 2,
+      },
+    });
+
+    expect((await register(agent)).status).toBe(201);
+    expect(await saved()).toMatchObject({
+      userId: (await db.user.findFirstOrThrow({ where: { login: "octocat" } }))
+        .id,
+      lastSuccessAt: null,
+      failureCount: 0,
+    });
+  });
+
+  it("refuses a token that isn't one", async () => {
+    const { agent } = await setup();
+    expect((await register(agent, { token: "not-hex" })).status).toBe(400);
+  });
+
+  it(`stops at ${MAX_PUSH_DEVICES} phones`, async () => {
+    const { agent } = await setup();
+    const user = await db.user.findFirstOrThrow();
+    await db.appleDevice.createMany({
+      data: Array.from({ length: MAX_PUSH_DEVICES }, (_, i) => ({
+        userId: user.id,
+        token: String(i).repeat(64),
+      })),
+    });
+    const res = await register(agent);
+    expect(res.status).toBe(422);
+    expect(res.body).toMatchObject({ error: { code: "too_many_devices" } });
+    expect((await register(agent, { token: "0".repeat(64) })).status).toBe(200);
+  });
+
+  it("removes only the user's own phone", async () => {
+    const { agent } = await setup();
+    const other = await db.user.create({
+      data: { githubId: 99, login: "sam" },
+    });
+    await db.appleDevice.create({
+      data: { userId: other.id, token: "cd".repeat(32) },
+    });
+    await register(agent);
+
+    const remove = (token: string) =>
+      agent.delete(`/api/apple-devices/${token}`).set("Origin", APP_URL);
+    expect((await remove("cd".repeat(32))).status).toBe(404);
+    expect((await remove(TOKEN.toUpperCase())).status).toBe(204);
+    expect(await saved()).toBeNull();
+    expect(await db.appleDevice.count()).toBe(1);
+  });
+});
+
 it("needs sign in for devices", async () => {
   const { agent } = makeTestApp(db, {
     routers: [pushRouter({ db, push: null })],
   });
   expect((await agent.get("/api/push/subscriptions")).status).toBe(401);
+  expect(
+    (await agent.post("/api/apple-devices").set("Origin", APP_URL).send({}))
+      .status,
+  ).toBe(401);
 });

@@ -1,5 +1,6 @@
 import { summaryDueDate, summaryText } from "@pr-peek/core";
 import type { Logger } from "pino";
+import type { SendApple } from "./apns";
 import type { Db } from "./db";
 import { openItems, summarize } from "./item-list";
 import {
@@ -13,6 +14,8 @@ export interface SummaryDeps {
   db: Db;
   // Null when push is off, because the VAPID keys aren't set.
   send: SendPush | null;
+  // Null when Apple push is off, because the APNs settings aren't set.
+  apple?: SendApple | null;
   logger: Logger;
 }
 

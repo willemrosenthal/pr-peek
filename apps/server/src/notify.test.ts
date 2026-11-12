@@ -7,6 +7,7 @@ import { githubTokens, githubUser, hours, NOW, TEST_KEY } from "../test/fakes";
 import { itemRows } from "../test/items";
 import { createLogger } from "./logger";
 import { BATCH_MIN, notifyItem, notifyItems, notifyMerged } from "./notify";
+import type { SendApple } from "./apns";
 import type { SendPush } from "./push";
 import { upsertGitHubUser } from "./users";
 
@@ -180,6 +181,26 @@ describe("notifyItem", () => {
         "push_off",
       );
     });
+  });
+
+  it("sends to the iPhone app when it's the only device", async () => {
+    const { user, item, send } = await setup();
+    await db.pushSubscription.deleteMany();
+    await db.appleDevice.create({
+      data: { userId: user.id, token: "ab".repeat(32) },
+    });
+    const apple = vi.fn<SendApple>(() => Promise.resolve());
+
+    expect(
+      await notifyItem({ db, send, apple, logger, now: () => NOW }, item.id),
+    ).toBe("sent");
+    expect(apple).toHaveBeenCalledOnce();
+    expect((await db.notificationLog.findFirstOrThrow()).status).toBe("sent");
+    // Without Apple push set up, the phone doesn't count.
+    await db.notificationLog.deleteMany();
+    expect(
+      await notifyItem({ db, send, logger, now: () => NOW }, item.id),
+    ).toBe("no_devices");
   });
 
   describe("quiet hours", () => {
