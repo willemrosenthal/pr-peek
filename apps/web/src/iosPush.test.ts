@@ -43,7 +43,7 @@ beforeEach(() => {
 });
 
 describe("startIosPush", () => {
-  it("registers each open, and saves the token with the server", async () => {
+  it("registers when allowed, and saves the token with the server", async () => {
     stubUserAgent(USER_AGENTS.iphone);
     const fetch = fakeApi({
       "POST /api/apple-devices": () => json({ device: {} }, 201),
