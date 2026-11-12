@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { generateKeyPairSync, randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "./config";
 
@@ -12,9 +12,13 @@ const required = {
   GITHUB_CLIENT_SECRET: "secret",
 };
 
-// APNs settings as Render keeps them: the key on one line.
+// APNs settings as Render keeps them: the key on one line, with \n for line breaks.
+const apnsKey = generateKeyPairSync("ec", { namedCurve: "P-256" })
+  .privateKey.export({ type: "pkcs8", format: "pem" })
+  .toString()
+  .trim();
 const APNS = {
-  APNS_KEY: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
+  APNS_KEY: apnsKey.replaceAll("\n", "\\n"),
   APNS_KEY_ID: "KEY1234567",
   APNS_TEAM_ID: "TEAM123456",
   APNS_TOPIC: "com.git-buddy.pr-peek",
@@ -63,9 +67,7 @@ describe("loadConfig", () => {
 
   it("reads the APNs key with its line breaks written as \\n", () => {
     const config = loadConfig({ ...required, ...APNS });
-    expect(config.APNS_KEY).toBe(
-      "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----",
-    );
+    expect(config.APNS_KEY).toBe(apnsKey);
   });
 
   it("names each missing variable", () => {
@@ -103,6 +105,25 @@ describe("loadConfig", () => {
       /APNS_TOPIC, or none/,
     ],
     ["an APNs key that isn't one", { ...APNS, APNS_KEY: "abc" }, /APNS_KEY/],
+    [
+      "a damaged APNs key",
+      {
+        ...APNS,
+        APNS_KEY:
+          "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
+      },
+      /APNS_KEY/,
+    ],
+    [
+      "a key that isn't Apple's kind",
+      {
+        ...APNS,
+        APNS_KEY: generateKeyPairSync("ed25519")
+          .privateKey.export({ type: "pkcs8", format: "pem" })
+          .toString(),
+      },
+      /APNS_KEY/,
+    ],
     [
       "an APNs key ID of the wrong length",
       { ...APNS, APNS_KEY_ID: "ABC" },

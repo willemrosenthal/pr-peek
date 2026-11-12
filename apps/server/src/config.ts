@@ -1,3 +1,4 @@
+import { createPrivateKey } from "node:crypto";
 import { z } from "zod";
 import { KEY_BYTES } from "./crypto";
 
@@ -27,6 +28,18 @@ function allOrNone<Key extends string>(
     },
     { message: `Set all of ${keys.join(", ")}, or none`, path: [keys[0]!] },
   ];
+}
+
+// Apple's push keys are P-256 keys. Checked here, so a bad paste stops with this message
+// instead of crashing later.
+function isApnsKey(key: string) {
+  try {
+    return (
+      createPrivateKey(key).asymmetricKeyDetails?.namedCurve === "prime256v1"
+    );
+  } catch {
+    return false;
+  }
 }
 
 const schema = z
@@ -72,9 +85,7 @@ const schema = z
       z
         .string()
         .transform((key) => key.replaceAll("\\n", "\n"))
-        .refine((key) => key.includes("BEGIN PRIVATE KEY"), {
-          message: "Must be the .p8 file's text",
-        }),
+        .refine(isApnsKey, { message: "Must be the .p8 file's text" }),
     ),
     APNS_KEY_ID: optional(
       z.string().regex(/^[A-Z0-9]{10}$/, "Must be 10 characters"),

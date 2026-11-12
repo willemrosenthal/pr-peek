@@ -1,4 +1,5 @@
 import type { WorkHandler, WorkOptions } from "pg-boss";
+import { apnsFrom, appleSender } from "./apns";
 import { loadConfig } from "./config";
 import { createDb, createPool } from "./db";
 import { getOctokit } from "./github/client";
@@ -25,7 +26,6 @@ import {
 } from "./jobs";
 import { createLogger } from "./logger";
 import { notifyItems, notifyMerged } from "./notify";
-import { apnsFrom, appleSender } from "./apns";
 import { vapidFrom, webPushSender } from "./push";
 import { sendDueReminders } from "./reminders";
 import { onShutdown } from "./shutdown";

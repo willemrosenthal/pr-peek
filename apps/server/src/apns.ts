@@ -104,8 +104,15 @@ export function apnsBody(payload: PushPayload) {
 }
 
 // The tag, cut to Apple's limit, so a newer push with the same tag replaces the old one.
-const collapseId = (tag: string) =>
-  Buffer.from(tag).subarray(0, MAX_COLLAPSE_ID).toString();
+// Cuts whole characters, so a cut never leaves half of one.
+export function collapseId(tag: string) {
+  let id = "";
+  for (const char of tag) {
+    if (Buffer.byteLength(id + char) > MAX_COLLAPSE_ID) break;
+    id += char;
+  }
+  return id;
+}
 
 export function appleSender(
   apns: Apns,
@@ -167,6 +174,8 @@ export function appleSender(
       });
       request.on("end", () => {
         if (status === 200) return resolve();
+        // Apple refused our signed token, like "ExpiredProviderToken": make a new one.
+        if (status === 403) token = null;
         reject(new ApnsError(status, reasonOf(answer)));
       });
       request.end(JSON.stringify(apnsBody(payload)));

@@ -13,6 +13,7 @@ import {
   apnsBody,
   apnsToken,
   appleSender,
+  collapseId,
   isGoneFromApple,
   type Apns,
 } from "./apns";
@@ -73,6 +74,13 @@ it("puts the notification under aps, and the link beside it", () => {
   const { aps, ...rest } = apnsBody(summary);
   expect(aps).not.toHaveProperty("badge");
   expect(rest).toEqual({ url: PAYLOAD.url });
+});
+
+it("cuts the collapse ID to Apple's 64 bytes, without splitting a character", () => {
+  expect(collapseId("item-1")).toBe("item-1");
+  const cut = collapseId(`${"x".repeat(63)}é`);
+  expect(cut).toBe("x".repeat(63));
+  expect(Buffer.byteLength(collapseId("é".repeat(40)))).toBe(64);
 });
 
 it.each([
@@ -180,6 +188,26 @@ describe("appleSender", () => {
     expect(a).toMatch(/^bearer /);
     expect(b).toBe(a);
     expect(c).not.toBe(a);
+  });
+
+  it("makes a new signed token after Apple refuses one", async () => {
+    const apple = await fakeApple([
+      { status: 403, body: JSON.stringify({ reason: "ExpiredProviderToken" }) },
+    ]);
+    let now = 1_700_000_000_000;
+    const send = appleSender(
+      APNS,
+      { production: apple.origin, sandbox: apple.origin },
+      () => now,
+    );
+    const target = { token: TOKEN, sandbox: false };
+    await expect(send(target, PAYLOAD, NORMAL)).rejects.toBeInstanceOf(
+      ApnsError,
+    );
+    now += 1000;
+    await send(target, PAYLOAD, NORMAL);
+    const [refused, fresh] = apple.received.map((r) => r.headers.authorization);
+    expect(fresh).not.toBe(refused);
   });
 
   it("throws Apple's status and reason when it refuses", async () => {
