@@ -1,11 +1,13 @@
 import {
   MAX_PUSH_DEVICES,
+  PUSH_KINDS,
   type AppleDeviceResponse,
+  type AppleTestResponse,
   type PushSubscriptionResponse,
   type PushSubscriptionsResponse,
 } from "@pr-peek/core";
 import type { Response } from "supertest";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   APP_URL,
   bodyOf,
@@ -14,12 +16,15 @@ import {
   type Agent,
 } from "../../test/app";
 import { createTestDb, resetDb } from "../../test/db";
+import type { SendApple } from "../apns";
+import { createLogger } from "../logger";
 import { pushRouter } from "./push";
 
 const db = createTestDb();
 afterAll(() => db.$disconnect());
 beforeEach(() => resetDb(db));
 
+const logger = createLogger({ LOG_LEVEL: "silent" });
 const PUBLIC_KEY = "the-public-key";
 const keys = {
   p256dh:
@@ -29,9 +34,14 @@ const keys = {
 const endpoint = (name = "phone") =>
   `https://fcm.googleapis.com/fcm/send/${name}`;
 
-async function setup(options: { pushOn?: boolean } = {}) {
+async function setup(
+  options: { pushOn?: boolean; apple?: SendApple | null } = {},
+) {
   const push = options.pushOn === false ? null : { publicKey: PUBLIC_KEY };
-  const { agent } = makeTestApp(db, { routers: [pushRouter({ db, push })] });
+  const apple = options.apple ?? null;
+  const { agent } = makeTestApp(db, {
+    routers: [pushRouter({ db, push, apple, logger })],
+  });
   await signIn(agent);
   return { agent };
 }
@@ -344,9 +354,79 @@ describe("the iPhone app's devices", () => {
   });
 });
 
+describe("Send a test", () => {
+  const sendTest = (agent: Agent) =>
+    agent.post("/api/apple-devices/test").set("Origin", APP_URL);
+  const PHONE = "ab".repeat(32);
+  const OTHER_PHONE = "cd".repeat(32);
+
+  async function withPhones(apple = vi.fn<SendApple>(() => Promise.resolve())) {
+    const { agent } = await setup({ apple });
+    const user = await db.user.findFirstOrThrow();
+    await db.appleDevice.createMany({
+      data: [PHONE, OTHER_PHONE].map((token) => ({ userId: user.id, token })),
+    });
+    return { apple, sendTest: () => sendTest(agent) };
+  }
+
+  it("sends one of each kind to each phone, with the user's own picture", async () => {
+    const { apple, sendTest } = await withPhones();
+    const res = await sendTest();
+    expect(bodyOf<AppleTestResponse>(res)).toEqual({ sent: 2, failed: 0 });
+
+    const toPhone = apple.mock.calls.filter(
+      ([target]) => target.token === PHONE,
+    );
+    const payloads = toPhone.map(([, payload]) => payload);
+    // Each kind, then a plain one like the morning summary.
+    expect(payloads.map((p) => p.kind)).toEqual([...PUSH_KINDS, undefined]);
+    const byKind = new Map(payloads.map((p) => [p.kind, p]));
+    expect(byKind.get("approved")).toMatchObject({
+      title: "octocat approved",
+      actor: "octocat",
+    });
+    // Like the real ones, these show no person.
+    for (const kind of [
+      "review_requested",
+      "check_failed",
+      "merged",
+    ] as const) {
+      expect(byKind.get(kind)).not.toHaveProperty("actor");
+    }
+  });
+
+  it("stops at a phone's first failure, so it counts once", async () => {
+    const apple = vi.fn<SendApple>((target) =>
+      target.token === OTHER_PHONE
+        ? Promise.reject(new Error("network down"))
+        : Promise.resolve(),
+    );
+    const { sendTest } = await withPhones(apple);
+    expect(bodyOf<AppleTestResponse>(await sendTest())).toEqual({
+      sent: 1,
+      failed: 1,
+    });
+    const tries = apple.mock.calls.filter(([t]) => t.token === OTHER_PHONE);
+    expect(tries).toHaveLength(1);
+    expect(
+      await db.appleDevice.findUniqueOrThrow({ where: { token: OTHER_PHONE } }),
+    ).toMatchObject({ failureCount: 1 });
+  });
+
+  it("says when there's no phone", async () => {
+    const { agent } = await setup({ apple: vi.fn<SendApple>() });
+    expect((await sendTest(agent)).status).toBe(404);
+  });
+
+  it("says when Apple push isn't set up", async () => {
+    const { agent } = await setup();
+    expect((await sendTest(agent)).status).toBe(503);
+  });
+});
+
 it("needs sign in for devices", async () => {
   const { agent } = makeTestApp(db, {
-    routers: [pushRouter({ db, push: null })],
+    routers: [pushRouter({ db, push: null, apple: null, logger })],
   });
   expect((await agent.get("/api/push/subscriptions")).status).toBe(401);
   expect(

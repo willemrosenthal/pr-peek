@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isPushServiceUrl } from "./push";
+import {
+  githubAvatarUrl,
+  isPushServiceUrl,
+  PUSH_KINDS,
+  pushKindOf,
+} from "./push";
 
 describe("isPushServiceUrl", () => {
   it.each([
@@ -21,4 +26,31 @@ describe("isPushServiceUrl", () => {
   ])("refuses %s", (url) => {
     expect(isPushServiceUrl(url)).toBe(false);
   });
+});
+
+describe("pushKindOf", () => {
+  it("gives each review its own tile", () => {
+    expect(pushKindOf("reviewed", "approved")).toBe("approved");
+    expect(pushKindOf("reviewed", "changes_requested")).toBe(
+      "changes_requested",
+    );
+    // A review saved before its state was.
+    expect(pushKindOf("reviewed", null)).toBe("approved");
+  });
+
+  it("uses the item's kind for the rest", () => {
+    expect(pushKindOf("mention", null)).toBe("mention");
+  });
+
+  it("lists every kind once, with no reviewed", () => {
+    expect(new Set(PUSH_KINDS).size).toBe(PUSH_KINDS.length);
+    expect(PUSH_KINDS).not.toContain("reviewed");
+    expect(PUSH_KINDS).toContain("merged");
+  });
+});
+
+it("links to a GitHub picture at a size, with the login made safe", () => {
+  expect(githubAvatarUrl("jlee[bot]", 120)).toBe(
+    "https://avatars.githubusercontent.com/jlee%5Bbot%5D?s=120",
+  );
 });

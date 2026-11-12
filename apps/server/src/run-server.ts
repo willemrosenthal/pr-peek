@@ -106,6 +106,8 @@ const app = createApp({
     pushRouter({
       db,
       push: vapid && { publicKey: vapid.publicKey },
+      apple,
+      logger,
     }),
   ],
   // Same depth from src/ (tsx in dev) and dist/ (built), so this works for both.

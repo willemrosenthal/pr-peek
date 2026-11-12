@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ItemKind, ReviewState } from "../rules";
 
 // Keeps each notification's fan out small.
 export const MAX_PUSH_DEVICES = 20;
@@ -72,6 +73,13 @@ export interface AppleDeviceResponse {
   device: AppleDeviceDto;
 }
 
+// How many of the user's iPhone apps got all of "Send a test"'s samples, and how many
+// didn't.
+export interface AppleTestResponse {
+  sent: number;
+  failed: number;
+}
+
 export interface PushKeyResponse {
   // The VAPID public key, for pushManager.subscribe().
   publicKey: string;
@@ -109,7 +117,45 @@ export interface PushPayload {
   // A picture for the notification, like the person who did it. The app icon when
   // missing. iPhones always show the app icon.
   icon?: string;
+  // For the iPhone app's notification (plan 12.6): which tile it shows, and the person
+  // who did it, with their picture. Web push ignores them.
+  kind?: PushKind;
+  actor?: string;
+  avatar?: string;
 }
+
+// Each kind of notification with its own tile in the iPhone app. A review is "approved" or
+// "changes_requested", since each has its own tile.
+export type PushKind = Exclude<ItemKind, "reviewed"> | ReviewState | "merged";
+
+// Every kind, in the list's order. A record, so a new kind can't be left out.
+const KINDS: Record<PushKind, true> = {
+  review_requested: true,
+  re_requested: true,
+  approved: true,
+  changes_requested: true,
+  commented: true,
+  reply: true,
+  mention: true,
+  check_failed: true,
+  assigned: true,
+  merged: true,
+};
+export const PUSH_KINDS = Object.keys(KINDS) as PushKind[];
+
+// The tile for an item's notification. `reviewState` as stored: a review from before it
+// was stored counts as approved.
+export function pushKindOf(
+  kind: ItemKind,
+  reviewState: string | null,
+): PushKind {
+  if (kind !== "reviewed") return kind;
+  return reviewState === "changes_requested" ? reviewState : "approved";
+}
+
+// A GitHub user's picture, `size` pixels square.
+export const githubAvatarUrl = (login: string, size: number) =>
+  `https://avatars.githubusercontent.com/${encodeURIComponent(login)}?s=${size}`;
 
 // The body of a notification about one PR: its title, then where it is.
 export const prPushBody = (title: string, repo: string, number: number) =>

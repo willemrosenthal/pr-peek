@@ -1,4 +1,8 @@
-import type { PushPayload, Severity } from "@pr-peek/core";
+import {
+  githubAvatarUrl,
+  type PushPayload,
+  type Severity,
+} from "@pr-peek/core";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import webpush from "web-push";
 import { createTestDb, resetDb } from "../test/db";
@@ -8,7 +12,7 @@ import { itemRows } from "../test/items";
 import { createLogger } from "./logger";
 import { BATCH_MIN, notifyItem, notifyItems, notifyMerged } from "./notify";
 import type { SendApple } from "./apns";
-import type { SendPush } from "./push";
+import { PUSH_AVATAR_PX, type SendPush } from "./push";
 import { upsertGitHubUser } from "./users";
 
 const db = createTestDb();
@@ -67,6 +71,7 @@ describe("notifyItem", () => {
         tag: item.id,
         itemId: item.id,
         badge: 1,
+        kind: "review_requested",
       } satisfies PushPayload,
       { ttlSeconds: 12 * 60 * 60, urgency: "normal" },
     );
@@ -76,6 +81,33 @@ describe("notifyItem", () => {
       channel: "push",
       status: "sent",
     });
+  });
+
+  it.each([
+    [
+      "a person's change request: its tile, the person, and their picture",
+      { actorLogin: "maya", reviewState: "changes_requested" },
+      {
+        kind: "changes_requested",
+        actor: "maya",
+        avatar: githubAvatarUrl("maya", PUSH_AVATAR_PX),
+      },
+    ],
+    [
+      "a bot's review: its tile, and nobody",
+      { actorLogin: "ci[bot]", actorIsBot: true, reviewState: "approved" },
+      { kind: "approved" },
+    ],
+  ])("tells the iPhone app %s", async (_name, fields, expected) => {
+    const { user, send } = await setup();
+    await db.item.deleteMany();
+    const pr = await db.pullRequest.findFirstOrThrow();
+    const item = await makeItem(user.id, pr.id, "reviewed", fields);
+
+    await notifyItem({ db, send, logger, now: () => NOW }, item.id);
+    const payload = send.mock.calls[0]?.[1];
+    expect(payload).toMatchObject(expected);
+    if (!("actor" in expected)) expect(payload).not.toHaveProperty("actor");
   });
 
   it("sends once per event, even when run again", async () => {
@@ -385,6 +417,7 @@ describe("notifyMerged", () => {
         url: "https://github.com/acme/web-app/pull/7",
         tag: `merged:${pr.id}`,
         badge: 0,
+        kind: "merged",
       } satisfies PushPayload,
       { ttlSeconds: 12 * 60 * 60, urgency: "high" },
     );
