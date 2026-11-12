@@ -33,12 +33,17 @@ export async function startIosPush(
       ({ notification }) => openTapped(notification.data as TapData, open),
     ),
   ]);
-  // Each time, so the server always has the phone's current token. Apple can change it.
-  const { receive } = await PushNotifications.checkPermissions();
-  if (receive === "granted") await PushNotifications.register();
-  return () => {
+  const stop = () => {
     for (const handle of handles) void handle.remove();
   };
+  // Each time, so the server always has the phone's current token. Apple can change it.
+  try {
+    const { receive } = await PushNotifications.checkPermissions();
+    if (receive === "granted") await PushNotifications.register();
+  } catch {
+    // The next open tries again. Still returns `stop`, so the listeners never pile up.
+  }
+  return stop;
 }
 
 // Asks for permission, then registers, which saves the token (startIosPush). Call it

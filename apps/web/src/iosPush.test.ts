@@ -90,6 +90,13 @@ describe("startIosPush", () => {
     expect(open).toHaveBeenCalledWith("/");
   });
 
+  it("can still be stopped when registering fails", async () => {
+    native.PushNotifications.register.mockRejectedValueOnce(new Error("no"));
+    const stop = await startIosPush(vi.fn());
+    stop();
+    expect(native.listeners.size).toBe(0);
+  });
+
   it("stops listening when stopped", async () => {
     const stop = await startIosPush(vi.fn());
     stop();
