@@ -42,6 +42,7 @@ function toSettingsDto(row: UserSettings): UserSettingsDto {
     hideBots: row.hideBots,
     includeTeamRequests: row.includeTeamRequests,
     showAuthors: row.showAuthors,
+    onboarded: row.onboardedAt !== null,
   };
 }
 
@@ -113,9 +114,16 @@ export function settingsRouter(deps: SettingsDeps): Router {
       );
     }
 
+    // The timezone is onboarding's last step, so saving one finishes it. Older apps
+    // finish it this way too, since they send nothing else.
+    const finishes = changes.timezone !== undefined && !current.onboardedAt;
     const updated = await db.userSettings.update({
       where: { userId },
-      data: { ...sentFields(changes), ...keptTimes(changes) },
+      data: {
+        ...sentFields(changes),
+        ...keptTimes(changes),
+        ...(finishes && { onboardedAt: now() }),
+      },
     });
     const affectsRules =
       updated.hideBots !== current.hideBots ||

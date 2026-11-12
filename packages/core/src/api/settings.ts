@@ -92,6 +92,8 @@ export interface UserSettingsDto {
   hideBots: boolean;
   includeTeamRequests: boolean;
   showAuthors: ShowAuthors;
+  // Finished onboarding. Saving a timezone, its last step, finishes it.
+  onboarded: boolean;
 }
 
 export const severity = z.enum(["low", "normal", "high"]);

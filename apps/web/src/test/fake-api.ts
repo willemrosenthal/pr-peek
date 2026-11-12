@@ -346,6 +346,7 @@ export const settingsResponse = (
     hideBots: false,
     includeTeamRequests: true,
     showAuthors: "off",
+    onboarded: true,
     ...fields,
   },
   rules: rules.map((rule) => ({

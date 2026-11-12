@@ -133,11 +133,6 @@
   color: var(--color-text-secondary);
 }
 
-.saved {
-  color: var(--color-success);
-  font-weight: 600;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .segment {
     transition: none;

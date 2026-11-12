@@ -237,7 +237,7 @@ function RepoResults({
         </Toggle>
       )}
       {(shownRows.length > 0 || typedMissing || extra.length > 0) && (
-        <Card label="Repos you can add">
+        <Card label="Repos you can add" className={styles.results}>
           {typedMissing && (
             <AddRepoRow
               key={typedName}

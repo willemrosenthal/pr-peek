@@ -80,6 +80,7 @@ describe("GET /api/settings", () => {
       hideBots: false,
       includeTeamRequests: true,
       showAuthors: "off",
+      onboarded: false,
     });
     expect(body.rules).toHaveLength(rules.length);
     expect(body.rules.find((r) => r.id === "commented")).toEqual({
@@ -114,6 +115,31 @@ describe("PATCH /api/settings", () => {
     });
     const cleared = await patchSettings(agent, { quietStart: null });
     expect(bodyOf<SettingsResponse>(cleared).settings.quietStart).toBeNull();
+  });
+
+  it("finishes onboarding when a timezone is saved, once", async () => {
+    const { agent, user } = await setup();
+    const other = await patchSettings(agent, { hideBots: true });
+    expect(bodyOf<SettingsResponse>(other).settings.onboarded).toBe(false);
+
+    const res = await patchSettings(agent, { timezone: "Europe/Berlin" });
+    expect(bodyOf<SettingsResponse>(res).settings.onboarded).toBe(true);
+    const saved = await db.userSettings.findUniqueOrThrow({
+      where: { userId: user.id },
+    });
+    expect(saved.onboardedAt).toEqual(NOW);
+
+    // A later change keeps the first time.
+    const later = new Date(NOW.getTime() + 60_000);
+    await db.userSettings.update({
+      where: { userId: user.id },
+      data: { onboardedAt: later },
+    });
+    await patchSettings(agent, { timezone: "UTC" });
+    const kept = await db.userSettings.findUniqueOrThrow({
+      where: { userId: user.id },
+    });
+    expect(kept.onboardedAt).toEqual(later);
   });
 
   it("keeps the last times set while quiet hours and the summary are off", async () => {
