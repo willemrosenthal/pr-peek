@@ -641,6 +641,20 @@ describe("items", () => {
     expect(await itemOf("mention")).toMatchObject({ actorIsBot: true });
   });
 
+  it("saves what a review said, filling in older ones without notifying", async () => {
+    const user = await makeUser();
+    // octocat's own PR, which jlee approved.
+    const pr = githubPr({ author: { __typename: "User", login: "octocat" } });
+    await sync(user.id, asked(pr));
+    expect(await itemOf("reviewed")).toMatchObject({ reviewState: "approved" });
+
+    // Like an item saved before items kept what a review said.
+    await db.item.updateMany({ data: { reviewState: null } });
+    const { result } = await sync(user.id, asked(pr, "2026-10-21T11:00:00Z"));
+    expect(result.newEventItemIds).toEqual([]);
+    expect(await itemOf("reviewed")).toMatchObject({ reviewState: "approved" });
+  });
+
   it("resolves items once you act on them", async () => {
     const user = await makeUser();
     await sync(user.id, asked());

@@ -1,10 +1,11 @@
-import type {
-  AssignedState,
-  IdlePrDto,
-  ItemDto,
-  ItemKind,
-  MergedPrDto,
-  StaleLevel,
+import {
+  githubAvatarUrl,
+  type AssignedState,
+  type IdlePrDto,
+  type ItemDto,
+  type ItemKind,
+  type MergedPrDto,
+  type StaleLevel,
 } from "@pr-peek/core";
 import {
   AtSign,
@@ -319,8 +320,8 @@ function RowIcon({ Icon, tone }: IconProps) {
   );
 }
 
-export const avatarUrl = (login: string) =>
-  `https://avatars.githubusercontent.com/${encodeURIComponent(login)}?s=56`;
+// The list's pictures are 28px wide. Twice that keeps them sharp on sharp screens.
+export const avatarUrl = (login: string) => githubAvatarUrl(login, 56);
 
 // The author's picture, with the row's icon in a badge on its corner. Just the icon if
 // the picture can't load.

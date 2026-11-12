@@ -2,6 +2,7 @@ import {
   formatAge,
   isQuiet,
   prPushBody,
+  pushKindOf,
   type PushPayload,
   type Severity,
 } from "@pr-peek/core";
@@ -19,6 +20,7 @@ import {
   deliver,
   isDesktopOnline,
   NOTIFY_TTL_SECONDS,
+  pushActor,
   type SendPush,
 } from "./push";
 
@@ -195,6 +197,8 @@ async function decide(
       url: pr.url,
       tag: itemId,
       itemId,
+      kind: pushKindOf(setting.rule.id, item.reviewState),
+      ...pushActor(item.actorLogin, item.actorIsBot),
     },
   };
 }
@@ -291,6 +295,7 @@ async function notifyOneMerged(
         url: pr.url,
         tag: `merged:${pr.id}`,
         badge,
+        kind: "merged",
       },
       { ttlSeconds: NOTIFY_TTL_SECONDS, urgency: "high", now },
     );

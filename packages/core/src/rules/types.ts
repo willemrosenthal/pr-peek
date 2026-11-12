@@ -1,4 +1,5 @@
 import type { PrSnapshot } from "../pr-snapshot";
+import type { ReviewVerdict } from "../review-verdicts";
 
 // Each rule makes items of one kind. The kind is also the rule's id.
 export type ItemKind =
@@ -31,6 +32,9 @@ export interface RuleContext {
 }
 
 // One row in the user's list. Matches the `Item` table. Dates are ISO strings.
+// A review that decided something: approved, or asked for changes.
+export type ReviewState = Exclude<ReviewVerdict, "commented">;
+
 export interface DetectedItem {
   kind: ItemKind;
   // Same key means the same item. A new key means a new item.
@@ -48,6 +52,8 @@ export interface DetectedItem {
   // A review request the viewer commented on, until the author asks again.
   // Sorts last, with no stale color, reminders, or push.
   waitingOnAuthor: boolean;
+  // What a review on your PR said. Only "reviewed" items have one.
+  reviewState?: ReviewState;
   // Nothing new for the viewer, like assigning yourself. A new item starts seen and
   // doesn't push.
   startsSeen?: boolean;

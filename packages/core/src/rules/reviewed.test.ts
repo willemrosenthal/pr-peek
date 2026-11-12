@@ -31,6 +31,7 @@ describe("my PR was reviewed", () => {
         occurredAt: at(10),
         waitingSince: null,
         waitingOnAuthor: false,
+        reviewState: "approved",
       },
     ]);
   });
@@ -39,7 +40,10 @@ describe("my PR was reviewed", () => {
     const pr = myPr({
       reviews: [review("R_1", "jlee", 10, "CHANGES_REQUESTED")],
     });
-    expect(detect(pr)[0]?.summary).toBe("jlee requested changes");
+    expect(detect(pr)[0]).toMatchObject({
+      summary: "jlee requested changes",
+      reviewState: "changes_requested",
+    });
   });
 
   it("shows the latest of several reviewers", () => {

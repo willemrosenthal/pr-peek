@@ -86,7 +86,8 @@ export function apnsToken(key: KeyObject, apns: Apns, now: number) {
   return `${signed}.${base64url(signature)}`;
 }
 
-// What Apple shows, and what the app reads when it's tapped.
+// What Apple shows, and what the app reads: the link when it's tapped, and the tile and
+// person for its notification extension (12.6).
 export function apnsBody(payload: PushPayload) {
   return {
     aps: {
@@ -100,6 +101,9 @@ export function apnsBody(payload: PushPayload) {
     },
     url: payload.url,
     ...(payload.itemId && { itemId: payload.itemId }),
+    ...(payload.kind && { kind: payload.kind }),
+    ...(payload.actor && { actor: payload.actor }),
+    ...(payload.avatar && { avatar: payload.avatar }),
   };
 }
 

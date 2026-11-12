@@ -34,6 +34,9 @@ const PAYLOAD: PushPayload = {
   tag: "item-1",
   itemId: "item-1",
   badge: 3,
+  kind: "review_requested",
+  actor: "maya",
+  avatar: "https://avatars.githubusercontent.com/maya?s=120",
 };
 const NORMAL = { ttlSeconds: 60, urgency: "normal" as const };
 
@@ -67,12 +70,19 @@ it("puts the notification under aps, and the link beside it", () => {
     },
     url: PAYLOAD.url,
     itemId: "item-1",
+    kind: "review_requested",
+    actor: "maya",
+    avatar: PAYLOAD.avatar,
   });
-  // A push about no item, like the morning summary, has no item or badge to send.
-  const { itemId: _item, badge: _badge, ...summary } = PAYLOAD;
-  const { aps, ...rest } = apnsBody(summary);
+  // A push about no item or person, like the morning summary, leaves those out.
+  const { aps, ...rest } = apnsBody({
+    title: "Morning summary",
+    body: "2 reviews",
+    url: "/",
+    tag: "summary",
+  });
   expect(aps).not.toHaveProperty("badge");
-  expect(rest).toEqual({ url: PAYLOAD.url });
+  expect(rest).toEqual({ url: "/" });
 });
 
 it("cuts the collapse ID to Apple's 64 bytes, without splitting a character", () => {

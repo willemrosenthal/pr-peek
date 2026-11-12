@@ -81,6 +81,9 @@ export function itemRows(db: Db) {
         | "resolvedAt"
         | "seenAt"
         | "latestEventId"
+        | "actorLogin"
+        | "actorIsBot"
+        | "reviewState"
       >
     > = {},
   ) {

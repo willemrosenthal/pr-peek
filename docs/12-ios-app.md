@@ -63,7 +63,7 @@ The web's tick (`haptics.ts`) only works right after a tap or a finger lifting, 
 - [x] **(You)** In Certificates, Identifiers & Profiles, Keys: make an APNs key (Apple Push Notification service). Download the `.p8` file once and keep it safe. Note its Key ID and your Team ID. Done, and saved on Render in `git-buddy-env` as `APNS_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID`, and `APNS_TOPIC`.
 - [x] Check Tauri's iOS push support. If it now handles server push and notification extensions well, say so in this plan and ask before switching. It doesn't yet: see "Why not Tauri for iOS" above.
 - [x] **(You)** Install Xcode from the Mac App Store. Xcode 27.2.
-- [ ] **(You)** Accept Xcode's license and point the command line at it, once, in Terminal: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`, then `sudo xcodebuild -license accept`.
+- [x] **(You)** Accept Xcode's license and point the command line at it, once, in Terminal: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`, then `sudo xcodebuild -license accept`.
 
 ### 12.2 The shell
 
@@ -90,12 +90,12 @@ The web's tick (`haptics.ts`) only works right after a tap or a finger lifting, 
 - [x] Send from `deliver()` (`push.ts`), so every push reaches the app: list items, merged PRs, the morning summary, token reminders, and admin alerts. The menu bar app's rule stays: it only skips web push on Macs.
 - [x] No duplicates: when someone has the iPhone app, skip their web push devices on iPhones and iPads (Apple's push service, and not `onMac`). Their Mac's Safari still gets web push. Apple push only sends while web push (the VAPID keys) is set up too, since every sender checks that first.
 - [x] The Apple payload carries the same title, body, URL, tag, item, and badge as a web push, plus `mutable-content: 1`, so the extension runs, and `thread-id` from the tag, so a PR's notifications group together.
-- [ ] In 2b, the payload also carries:
-  - `kind`, for the tile: each rule's kind, `merged`, or none for the summary, token reminders, and admin alerts,
-  - the review state for `reviewed` (approved or changes requested), so each gets its own tile,
-  - `actor` (login) and `avatar` (picture URL), when a person did it.
+- [x] In 2b, the payload also carries:
+  - `kind`, for the tile: each rule's kind, with a review split into `approved` and `changes_requested`, so each gets its own tile, and `merged`. None for batches, the summary, token reminders, and admin alerts. The list (`PUSH_KINDS`) is in `@pr-peek/core`.
+  - `actor` (login) and `avatar` (picture URL), when a person did it. Never for a bot.
+  - To know what a review said, items now keep it (`reviewState`). Items from before fill it in on the next sync, without a new push.
 - [x] Remove a token when Apple says it's gone, like web push devices.
-- [ ] A "Send a test" endpoint that sends one sample of each kind to the user's iPhone app, for 12.4's button and 12.6's check.
+- [x] A "Send a test" endpoint (`POST /api/apple-devices/test`) that sends one sample of each kind to the user's iPhone apps, with their own picture, then a plain one like the summary. For 12.4's button and 12.6's check. Each phone's samples go one at a time and stop at a failure, so a bad moment counts once against the phone.
 - [x] **(You)** Add the APNs env vars on Render, for the web service and the worker. Done in 12.1.
 
 ### 12.4 App push

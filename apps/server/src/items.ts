@@ -144,6 +144,7 @@ type ItemFields = Pick<
   | "occurredAt"
   | "waitingSince"
   | "waitingOnAuthor"
+  | "reviewState"
 >;
 
 const sameTime = (a: Date | null, b: Date | null) =>
@@ -160,7 +161,8 @@ const isUnchanged = (stored: Item, fields: ItemFields) =>
   stored.summary === fields.summary &&
   sameTime(stored.occurredAt, fields.occurredAt) &&
   sameTime(stored.waitingSince, fields.waitingSince) &&
-  stored.waitingOnAuthor === fields.waitingOnAuthor;
+  stored.waitingOnAuthor === fields.waitingOnAuthor &&
+  stored.reviewState === fields.reviewState;
 
 // Saves the items each PR has now and resolves the ones it no longer has. Writes only
 // what changed, since every sync runs this for every tracked PR.
@@ -193,6 +195,7 @@ export async function saveItems(
         occurredAt: new Date(item.occurredAt),
         waitingSince: item.waitingSince ? new Date(item.waitingSince) : null,
         waitingOnAuthor: item.waitingOnAuthor,
+        reviewState: item.reviewState ?? null,
       };
       const existing = stored.get(item.dedupeKey);
       if (existing && isUnchanged(existing, fields)) continue;

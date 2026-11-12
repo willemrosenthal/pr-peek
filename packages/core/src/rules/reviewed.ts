@@ -45,7 +45,8 @@ export const reviewed: Rule = {
     const latest = latestBy(open, (review) => review.submittedAt);
     if (!latest) return [];
 
-    const verb = latest.state === "APPROVED" ? "approved" : "requested changes";
+    const approved = latest.state === "APPROVED";
+    const verb = approved ? "approved" : "requested changes";
     return [
       {
         kind: "reviewed",
@@ -58,6 +59,7 @@ export const reviewed: Rule = {
         occurredAt: latest.submittedAt,
         waitingSince: null,
         waitingOnAuthor: false,
+        reviewState: approved ? "approved" : "changes_requested",
       },
     ];
   },

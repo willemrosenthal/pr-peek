@@ -5,22 +5,34 @@ import {
   updatePushSubscriptionBody,
   type AppleDeviceDto,
   type AppleDeviceResponse,
+  type AppleTestResponse,
   type PushKeyResponse,
   type PushSubscriptionDto,
   type PushSubscriptionResponse,
   type PushSubscriptionsResponse,
 } from "@pr-peek/core";
 import express, { type Router } from "express";
+import type { Logger } from "pino";
+import type { SendApple } from "../apns";
 import type { Db } from "../db";
 import type { AppleDevice, PushSubscription } from "../generated/prisma/client";
 import { HttpError, parseInput, sentFields } from "../http-error";
+import { NOTIFY_TTL_SECONDS, pushToAppleDevice } from "../push";
+import { pushSamples } from "../push-samples";
+import { userLimiter } from "../rate-limit";
 import { currentUser, requireUser } from "./auth";
 
 export interface PushRouteDeps {
   db: Db;
   // Null when push is off, because the VAPID keys aren't set.
   push: { publicKey: string } | null;
+  // Null when Apple push is off, because the APNs settings aren't set.
+  apple: SendApple | null;
+  logger: Logger;
 }
+
+// "Send a test" sends a burst of pushes, so it's kept to a few a minute.
+const TESTS_PER_MINUTE = 3;
 
 function toDto(row: PushSubscription): PushSubscriptionDto {
   return {
@@ -177,6 +189,49 @@ export function pushRouter(deps: PushRouteDeps): Router {
     const body: AppleDeviceResponse = { device: toAppleDto(saved) };
     res.status(isMine ? 200 : 201).json(body);
   });
+
+  // One sample of each kind to each of the user's iPhone apps, to check the tiles (12.6).
+  router.post(
+    "/apple-devices/test",
+    userLimiter(60 * 1000, TESTS_PER_MINUTE),
+    async (_req, res) => {
+      const { apple } = deps;
+      if (!apple) {
+        throw new HttpError(503, "push_off", "iPhone push isn't set up");
+      }
+      const user = currentUser(res);
+      const phones = await db.appleDevice.findMany({
+        where: { userId: user.id },
+      });
+      if (phones.length === 0) throw notFound();
+
+      const samples = pushSamples(user.login);
+      const options = {
+        ttlSeconds: NOTIFY_TTL_SECONDS,
+        urgency: "high" as const,
+      };
+      // Each phone's samples go one at a time, and stop at a failure, so one bad moment
+      // counts once against the phone, not once per sample.
+      const reached = await Promise.all(
+        phones.map(async (phone) => {
+          for (const sample of samples) {
+            const result = await pushToAppleDevice(
+              deps,
+              apple,
+              phone,
+              sample,
+              options,
+            );
+            if (result !== "sent") return false;
+          }
+          return true;
+        }),
+      );
+      const sent = reached.filter(Boolean).length;
+      const body: AppleTestResponse = { sent, failed: phones.length - sent };
+      res.json(body);
+    },
+  );
 
   // By token, since the app knows its own token, like when signing out.
   router.delete("/apple-devices/:token", async (req, res) => {

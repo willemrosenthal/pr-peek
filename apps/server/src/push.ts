@@ -1,10 +1,27 @@
-import { DESKTOP_ONLINE_MS, type PushPayload } from "@pr-peek/core";
+import {
+  DESKTOP_ONLINE_MS,
+  githubAvatarUrl,
+  type PushPayload,
+} from "@pr-peek/core";
 import type { Logger } from "pino";
 import webpush from "web-push";
 import { isGoneFromApple, type SendApple } from "./apns";
 import type { Config } from "./config";
 import type { Db } from "./db";
 import type { AppleDevice, PushSubscription } from "./generated/prisma/client";
+
+// The picture's size on the iPhone app's notification: 38 points, at 3 pixels each.
+export const PUSH_AVATAR_PX = 120;
+
+// The person who did it, for the iPhone app's notification. Nobody for a bot, which has
+// no face to show: the notification keeps the app icon.
+export const pushActor = (
+  login: string | null,
+  isBot = false,
+): Pick<PushPayload, "actor" | "avatar"> =>
+  login && !isBot
+    ? { actor: login, avatar: githubAvatarUrl(login, PUSH_AVATAR_PX) }
+    : {};
 
 // Failed sends in a row before a device is removed.
 export const MAX_PUSH_FAILURES = 5;
@@ -139,8 +156,8 @@ export const pushToDevice = (
   );
 
 // Sends to one iPhone app. See sendAndTrack.
-const pushToAppleDevice = (
-  deps: PushDeps,
+export const pushToAppleDevice = (
+  deps: Pick<PushDeps, "db" | "logger">,
   apple: SendApple,
   device: AppleDevice,
   payload: PushPayload,
