@@ -1,60 +1,50 @@
 # Git Buddy
 
-Tracks the GitHub PRs that need your attention. A web app (PWA), a Mac menu bar app, and push notifications.
+Git Buddy shows the GitHub pull requests that need you: reviews you owe, replies to your comments, and reviews, comments, or failed checks on your own PRs. It sends a notification when something new needs you, so you don't have to keep checking GitHub.
 
-The code still uses its first name, `pr-peek`, for package names and the repo.
+Use it at **[git-buddy.com](https://www.git-buddy.com)**. Sign in with GitHub.
 
-- What we're building: [docs/overview.md](docs/overview.md)
-- Build plans and status: [docs/README.md](docs/README.md)
-- Security and limits (tokens, logs, audits, Supabase): [docs/security.md](docs/security.md)
+## Install it
 
-## Run it locally
+### Mac menu bar app
 
-### You need
+Your list in the Mac menu bar, with a count next to the icon.
 
-- Node 24 (see `.nvmrc`) and pnpm 9.
-- Docker Desktop, for the local database.
+1. Download the `.dmg` from the [latest release](https://github.com/willemrosenthal/pr-peek/releases/latest).
+2. Open it and drag Git Buddy into Applications.
+3. Open Git Buddy and sign in.
 
-### First time only
+It updates itself.
 
-1. Install packages: `pnpm install`
-2. Copy `.env.example` to `.env` and fill in the empty values. The comments in the file say how.
-3. Start the database: `pnpm db:up`
-4. Set up its tables: `pnpm db:migrate`
+### On your phone
 
-### Every time
+Git Buddy is a web app you can install (a PWA). There's nothing to download from an app store. You add it from your phone's browser, and it gets its own icon on your Home Screen, opens like any other app, and can send notifications.
 
-1. Open Docker Desktop.
-2. Start the database: `pnpm db:up`
-3. Start the app: `pnpm dev`
-4. Open http://localhost:5173
+**iPhone and iPad**
 
-When you're done, stop the app with Ctrl+C. Stop the database with `pnpm db:down`. Your data stays.
+1. Open [git-buddy.com](https://www.git-buddy.com) in Safari.
+2. Tap Share, the square with an arrow.
+3. Tap Add to Home Screen, then Add.
+4. Open Git Buddy from your Home Screen and sign in.
 
-### Ports
+Notifications only work when you open Git Buddy from the Home Screen icon, not from Safari.
 
-| Port | What                                    |
-| ---- | --------------------------------------- |
-| 5173 | The web app. Open this one              |
-| 3001 | The API server. Set by `PORT` in `.env` |
-| 5433 | The database, in Docker                 |
+**Android**
 
-If a port is taken by another app, change `PORT` in `.env`. The web app follows it.
+1. Open [git-buddy.com](https://www.git-buddy.com) in Chrome.
+2. Tap the menu, the three dots.
+3. Tap Install app, or Add to Home screen.
+4. Open Git Buddy from your Home Screen and sign in.
 
-## Other commands
+### In a desktop browser
 
-| Command              | What it does                                     |
-| -------------------- | ------------------------------------------------ |
-| `pnpm test`          | Runs the tests                                   |
-| `pnpm lint`          | Checks the code for mistakes                     |
-| `pnpm typecheck`     | Checks the TypeScript types                      |
-| `pnpm format`        | Formats every file with Prettier                 |
-| `pnpm build`         | Builds everything for production                 |
-| `pnpm desktop`       | Runs the Mac menu bar app (needs `pnpm dev` too) |
-| `pnpm desktop:build` | Builds the Mac menu bar app                      |
-| `pnpm db:migrate`    | Applies new database changes                     |
+You can install Git Buddy the same way on a computer, so it opens in its own window.
 
-## Branches
+- **Chrome or Edge:** open git-buddy.com, then pick Install Git Buddy from the browser menu.
+- **Safari on a Mac:** open git-buddy.com, then choose File, then Add to Dock.
 
-- `main`: work lands here through PRs.
-- `prod`: what's live. Merging `main` into `prod` deploys to Render.
+More help: [git-buddy.com/install](https://www.git-buddy.com/install).
+
+## Working on Git Buddy
+
+See [docs/development.md](docs/development.md).
