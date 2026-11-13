@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import type { Haptic } from "../haptics";
 
 // The iPhone app's plugins (native.ts), faked. Use it with
 // `vi.mock("<path to>/native", () => import("<path to>/test/native"))`, and call
@@ -41,6 +42,13 @@ export const fire = (name: string, event: unknown) =>
 
 // How many listeners are still added.
 export const listenerCount = () => listeners.size;
+
+// Makes the page look like it's inside the iPhone app, like `?shell=ios` does. Test
+// setup clears it after each test.
+export const enterIosApp = () => sessionStorage.setItem("pr-peek:shell", "ios");
+
+// Each native tick asked for, by strength.
+export const nativeHaptic = vi.fn((_kind: Haptic) => Promise.resolve());
 
 export function resetNative() {
   vi.clearAllMocks();

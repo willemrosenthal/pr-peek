@@ -10,7 +10,7 @@ import {
   it,
   vi,
 } from "vitest";
-import { haptic } from "../haptics";
+import { haptic, ticks } from "../test/haptics";
 import {
   drag,
   FAR_ENOUGH,
@@ -18,7 +18,9 @@ import {
   NOT_FAR_ENOUGH,
   stubPointerCapture,
 } from "../test/swipe";
+import { enterIosApp } from "../test/native";
 import {
+  LONG_PRESS_MS,
   PAST_ARMED_MAX_PX,
   ROW_GIVE,
   rowOffset,
@@ -28,10 +30,7 @@ import {
 } from "./SwipeRow";
 import styles from "./SwipeRow.module.css";
 
-vi.mock("../haptics", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../haptics")>()),
-  haptic: vi.fn(),
-}));
+vi.mock("../haptics", () => import("../test/haptics"));
 
 beforeAll(stubPointerCapture);
 // For the timed swipes, which use fake timers.
@@ -222,12 +221,26 @@ describe("SwipeRow", () => {
 
   it("ticks when a swipe acts, not when it springs back", () => {
     vi.useFakeTimers();
-    vi.mocked(haptic).mockClear();
+    haptic.mockClear();
     const { link } = setup();
     slowDrag(link, -40);
     expect(haptic).not.toHaveBeenCalled();
     drag(link, -FAR_ENOUGH);
-    expect(haptic).toHaveBeenCalledTimes(1);
+    expect(ticks()).toEqual(["light"]);
+  });
+
+  it("ticks as a swipe gets far enough instead, in the iPhone app", () => {
+    vi.useFakeTimers();
+    haptic.mockClear();
+    enterIosApp();
+    const { onToggle, link } = setup();
+    hold(link, -FAR_ENOUGH);
+    expect(ticks()).toEqual(["light"]);
+    fireEvent.pointerUp(link, { pointerId: 1 });
+    vi.runAllTimers();
+    // It acted, without a second tick.
+    expect(onToggle).toHaveBeenCalled();
+    expect(ticks()).toEqual(["light"]);
   });
 
   it("lets the list scroll when the move is mostly down", async () => {
@@ -430,6 +443,18 @@ describe("SwipeRow long press", () => {
     fireEvent.pointerUp(link, { pointerId: 1 });
     fireEvent.click(link);
     expect(onLinkClick).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [true, ["firm"]],
+    [false, []],
+  ])("ticks firmly as it opens, in the iPhone app: %s", (inApp, expected) => {
+    haptic.mockClear();
+    if (inApp) enterIosApp();
+    const { link } = setupPress();
+    press(link);
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    expect(ticks()).toEqual(expected);
   });
 
   // True when nothing stopped the selection.

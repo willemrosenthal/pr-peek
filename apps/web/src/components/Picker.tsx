@@ -1,5 +1,6 @@
 import { Select } from "@base-ui/react/select";
 import { Check } from "lucide-react";
+import { haptic } from "../haptics";
 import type { Choice } from "./choice";
 import styles from "./Picker.module.css";
 
@@ -29,7 +30,9 @@ export function Picker<Value extends string>({
       items={options}
       value={value}
       onValueChange={(picked) => {
-        if (picked !== null) onChange(picked);
+        if (picked === null) return;
+        haptic("selection");
+        onChange(picked);
       }}
       disabled={disabled}
     >

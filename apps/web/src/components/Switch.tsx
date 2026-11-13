@@ -1,4 +1,5 @@
 import { Switch as BaseSwitch } from "@base-ui/react/switch";
+import { haptic } from "../haptics";
 import styles from "./Switch.module.css";
 
 export function Switch({
@@ -18,7 +19,10 @@ export function Switch({
       className={styles.root}
       aria-label={label}
       checked={checked}
-      onCheckedChange={onChange}
+      onCheckedChange={(next) => {
+        haptic("selection");
+        onChange(next);
+      }}
       disabled={disabled}
     >
       <BaseSwitch.Thumb className={styles.thumb} />

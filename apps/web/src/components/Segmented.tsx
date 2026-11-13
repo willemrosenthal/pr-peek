@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { cx } from "../cx";
+import { haptic } from "../haptics";
 import type { Choice } from "./choice";
 import styles from "./Segmented.module.css";
 
@@ -36,7 +37,10 @@ export function Segmented<Value extends string>({
             name={name}
             value={option.value}
             checked={option.value === value}
-            onChange={() => onChange(option.value)}
+            onChange={() => {
+              haptic("selection");
+              onChange(option.value);
+            }}
             disabled={disabled}
           />
           {option.label}
