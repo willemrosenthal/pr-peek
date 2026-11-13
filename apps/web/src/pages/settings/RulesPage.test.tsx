@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { haptic } from "../../haptics";
+import { haptic, ticks } from "../../test/haptics";
 import {
   apiError,
   fakeApi,
@@ -12,10 +12,7 @@ import {
 } from "../../test/fake-api";
 import { renderApp } from "../../test/render";
 
-vi.mock("../../haptics", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../haptics")>()),
-  haptic: vi.fn(),
-}));
+vi.mock("../../haptics", () => import("../../test/haptics"));
 
 const defaultRule = (id: string) =>
   settingsResponse().rules.find((rule) => rule.id === id)!;
@@ -111,7 +108,7 @@ describe("the Rules page", () => {
   it("ticks as each choice changes", async () => {
     rulesApi();
     renderApp("/settings/rules");
-    vi.mocked(haptic).mockClear();
+    haptic.mockClear();
 
     await pickUrgency("Reply to my comment", "High");
     await userEvent.click(
@@ -120,11 +117,7 @@ describe("the Rules page", () => {
     await userEvent.click(
       screen.getByRole("switch", { name: "Turn on Mentioned me" }),
     );
-    expect(vi.mocked(haptic).mock.calls).toEqual([
-      ["selection"],
-      ["selection"],
-      ["selection"],
-    ]);
+    expect(ticks()).toEqual(["selection", "selection", "selection"]);
   });
 
   it("includes drafts for review requests", async () => {

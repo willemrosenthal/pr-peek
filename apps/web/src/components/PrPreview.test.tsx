@@ -21,7 +21,7 @@ import {
   onTestFinished,
   vi,
 } from "vitest";
-import { haptic } from "../haptics";
+import { haptic, ticks } from "../test/haptics";
 import { apiError, fakeApi, important, item, json } from "../test/fake-api";
 import { enterIosApp } from "../test/native";
 import {
@@ -33,10 +33,7 @@ import {
 } from "./PrPreview";
 import styles from "./PrPreview.module.css";
 
-vi.mock("../haptics", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../haptics")>()),
-  haptic: vi.fn(),
-}));
+vi.mock("../haptics", () => import("../test/haptics"));
 
 const comment = (
   id: string,
@@ -373,12 +370,13 @@ describe("Open's menu", () => {
 
   it("copies the PR's link from a right click, and says so for a moment", async () => {
     const writeText = stubClipboard();
+    haptic.mockClear();
     const { row, onClose, open } = setupOpen();
     expect(fireEvent.contextMenu(open)).toBe(false);
     fireEvent.click(await screen.findByRole("menuitem", { name: "Copy link" }));
     expect(writeText).toHaveBeenCalledWith(row.pr.url);
     expect(await screen.findByRole("link", { name: "Copied" })).toBeTruthy();
-    expect(haptic).toHaveBeenCalledWith("success");
+    expect(ticks()).toEqual(["success"]);
     // The sheet stays open.
     expect(onClose).not.toHaveBeenCalled();
     // Halfway steps, since this fake clock also moves a little on its own.
@@ -429,17 +427,20 @@ describe("Open's menu", () => {
   });
 
   it.each([
-    [true, [["firm"]]],
+    [true, ["firm"]],
     [false, []],
   ])(
     "ticks firmly as a held finger opens it, in the iPhone app: %s",
-    (inApp, ticks) => {
-      vi.mocked(haptic).mockClear();
+    (inApp, expected) => {
+      haptic.mockClear();
       if (inApp) enterIosApp();
       const { open } = setupOpen();
       fireEvent.touchStart(open, touch(200));
       wait(HOLD_MS);
-      expect(vi.mocked(haptic).mock.calls).toEqual(ticks);
+      expect(ticks()).toEqual(expected);
+      // Android also sends its own long press as a right click, while the finger is down.
+      fireEvent.contextMenu(open);
+      expect(ticks()).toEqual(expected);
     },
   );
 

@@ -330,8 +330,9 @@ function OpenLink({ url }: { url: string }) {
     if (finger.current) {
       cancelHold();
       guardUntil.current = Infinity;
-      // A tick for the hold, where one works while the finger is down.
-      if (canTickAnytime()) haptic("firm");
+      // A tick for the hold, where one works while the finger is down. Once: Android
+      // sends its own long press as a right click after our hold opened the menu.
+      if (!menuOpen && canTickAnytime()) haptic("firm");
     }
     setMenuOpen(true);
   };

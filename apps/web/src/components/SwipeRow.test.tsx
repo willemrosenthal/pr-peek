@@ -10,7 +10,7 @@ import {
   it,
   vi,
 } from "vitest";
-import { haptic } from "../haptics";
+import { haptic, ticks } from "../test/haptics";
 import {
   drag,
   FAR_ENOUGH,
@@ -30,10 +30,7 @@ import {
 } from "./SwipeRow";
 import styles from "./SwipeRow.module.css";
 
-vi.mock("../haptics", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../haptics")>()),
-  haptic: vi.fn(),
-}));
+vi.mock("../haptics", () => import("../test/haptics"));
 
 beforeAll(stubPointerCapture);
 // For the timed swipes, which use fake timers.
@@ -224,21 +221,21 @@ describe("SwipeRow", () => {
 
   it("ticks when a swipe acts, not when it springs back", () => {
     vi.useFakeTimers();
-    vi.mocked(haptic).mockClear();
+    haptic.mockClear();
     const { link } = setup();
     slowDrag(link, -40);
     expect(haptic).not.toHaveBeenCalled();
     drag(link, -FAR_ENOUGH);
-    expect(vi.mocked(haptic).mock.calls).toEqual([["light"]]);
+    expect(ticks()).toEqual(["light"]);
   });
 
   it("also ticks as a swipe gets far enough, in the iPhone app", () => {
     vi.useFakeTimers();
-    vi.mocked(haptic).mockClear();
+    haptic.mockClear();
     enterIosApp();
     const { link } = setup();
     hold(link, -FAR_ENOUGH);
-    expect(vi.mocked(haptic).mock.calls).toEqual([["light"]]);
+    expect(ticks()).toEqual(["light"]);
   });
 
   it("lets the list scroll when the move is mostly down", async () => {
@@ -444,15 +441,15 @@ describe("SwipeRow long press", () => {
   });
 
   it.each([
-    [true, [["firm"]]],
+    [true, ["firm"]],
     [false, []],
-  ])("ticks firmly as it opens, in the iPhone app: %s", (inApp, ticks) => {
-    vi.mocked(haptic).mockClear();
+  ])("ticks firmly as it opens, in the iPhone app: %s", (inApp, expected) => {
+    haptic.mockClear();
     if (inApp) enterIosApp();
     const { link } = setupPress();
     press(link);
     vi.advanceTimersByTime(LONG_PRESS_MS);
-    expect(vi.mocked(haptic).mock.calls).toEqual(ticks);
+    expect(ticks()).toEqual(expected);
   });
 
   // True when nothing stopped the selection.

@@ -1,6 +1,6 @@
 import { fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { haptic } from "../haptics";
+import { haptic, ticks } from "../test/haptics";
 import { enterIosApp } from "../test/native";
 import {
   holdPull,
@@ -11,10 +11,7 @@ import {
 import { MAX_PX, PullToRefresh, pullOffset, RESISTANCE } from "./PullToRefresh";
 import styles from "./PullToRefresh.module.css";
 
-vi.mock("../haptics", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../haptics")>()),
-  haptic: vi.fn(),
-}));
+vi.mock("../haptics", () => import("../test/haptics"));
 
 function setup() {
   const onRefresh = vi.fn();
@@ -183,21 +180,21 @@ describe("usePullToRefresh", () => {
 
 describe("the tick", () => {
   it("comes as the pull crosses the line in the iPhone app, not on letting go", () => {
-    vi.mocked(haptic).mockClear();
+    haptic.mockClear();
     enterIosApp();
     const { page } = setup();
     holdPull(page, PULL_FAR_ENOUGH);
-    expect(vi.mocked(haptic).mock.calls).toEqual([["light"]]);
+    expect(ticks()).toEqual(["light"]);
     fireEvent.touchEnd(page, { touches: [] });
-    expect(vi.mocked(haptic).mock.calls).toEqual([["light"]]);
+    expect(ticks()).toEqual(["light"]);
   });
 
   it("comes on letting go in an iPhone's browser", () => {
-    vi.mocked(haptic).mockClear();
+    haptic.mockClear();
     const { page } = setup();
     holdPull(page, PULL_FAR_ENOUGH);
     expect(haptic).not.toHaveBeenCalled();
     fireEvent.touchEnd(page, { touches: [] });
-    expect(vi.mocked(haptic).mock.calls).toEqual([["light"]]);
+    expect(ticks()).toEqual(["light"]);
   });
 });
