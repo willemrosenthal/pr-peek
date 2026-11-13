@@ -226,6 +226,18 @@ describe("POST /api/auth/signout", () => {
     },
   );
 
+  it("still ends the session when the body doesn't parse", async () => {
+    const { agent } = makeApp();
+    await signIn(agent);
+
+    const res = await agent
+      .post("/api/auth/signout")
+      .set("Origin", APP_URL)
+      .send({ endpoint: 42 });
+    expect(res.status).toBe(204);
+    expect((await agent.get("/api/me")).status).toBe(401);
+  });
+
   it("is blocked from other sites", async () => {
     const { agent } = makeApp();
     await signIn(agent);

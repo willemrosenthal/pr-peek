@@ -25,3 +25,14 @@ it("sends no endpoint from a browser without push", async () => {
   await requestSignOut();
   expect(sentBodies(fetch, "POST /api/auth/signout")).toEqual([{}]);
 });
+
+it("still signs out when the browser's push can't be read", async () => {
+  stubPush();
+  Object.defineProperty(navigator, "serviceWorker", {
+    configurable: true,
+    value: { getRegistration: () => Promise.reject(new Error("no access")) },
+  });
+  const fetch = fakeApi({ "POST /api/auth/signout": noContent });
+  await requestSignOut();
+  expect(sentBodies(fetch, "POST /api/auth/signout")).toEqual([{}]);
+});

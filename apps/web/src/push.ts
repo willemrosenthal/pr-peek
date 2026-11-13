@@ -103,14 +103,18 @@ const MAC_SENT_KEY = "push-on-mac-sent";
 
 // After signing out: this browser drops its subscription, so nothing already on its
 // way shows either. Signing out sent its endpoint, so the server deleted its device.
-// Turning notifications on again subscribes again.
+// Turning notifications on again subscribes again. Never throws: the user is already
+// signed out, and the server sends here no more.
 export async function dropWebPush() {
-  const current = await currentSubscription();
-  if (!current) return;
-  store(SAVED_ENDPOINT_KEY, null);
-  store(MAC_SENT_KEY, null);
-  // Already signed out, and the server sends here no more, so a failure doesn't matter.
-  await current.unsubscribe().catch(() => false);
+  try {
+    const current = await currentSubscription();
+    if (!current) return;
+    store(SAVED_ENDPOINT_KEY, null);
+    store(MAC_SENT_KEY, null);
+    await current.unsubscribe();
+  } catch {
+    // Nothing more to do.
+  }
 }
 
 // Run when the app opens. If the browser replaced its subscription, moves this device to
