@@ -73,14 +73,9 @@ export function createApp(deps: AppDeps): Express {
         // A redirect's Location can hold the OAuth state.
         res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
       },
-      customSuccessObject: (req, _res, line: object) => ({
-        ...line,
-        route: routeOf(req as Request),
-      }),
-      customErrorObject: (req, _res, _err, line: object) => ({
-        ...line,
-        route: routeOf(req as Request),
-      }),
+      customSuccessObject: (req, _res, line: object) => withRoute(req, line),
+      customErrorObject: (req, _res, _err, line: object) =>
+        withRoute(req, line),
     }),
   );
   app.use(
@@ -131,18 +126,27 @@ export function createApp(deps: AppDeps): Express {
   return app;
 }
 
-// What a request was for, safe to log. An API request gives its route's pattern, like
-// /api/apple-devices/:token, never the token itself. A page or file gives its path,
-// which holds nothing private. Neither gives the query.
+const withRoute = (req: object, line: object) => ({
+  ...line,
+  route: routeOf(req as Request),
+});
+
+// What a request was for, safe to log. An API route gives its pattern, like
+// /api/apple-devices/:token, never the token itself. Anything else gives only its
+// first part, like /api/desktop/* when sign in is required first, or /settings/* for
+// a page. That part is always a fixed word in our routes. Never the query.
 function routeOf(req: Request) {
-  const path = req.originalUrl.split("?")[0]!;
   // Express matches routes in any case, so /API/... reaches them too.
-  const lower = path.toLowerCase();
-  if (lower !== API && !lower.startsWith(`${API}/`)) return path;
+  const path = req.originalUrl.split("?")[0]!.toLowerCase();
+  const isApi = path === API || path.startsWith(`${API}/`);
   // Every API router is mounted at /api. Not req.baseUrl: Express clears it when an
-  // error leaves the router.
+  // error leaves the router. Shared checks, like requireUser, run before any route.
   const route = req.route as { path?: unknown } | undefined;
-  return typeof route?.path === "string" ? `${API}${route.path}` : `${API}/*`;
+  if (isApi && typeof route?.path === "string") return `${API}${route.path}`;
+  const prefix = isApi ? API : "";
+  const [first, ...rest] = path.slice(prefix.length).split("/").slice(1);
+  if (!first) return prefix || "/";
+  return `${prefix}/${first}${rest.length ? "/*" : ""}`;
 }
 
 function apiRouter(deps: AppDeps): express.Router {

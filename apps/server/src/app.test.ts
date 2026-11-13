@@ -104,7 +104,7 @@ describe("request logs", () => {
     ]);
   });
 
-  it("logs no headers, and an unknown API path without its parts", async () => {
+  it("logs no headers, and only the first part of a path no route took", async () => {
     const { output, lines } = await logsOf(async (app) => {
       await app.get("/api/auth/github");
       await app
@@ -112,14 +112,20 @@ describe("request logs", () => {
         .set("Authorization", "Bearer secret-token")
         .set("Referer", "https://git-buddy.example/add?url=secret-link");
       await app.get("/add?url=https://github.com/acme/secret-repo/pull/1");
+      await app.get("/acme/secret-repo/pull/1");
+      // Blocked by the same-origin check, before any route.
+      await app.delete("/api/apple-devices/secret-device-token");
     });
 
     expect(output).not.toContain("secret");
     expect(lines.map((line) => line.route)).toEqual([
       "/api/auth/github",
-      "/api/*",
+      "/api/nothing-here/*",
       "/add",
+      "/acme/*",
+      "/api/apple-devices/*",
     ]);
+    expect(lines[4]!.res).toEqual({ statusCode: 403 });
     expect(Object.keys(lines[1]!.req).sort()).toEqual(["id", "ip", "method"]);
     expect(lines[0]!.res).toEqual({ statusCode: 302 });
   });
