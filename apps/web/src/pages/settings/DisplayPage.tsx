@@ -23,6 +23,7 @@ import {
   setScale,
 } from "../../scale";
 import { sectionTitle, showsAuthors } from "../../sections";
+import { appTheme, setTheme, type Theme } from "../../theme";
 import styles from "./DisplayPage.module.css";
 import { SettingsPage, WithSettings } from "./SettingsLayout";
 
@@ -64,6 +65,14 @@ export function DisplayPage() {
         box
       >
         <SectionOrder inCard />
+      </Group>
+      <Group
+        title="Appearance"
+        aside="This device"
+        footer="Automatic follows your device's light or dark mode."
+        box
+      >
+        <ThemeChoice />
       </Group>
       <Group
         title="Size"
@@ -154,6 +163,26 @@ function AuthorPictures({ settings }: { settings: UserSettingsDto }) {
         {save.isError && <Alert>{save.error.message}</Alert>}
       </div>
     </>
+  );
+}
+
+const THEME_CHOICES: Choice<Theme>[] = [
+  { value: "system", label: "Automatic" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
+function ThemeChoice() {
+  const theme = useLocalSetting(appTheme);
+  return (
+    <div className={styles.themeChoice}>
+      <Segmented
+        label="Appearance"
+        value={theme}
+        options={THEME_CHOICES}
+        onChange={setTheme}
+      />
+    </div>
   );
 }
 

@@ -10,6 +10,7 @@ import { startIos } from "./ios";
 import { createRouter } from "./router";
 import { applyScale } from "./scale";
 import { initSentry, reportReactError } from "./sentry";
+import { applyTheme } from "./theme";
 // Starts listening for the browser's install offer. See install.ts.
 import "./install";
 import "./styles/tokens.css";
@@ -18,8 +19,9 @@ import "./styles/global.css";
 // First, so it sees any error from here on.
 initSentry();
 const queryClient = new QueryClient();
-// Before the first render, so the app never shows at the wrong size.
+// Before the first render, so the app never shows at the wrong size or in the wrong mode.
 applyScale();
+applyTheme();
 startDesktop();
 startIos();
 // iPhones ignore the viewport's user-scalable=no, so this stops pinch zoom there.

@@ -20,6 +20,7 @@ import {
 } from "../../test/fake-api";
 import { appScale, NORMAL_SCALE, scaleLabel, SCALES } from "../../scale";
 import { sectionOrder } from "../../sections";
+import { appTheme } from "../../theme";
 import { renderApp } from "../../test/render";
 
 vi.mock("../../haptics", () => import("../../test/haptics"));
@@ -169,6 +170,31 @@ it("sizes the app on this device, once the slider is let go", async () => {
     expect(root.style.getPropertyValue("--scale")).toBe(String(biggest));
   } finally {
     document.documentElement.style.removeProperty("--scale");
+  }
+});
+
+it("picks dark mode on this device, then goes back to the device's own", async () => {
+  fakeApi(signedInApi());
+  renderApp("/settings/display");
+  const root = document.documentElement;
+  const appearance = await screen.findByRole("radiogroup", {
+    name: "Appearance",
+  });
+  const choice = (name: string) =>
+    within(appearance).getByRole<HTMLInputElement>("radio", { name });
+  try {
+    expect(choice("Automatic").checked).toBe(true);
+
+    await userEvent.click(choice("Dark"));
+    expect(appTheme.get()).toBe("dark");
+    expect(root.dataset.theme).toBe("dark");
+    expect(choice("Dark").checked).toBe(true);
+
+    await userEvent.click(choice("Automatic"));
+    expect(appTheme.get()).toBe("system");
+    expect(root.dataset.theme).toBeUndefined();
+  } finally {
+    delete root.dataset.theme;
   }
 });
 

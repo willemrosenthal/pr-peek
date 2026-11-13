@@ -18,6 +18,10 @@
   padding: var(--space-3);
 }
 
+.themeChoice {
+  padding: var(--space-3);
+}
+
 /* A full-width slider between a small and a big A, and the size under it. */
 .size {
   display: flex;
