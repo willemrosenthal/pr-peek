@@ -269,7 +269,7 @@ function Sections({
     [groups, collapsed],
   );
   useMarkSeen(unseenIds);
-  const showAuthors = useSettings().data?.settings.showAuthors ?? "off";
+  const showAuthors = useSettings().data?.settings.showAuthors ?? "all";
   const sections = orderSections(useLocalSetting(sectionOrder));
 
   const { quiet } = groups;

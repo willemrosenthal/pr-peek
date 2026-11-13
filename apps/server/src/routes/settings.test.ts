@@ -79,7 +79,7 @@ describe("GET /api/settings", () => {
       keptDigestTime: null,
       hideBots: false,
       includeTeamRequests: true,
-      showAuthors: "off",
+      showAuthors: "all",
       onboarded: false,
     });
     expect(body.rules).toHaveLength(rules.length);
