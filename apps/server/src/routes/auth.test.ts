@@ -280,9 +280,7 @@ describe("sign-up requests", () => {
     await adminWithPhone();
     const { agent } = makeTestApp(db, { send, routers: [guarded()] });
 
-    // Without signIn, which approves the user itself.
-    const state = await startSignIn(agent);
-    await agent.get(`/api/auth/github/callback?code=the-code&state=${state}`);
+    await signIn(agent);
 
     expect(bodyOf<MeResponse>(await agent.get("/api/me")).pending).toBe(false);
     expect((await agent.get("/api/guarded")).status).toBe(204);
@@ -294,6 +292,15 @@ describe("sign-up requests", () => {
       }),
       expect.anything(),
     );
+  });
+
+  it("keeps letting in approved users after approval is turned on", async () => {
+    const { agent } = makeTestApp(db, { routers: [guarded()] });
+    await signIn(agent);
+    await setApprovesSignUps(db, true);
+
+    await signIn(agent);
+    expect((await agent.get("/api/guarded")).status).toBe(204);
   });
 
   it("tells the sign-in page whether new users wait", async () => {

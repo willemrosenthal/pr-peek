@@ -39,7 +39,8 @@ const FEATURES = [
 
 export function SignIn() {
   const me = useMe();
-  const signUpInfo = useSignUpInfo();
+  // Only signed out. Signing in again needs no approval, and signed in goes to the list.
+  const signUpInfo = useSignUpInfo(me.isError);
   const [params] = useSearchParams();
   // Already the app on this phone.
   const inIosApp = useInIosApp();
@@ -94,16 +95,12 @@ export function SignIn() {
             too. Your GitHub access and the pull requests it finds are kept
             there, encrypted, not on your device.
           </p>
-          {/* Only while an admin approves new users. Signing in again needs no approval.
-              Waits for `me`, so it doesn't flash. */}
-          {signUpInfo.data?.approval &&
-            !me.isPending &&
-            !me.data?.needsReauth && (
-              <p className={styles.hint}>
-                It's invite only for now: signing in sends a request, and you'll
-                get in once it's approved.
-              </p>
-            )}
+          {signUpInfo.data?.approval && (
+            <p className={styles.hint}>
+              It's invite only for now: signing in sends a request, and you'll
+              get in once it's approved.
+            </p>
+          )}
         </section>
 
         <HelpLinks install={!inIosApp} />

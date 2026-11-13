@@ -407,18 +407,19 @@ export function useSyncStatus(
   });
 }
 
-// Sign-up requests waiting for an admin. Asked when the admin page opens, like the
-// overview. The push for a new request opens the page.
 // Whether new users wait for an admin. Anyone can ask, signed in or not.
-export function useSignUpInfo() {
+export function useSignUpInfo(enabled = true) {
   return useQuery({
     queryKey: queryKeys.signUpInfo,
+    enabled,
     queryFn: () => api<SignUpInfoResponse>("/auth/sign-up"),
     refetchOnWindowFocus: false,
     retry: retryServerErrors,
   });
 }
 
+// Sign-up requests waiting for an admin. Asked when the admin page opens, like the
+// overview. The push for a new request opens the page.
 export function useSignUpRequests(enabled = true) {
   return useQuery({
     queryKey: queryKeys.signUpRequests,

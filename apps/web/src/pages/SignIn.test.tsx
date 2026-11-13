@@ -66,6 +66,7 @@ it("lets users whose GitHub sign in stopped working sign in again, with no invit
   expect(await githubLink()).toBeTruthy();
   await waitFor(() => expect(callsTo(fetch, "/api/me")).toHaveLength(1));
   expect(screen.queryByText(INVITE_ONLY)).toBe(null);
+  expect(callsTo(fetch, "/api/auth/sign-up")).toHaveLength(0);
 });
 
 it("shows what Git Buddy does", async () => {
