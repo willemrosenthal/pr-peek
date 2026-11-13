@@ -1,8 +1,8 @@
 import { localSetting } from "./localSetting";
 
 // Light or dark mode, or whichever the device uses.
-export type Theme = "system" | "light" | "dark";
-export const THEMES: readonly Theme[] = ["system", "light", "dark"];
+export const THEMES = ["system", "light", "dark"] as const;
+export type Theme = (typeof THEMES)[number];
 
 // Kept on this device, since each one can have its own mode.
 export const appTheme = localSetting<Theme>(

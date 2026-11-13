@@ -10,7 +10,7 @@ afterEach(() => {
   document.head.innerHTML = "";
 });
 
-// The colors in a CSS block, one per line, without indents.
+// The custom properties set in a CSS block, without indents.
 function colorsIn(selector: string) {
   const start = tokens.indexOf(`${selector} {`);
   const end = tokens.indexOf("}", start);
