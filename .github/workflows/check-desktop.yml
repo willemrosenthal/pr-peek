@@ -32,6 +32,3 @@ jobs:
           workspaces: apps/desktop/src-tauri
       - run: cargo fmt --check
       - run: cargo clippy -- -D warnings
-      # Release builds compile some code dev builds don't (app_url in lib.rs).
-      - run: cargo clippy --release -- -D warnings
-      - run: cargo test

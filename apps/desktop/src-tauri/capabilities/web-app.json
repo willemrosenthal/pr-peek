@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "web-app",
-  "description": "Lets the hosted web app, and only it (dev builds add the local dev server in lib.rs), update the tray, open links, hide the app, and restart it into an update.",
+  "description": "Lets the hosted web app, and only it, update the tray, open links, hide the app, and restart it into an update. Dev builds add the local dev server in lib.rs.",
   "windows": ["main"],
   "local": false,
   "remote": {

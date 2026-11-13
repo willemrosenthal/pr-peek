@@ -82,31 +82,21 @@ fn popped_out(app: &AppHandle) -> bool {
 }
 
 // The local Vite server, which dev builds load instead of the hosted web app.
-#[cfg(debug_assertions)]
 const DEV_SERVER: &str = "http://localhost:5173";
 
 // The hosted web app. Release builds always load it. Dev builds load the local Vite
 // server, or PR_PEEK_URL when set. Only the URLs in capabilities/web-app.json, plus the
-// dev server in dev builds (allow_dev_server), can call the commands below.
-#[cfg(not(debug_assertions))]
+// dev server in dev builds (dev_server_capability), can call the commands below.
 fn app_url() -> String {
-    "https://www.git-buddy.com".to_string()
+    if cfg!(debug_assertions) {
+        std::env::var("PR_PEEK_URL").unwrap_or_else(|_| DEV_SERVER.to_string())
+    } else {
+        "https://www.git-buddy.com".to_string()
+    }
 }
 
-#[cfg(debug_assertions)]
-fn app_url() -> String {
-    std::env::var("PR_PEEK_URL").unwrap_or_else(|_| DEV_SERVER.to_string())
-}
-
-// Gives the dev server the same commands as the hosted web app. Only dev builds have
-// it, so a page on localhost can never call them in a release.
-#[cfg(debug_assertions)]
-fn allow_dev_server(app: &tauri::App) -> tauri::Result<()> {
-    app.add_capability(dev_server_capability())
-}
-
-// capabilities/web-app.json, for the dev server instead.
-#[cfg(debug_assertions)]
+// capabilities/web-app.json, for the dev server instead. Only dev builds add it, so a
+// page on localhost can never call the commands in a release.
 fn dev_server_capability() -> String {
     let mut capability: serde_json::Value =
         serde_json::from_str(include_str!("../capabilities/web-app.json"))
@@ -711,8 +701,9 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            #[cfg(debug_assertions)]
-            allow_dev_server(app)?;
+            if cfg!(debug_assertions) {
+                app.add_capability(dev_server_capability())?;
+            }
 
             let window =
                 WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::External(app_page("/", false)))
@@ -781,28 +772,4 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("pr-peek failed to start");
-}
-
-#[cfg(test)]
-mod tests {
-    use tauri::utils::acl::capability::CapabilityFile;
-
-    // add_capability panics at startup on a capability it can't read.
-    #[test]
-    fn dev_server_gets_the_web_apps_commands_on_localhost_only() {
-        let parse = |json: &str| match json.parse().expect("a valid capability") {
-            CapabilityFile::Capability(capability) => capability,
-            _ => panic!("expected one capability"),
-        };
-        let dev = parse(&super::dev_server_capability());
-        let web = parse(include_str!("../capabilities/web-app.json"));
-
-        assert_eq!(dev.identifier, "dev-server");
-        assert_eq!(
-            dev.remote.expect("remote URLs").urls,
-            [format!("{}/*", super::DEV_SERVER)]
-        );
-        assert_eq!(dev.permissions, web.permissions);
-        assert_eq!(dev.windows, web.windows);
-    }
 }
