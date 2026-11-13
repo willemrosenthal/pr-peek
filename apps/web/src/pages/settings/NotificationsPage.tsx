@@ -4,11 +4,12 @@ import { Alert } from "../../components/Alert";
 import { CardRow } from "../../components/Card";
 import { Input, Select } from "../../components/Field";
 import { Group } from "../../components/Group";
+import { IosNotifications } from "../../components/IosNotifications";
 import { RowText } from "../../components/RowText";
 import { SettingSwitch } from "../../components/SettingSwitch";
 import { Switch } from "../../components/Switch";
 import { TurnOnNotifications } from "../../components/TurnOnNotifications";
-import { useInInstalledApp } from "../../hooks/useIsTray";
+import { useInInstalledApp, useInIosApp } from "../../hooks/useIsTray";
 import { useSettingsSaver } from "../../hooks/useSaveSettings";
 import styles from "./NotificationsPage.module.css";
 import { SettingsPage, WithSettings } from "./SettingsLayout";
@@ -23,8 +24,10 @@ const REMIND_HOURS = [1, 2, 4, 8, 24];
 
 // Whether this device gets notifications, and when to stay quiet.
 export function NotificationsPage() {
-  // Only the installed app sets up notifications. The Mac app notifies on its own.
+  // Only the installed app and the iPhone app set up notifications. The Mac app
+  // notifies on its own.
   const inInstalledApp = useInInstalledApp();
+  const inIosApp = useInIosApp();
 
   return (
     <SettingsPage title="Notifications">
@@ -32,6 +35,13 @@ export function NotificationsPage() {
         <Group title="This device">
           <CardRow>
             <TurnOnNotifications />
+          </CardRow>
+        </Group>
+      )}
+      {inIosApp && (
+        <Group title="This iPhone">
+          <CardRow>
+            <IosNotifications />
           </CardRow>
         </Group>
       )}

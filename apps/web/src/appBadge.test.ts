@@ -1,12 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { setAppBadge } from "./appBadge";
+import * as native from "./test/native";
 
-const native = vi.hoisted(() => ({
-  PrPeek: { setBadge: vi.fn(() => Promise.resolve()) },
-}));
-vi.mock("./native", () => native);
+vi.mock("./native", () => import("./test/native"));
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => native.resetNative());
 
 afterEach(() => {
   history.replaceState(null, "", "/");

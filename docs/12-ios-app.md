@@ -103,12 +103,12 @@ The web's tick (`haptics.ts`) only works right after a tap or a finger lifting, 
 ### 12.4 App push
 
 - [x] Use `@capacitor/push-notifications`: ask for permission, get the token, send it to 12.3's endpoint, with whether it's a development build. The web app loads Capacitor's code only inside the app (`native.ts`). The app's own small plugin (`AppPlugin.swift`, `PrPeek` in the web app) says whether it's an Xcode build, and sets the badge. The token is saved again each time the app opens, since Apple can change it.
-- [ ] Settings, Notifications shows "This iPhone": a Turn on button, On, or "Turned off in iPhone Settings" with a way there. It replaces the web push row in the app. A "Send a test" button sends 12.3's samples.
+- [x] Settings, Notifications shows "This iPhone": a Turn on button, On, or "Turned off in iPhone Settings" with a way there (the app's plugin opens Git Buddy's notification settings). It replaces the web push row in the app. A "Send a test" button sends 12.3's samples. The card is `IosNotifications`.
 - [x] Tapping a notification opens its PR, and marks the item seen, like the service worker does. PRs open in Safari, Git Buddy's own pages in the app.
 - [x] A notification that arrives while the app is open still shows as a banner (`presentationOptions`).
 - [x] The app icon's badge shows the open count, and keeps up as the list changes in the app (`appBadge.ts`), not only when a push arrives.
 - [x] Signing out removes the phone from the server first (`signOut.ts`), so it stops getting that account's notifications.
-- [ ] Onboarding's last step offers to turn on notifications in the app.
+- [x] Onboarding's last step offers to turn on notifications in the app.
 
 ### 12.5 Haptics
 

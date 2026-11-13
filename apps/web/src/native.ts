@@ -10,6 +10,8 @@ interface PrPeekPlugin {
   build(): Promise<{ sandbox: boolean }>;
   // The count on the app's icon. 0 clears it.
   setBadge(options: { count: number }): Promise<void>;
+  // Opens the app's notification settings in iPhone Settings.
+  openSettings(): Promise<void>;
 }
 
 export const PrPeek = registerPlugin<PrPeekPlugin>("PrPeek");

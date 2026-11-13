@@ -11,6 +11,7 @@ public class PrPeekPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "build", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setBadge", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
     ]
 
     // Whether this is an Xcode build. Only Apple's sandbox push service reaches those.
@@ -33,6 +34,19 @@ public class PrPeekPlugin: CAPPlugin, CAPBridgedPlugin {
                 UIApplication.shared.applicationIconBadgeNumber = count
                 call.resolve()
             }
+        }
+    }
+
+    // Opens the app's notification settings in iPhone Settings, or its main page before
+    // iOS 16. For when notifications were turned off there.
+    @objc func openSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            var link = UIApplication.openSettingsURLString
+            if #available(iOS 16.0, *) {
+                link = UIApplication.openNotificationSettingsURLString
+            }
+            guard let url = URL(string: link) else { return call.resolve() }
+            UIApplication.shared.open(url) { _ in call.resolve() }
         }
     }
 }

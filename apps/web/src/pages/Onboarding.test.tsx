@@ -15,8 +15,11 @@ import {
   settingsResponse,
 } from "../test/fake-api";
 import { stubDisplayMode, stubUserAgent, USER_AGENTS } from "../test/install";
+import * as native from "../test/native";
 import { PUBLIC_KEY, stubPush } from "../test/push";
 import { renderApp } from "../test/render";
+
+vi.mock("../native", () => import("../test/native"));
 
 const onboardingApi = (overrides: Handlers = {}) =>
   fakeApi(
@@ -60,15 +63,17 @@ it("offers to turn on notifications at the end, in the installed app", async () 
   expect(screen.queryByRole("heading", { name: "Install the app" })).toBe(null);
 });
 
-it("offers neither the install nor web notifications in the iPhone app", async () => {
-  stubPush();
+// The iPhone's button is tested in NotificationsPage.test.tsx.
+it("offers the iPhone's notifications, not the install, in the iPhone app", async () => {
+  native.resetNative();
+  native.permission.receive = "prompt";
   onboardingApi();
   renderApp("/onboarding?shell=ios");
   await finishSteps();
+  expect(
+    await screen.findByRole("button", { name: "Turn on notifications" }),
+  ).toBeTruthy();
   expect(screen.queryByRole("heading", { name: "Install the app" })).toBe(null);
-  expect(screen.queryByRole("button", { name: "Turn on notifications" })).toBe(
-    null,
-  );
 });
 
 it("offers the install, not notifications, in a browser tab", async () => {
