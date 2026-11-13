@@ -101,7 +101,7 @@ it("signs out and goes to sign in", async () => {
       "GET /api/me": () => (signedIn ? json(me()) : signedOut()),
       "POST /api/auth/signout": () => {
         signedIn = false;
-        return noContent();
+        return json({ deviceRemoved: false });
       },
     }),
   );

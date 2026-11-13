@@ -5,8 +5,17 @@ import {
   NOTIFY_EVENT,
   type SummaryResponse,
 } from "@pr-peek/core";
-import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
-import { makeTestApp, signIn } from "../../test/app";
+import session from "express-session";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
+import { APP_URL, makeTestApp, signIn } from "../../test/app";
 import { createTestDb, resetDb, TEST_DATABASE_URL } from "../../test/db";
 import { NOW } from "../../test/fakes";
 import { itemRows } from "../../test/items";
@@ -42,7 +51,12 @@ afterEach(async () => {
   await listener.stop();
 });
 
-function makeApp(keepAliveMs = 60_000) {
+interface StreamTimes {
+  keepAliveMs?: number;
+  sessionCheckMs?: number;
+}
+
+function makeApp(times: StreamTimes = {}) {
   return makeTestApp(db, {
     routers: [
       streamRouter({
@@ -58,7 +72,7 @@ function makeApp(keepAliveMs = 60_000) {
           },
         },
         signal: shutdown.signal,
-        keepAliveMs,
+        ...times,
         now: () => NOW,
       }),
     ],
@@ -67,8 +81,8 @@ function makeApp(keepAliveMs = 60_000) {
 
 // Signs in and opens the stream on a real port, since supertest can't read a stream
 // that never ends.
-async function openStream(keepAliveMs?: number) {
-  const { app, agent } = makeApp(keepAliveMs);
+async function openStream(times: StreamTimes = {}) {
+  const { app, agent } = makeApp(times);
   const signedIn = await signIn(agent);
   const cookie = (signedIn.headers["set-cookie"] as unknown as string[])
     .map((header) => header.split(";")[0])
@@ -98,7 +112,13 @@ async function openStream(keepAliveMs?: number) {
   }
 
   const user = await db.user.findFirstOrThrow();
-  return { headers: res.headers, next, user, leave: () => client.abort() };
+  return {
+    headers: res.headers,
+    next,
+    user,
+    agent,
+    leave: () => client.abort(),
+  };
 }
 
 const publish = (userId: string) =>
@@ -156,8 +176,41 @@ it("passes notifications on for the Mac menu bar app", async () => {
 });
 
 it("sends a keep-alive comment while quiet", async () => {
-  const stream = await openStream(10);
+  const stream = await openStream({ keepAliveMs: 10 });
   expect(await stream.next()).toBe(": ping\n\n");
+});
+
+it("keeps the stream open while the session is signed in", async () => {
+  const stream = await openStream({ keepAliveMs: 30, sessionCheckMs: 10 });
+  // Several session checks pass before each ping.
+  expect(await stream.next()).toBe(": ping\n\n");
+  expect(await stream.next()).toBe(": ping\n\n");
+  expect(listening).toBe(1);
+});
+
+it("ends the stream once its session signs out", async () => {
+  const stream = await openStream({ sessionCheckMs: 10 });
+  const res = await stream.agent
+    .post("/api/auth/signout")
+    .set("Origin", APP_URL);
+  expect(res.status).toBe(200);
+  await expect(stream.next()).rejects.toThrow("The stream ended");
+  await vi.waitFor(() => expect(listening).toBe(0));
+});
+
+it("keeps the stream open when the session store can't be read", async () => {
+  const stream = await openStream({ keepAliveMs: 30, sessionCheckMs: 10 });
+  // The test app keeps sessions in express-session's memory store.
+  const get = vi
+    .spyOn(session.MemoryStore.prototype, "get")
+    .mockImplementation((_sid, callback) =>
+      callback(new Error("database down")),
+    );
+  onTestFinished(() => get.mockRestore());
+  expect(await stream.next()).toBe(": ping\n\n");
+  expect(await stream.next()).toBe(": ping\n\n");
+  expect(get).toHaveBeenCalled();
+  expect(listening).toBe(1);
 });
 
 it("stops listening when the client leaves", async () => {

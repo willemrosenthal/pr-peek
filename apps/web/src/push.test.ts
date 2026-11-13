@@ -1,7 +1,21 @@
 import { describe, expect, it, onTestFinished } from "vitest";
 import { stubDisplayMode, stubUserAgent, USER_AGENTS } from "./test/install";
-import { stubPush } from "./test/push";
-import { deviceLabel, onMac, pushSupport } from "./push";
+import { stubPush, THIS_ENDPOINT } from "./test/push";
+import {
+  deviceLabel,
+  onMac,
+  pauseWebPush,
+  pushSupport,
+  resumeWebPush,
+} from "./push";
+import {
+  apiError,
+  device,
+  fakeApi,
+  json,
+  offline,
+  sentBodies,
+} from "./test/fake-api";
 
 describe("deviceLabel", () => {
   it.each([
@@ -54,5 +68,63 @@ describe("pushSupport", () => {
 
   it("is missing in browsers without push", () => {
     expect(pushSupport()).toBe("unsupported");
+  });
+});
+
+describe("resumeWebPush", () => {
+  const USER = "user-1";
+  const saved = () =>
+    json({ subscription: device({ endpoint: THIS_ENDPOINT }) }, 201);
+
+  it("saves the device again for the user who signed out", async () => {
+    const push = stubPush({ subscribed: THIS_ENDPOINT });
+    pauseWebPush(USER);
+    const fetch = fakeApi({ "POST /api/push/subscriptions": saved });
+
+    expect(await resumeWebPush(USER)).toBe(true);
+    expect(sentBodies(fetch, "POST /api/push/subscriptions")).toEqual([
+      expect.objectContaining({ endpoint: THIS_ENDPOINT }),
+    ]);
+    expect(push.subscription()?.endpoint).toBe(THIS_ENDPOINT);
+    // Only once.
+    expect(await resumeWebPush(USER)).toBe(false);
+  });
+
+  it("drops it when someone else signs in", async () => {
+    const push = stubPush({ subscribed: THIS_ENDPOINT });
+    pauseWebPush(USER);
+    const fetch = fakeApi({});
+
+    expect(await resumeWebPush("someone-else")).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(push.subscription()).toBeNull();
+  });
+
+  it("tries again on the next open when the server can't be reached", async () => {
+    stubPush({ subscribed: THIS_ENDPOINT });
+    pauseWebPush(USER);
+    fakeApi({ "POST /api/push/subscriptions": offline });
+    await expect(resumeWebPush(USER)).rejects.toThrow();
+
+    fakeApi({ "POST /api/push/subscriptions": saved });
+    expect(await resumeWebPush(USER)).toBe(true);
+  });
+
+  it("stays off when the server says no", async () => {
+    stubPush({ subscribed: THIS_ENDPOINT });
+    pauseWebPush(USER);
+    fakeApi({
+      "POST /api/push/subscriptions": () =>
+        apiError(429, "too_many", "Too many devices"),
+    });
+    await expect(resumeWebPush(USER)).rejects.toThrow();
+    expect(await resumeWebPush(USER)).toBe(false);
+  });
+
+  it("does nothing when nothing was paused", async () => {
+    stubPush({ subscribed: THIS_ENDPOINT });
+    const fetch = fakeApi({});
+    expect(await resumeWebPush(USER)).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

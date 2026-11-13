@@ -43,8 +43,8 @@ export function AccountPage() {
       <Group label="Sign out">
         <ActionRow
           label="Sign out"
-          onClick={() => signOut.mutate()}
-          disabled={signOut.isPending}
+          onClick={() => user && signOut.mutate(user.id)}
+          disabled={!user || signOut.isPending}
         />
         {signOut.isError && <Alert>{signOut.error.message}</Alert>}
       </Group>

@@ -28,7 +28,7 @@ export function SignUpPending({
     await navigate("/signin", { replace: true });
   };
   const signOut = useMutation({
-    mutationFn: requestSignOut,
+    mutationFn: () => requestSignOut(user.id),
     onSuccess: leave,
   });
   const withdraw = useMutation({

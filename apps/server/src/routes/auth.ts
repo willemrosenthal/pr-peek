@@ -1,5 +1,9 @@
 import { randomBytes } from "node:crypto";
-import type { MeResponse } from "@pr-peek/core";
+import {
+  signOutBody,
+  type MeResponse,
+  type SignOutResponse,
+} from "@pr-peek/core";
 import express, {
   type RequestHandler,
   type Response,
@@ -133,10 +137,23 @@ export function authRouter(deps: AuthDeps): Router {
     }
   });
 
+  // Signs out. With this browser's push endpoint, its device stops getting the user's
+  // notifications too, and the answer says whether it was theirs. Done here, not
+  // through /push, so a waiting sign-up can do it. A body that doesn't parse still signs
+  // out.
   router.post("/auth/signout", async (req, res) => {
+    const endpoint = signOutBody.safeParse(req.body).data?.endpoint;
+    const userId = req.session.userId;
+    const { count } =
+      endpoint && userId
+        ? await deps.db.pushSubscription.deleteMany({
+            where: { endpoint, userId },
+          })
+        : { count: 0 };
     await destroySession(req);
     res.clearCookie(SESSION_COOKIE);
-    res.sendStatus(204);
+    const body: SignOutResponse = { deviceRemoved: count > 0 };
+    res.json(body);
   });
 
   // Pushes a new sign-up request to the admins.

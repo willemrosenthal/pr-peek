@@ -2,7 +2,7 @@ import type {
   PushSubscriptionResponse,
   PushSubscriptionsResponse,
 } from "@pr-peek/core";
-import { api } from "./api";
+import { api, ApiError } from "./api";
 import { detectPlatform, isStandalone } from "./install";
 import { store, stored } from "./storage";
 
@@ -69,6 +69,11 @@ export async function turnOnPush(publicKey: string) {
     userVisibleOnly: true,
     applicationServerKey: keyBytes(publicKey),
   });
+  return saveDevice(subscription);
+}
+
+// Saves this browser's subscription as one of the user's devices.
+async function saveDevice(subscription: PushSubscription) {
   const { subscription: device } = await api<PushSubscriptionResponse>(
     "/push/subscriptions",
     {
@@ -100,6 +105,56 @@ export async function thisDeviceEndpoint() {
 const SAVED_ENDPOINT_KEY = "push-endpoint";
 // The endpoint whose device the server knows is or isn't on a Mac.
 const MAC_SENT_KEY = "push-on-mac-sent";
+
+// Who this browser's notifications were paused for, when they signed out.
+const PAUSED_FOR_KEY = "pr-peek:push-paused-for";
+
+// After signing out, when the server removed this browser's device: the browser keeps
+// its subscription, so signing in again as the same user turns notifications back on
+// (resumeWebPush). Nothing reaches it meanwhile, since the server has no device to send
+// to.
+export function pauseWebPush(userId: string) {
+  store(PAUSED_FOR_KEY, userId);
+}
+
+// Drops this browser's subscription, so it gets nothing at all. Turning notifications
+// on again subscribes again. Never throws: it's only tidying up.
+export async function dropWebPush() {
+  store(PAUSED_FOR_KEY, null);
+  try {
+    const current = await currentSubscription();
+    if (!current) return;
+    store(SAVED_ENDPOINT_KEY, null);
+    store(MAC_SENT_KEY, null);
+    await current.unsubscribe();
+  } catch {
+    // Nothing more to do.
+  }
+}
+
+// Run when the app opens. If this browser's notifications were paused when this user
+// signed out, saves it as their device again. If someone else signed in, drops it, so
+// nothing of the other user's can reach them. Returns true if it saved the device.
+export async function resumeWebPush(userId: string): Promise<boolean> {
+  const pausedFor = stored(PAUSED_FOR_KEY);
+  if (!pausedFor) return false;
+  const current = await currentSubscription();
+  // Turned off in the browser meanwhile, or someone else.
+  if (!current || pausedFor !== userId) {
+    await dropWebPush();
+    return false;
+  }
+  try {
+    await saveDevice(current);
+  } catch (err) {
+    // The server said no, like too many devices: stays off. Offline: the next open
+    // tries again.
+    if (err instanceof ApiError) store(PAUSED_FOR_KEY, null);
+    throw err;
+  }
+  store(PAUSED_FOR_KEY, null);
+  return true;
+}
 
 // Run when the app opens. If the browser replaced its subscription, moves this device to
 // the new one. Tells the server once whether the device is on a Mac, for devices saved

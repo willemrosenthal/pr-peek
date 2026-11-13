@@ -1,4 +1,4 @@
-import type { MeResponse } from "@pr-peek/core";
+import type { MeResponse, SignOutResponse } from "@pr-peek/core";
 import express from "express";
 import type request from "supertest";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +6,7 @@ import {
   APP_URL,
   bodyOf,
   makeTestApp,
+  type Agent,
   signIn,
   startSignIn,
 } from "../../test/app";
@@ -181,12 +182,63 @@ describe("GET /api/me", () => {
 });
 
 describe("POST /api/auth/signout", () => {
+  const signOut = (agent: Agent, body?: object) =>
+    agent.post("/api/auth/signout").set("Origin", APP_URL).send(body);
+
   it("ends the session", async () => {
     const { agent } = makeApp();
     await signIn(agent);
 
-    const res = await agent.post("/api/auth/signout").set("Origin", APP_URL);
-    expect(res.status).toBe(204);
+    const res = await signOut(agent);
+    expect(res.status).toBe(200);
+    expect(bodyOf<SignOutResponse>(res)).toEqual({ deviceRemoved: false });
+    expect((await agent.get("/api/me")).status).toBe(401);
+  });
+
+  it.each([false, true])(
+    "deletes this browser's push device, only the user's own (waiting: %s)",
+    async (pending) => {
+      const { agent } = makeApp();
+      await signIn(agent, { pending });
+      const user = await db.user.findFirstOrThrow();
+      const other = await db.user.create({
+        data: { githubId: 43, login: "other" },
+      });
+      const keys = { p256dh: "p", auth: "a" };
+      const browser = "https://fcm.googleapis.com/fcm/send/browser";
+      await db.pushSubscription.createMany({
+        data: [
+          { userId: user.id, endpoint: browser, ...keys },
+          { userId: user.id, endpoint: `${browser}-phone`, ...keys },
+          { userId: other.id, endpoint: `${browser}-other`, ...keys },
+        ],
+      });
+
+      const mine = await signOut(agent, { endpoint: browser });
+      expect(bodyOf<SignOutResponse>(mine)).toEqual({ deviceRemoved: true });
+      // Someone else's endpoint is left alone, even if sent.
+      await signIn(agent, { pending });
+      const theirs = await signOut(agent, { endpoint: `${browser}-other` });
+      expect(bodyOf<SignOutResponse>(theirs)).toEqual({
+        deviceRemoved: false,
+      });
+
+      const left = await db.pushSubscription.findMany({
+        orderBy: { endpoint: "asc" },
+      });
+      expect(left.map((device) => device.endpoint)).toEqual([
+        `${browser}-other`,
+        `${browser}-phone`,
+      ]);
+    },
+  );
+
+  it("still ends the session when the body doesn't parse", async () => {
+    const { agent } = makeApp();
+    await signIn(agent);
+
+    const res = await signOut(agent, { endpoint: 42 });
+    expect(res.status).toBe(200);
     expect((await agent.get("/api/me")).status).toBe(401);
   });
 
