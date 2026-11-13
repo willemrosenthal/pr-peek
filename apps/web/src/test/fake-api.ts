@@ -27,11 +27,17 @@ export const unknownRequests: string[] = [];
 // Fake answers, keyed like "GET /api/me". A promise holds the request open.
 export type Handlers = Record<string, () => Response | Promise<Response>>;
 
+// Answers every test gets unless it gives its own: the sign-in page asks this signed out.
+const defaultHandlers: Handlers = {
+  "GET /api/auth/sign-up": () => json({ approval: false }),
+};
+
 // Fakes the API.
 export function fakeApi(handlers: Handlers) {
+  const all = { ...defaultHandlers, ...handlers };
   const fetch = vi.fn((url: string, init: RequestInit = {}) => {
     const key = `${init.method ?? "GET"} ${url}`;
-    const handler = handlers[key];
+    const handler = all[key];
     if (!handler) {
       unknownRequests.push(key);
       return Promise.reject(new Error(`No fake for ${key}`));

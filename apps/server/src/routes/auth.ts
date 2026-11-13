@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { MeResponse } from "@pr-peek/core";
+import type { MeResponse, SignUpInfoResponse } from "@pr-peek/core";
 import express, {
   type RequestHandler,
   type Response,
@@ -7,6 +7,7 @@ import express, {
 } from "express";
 import type { Logger } from "pino";
 import { awakeAdmins, pushToAdmins } from "../admin-push";
+import { approvesSignUps } from "../app-settings";
 import type { SendApple } from "../apns";
 import type { Db } from "../db";
 import type { User } from "../generated/prisma/client";
@@ -108,20 +109,23 @@ export function authRouter(deps: AuthDeps): Router {
     try {
       const tokens = await deps.oauth.exchangeCode(code, callbackUrl);
       const githubUser = await deps.oauth.getUser(tokens.accessToken);
+      // With approval off, a new user is let in right away.
+      const approval = await approvesSignUps(deps.db);
       const { user, isNew } = await upsertGitHubUser(
         deps.db,
         githubUser,
         tokens,
         deps.key,
+        approval ? null : now(),
       );
 
       await regenerateSession(req);
       req.session.userId = user.id;
       await saveSession(req);
-      // A failed push shouldn't fail sign in. The request still shows on the admin page.
+      // A failed push shouldn't fail sign in. A request still shows on the admin page.
       if (isNew) {
-        await askAdmins(user).catch((err: unknown) => {
-          req.log.warn({ err }, "sign-up request push failed");
+        await tellAdmins(user, approval).catch((err: unknown) => {
+          req.log.warn({ err }, "sign-up push failed");
         });
       }
       res.redirect(isNew ? "/onboarding" : "/");
@@ -139,8 +143,16 @@ export function authRouter(deps: AuthDeps): Router {
     res.sendStatus(204);
   });
 
-  // Pushes a new sign-up request to the admins.
-  async function askAdmins(user: User) {
+  // Whether signing up waits for an admin, so the sign-in page can say so.
+  router.get("/auth/sign-up", async (_req, res) => {
+    const body: SignUpInfoResponse = {
+      approval: await approvesSignUps(deps.db),
+    };
+    res.json(body);
+  });
+
+  // Pushes a new user to the admins: a request to approve, or that they joined.
+  async function tellAdmins(user: User, approval: boolean) {
     if (!deps.send) return;
     const at = now();
     const admins = await awakeAdmins(deps.db, deps.logger, at);
@@ -148,8 +160,10 @@ export function authRouter(deps: AuthDeps): Router {
       { db: deps.db, send: deps.send, apple: deps.apple, logger: deps.logger },
       admins,
       {
-        title: "Git Buddy sign-up request",
-        body: `${user.login} asked to use Git Buddy.`,
+        title: approval ? "Git Buddy sign-up request" : "New Git Buddy user",
+        body: approval
+          ? `${user.login} asked to use Git Buddy.`
+          : `${user.login} signed up for Git Buddy.`,
         url: "/settings/admin",
         tag: `signup-${user.id}`,
       },

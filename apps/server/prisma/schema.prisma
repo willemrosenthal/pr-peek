@@ -396,3 +396,12 @@ model UsageStat {
 
   @@id([bucket, source, metric, key])
 }
+
+// Settings for the whole app, set on the admin page. One row, with id "app". Read
+// through app-settings.ts, which gives the defaults while the row doesn't exist.
+model AppSettings {
+  id             String   @id @default("app")
+  // On: new users wait until an admin approves them. Off: they're let in right away.
+  approveSignUps Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+}

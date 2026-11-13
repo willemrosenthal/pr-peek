@@ -10,6 +10,12 @@ export const githubTokenBody = z.object({
 });
 export type GitHubTokenBody = z.infer<typeof githubTokenBody>;
 
+// From GET /api/auth/sign-up, for the sign-in page. Anyone can ask.
+export interface SignUpInfoResponse {
+  // Whether a new user waits for an admin to approve them.
+  approval: boolean;
+}
+
 export interface MeResponse {
   user: {
     id: string;

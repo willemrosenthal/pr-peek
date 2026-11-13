@@ -1,4 +1,4 @@
-import type { MeResponse } from "@pr-peek/core";
+import type { MeResponse, SignUpInfoResponse } from "@pr-peek/core";
 import express from "express";
 import type request from "supertest";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,6 +17,7 @@ import {
   NOW,
   TEST_KEY,
 } from "../../test/fakes";
+import { setApprovesSignUps } from "../app-settings";
 import { GitHubAuthError } from "../github/oauth";
 import type { SendPush } from "../push";
 import { upsertGitHubUser } from "../users";
@@ -272,6 +273,44 @@ describe("sign-up requests", () => {
     // Signing in again while waiting isn't a new request.
     await signIn(agent, { pending: true });
     expect(send).toHaveBeenCalledOnce();
+  });
+
+  it("lets a new user in right away while approval is off, and tells the admins", async () => {
+    const send = vi.fn<SendPush>(() => Promise.resolve());
+    await adminWithPhone();
+    const { agent } = makeTestApp(db, { send, routers: [guarded()] });
+
+    await signIn(agent);
+
+    expect(bodyOf<MeResponse>(await agent.get("/api/me")).pending).toBe(false);
+    expect((await agent.get("/api/guarded")).status).toBe(204);
+    expect(send).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      expect.objectContaining({
+        title: "New Git Buddy user",
+        body: "octocat signed up for Git Buddy.",
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("keeps letting in approved users after approval is turned on", async () => {
+    const { agent } = makeTestApp(db, { routers: [guarded()] });
+    await signIn(agent);
+    await setApprovesSignUps(db, true);
+
+    await signIn(agent);
+    expect((await agent.get("/api/guarded")).status).toBe(204);
+  });
+
+  it("tells the sign-in page whether new users wait", async () => {
+    const { agent } = makeTestApp(db);
+    const approval = async () =>
+      bodyOf<SignUpInfoResponse>(await agent.get("/api/auth/sign-up")).approval;
+
+    expect(await approval()).toBe(false);
+    await setApprovesSignUps(db, true);
+    expect(await approval()).toBe(true);
   });
 });
 

@@ -1,4 +1,3 @@
-import type { MeResponse } from "@pr-peek/core";
 import type { Router } from "express";
 import { pino } from "pino";
 import request from "supertest";
@@ -6,6 +5,7 @@ import { expect } from "vitest";
 import { createApp } from "../src/app";
 import type { Db } from "../src/db";
 import type { SendPush } from "../src/push";
+import { setApprovesSignUps } from "../src/app-settings";
 import { authRouter } from "../src/routes/auth";
 import { sessionMiddleware } from "../src/session";
 import { fakeOAuth, TEST_KEY } from "./fakes";
@@ -46,7 +46,7 @@ export function makeTestApp(
   return { app, agent, oauth };
 }
 
-// Each test client's database, so `signIn` can approve the user.
+// Each test client's database, so `signIn` can turn on approving sign-ups.
 const databases = new WeakMap<object, Db>();
 
 export type Agent = ReturnType<typeof makeTestApp>["agent"];
@@ -65,20 +65,11 @@ export async function startSignIn(agent: Agent): Promise<string> {
   );
 }
 
-// Signs in as the fake GitHub user (octocat), approved unless `pending`.
+// Signs in as the fake GitHub user (octocat). A new user gets in right away, since
+// approving sign-ups starts off. `pending` turns it on first, so a new user waits.
 export async function signIn(agent: Agent, { pending = false } = {}) {
-  const state = await startSignIn(agent);
-  const res = await agent.get(
-    `/api/auth/github/callback?code=the-code&state=${state}`,
-  );
   const db = databases.get(agent);
-  if (pending || !db) return res;
-  const me = await agent.get("/api/me");
-  if (me.ok) {
-    await db.user.update({
-      where: { id: bodyOf<MeResponse>(me).user.id },
-      data: { approvedAt: new Date() },
-    });
-  }
-  return res;
+  if (pending && db) await setApprovesSignUps(db, true);
+  const state = await startSignIn(agent);
+  return agent.get(`/api/auth/github/callback?code=the-code&state=${state}`);
 }

@@ -11,6 +11,7 @@ import type {
   RepoOwnersResponse,
   SearchReposResponse,
   SettingsResponse,
+  SignUpInfoResponse,
   SignUpRequestsResponse,
   SummaryResponse,
   SyncStatusResponse,
@@ -43,6 +44,7 @@ export const queryKeys = {
   githubTokens: ["github-tokens"],
   adminOverview: ["admin-overview"],
   signUpRequests: ["sign-up-requests"],
+  signUpInfo: ["sign-up-info"],
   settings: ["settings"],
   pushKey: ["push-key"],
   devices: ["devices"],
@@ -402,6 +404,17 @@ export function useSyncStatus(
     queryFn: () => api<SyncStatusResponse>("/sync/status"),
     refetchInterval,
     enabled,
+  });
+}
+
+// Whether new users wait for an admin. Anyone can ask, signed in or not.
+export function useSignUpInfo(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.signUpInfo,
+    enabled,
+    queryFn: () => api<SignUpInfoResponse>("/auth/sign-up"),
+    refetchOnWindowFocus: false,
+    retry: retryServerErrors,
   });
 }
 
