@@ -1,5 +1,6 @@
 import type { AppleDeviceResponse } from "@pr-peek/core";
 import { api, ApiError } from "./api";
+import { notificationLink } from "./notificationLink";
 import { deviceLabel } from "./push";
 import { store, stored } from "./storage";
 
@@ -13,6 +14,7 @@ const TOKEN_KEY = "pr-peek:apple-token";
 // What a notification carries for a tap (apns.ts).
 interface TapData {
   url?: unknown;
+  prId?: unknown;
   itemId?: unknown;
 }
 
@@ -96,16 +98,23 @@ async function saveToken(token: string) {
   store(TOKEN_KEY, token);
 }
 
-// Like the web's service worker: opens the notification's link, and marks its item seen.
-// Git Buddy's own pages open in the app. PRs open in Safari, or the GitHub app.
-function openTapped({ url, itemId }: TapData, open: (path: string) => void) {
+// Like the web's service worker: opens the PR's preview, or the notification's link, and
+// marks its item seen. Git Buddy's own pages open in the app. Other links open in Safari.
+function openTapped(
+  { url, prId, itemId }: TapData,
+  open: (path: string) => void,
+) {
   if (typeof itemId === "string") {
     api("/items/seen", { method: "POST", body: { ids: [itemId] } }).catch(
       () => undefined,
     );
   }
   if (typeof url !== "string") return;
-  const target = new URL(url, location.origin);
+  const link = notificationLink({
+    url,
+    ...(typeof prId === "string" && { prId }),
+  });
+  const target = new URL(link, location.origin);
   if (target.origin === location.origin) {
     open(target.pathname + target.search + target.hash);
   } else {

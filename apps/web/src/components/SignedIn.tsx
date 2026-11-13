@@ -9,6 +9,7 @@ import {
   inDesktopApp,
   setTrayState,
 } from "../desktop";
+import { useDesktopOpen } from "../hooks/useDesktopOpen";
 import { useIosPush } from "../hooks/useIosPush";
 import { useLiveUpdates } from "../hooks/useLiveUpdates";
 import { useLocalSetting } from "../localSetting";
@@ -20,6 +21,7 @@ import { useReloadDevices, useSummary } from "../queries";
 export function SignedIn() {
   useLiveUpdates();
   useIosPush();
+  useDesktopOpen();
   const summary = useSummary().data;
   const style = useLocalSetting(countStyle);
   const colored = useLocalSetting(coloredIcon);

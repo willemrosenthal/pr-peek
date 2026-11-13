@@ -100,6 +100,7 @@ export function apnsBody(payload: PushPayload) {
       "mutable-content": 1,
     },
     url: payload.url,
+    ...(payload.prId && { prId: payload.prId }),
     ...(payload.itemId && { itemId: payload.itemId }),
     ...(payload.kind && { kind: payload.kind }),
     ...(payload.actor && { actor: payload.actor }),

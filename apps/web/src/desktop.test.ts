@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  pageToOpen,
   setTrayState,
   startDesktop,
   trayIcon,
@@ -10,6 +11,8 @@ import {
 import { summary } from "./test/fake-api";
 import { callsOf, stubTauri } from "./test/tauri";
 import { clickLink } from "./test/clicks";
+
+const PR = "https://github.com/acme/web-app/pull/7";
 
 describe("the menu bar", () => {
   const counts = summary({ total: 7, review: 3, replies: 1, mine: 3 });
@@ -92,6 +95,37 @@ describe("startDesktop", () => {
     } finally {
       stop();
     }
+  });
+
+  it("asks a click on a PR's notification to open its preview", () => {
+    const invoke = stubTauri();
+    const stop = startDesktop();
+    try {
+      const payload = {
+        title: "t",
+        body: "b",
+        url: PR,
+        prId: "pr-1",
+        tag: "i",
+      };
+      window.dispatchEvent(
+        new CustomEvent("pr-peek:notify", { detail: payload }),
+      );
+      expect(callsOf(invoke, "notify")).toEqual([
+        { alert: { title: "t", body: "b", url: PR, open: "/?pr=pr-1" } },
+      ]);
+    } finally {
+      stop();
+    }
+  });
+
+  it.each([
+    ["/?pr=pr-1", "/?pr=pr-1"],
+    ["//evil.example", null],
+    ["https://evil.example", null],
+    [42, null],
+  ])("opens only app pages from a click: %o", (detail, page) => {
+    expect(pageToOpen(new CustomEvent("pr-peek:open", { detail }))).toBe(page);
   });
 
   it("does nothing in a browser", () => {

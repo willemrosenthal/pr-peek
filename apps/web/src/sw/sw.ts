@@ -7,6 +7,7 @@ import {
 } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
 import { setBadge } from "../badge";
+import { notificationLink } from "../notificationLink";
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -27,8 +28,11 @@ type NotificationData = Pick<PushPayload, "url" | "itemId">;
 self.addEventListener("push", (event) => {
   const payload = event.data?.json() as PushPayload | undefined;
   if (!payload) return;
-  const { url, itemId, badge } = payload;
-  const data: NotificationData = { url, ...(itemId && { itemId }) };
+  const { itemId, badge } = payload;
+  const data: NotificationData = {
+    url: notificationLink(payload),
+    ...(itemId && { itemId }),
+  };
   event.waitUntil(
     Promise.all([
       self.registration.showNotification(payload.title, {
