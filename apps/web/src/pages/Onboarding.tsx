@@ -8,13 +8,14 @@ import { Alert } from "../components/Alert";
 import { Button } from "../components/Button";
 import { Card, CardRow } from "../components/Card";
 import { InstallHere } from "../components/InstallSteps";
+import { IosNotifications } from "../components/IosNotifications";
 import { RepoPicker } from "../components/RepoPicker";
 import { RepoTokenNote } from "../components/RepoTokenNote";
 import { SelectField } from "../components/Field";
 import { TurnOnNotifications } from "../components/TurnOnNotifications";
 import { WatchedRepos } from "../components/WatchedRepos";
 import { cx } from "../cx";
-import { useInNativeApp } from "../hooks/useIsTray";
+import { useInIosApp, useInNativeApp } from "../hooks/useIsTray";
 import { useSaveSettings } from "../hooks/useSaveSettings";
 import { detectPlatform, isStandalone } from "../install";
 import { useGitHubTokens, useRepos } from "../queries";
@@ -291,12 +292,20 @@ function TimezoneStep({ onNext }: { onNext: () => void }) {
 function DoneStep() {
   const navigate = useNavigate();
   const inNativeApp = useInNativeApp();
+  const inIosApp = useInIosApp();
   return (
     <section className={styles.step}>
       <h2 className={styles.stepTitle}>You're set</h2>
       <p className={styles.hint}>Your list fills in within a minute.</p>
-      {/* The Mac and iPhone apps notify on their own. Elsewhere, notifications come
-          with the installed app, so a browser tab offers the install first. */}
+      {inIosApp && (
+        <>
+          <h3 className={styles.subTitle}>Get notifications</h3>
+          <IosNotifications />
+        </>
+      )}
+      {/* The Mac and iPhone apps don't need installing, and the Mac app notifies on its
+          own. Elsewhere, notifications come with the installed app, so a browser tab
+          offers the install first. */}
       {!inNativeApp &&
         (isStandalone() ? (
           <>

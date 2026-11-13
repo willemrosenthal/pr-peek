@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { forgetIosPush, startIosPush, turnOnIosPush } from "./iosPush";
+import {
+  forgetIosPush,
+  iosPushStatus,
+  openIosSettings,
+  startIosPush,
+  turnOnIosPush,
+} from "./iosPush";
 import { USER_AGENTS, stubUserAgent } from "./test/install";
+import * as native from "./test/native";
 import {
   apiError,
   callsTo,
@@ -14,31 +21,10 @@ import {
 const TOKEN = "ab".repeat(32);
 const PR = "https://github.com/acme/web-app/pull/7";
 
-// The app's plugins, faked. Keeps each listener, so a test can fire it.
-const native = vi.hoisted(() => {
-  const listeners = new Map<string, (event: unknown) => void>();
-  return {
-    listeners,
-    fire: (name: string, event: unknown) => listeners.get(name)?.(event),
-    permission: { receive: "granted" },
-    PushNotifications: {
-      addListener: vi.fn((name: string, listener: (event: unknown) => void) => {
-        listeners.set(name, listener);
-        return Promise.resolve({ remove: () => listeners.delete(name) });
-      }),
-      checkPermissions: vi.fn(() => Promise.resolve(native.permission)),
-      requestPermissions: vi.fn(() => Promise.resolve(native.permission)),
-      register: vi.fn(() => Promise.resolve()),
-    },
-    PrPeek: { build: vi.fn(() => Promise.resolve({ sandbox: true })) },
-  };
-});
-vi.mock("./native", () => native);
+vi.mock("./native", () => import("./test/native"));
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  native.listeners.clear();
-  native.permission.receive = "granted";
+  native.resetNative();
   localStorage.clear();
 });
 
@@ -94,27 +80,44 @@ describe("startIosPush", () => {
     native.PushNotifications.register.mockRejectedValueOnce(new Error("no"));
     const stop = await startIosPush(vi.fn());
     stop();
-    expect(native.listeners.size).toBe(0);
+    expect(native.listenerCount()).toBe(0);
   });
 
   it("stops listening when stopped", async () => {
     const stop = await startIosPush(vi.fn());
     stop();
-    expect(native.listeners.size).toBe(0);
+    expect(native.listenerCount()).toBe(0);
   });
 });
 
 describe("turnOnIosPush", () => {
   it("asks, then registers", async () => {
-    expect(await turnOnIosPush()).toBe(true);
+    await turnOnIosPush();
     expect(native.PushNotifications.register).toHaveBeenCalled();
   });
 
-  it("is false when notifications aren't allowed", async () => {
+  it("doesn't register when notifications aren't allowed", async () => {
     native.permission.receive = "denied";
-    expect(await turnOnIosPush()).toBe(false);
+    await turnOnIosPush();
     expect(native.PushNotifications.register).not.toHaveBeenCalled();
   });
+});
+
+describe("iosPushStatus", () => {
+  it.each([
+    ["granted", "on"],
+    ["denied", "blocked"],
+    ["prompt", "off"],
+    ["prompt-with-rationale", "off"],
+  ])("reads %s as %s", async (receive, status) => {
+    native.permission.receive = receive;
+    expect(await iosPushStatus()).toBe(status);
+  });
+});
+
+it("opens iPhone Settings", async () => {
+  await openIosSettings();
+  expect(native.PrPeek.openSettings).toHaveBeenCalled();
 });
 
 describe("forgetIosPush", () => {

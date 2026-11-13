@@ -46,14 +46,29 @@ export async function startIosPush(
   return stop;
 }
 
+// "off" until asked, and "blocked" once turned off in iPhone Settings.
+export type IosPushStatus = "off" | "on" | "blocked";
+
+// Whether this iPhone allows notifications. When it does, startIosPush saves its token.
+export async function iosPushStatus(): Promise<IosPushStatus> {
+  const { PushNotifications } = await loadNative();
+  const { receive } = await PushNotifications.checkPermissions();
+  if (receive === "granted") return "on";
+  return receive === "denied" ? "blocked" : "off";
+}
+
+// Opens Git Buddy's notification settings in iPhone Settings.
+export async function openIosSettings() {
+  const { PrPeek } = await loadNative();
+  await PrPeek.openSettings();
+}
+
 // Asks for permission, then registers, which saves the token (startIosPush). Call it
-// from a tap. False when notifications weren't allowed.
-export async function turnOnIosPush(): Promise<boolean> {
+// from a tap. Read iosPushStatus after, to know what they chose.
+export async function turnOnIosPush() {
   const { PushNotifications } = await loadNative();
   const { receive } = await PushNotifications.requestPermissions();
-  if (receive !== "granted") return false;
-  await PushNotifications.register();
-  return true;
+  if (receive === "granted") await PushNotifications.register();
 }
 
 // Before signing out: the server stops sending to this phone. Signing in again saves

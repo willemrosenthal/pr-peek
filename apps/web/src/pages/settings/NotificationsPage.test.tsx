@@ -1,7 +1,7 @@
 import { keptTimes, type UserSettingsDto } from "@pr-peek/core";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fakeApi,
   json,
@@ -11,8 +11,11 @@ import {
   type Handlers,
 } from "../../test/fake-api";
 import { stubDisplayMode } from "../../test/install";
+import * as native from "../../test/native";
 import { PUBLIC_KEY, stubPush } from "../../test/push";
 import { renderApp } from "../../test/render";
+
+vi.mock("../../native", () => import("../../test/native"));
 
 // Settings that start with `stored`, and answer a save with `saved`.
 const timingApi = (
@@ -239,4 +242,69 @@ it("leaves notifications out in a browser tab", async () => {
   renderApp("/settings/notifications");
   await screen.findByRole("list", { name: "Quiet times" });
   expect(screen.queryByRole("list", { name: "This device" })).toBe(null);
+});
+
+describe("in the iPhone app", () => {
+  const PAGE = "/settings/notifications?shell=ios";
+
+  beforeEach(() => native.resetNative());
+
+  const card = () => screen.findByRole("list", { name: "This iPhone" });
+
+  it("turns notifications on, in place of the web's", async () => {
+    native.answerAsk("granted");
+    fakeApi(signedInApi());
+    renderApp(PAGE);
+    await userEvent.click(
+      await within(await card()).findByRole("button", {
+        name: "Turn on notifications",
+      }),
+    );
+    expect(
+      await screen.findByText("Notifications are on for this iPhone."),
+    ).toBeTruthy();
+    expect(native.PushNotifications.register).toHaveBeenCalled();
+    expect(screen.queryByRole("list", { name: "This device" })).toBe(null);
+  });
+
+  it("offers iPhone Settings after saying no", async () => {
+    native.answerAsk("denied");
+    fakeApi(signedInApi());
+    renderApp(PAGE);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Turn on notifications" }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Open iPhone Settings" }),
+    ).toBeTruthy();
+    expect(native.PushNotifications.register).not.toHaveBeenCalled();
+  });
+
+  it("says why when registering fails", async () => {
+    native.answerAsk("granted");
+    native.PushNotifications.register.mockRejectedValueOnce(
+      new Error("No network"),
+    );
+    fakeApi(signedInApi());
+    renderApp(PAGE);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Turn on notifications" }),
+    );
+    expect(
+      await screen.findByText(/^Couldn't turn on notifications\./),
+    ).toBeTruthy();
+  });
+
+  it("opens iPhone Settings when notifications were turned off there", async () => {
+    native.permission.receive = "denied";
+    fakeApi(signedInApi());
+    renderApp(PAGE);
+    expect(
+      await screen.findByText(/turned off for Git Buddy in iPhone Settings/),
+    ).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open iPhone Settings" }),
+    );
+    expect(native.PrPeek.openSettings).toHaveBeenCalled();
+  });
 });
