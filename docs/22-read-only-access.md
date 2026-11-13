@@ -1,6 +1,6 @@
 # 22. Read-only access
 
-**Goal:** Git Buddy never holds anything that can change your code on GitHub. Signing in reads only public data. Private repos come only through fine-grained tokens, made read-only. From issue [#219](https://github.com/willemrosenthal/pr-peek/issues/219).
+**Goal:** Git Buddy never asks for anything that can change your code on GitHub. Signing in reads only public data. Private repos come only through fine-grained tokens, made read-only. From issue [#219](https://github.com/willemrosenthal/pr-peek/issues/219).
 
 **Needs:** [#230](https://github.com/willemrosenthal/pr-peek/pull/230) merged. It already made "Public repos only" ask for just `read:org`.
 

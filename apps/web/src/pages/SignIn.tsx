@@ -85,8 +85,8 @@ export function SignIn() {
           </p>
           <p className={styles.hint}>
             For private repos, you add a fine-grained token after signing in.
-            It's read-only, and reaches only the repos you pick. If your company
-            has to approve tokens, ask an org owner.
+            Make it read-only, and limit it to the repos you pick. If your
+            company has to approve tokens, ask an org owner.
           </p>
           <p className={styles.hint}>
             Git Buddy runs on its own server, and the Mac and iPhone apps use it

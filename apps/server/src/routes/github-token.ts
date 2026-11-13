@@ -57,7 +57,7 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
       throw new HttpError(
         400,
         "classic_token",
-        "Git Buddy only takes fine-grained tokens. They can be read-only, so Git Buddy never holds anything that can change your code.",
+        "Git Buddy only takes fine-grained tokens. Unlike classic tokens, they can be made read-only.",
       );
     }
     const checked = await deps.oauth.checkToken(token).catch((err: unknown) => {

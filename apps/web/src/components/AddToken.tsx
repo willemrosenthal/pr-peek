@@ -259,10 +259,11 @@ function MakeStep() {
   return (
     <div className={styles.step}>
       <p className={styles.kindHint}>
-        Read-only, and reaches only the account or org and repos you pick. Add
-        one for each. GitHub doesn't let these tokens read check runs, so failed
-        checks from GitHub Actions and similar tools aren't named. Whether
-        checks passed still shows.
+        Make it read-only, and limit it to one account or org and the repos you
+        pick. Git Buddy can't check this for you. Add one for each account or
+        org. GitHub doesn't let these tokens read check runs, so failed checks
+        from GitHub Actions and similar tools aren't named. Whether checks
+        passed still shows.
       </p>
       <div className={styles.stepCard}>
         <StepTitle number={1}>

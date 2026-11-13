@@ -1,5 +1,5 @@
 import { MAX_TOKENS, type TokenDto, type TokensResponse } from "@pr-peek/core";
-import { Building2, Check, User } from "lucide-react";
+import { Building2, Check, Globe, Lock } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { api } from "../api";
@@ -169,10 +169,10 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
         read-only GitHub token.
       </p>
       <Card label="What Git Buddy can reach">
-        <AccessRow icon={<User />} label="Public repos" ready status="Ready" />
+        <AccessRow icon={<Globe />} label="Public repos" ready status="Ready" />
         {list.length === 0 ? (
           <AccessRow
-            icon={<Building2 />}
+            icon={<Lock />}
             label="Private repos"
             ready={false}
             status="Needs a token"
@@ -209,7 +209,7 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
           : hasClassic
             ? "A classic token covers every org you're in."
             : "A token covers one account or org. Add one for each with private repos you watch."}{" "}
-        Tokens are encrypted, and only ever read your repos.
+        Tokens are encrypted, and Git Buddy only reads with them.
       </p>
       <AddTokenSheet
         adding={adding}

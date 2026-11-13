@@ -53,17 +53,17 @@ Plans can be edited while in progress when we learn something. Completed plans a
 
 ## Phase 3: opening it up
 
-| #   | Plan                                                      | Result                                                                                                                               |
-| --- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| 10  | ✅ [Launch readiness](completed/10-launch-readiness.md)   | Safe and supportable for other people: privacy, limits, monitoring, account deletion                                                 |
-| 11  | [Future features](11-future.md)                           | GitHub App webhooks, PR actions, team views, Slack, and more                                                                         |
-| 16  | [Efficiency](16-efficiency.md)                            | Fewer syncs and GitHub requests, no stored PR copies, and alerts, so it stays cheap with many users                                  |
-| 17  | ✅ [Add a PR by link](completed/17-add-by-link.md)        | Add any PR by link, paste, drop, or share. It's flagged and shows in a new Watching section                                          |
-| 18  | ✅ [Pick repos by owner](completed/18-repo-picker.md)     | Pick an owner, then filter its repos as you type. No more global search                                                              |
-| 19  | [Admin page](19-admin.md)                                 | What Git Buddy costs to run: egress per day and month, busy queries, worker load. Counted without adding traffic                     |
-| 20  | ✅ [Several tokens](completed/20-tokens.md)               | Several personal access tokens, one per strict org. Each owner syncs with the token that reaches it. Expiry reminders and key checks |
-| 21  | ✅ [Settings redesign](completed/21-settings-redesign.md) | A home screen with a short page per topic, rows that fit a phone, one line per rule                                                  |
-| 22  | [Read-only access](22-read-only-access.md)                | Git Buddy holds nothing that can write. Sign in reads public repos, fine-grained tokens read private ones. Old write grants revoked  |
+| #   | Plan                                                      | Result                                                                                                                                 |
+| --- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 10  | ✅ [Launch readiness](completed/10-launch-readiness.md)   | Safe and supportable for other people: privacy, limits, monitoring, account deletion                                                   |
+| 11  | [Future features](11-future.md)                           | GitHub App webhooks, PR actions, team views, Slack, and more                                                                           |
+| 16  | [Efficiency](16-efficiency.md)                            | Fewer syncs and GitHub requests, no stored PR copies, and alerts, so it stays cheap with many users                                    |
+| 17  | ✅ [Add a PR by link](completed/17-add-by-link.md)        | Add any PR by link, paste, drop, or share. It's flagged and shows in a new Watching section                                            |
+| 18  | ✅ [Pick repos by owner](completed/18-repo-picker.md)     | Pick an owner, then filter its repos as you type. No more global search                                                                |
+| 19  | [Admin page](19-admin.md)                                 | What Git Buddy costs to run: egress per day and month, busy queries, worker load. Counted without adding traffic                       |
+| 20  | ✅ [Several tokens](completed/20-tokens.md)               | Several personal access tokens, one per strict org. Each owner syncs with the token that reaches it. Expiry reminders and key checks   |
+| 21  | ✅ [Settings redesign](completed/21-settings-redesign.md) | A home screen with a short page per topic, rows that fit a phone, one line per rule                                                    |
+| 22  | [Read-only access](22-read-only-access.md)                | Git Buddy asks for nothing that can write. Sign in reads public repos, fine-grained tokens read private ones. Old write grants revoked |
 
 ## Running in parallel
 

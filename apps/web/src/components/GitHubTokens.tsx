@@ -54,7 +54,7 @@ export function GitHubTokens() {
             {full
               ? `You have ${MAX_TOKENS} tokens, the most Git Buddy allows. Remove one to add another.`
               : "Each one adds a search to every sync."}{" "}
-            Tokens are encrypted, and only ever read your repos.
+            Tokens are encrypted, and Git Buddy only reads with them.
           </>
         }
       >

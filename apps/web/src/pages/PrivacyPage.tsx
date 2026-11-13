@@ -91,15 +91,20 @@ export function PrivacyPage() {
             <li>
               Private repos come only through fine-grained tokens you make. Give
               each one read-only access, only the repos you watch, and a short
-              expiry. Git Buddy doesn't take classic tokens, since they can
-              change code.
+              expiry. GitHub doesn't tell Git Buddy what a token allows, so
+              setting it to read-only is up to you. Git Buddy doesn't take
+              classic tokens, since they can change code.
             </li>
             <li>
               Signed in before this changed? Your sign-in may still allow
               changes through GitHub's <code>repo</code> permission, and so can
               a classic token you added. Revoke Git Buddy in Authorized OAuth
               Apps, below, and sign in again. Replace classic tokens with
-              fine-grained ones. Soon Git Buddy will do this for you.
+              fine-grained ones, and delete the old ones in GitHub's{" "}
+              <ExternalLink href="https://github.com/settings/tokens">
+                classic tokens
+              </ExternalLink>
+              . Soon Git Buddy will do this for you.
             </li>
             <li>
               To take Git Buddy's access away, revoke it in GitHub's{" "}
