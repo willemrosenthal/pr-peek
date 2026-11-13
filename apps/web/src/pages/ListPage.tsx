@@ -1,4 +1,9 @@
-import type { ItemDto, ItemsResponse, ListSection } from "@pr-peek/core";
+import type {
+  ItemDto,
+  ItemsResponse,
+  ListSection,
+  ShowAuthors,
+} from "@pr-peek/core";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router";
 import { AddPrDialog } from "../components/AddPrDialog";
@@ -209,10 +214,16 @@ function ListBody({
   onShown: () => void;
 }) {
   const items = useItems();
+  const settings = useSettings();
   const promptId = useId();
   useShowRow(added, items.data, onShown);
 
-  if (items.isPending) return <p className={styles.message}>Loading</p>;
+  // Waits for settings' first answer too, so author pictures don't pop in or out. If
+  // that answer is an error, the list shows with the default. Retries after it start
+  // pending again, so isPending alone would keep hiding the list.
+  if (items.isPending || (settings.isPending && !settings.errorUpdateCount)) {
+    return <p className={styles.message}>Loading</p>;
+  }
   if (items.isError) {
     return (
       <div className={styles.message}>
@@ -228,7 +239,11 @@ function ListBody({
   return (
     <>
       {total === 0 && <EmptyList />}
-      <Sections groups={items.data} onPreview={onPreview} />
+      <Sections
+        groups={items.data}
+        showAuthors={settings.data?.settings.showAuthors ?? "all"}
+        onPreview={onPreview}
+      />
       {/* Quiet on purpose: adding by link is now and then. Pasting or dropping a link
           on the list works too. */}
       <p className={styles.addLine}>
@@ -244,9 +259,11 @@ function ListBody({
 
 function Sections({
   groups,
+  showAuthors,
   onPreview,
 }: {
   groups: ItemsResponse;
+  showAuthors: ShowAuthors;
   onPreview: OnPreview;
 }) {
   const [collapsed, setCollapsed] = useStoredState<SectionKey[]>(
@@ -269,7 +286,6 @@ function Sections({
     [groups, collapsed],
   );
   useMarkSeen(unseenIds);
-  const showAuthors = useSettings().data?.settings.showAuthors ?? "off";
   const sections = orderSections(useLocalSetting(sectionOrder));
 
   const { quiet } = groups;

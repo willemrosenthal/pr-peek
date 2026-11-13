@@ -149,13 +149,49 @@ describe("sections", () => {
       renderApp("/");
 
       await sectionButton(/My PRs/);
-      await waitFor(() =>
-        expect(rows().map((row) => row.querySelector("img") !== null)).toEqual(
-          shown,
-        ),
+      expect(rows().map((row) => row.querySelector("img") !== null)).toEqual(
+        shown,
       );
     },
   );
+
+  it("still shows the list, with pictures, if settings fail to load", async () => {
+    fakeApi(
+      listApi({
+        "GET /api/settings": () => apiError(500, "internal_error", "Down"),
+        "GET /api/items": () => json(groups({ mine: [item()] })),
+      }),
+    );
+    renderApp("/");
+
+    await sectionButton(/My PRs/);
+    expect(rows()[0]!.querySelector("img")).not.toBe(null);
+  });
+
+  it("waits for settings before drawing rows, so pictures never flash", async () => {
+    const held: (() => void)[] = [];
+    const fetch = fakeApi(
+      listApi({
+        "GET /api/settings": () =>
+          new Promise<Response>((resolve) =>
+            held.push(() =>
+              resolve(json(settingsResponse({ showAuthors: "off" }))),
+            ),
+          ),
+        "GET /api/items": () => json(groups({ review: [item()] })),
+      }),
+    );
+    renderApp("/");
+
+    // The items are in, but no row shows until settings are.
+    await waitFor(() => expect(callsTo(fetch, "/api/items")).not.toEqual([]));
+    await waitFor(() => expect(held).not.toEqual([]));
+    expect(screen.getByText("Loading")).toBeTruthy();
+    expect(rows()).toEqual([]);
+    act(() => held.forEach((send) => send()));
+    await sectionButton(/Needs my review/);
+    expect(rows()[0]!.querySelector("img")).toBe(null);
+  });
 
   it("lists the user's idle PRs after their items in My PRs", async () => {
     const idle = idlePr();

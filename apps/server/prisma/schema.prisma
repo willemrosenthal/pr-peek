@@ -158,7 +158,7 @@ model UserSettings {
   lastSummaryDate     String?
   includeTeamRequests Boolean     @default(true)
   hideBots            Boolean     @default(false)
-  showAuthors         ShowAuthors @default(off)
+  showAuthors         ShowAuthors @default(all)
   // When the user finished onboarding: the first time they saved a timezone. Until
   // then, the list sends them back to it.
   onboardedAt         DateTime?
