@@ -252,11 +252,7 @@ describe("in the iPhone app", () => {
   const card = () => screen.findByRole("list", { name: "This iPhone" });
 
   it("turns notifications on, in place of the web's", async () => {
-    native.permission.receive = "prompt";
-    native.PushNotifications.requestPermissions.mockImplementationOnce(() => {
-      native.permission.receive = "granted";
-      return Promise.resolve({ receive: "granted" });
-    });
+    native.answerAsk("granted");
     fakeApi(signedInApi());
     renderApp(PAGE);
     await userEvent.click(
@@ -272,11 +268,7 @@ describe("in the iPhone app", () => {
   });
 
   it("offers iPhone Settings after saying no", async () => {
-    native.permission.receive = "prompt";
-    native.PushNotifications.requestPermissions.mockImplementationOnce(() => {
-      native.permission.receive = "denied";
-      return Promise.resolve({ receive: "denied" });
-    });
+    native.answerAsk("denied");
     fakeApi(signedInApi());
     renderApp(PAGE);
     await userEvent.click(
@@ -289,11 +281,7 @@ describe("in the iPhone app", () => {
   });
 
   it("says why when registering fails", async () => {
-    native.permission.receive = "prompt";
-    native.PushNotifications.requestPermissions.mockImplementationOnce(() => {
-      native.permission.receive = "granted";
-      return Promise.resolve({ receive: "granted" });
-    });
+    native.answerAsk("granted");
     native.PushNotifications.register.mockRejectedValueOnce(
       new Error("No network"),
     );
@@ -302,7 +290,9 @@ describe("in the iPhone app", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Turn on notifications" }),
     );
-    expect(await screen.findByText("No network")).toBeTruthy();
+    expect(
+      await screen.findByText(/^Couldn't turn on notifications\./),
+    ).toBeTruthy();
   });
 
   it("opens iPhone Settings when notifications were turned off there", async () => {

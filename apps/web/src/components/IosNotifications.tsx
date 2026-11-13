@@ -10,8 +10,14 @@ export function IosNotifications() {
   return (
     <div className={styles.turnOn}>
       <Status push={push} />
-      {/* Even once allowed: registering can still fail. The next open tries again. */}
-      {push.turnOnError && <Alert>{push.turnOnError.message}</Alert>}
+      {/* Even once allowed, registering can fail. iOS's own message isn't for people.
+          The next open tries again. */}
+      {push.turnOnError && (
+        <Alert>
+          Couldn't turn on notifications. Close the app and open it again to try
+          again.
+        </Alert>
+      )}
     </div>
   );
 }

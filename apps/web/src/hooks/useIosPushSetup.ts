@@ -10,7 +10,12 @@ export type IosPushSetup = ReturnType<typeof useIosPushSetup>;
 // from iPhone Settings.
 export function useIosPushSetup() {
   const queryClient = useQueryClient();
-  const status = useQuery({ queryKey: STATUS_KEY, queryFn: iosPushStatus });
+  const status = useQuery({
+    queryKey: STATUS_KEY,
+    queryFn: iosPushStatus,
+    // The app answers right away, or not at all. Retrying only keeps the card empty.
+    retry: false,
+  });
   const turnOn = useMutation({
     mutationFn: turnOnIosPush,
     onSettled: () => queryClient.invalidateQueries({ queryKey: STATUS_KEY }),

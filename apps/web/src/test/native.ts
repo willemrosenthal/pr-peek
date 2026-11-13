@@ -25,6 +25,16 @@ export const PrPeek = {
   openSettings: vi.fn(() => Promise.resolve()),
 };
 
+// Not asked yet. Asking answers `receive`, and the permission stays that way, like
+// tapping Allow or Don't Allow.
+export function answerAsk(receive: "granted" | "denied") {
+  permission.receive = "prompt";
+  PushNotifications.requestPermissions.mockImplementationOnce(() => {
+    permission.receive = receive;
+    return Promise.resolve({ receive });
+  });
+}
+
 // Calls the listener added for `name`, like the app does.
 export const fire = (name: string, event: unknown) =>
   listeners.get(name)?.(event);
