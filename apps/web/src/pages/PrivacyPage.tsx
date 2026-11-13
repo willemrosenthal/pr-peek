@@ -50,18 +50,18 @@ export function PrivacyPage() {
               states, with short notes like "sam asked for your review".
             </li>
             <li>
-              For new comments, the note quotes the start of the latest one, up
-              to 200 characters, like sam: "Looks good, one nit". Notifications
-              show the same note. Whole comments aren't stored. A preview loads
-              them from GitHub when you open it.
+              For new comments and reviews, the note quotes the start of the
+              latest one, up to 200 characters, like sam: "Looks good, one nit".
+              Notifications show the same note. Whole comments aren't stored. A
+              preview loads them from GitHub when you open it.
             </li>
             <li>
               Your settings: time zone, quiet hours, rules, and the repos you
               watch.
             </li>
             <li>
-              For notifications: the address each browser or Mac gives Git Buddy
-              to send them to, and the device's name.
+              For notifications: the address each browser, Mac, or iPhone gives
+              Git Buddy to send them to, and the device's name.
             </li>
             <li>
               One cookie, to keep you signed in. No ads, no tracking cookies,
