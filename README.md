@@ -1,60 +1,31 @@
 # Git Buddy
 
-Tracks the GitHub PRs that need your attention. A web app (PWA), a Mac menu bar app, and push notifications.
+Git Buddy shows the GitHub pull requests that need you: reviews you owe, replies to your comments, and reviews, comments, or failed checks on your own PRs. It sends a notification when something new needs you, so you don't have to keep checking GitHub.
 
-The code still uses its first name, `pr-peek`, for package names and the repo.
+Use it at **[git-buddy.com](https://www.git-buddy.com)**. Sign in with GitHub.
 
-- What we're building: [docs/overview.md](docs/overview.md)
-- Build plans and status: [docs/README.md](docs/README.md)
-- Security and limits (tokens, logs, audits, Supabase): [docs/security.md](docs/security.md)
+## Install it
 
-## Run it locally
+### Mac menu bar app
 
-### You need
+Your list in the Mac menu bar, with a count next to the icon.
 
-- Node 24 (see `.nvmrc`) and pnpm 9.
-- Docker Desktop, for the local database.
+1. Download the `.dmg` from the [latest release](https://github.com/willemrosenthal/pr-peek/releases/latest).
+2. Open it and drag Git Buddy into Applications.
+3. Open Git Buddy and sign in.
 
-### First time only
+It updates itself.
 
-1. Install packages: `pnpm install`
-2. Copy `.env.example` to `.env` and fill in the empty values. The comments in the file say how.
-3. Start the database: `pnpm db:up`
-4. Set up its tables: `pnpm db:migrate`
+### As an app on your phone or computer
 
-### Every time
+Git Buddy can be installed from the browser. It opens in its own window and can send notifications.
 
-1. Open Docker Desktop.
-2. Start the database: `pnpm db:up`
-3. Start the app: `pnpm dev`
-4. Open http://localhost:5173
+- **iPhone and iPad:** open git-buddy.com in Safari. Tap Share, then Add to Home Screen. Open it from your Home Screen and sign in. Notifications only work in the Home Screen app.
+- **Chrome, Edge, and Android:** open git-buddy.com, then pick Install Git Buddy from the browser menu.
+- **Safari on a Mac:** open git-buddy.com, then choose File, then Add to Dock.
 
-When you're done, stop the app with Ctrl+C. Stop the database with `pnpm db:down`. Your data stays.
+More help: [git-buddy.com/install](https://www.git-buddy.com/install).
 
-### Ports
+## Working on Git Buddy
 
-| Port | What                                    |
-| ---- | --------------------------------------- |
-| 5173 | The web app. Open this one              |
-| 3001 | The API server. Set by `PORT` in `.env` |
-| 5433 | The database, in Docker                 |
-
-If a port is taken by another app, change `PORT` in `.env`. The web app follows it.
-
-## Other commands
-
-| Command              | What it does                                     |
-| -------------------- | ------------------------------------------------ |
-| `pnpm test`          | Runs the tests                                   |
-| `pnpm lint`          | Checks the code for mistakes                     |
-| `pnpm typecheck`     | Checks the TypeScript types                      |
-| `pnpm format`        | Formats every file with Prettier                 |
-| `pnpm build`         | Builds everything for production                 |
-| `pnpm desktop`       | Runs the Mac menu bar app (needs `pnpm dev` too) |
-| `pnpm desktop:build` | Builds the Mac menu bar app                      |
-| `pnpm db:migrate`    | Applies new database changes                     |
-
-## Branches
-
-- `main`: work lands here through PRs.
-- `prod`: what's live. Merging `main` into `prod` deploys to Render.
+See [docs/development.md](docs/development.md).

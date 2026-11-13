@@ -6,6 +6,7 @@ A tool that tracks GitHub PRs that need your attention. Web app (PWA), Mac menu 
 - Keep `pr-peek` for internal names: packages, storage keys, DOM events, the database. The Mac and iPhone apps' ID (`com.git-buddy.pr-peek`) must never change, or users lose their login and launch at login, and the iPhone app its App Store listing and pushes.
 
 - What we're building and the tech stack: [docs/overview.md](docs/overview.md)
+- How to run it locally: [docs/development.md](docs/development.md)
 - Build plans, in order: [docs/README.md](docs/README.md)
 - Design mockups: https://claude.ai/artifact/RiRMAZfxkrJMeSUzfw1ckb
 
