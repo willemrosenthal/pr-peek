@@ -37,7 +37,7 @@ Two PRs, so the cutover lands on its own:
 ### 22.2 Fine-grained tokens only
 
 - [ ] `PUT /api/github-token` and the check route refuse classic tokens (`ghp_`), with a message that says why and links to make a fine-grained one.
-- [ ] Remove the classic special cases: `reachesOwner` in `github/tokens.ts`, the owner list in `routes/repos.ts`, and `sync.ts`.
+- [ ] Keep the classic special cases for now (`reachesOwner` in `github/tokens.ts`, the owner list in `routes/repos.ts`, and `sync.ts`). Classic tokens already stored keep working until 22.5 deletes them.
 - [ ] Token sheet: no Classic tab. Fine-grained steps only, with read-only permissions, the repos you watch, and a short expiry.
 - [ ] Onboarding: the orgs step says private repos need a token, one per org.
 - [ ] Tests, including the e2e seed user (it has a classic token in `fake-api.ts` today).
@@ -58,6 +58,7 @@ Two PRs, so the cutover lands on its own:
 
 - [ ] In the same step, delete the user's stored classic tokens. Show a one-time note: "Classic tokens can change your code, so Git Buddy doesn't keep them any more. Add a fine-grained token, and delete the old one on GitHub."
 - [ ] Owners only a classic token reached show "Needs a token" in the repo list until a fine-grained one is added.
+- [ ] Remove the classic special cases kept in 22.2.
 - [ ] Tests.
 
 ## Done when
