@@ -1,5 +1,4 @@
 import { Bell, CircleCheck, Eye } from "lucide-react";
-import { useState } from "react";
 import { Navigate, useSearchParams } from "react-router";
 import { Alert } from "../components/Alert";
 import { ButtonLink } from "../components/Button";
@@ -41,7 +40,6 @@ const FEATURES = [
 export function SignIn() {
   const me = useMe();
   const [params] = useSearchParams();
-  const [publicOnly, setPublicOnly] = useState(false);
   // Already the app on this phone.
   const inIosApp = useInIosApp();
 
@@ -78,27 +76,17 @@ export function SignIn() {
         {error && <Alert>{error}</Alert>}
 
         <section className={styles.panel}>
-          <ButtonLink
-            variant="primary"
-            wide
-            href={`/api/auth/github${publicOnly ? "?scope=public" : ""}`}
-          >
+          <ButtonLink variant="primary" wide href="/api/auth/github">
             Sign in with GitHub
           </ButtonLink>
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={publicOnly}
-              onChange={(e) => setPublicOnly(e.target.checked)}
-            />
-            Public repos only
-          </label>
           <p className={styles.hint}>
-            GitHub will ask to let Git Buddy see your repos and teams. GitHub
-            has no read-only way to see private repos, so its <code>repo</code>{" "}
-            permission also allows changes. Git Buddy only reads. It never
-            changes anything on GitHub. Pick "Public repos only" to ask for
-            nothing that can make changes, and keep private repos out.
+            Git Buddy only reads. Signing in lets it see public repos and your
+            teams, and nothing it asks for can make changes.
+          </p>
+          <p className={styles.hint}>
+            For private repos, you add a fine-grained token after signing in.
+            It's read-only, and reaches only the repos you pick. If your company
+            has to approve tokens, ask an org owner.
           </p>
           <p className={styles.hint}>
             Git Buddy runs on its own server, and the Mac and iPhone apps use it
@@ -112,11 +100,6 @@ export function SignIn() {
               get in once it's approved.
             </p>
           )}
-          <p className={styles.hint}>
-            If your company blocks Git Buddy, ask an org owner to approve it.
-            Where your company allows it, you can add a personal access token
-            after signing in instead.
-          </p>
         </section>
 
         <HelpLinks install={!inIosApp} />

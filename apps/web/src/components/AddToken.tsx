@@ -1,8 +1,6 @@
-import { Tabs } from "@base-ui/react/tabs";
 import type {
   CheckTokenResponse,
   TokenDto,
-  TokenKind,
   TokenResponse,
   TokensResponse,
 } from "@pr-peek/core";
@@ -20,9 +18,6 @@ import { Sheet } from "./Sheet";
 
 const FINE_GRAINED_URL =
   "https://github.com/settings/personal-access-tokens/new";
-// The classic page ticks these scopes when it opens.
-const CLASSIC_URL =
-  "https://github.com/settings/tokens/new?scopes=repo,read:org&description=Git%20Buddy";
 
 // On touch screens only: pasting into a hidden field there takes a long press. A
 // keyboard has Cmd+V.
@@ -78,8 +73,8 @@ export function AddTokenSheet({
   );
 }
 
-// Make a token on GitHub (a tab for each kind), paste and check it, then see what it
-// reaches and name it before it's saved.
+// Make a fine-grained token on GitHub, paste and check it, then see what it reaches and
+// name it before it's saved. Classic tokens are refused: they can write (plan 22).
 function AddToken({
   replacing,
   tokens,
@@ -94,10 +89,6 @@ function AddToken({
   const queryClient = useQueryClient();
   const [token, setToken] = useState("");
   const [name, setName] = useState("");
-  // Replacing a classic token opens on its tab. Else fine-grained, the safer kind.
-  const [kind, setKind] = useState<TokenKind>(
-    replacing?.kind === "classic" ? "classic" : "fine_grained",
-  );
 
   const check = useMutation({
     mutationFn: () =>
@@ -146,28 +137,7 @@ function AddToken({
     <>
       {!checked ? (
         <>
-          <Tabs.Root
-            value={kind}
-            onValueChange={(value: TokenKind) => setKind(value)}
-          >
-            <div className={styles.tabsCard}>
-              <Tabs.List className={styles.tabs}>
-                <Tabs.Tab value="fine_grained" className={styles.tab}>
-                  Fine-grained
-                  <span className={styles.recommended}>Recommended</span>
-                </Tabs.Tab>
-                <Tabs.Tab value="classic" className={styles.tab}>
-                  Classic token
-                </Tabs.Tab>
-              </Tabs.List>
-            </div>
-            <Tabs.Panel value="fine_grained" className={styles.step}>
-              <FineGrainedSteps />
-            </Tabs.Panel>
-            <Tabs.Panel value="classic" className={styles.step}>
-              <ClassicSteps />
-            </Tabs.Panel>
-          </Tabs.Root>
+          <MakeStep />
           <form className={styles.stepCard} onSubmit={submitToken}>
             <StepTitle number={2}>
               <label htmlFor="token-input">Copy it, then paste it here</label>
@@ -180,7 +150,7 @@ function AddToken({
                 autoComplete="off"
                 autoCapitalize="off"
                 spellCheck={false}
-                placeholder={kind === "classic" ? "ghp_…" : "github_pat_…"}
+                placeholder="github_pat_…"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
@@ -285,86 +255,52 @@ function StepTitle({
 }
 
 // The first step: a link to GitHub's page for making the token, and what to set there.
-function MakeStep({
-  href,
-  label,
-  children,
-}: {
-  href: string;
-  label: string;
-  children: ReactNode;
-}) {
+function MakeStep() {
   return (
-    <div className={styles.stepCard}>
-      <StepTitle number={1}>
-        <span>Make one on GitHub</span>
-      </StepTitle>
-      <ButtonLink href={href} target="_blank" rel="noreferrer" wide>
-        {label}
-        <ExternalLink aria-hidden="true" className={styles.linkIcon} />
-      </ButtonLink>
-      <ol className={styles.steps}>{children}</ol>
+    <div className={styles.step}>
+      <p className={styles.kindHint}>
+        Read-only, and reaches only the account or org and repos you pick. Add
+        one for each. GitHub doesn't let these tokens read check runs, so failed
+        checks from GitHub Actions and similar tools aren't named. Whether
+        checks passed still shows.
+      </p>
+      <div className={styles.stepCard}>
+        <StepTitle number={1}>
+          <span>Make one on GitHub</span>
+        </StepTitle>
+        <ButtonLink
+          href={FINE_GRAINED_URL}
+          target="_blank"
+          rel="noreferrer"
+          wide
+        >
+          Make a fine-grained token on GitHub
+          <ExternalLink aria-hidden="true" className={styles.linkIcon} />
+        </ButtonLink>
+        <ol className={styles.steps}>
+          <li>
+            Set <strong>Resource owner</strong> to your org, or to you for your
+            own repos. Set <strong>Repository access</strong> to All
+            repositories, or pick the repos you watch here. Pick a short expiry,
+            like 30 days. Git Buddy reminds you before it ends.
+          </li>
+          <li>
+            Under <strong>Repository permissions</strong>, set these to
+            Read-only: <code>Commit statuses</code>, <code>Contents</code>, and{" "}
+            <code>Pull requests</code>. <code>Metadata</code> turns on by
+            itself.
+          </li>
+          <li>
+            Under <strong>Organization permissions</strong>, set{" "}
+            <code>Members</code> to Read-only. This finds your teams, for review
+            requests sent to them.
+          </li>
+          <li>
+            If your org has to approve tokens, wait for an org owner to approve
+            it. Syncs fail until then.
+          </li>
+        </ol>
+      </div>
     </div>
-  );
-}
-
-function FineGrainedSteps() {
-  return (
-    <>
-      <p className={styles.kindHint}>
-        Reaches only the org you pick, with read-only access, so it's the safer
-        kind. Add one for each org. GitHub doesn't let these tokens read check
-        runs, so failed checks from GitHub Actions and similar tools aren't
-        named. Whether checks passed still shows.
-      </p>
-      <MakeStep
-        href={FINE_GRAINED_URL}
-        label="Make a fine-grained token on GitHub"
-      >
-        <li>
-          Set <strong>Resource owner</strong> to your org. Set{" "}
-          <strong>Repository access</strong> to All repositories, or pick the
-          repos you watch here. Pick a short expiry, like 30 days. Git Buddy
-          reminds you before it ends.
-        </li>
-        <li>
-          Under <strong>Repository permissions</strong>, set these to Read-only:{" "}
-          <code>Commit statuses</code>, <code>Contents</code>, and{" "}
-          <code>Pull requests</code>. <code>Metadata</code> turns on by itself.
-        </li>
-        <li>
-          Under <strong>Organization permissions</strong>, set{" "}
-          <code>Members</code> to Read-only. This finds your teams, for review
-          requests sent to them.
-        </li>
-        <li>
-          If your org has to approve tokens, wait for an org owner to approve
-          it. Syncs fail until then.
-        </li>
-      </MakeStep>
-    </>
-  );
-}
-
-function ClassicSteps() {
-  return (
-    <>
-      <p className={styles.kindHint}>
-        Easiest. One token reaches all your repos and orgs, but it can do
-        anything you can on GitHub. Some orgs don't allow them.
-      </p>
-      <MakeStep href={CLASSIC_URL} label="Make a classic token on GitHub">
-        <li>
-          The link ticks <code>repo</code> (its sub-boxes tick with it) and{" "}
-          <code>read:org</code>. Leave the rest. Pick a short expiry, like 30
-          days. Git Buddy reminds you before it ends.
-        </li>
-        <li>
-          If your company uses single sign-on, click{" "}
-          <strong>Configure SSO</strong>, then <strong>Authorize</strong> next
-          to your org. Without this, work repos won't show up.
-        </li>
-      </MakeStep>
-    </>
   );
 }

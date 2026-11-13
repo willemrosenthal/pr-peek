@@ -84,18 +84,22 @@ export function PrivacyPage() {
               on your device.
             </li>
             <li>
-              Signing in asks GitHub for <code>repo</code> and{" "}
-              <code>read:org</code>. GitHub has no read-only way to see private
-              repos, so <code>repo</code> also allows changes. Git Buddy only
-              reads. It never changes anything on GitHub. "Public repos only"
-              asks for just <code>read:org</code>, which can't change anything.
+              Git Buddy only reads, and asks for nothing that can make changes.
+              Signing in asks GitHub for <code>read:org</code>, to find your
+              teams. With it, Git Buddy sees public repos only.
             </li>
             <li>
-              A personal access token can do whatever you allowed when you made
-              it. A classic token with full <code>repo</code> access can do
-              anything you can do in your repos. Git Buddy still only reads with
-              it. A fine-grained token is safer: give it read-only access, only
-              the repos you watch, and a short expiry.
+              Private repos come only through fine-grained tokens you make. Give
+              each one read-only access, only the repos you watch, and a short
+              expiry. Git Buddy doesn't take classic tokens, since they can
+              change code.
+            </li>
+            <li>
+              Signed in before this changed? Your sign-in may still allow
+              changes through GitHub's <code>repo</code> permission, and so can
+              a classic token you added. Revoke Git Buddy in Authorized OAuth
+              Apps, below, and sign in again. Replace classic tokens with
+              fine-grained ones. Soon Git Buddy will do this for you.
             </li>
             <li>
               To take Git Buddy's access away, revoke it in GitHub's{" "}
@@ -103,16 +107,10 @@ export function PrivacyPage() {
                 Authorized OAuth Apps
               </ExternalLink>
               . Delete tokens you made in GitHub's{" "}
-              <ExternalLink href="https://github.com/settings/tokens">
-                personal access tokens
+              <ExternalLink href="https://github.com/settings/personal-access-tokens">
+                fine-grained tokens
               </ExternalLink>
               .
-            </li>
-            <li>
-              Adding a token doesn't shrink what you allowed when you signed in.
-              To give Git Buddy less, revoke it in Authorized OAuth Apps, then
-              sign in again with "Public repos only". A fine-grained token can
-              then add just the private repos you need.
             </li>
           </ul>
         </section>

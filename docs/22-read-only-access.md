@@ -30,22 +30,22 @@ Two PRs, so the cutover lands on its own:
 
 ### 22.1 Sign in
 
-- [ ] `oauth.ts`: one scope, `read:org`. Remove `ScopeChoice` and the `?scope=` query on `/api/auth/github`.
-- [ ] Sign in page: remove the checkbox. The hint says Git Buddy can only read public data, and private repos need a token.
-- [ ] Tests.
+- [x] `oauth.ts`: one scope, `read:org`. Remove `ScopeChoice` and the `?scope=` query on `/api/auth/github`.
+- [x] Sign in page: remove the checkbox. The hint says Git Buddy can only read public data, and private repos need a token.
+- [x] Tests.
 
 ### 22.2 Fine-grained tokens only
 
-- [ ] `PUT /api/github-token` and the check route refuse classic tokens (`ghp_`), with a message that says why and links to make a fine-grained one.
-- [ ] Keep the classic special cases for now (`reachesOwner` in `github/tokens.ts`, the owner list in `routes/repos.ts`, and `sync.ts`). Classic tokens already stored keep working until 22.5 deletes them.
-- [ ] Token sheet: no Classic tab. Fine-grained steps only, with read-only permissions, the repos you watch, and a short expiry.
-- [ ] Onboarding: the orgs step says private repos need a token, one per org.
-- [ ] Tests, including the e2e seed user (it has a classic token in `fake-api.ts` today).
+- [x] Adding, replacing, and checking a token refuse anything that isn't fine-grained (`github_pat_`), with a message that says why. Refused before it's sent to GitHub. The sheet's link to make a fine-grained one sits right above the error.
+- [x] Keep the classic special cases for now (`reachesOwner` in `github/tokens.ts`, the owner list in `routes/repos.ts`, and `sync.ts`). Classic tokens already stored keep working until 22.5 deletes them.
+- [x] Token sheet: no Classic tab. Fine-grained steps only, with read-only permissions, the repos you watch, and a short expiry.
+- [x] Onboarding: the orgs step is now "Private repos". Public repos work right away, private ones (the user's own too) need a token, one per account or org. Settings says the same.
+- [x] Tests. The e2e seed user has no tokens, so it needed no change. The fake `me` now has the read-only scope.
 
 ### 22.3 Words
 
-- [ ] Privacy page: sign in reads public data only. Private repos only through fine-grained tokens you make. No more `repo`.
-- [ ] `docs/security.md`, `docs/overview.md`, and the README.
+- [x] Privacy page: sign in reads public data only. Private repos only through fine-grained tokens you make. A line for people who signed in or added a classic token before, saying how to drop write access themselves.
+- [x] `docs/security.md`, `docs/overview.md`, and the README (a new "Private repos" section).
 
 ### 22.4 Revoke old grants
 
@@ -58,7 +58,8 @@ Two PRs, so the cutover lands on its own:
 
 - [ ] In the same step, delete the user's stored classic tokens. Show a one-time note: "Classic tokens can change your code, so Git Buddy doesn't keep them any more. Add a fine-grained token, and delete the old one on GitHub."
 - [ ] Owners only a classic token reached show "Needs a token" in the repo list until a fine-grained one is added.
-- [ ] Remove the classic special cases kept in 22.2.
+- [ ] Remove the classic special cases kept in 22.2, and the web's: `hasClassic` in onboarding, and the classic labels in `tokens.ts`.
+- [ ] Remove the "signed in before this changed" line from the privacy page and `docs/security.md`.
 - [ ] Tests.
 
 ## Done when

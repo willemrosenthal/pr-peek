@@ -4,6 +4,12 @@ How Git Buddy keeps tokens safe, and the limits it watches.
 
 ## GitHub tokens
 
+Git Buddy holds nothing that can write to GitHub (plan 22). The server has the key, since it reads tokens to sync, so a server break-in would expose them. Keeping them read-only limits what that exposes.
+
+- Sign in asks only for `read:org`. It reads public repos and the user's teams.
+- Private repos come only through fine-grained tokens. Classic tokens are refused, since reading private repos with one needs `repo`, which can also write.
+- Sign ins and classic tokens from before plan 22 may still be able to write, until plan 22's cutover removes them.
+
 We store each user's GitHub tokens encrypted with `TOKEN_ENC_KEY`. It's AES-256-GCM: a standard cipher that also catches changed data.
 
 - The sign in tokens live on the `User` row.

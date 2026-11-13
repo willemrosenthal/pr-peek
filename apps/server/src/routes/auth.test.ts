@@ -39,17 +39,8 @@ describe("starting sign in", () => {
     expect(state).toMatch(/^[0-9a-f]{32}$/);
     expect(oauth.authorizeUrl).toHaveBeenCalledWith({
       state,
-      scope: "full",
       redirectUri: `${APP_URL}/api/auth/github/callback`,
     });
-  });
-
-  it("asks for public repos only when chosen", async () => {
-    const { agent, oauth } = makeApp();
-    await startSignIn(agent, "?scope=public");
-    expect(oauth.authorizeUrl).toHaveBeenCalledWith(
-      expect.objectContaining({ scope: "public" }),
-    );
   });
 
   it("slows down too many attempts", async () => {
