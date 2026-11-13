@@ -1,6 +1,7 @@
 // Makes the app icons in public/ from public/icon.svg. Run `pnpm icons` after changing it.
 // Earlier icons are saved in icons/: PR Pal (git-buddy-icon.svg) and the blue mascot
-// (blue-mascot-icon.svg).
+// (blue-mascot-icon.svg). So is today's mascot with no background, for use outside the
+// app (icon-no-background.svg and .png).
 import {
   defineConfig,
   minimal2023Preset as preset,
