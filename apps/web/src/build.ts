@@ -17,5 +17,9 @@ export const REPO_URL = "https://github.com/willemrosenthal/pr-peek";
 // Bugs and ideas go here. The repo is public, so anyone with GitHub can file one.
 export const ISSUES_URL = `${REPO_URL}/issues/new`;
 
+// Where GitHub lists the OAuth Apps a user allowed, Git Buddy among them, to revoke.
+export const GITHUB_AUTHORIZED_APPS =
+  "https://github.com/settings/applications";
+
 // For privacy questions and account problems. Forwards to the person running Git Buddy.
 export const PRIVACY_EMAIL = "privacy@git-buddy.com";

@@ -1,14 +1,13 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { DeleteAccountResponse } from "@pr-peek/core";
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate } from "react-router";
-import { setAppBadge } from "../../appBadge";
 import { ActionRow } from "../../components/ActionRow";
 import { Alert } from "../../components/Alert";
 import { Avatar } from "../../components/Avatar";
 import { Button } from "../../components/Button";
 import { GitHubTokens } from "../../components/GitHubTokens";
 import { Group } from "../../components/Group";
-import { clearTrayState } from "../../desktop";
+import { useLeave } from "../../hooks/useLeave";
 import { useMe } from "../../queries";
 import { requestAccountDeletion, requestSignOut } from "../../signOut";
 import styles from "./AccountPage.module.css";
@@ -17,15 +16,7 @@ import { SettingsPage } from "./SettingsLayout";
 // Who's signed in, their GitHub tokens, signing out, and deleting the account.
 export function AccountPage() {
   const user = useMe().data?.user;
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  // After signing out or deleting the account: nothing of theirs stays on this device.
-  const leave = async (to = "/signin") => {
-    queryClient.clear();
-    void setAppBadge(0);
-    clearTrayState();
-    await navigate(to, { replace: true });
-  };
+  const leave = useLeave();
   const signOut = useMutation({
     mutationFn: requestSignOut,
     onSuccess: () => leave(),
@@ -47,7 +38,11 @@ export function AccountPage() {
         />
         {signOut.isError && <Alert>{signOut.error.message}</Alert>}
       </Group>
-      <DeleteAccount onDeleted={leave} />
+      <DeleteAccount
+        onDeleted={({ githubRevoked }) =>
+          leave({ githubAccessKept: !githubRevoked })
+        }
+      />
     </SettingsPage>
   );
 }
@@ -56,7 +51,7 @@ export function AccountPage() {
 function DeleteAccount({
   onDeleted,
 }: {
-  onDeleted: (to: string) => Promise<void>;
+  onDeleted: (result: DeleteAccountResponse) => Promise<void>;
 }) {
   const [asking, setAsking] = useState(false);
   const remove = useMutation({

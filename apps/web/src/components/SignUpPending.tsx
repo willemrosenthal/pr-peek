@@ -1,7 +1,7 @@
 import type { MeResponse } from "@pr-peek/core";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useLeave } from "../hooks/useLeave";
 import { requestAccountDeletion, requestSignOut } from "../signOut";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
@@ -19,20 +19,16 @@ export function SignUpPending({
   checking: boolean;
   onCheck: () => void;
 }) {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
+  const leave = useLeave();
   const [withdrawing, setWithdrawing] = useState(false);
-  const leave = async (to = "/signin") => {
-    queryClient.clear();
-    await navigate(to, { replace: true });
-  };
   const signOut = useMutation({
     mutationFn: requestSignOut,
     onSuccess: () => leave(),
   });
   const withdraw = useMutation({
     mutationFn: requestAccountDeletion,
-    onSuccess: leave,
+    onSuccess: ({ githubRevoked }) =>
+      leave({ githubAccessKept: !githubRevoked }),
   });
   const error = signOut.error ?? withdraw.error;
 

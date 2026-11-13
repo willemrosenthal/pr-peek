@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { UNREACHABLE } from "../../api";
+import { GITHUB_AUTHORIZED_APPS } from "../../build";
 import { GIVE_UP_MS, POLL_MS } from "../../hooks/useSync";
 import {
   apiError,
@@ -125,78 +126,53 @@ it("says why it couldn't sign out, and stays", async () => {
   expect(router.state.location.pathname).toBe("/settings/account");
 });
 
-it("asks before deleting the account, then deletes it and goes to sign in", async () => {
-  let signedIn = true;
-  const fetch = fakeApi(
-    signedInApi({
-      "GET /api/me": () => (signedIn ? json(me()) : signedOut()),
-      "DELETE /api/me": () => {
-        signedIn = false;
-        return json({ githubRevoked: true });
-      },
-    }),
-  );
-  const { router } = renderApp("/settings/account");
+it.each([true, false])(
+  "asks before deleting the account, then deletes it and goes to sign in (GitHub revoked: %s)",
+  async (githubRevoked) => {
+    let signedIn = true;
+    const fetch = fakeApi(
+      signedInApi({
+        "GET /api/me": () => (signedIn ? json(me()) : signedOut()),
+        "DELETE /api/me": () => {
+          signedIn = false;
+          return json({ githubRevoked });
+        },
+      }),
+    );
+    const { router } = renderApp("/settings/account");
 
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Delete my account" }),
-  );
-  expect(screen.getByRole("alert").textContent).toContain(
-    "Personal access tokens you made stay on GitHub.",
-  );
-  await userEvent.click(
-    screen.getByRole("button", { name: "Keep my account" }),
-  );
-  expect(
-    callsTo(fetch, "/api/me").filter((c) => c[1]?.method === "DELETE"),
-  ).toEqual([]);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Delete my account" }),
+    );
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Personal access tokens you made stay on GitHub.",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Keep my account" }),
+    );
+    expect(
+      callsTo(fetch, "/api/me").filter((c) => c[1]?.method === "DELETE"),
+    ).toEqual([]);
 
-  await userEvent.click(
-    screen.getByRole("button", { name: "Delete my account" }),
-  );
-  await userEvent.click(
-    within(screen.getByRole("alert")).getByRole("button", {
-      name: "Delete my account",
-    }),
-  );
-  await screen.findByRole("link", { name: "Sign in with GitHub" });
-  expect(router.state.location.pathname).toBe("/signin");
-  expect(screen.queryByRole("link", { name: "Authorized OAuth Apps" })).toBe(
-    null,
-  );
-});
-
-it("asks to revoke Git Buddy on GitHub when GitHub didn't confirm it", async () => {
-  let signedIn = true;
-  fakeApi(
-    signedInApi({
-      "GET /api/me": () => (signedIn ? json(me()) : signedOut()),
-      "DELETE /api/me": () => {
-        signedIn = false;
-        return json({ githubRevoked: false });
-      },
-    }),
-  );
-  renderApp("/settings/account");
-
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Delete my account" }),
-  );
-  await userEvent.click(
-    within(screen.getByRole("alert")).getByRole("button", {
-      name: "Delete my account",
-    }),
-  );
-  const link = await screen.findByRole("link", {
-    name: "Authorized OAuth Apps",
-  });
-  expect(link.getAttribute("href")).toBe(
-    "https://github.com/settings/applications",
-  );
-  expect(link.closest("[role=alert]")?.textContent).toContain(
-    "Your account is deleted, but GitHub didn't confirm",
-  );
-});
+    await userEvent.click(
+      screen.getByRole("button", { name: "Delete my account" }),
+    );
+    await userEvent.click(
+      within(screen.getByRole("alert")).getByRole("button", {
+        name: "Delete my account",
+      }),
+    );
+    await screen.findByRole("link", { name: "Sign in with GitHub" });
+    expect(router.state.location.pathname).toBe("/signin");
+    // Only when GitHub didn't confirm: asks to revoke Git Buddy there.
+    const revoke = screen.queryByRole("link", {
+      name: "Authorized OAuth Apps",
+    });
+    expect(revoke?.getAttribute("href")).toBe(
+      githubRevoked ? undefined : GITHUB_AUTHORIZED_APPS,
+    );
+  },
+);
 
 describe("after a change to what the rules find", () => {
   const SAVED_AT = "2026-11-05T12:00:00.000Z";

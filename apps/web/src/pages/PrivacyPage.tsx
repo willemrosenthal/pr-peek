@@ -1,4 +1,4 @@
-import { PRIVACY_EMAIL, REPO_URL } from "../build";
+import { GITHUB_AUTHORIZED_APPS, PRIVACY_EMAIL, REPO_URL } from "../build";
 import { BackToList } from "../components/BackToList";
 import { ExternalLink } from "../components/ExternalLink";
 import { useReturnToList } from "../hooks/useReturnToList";
@@ -107,7 +107,7 @@ export function PrivacyPage() {
             </li>
             <li>
               To take Git Buddy's access away, revoke it in GitHub's{" "}
-              <ExternalLink href="https://github.com/settings/applications">
+              <ExternalLink href={GITHUB_AUTHORIZED_APPS}>
                 Authorized OAuth Apps
               </ExternalLink>
               . Delete tokens you made in GitHub's{" "}

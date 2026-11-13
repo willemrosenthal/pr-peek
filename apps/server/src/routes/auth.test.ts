@@ -312,6 +312,22 @@ describe("DELETE /api/me", () => {
     expect((await agent.get("/api/me")).status).toBe(401);
   });
 
+  it("says GitHub wasn't asked when the sign in stopped working", async () => {
+    const { agent, oauth } = makeApp();
+    await signIn(agent);
+    // No token left to ask GitHub with, so the grant stays there.
+    await db.user.updateMany({
+      data: { accessTokenEnc: null, refreshTokenEnc: null },
+    });
+
+    const res = await agent.delete("/api/me").set("Origin", APP_URL);
+    expect(bodyOf<DeleteAccountResponse>(res)).toEqual({
+      githubRevoked: false,
+    });
+    expect(oauth.revokeGrant).not.toHaveBeenCalled();
+    expect(await db.user.count()).toBe(0);
+  });
+
   it("still deletes the account when GitHub won't take back the grant, and says so", async () => {
     const { agent } = makeApp(
       fakeOAuth({
