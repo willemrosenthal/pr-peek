@@ -6,10 +6,12 @@ import { listTokenOwners } from "./repos";
 
 export type ScopeChoice = "full" | "public";
 
+// Ask for as little as we can. `read:org` finds the user's teams, for team review requests.
 const SCOPES: Record<ScopeChoice, string> = {
   // `repo` is needed to read private repos. GitHub has no read-only version for OAuth Apps.
-  full: "repo read:org notifications",
-  public: "public_repo read:org notifications",
+  full: "repo read:org",
+  // Any token can read public repos, so no repo scope. Nothing here can write.
+  public: "read:org",
 };
 
 export interface GitHubTokens {
