@@ -21,6 +21,7 @@ import { partialDataOrThrow } from "./errors";
 
 // PRs per request. Keeps each query well under GitHub's cost limits.
 const DETAILS_BATCH_SIZE = 10;
+// The privacy page says comment notes quote up to 200 characters. Change both together.
 const PREVIEW_LENGTH = 200;
 
 export const ACTOR = `author { __typename login }`;
