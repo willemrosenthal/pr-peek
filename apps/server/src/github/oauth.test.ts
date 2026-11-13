@@ -130,17 +130,19 @@ describe("revokeGrant", () => {
     expect(sentBody()).toEqual({ access_token: "ghu_access" });
   });
 
-  it.each([404, 422])(
-    "counts %i as done: the grant is gone already",
-    async (status) => {
-      const { oauth } = setup({ message: "Not Found" }, status);
-      await expect(oauth.revokeGrant("ghu_access")).resolves.toBeUndefined();
-    },
-  );
+  it("counts 404 as done: the grant is gone already", async () => {
+    const { oauth } = setup({ message: "Not Found" }, 404);
+    await expect(oauth.revokeGrant("ghu_access")).resolves.toBeUndefined();
+  });
 
-  it("throws when GitHub fails", async () => {
-    const { oauth } = setup({ message: "Server Error" }, 500);
-    await expect(oauth.revokeGrant("ghu_access")).rejects.toThrow("500");
+  it.each([
+    [422, "Validation Failed"],
+    [500, "Server Error"],
+  ])("throws on %i: the grant may still be there", async (status, message) => {
+    const { oauth } = setup({ message }, status);
+    await expect(oauth.revokeGrant("ghu_access")).rejects.toThrow(
+      String(status),
+    );
   });
 });
 

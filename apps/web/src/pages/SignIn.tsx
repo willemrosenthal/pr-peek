@@ -2,9 +2,11 @@ import { Bell, CircleCheck, Eye } from "lucide-react";
 import { Navigate, useSearchParams } from "react-router";
 import { Alert } from "../components/Alert";
 import { ButtonLink } from "../components/Button";
+import { ExternalLink } from "../components/ExternalLink";
 import { HelpLinks } from "../components/HelpLinks";
 import { useInIosApp } from "../hooks/useIsTray";
 import { useMe } from "../queries";
+import { GITHUB_ACCESS_KEPT } from "../signOut";
 import styles from "./SignIn.module.css";
 
 // Messages for the `?error=` codes the server's GitHub callback sends.
@@ -74,6 +76,16 @@ export function SignIn() {
         </ul>
 
         {error && <Alert>{error}</Alert>}
+        {params.get("notice") === GITHUB_ACCESS_KEPT && (
+          <Alert>
+            Your account is deleted, but GitHub didn't confirm that Git Buddy's
+            access is gone. Revoke Git Buddy in GitHub's{" "}
+            <ExternalLink href="https://github.com/settings/applications">
+              Authorized OAuth Apps
+            </ExternalLink>
+            .
+          </Alert>
+        )}
 
         <section className={styles.panel}>
           <ButtonLink variant="primary" wide href="/api/auth/github">

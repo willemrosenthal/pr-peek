@@ -2,8 +2,7 @@ import type { MeResponse } from "@pr-peek/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { api } from "../api";
-import { requestSignOut } from "../signOut";
+import { requestAccountDeletion, requestSignOut } from "../signOut";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import styles from "./SignUpPending.module.css";
@@ -23,16 +22,16 @@ export function SignUpPending({
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [withdrawing, setWithdrawing] = useState(false);
-  const leave = async () => {
+  const leave = async (to = "/signin") => {
     queryClient.clear();
-    await navigate("/signin", { replace: true });
+    await navigate(to, { replace: true });
   };
   const signOut = useMutation({
     mutationFn: requestSignOut,
-    onSuccess: leave,
+    onSuccess: () => leave(),
   });
   const withdraw = useMutation({
-    mutationFn: () => api("/me", { method: "DELETE" }),
+    mutationFn: requestAccountDeletion,
     onSuccess: leave,
   });
   const error = signOut.error ?? withdraw.error;

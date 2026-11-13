@@ -196,8 +196,9 @@ export function createGitHubOAuth(options: Options): GitHubOAuth {
           body: JSON.stringify({ access_token: accessToken }),
         },
       );
-      // 404 or 422: the grant is gone already, or the token isn't valid.
-      if (!res.ok && res.status !== 404 && res.status !== 422) {
+      // 404: the grant is gone already. Anything else, like 422 (GitHub turned the
+      // request down, or limited it), leaves it in place.
+      if (!res.ok && res.status !== 404) {
         throw new Error(`GitHub grant revoke failed: ${res.status}`);
       }
     },

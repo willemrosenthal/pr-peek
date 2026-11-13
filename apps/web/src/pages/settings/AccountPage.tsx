@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { api } from "../../api";
 import { setAppBadge } from "../../appBadge";
 import { ActionRow } from "../../components/ActionRow";
 import { Alert } from "../../components/Alert";
@@ -11,7 +10,7 @@ import { GitHubTokens } from "../../components/GitHubTokens";
 import { Group } from "../../components/Group";
 import { clearTrayState } from "../../desktop";
 import { useMe } from "../../queries";
-import { requestSignOut } from "../../signOut";
+import { requestAccountDeletion, requestSignOut } from "../../signOut";
 import styles from "./AccountPage.module.css";
 import { SettingsPage } from "./SettingsLayout";
 
@@ -21,15 +20,15 @@ export function AccountPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   // After signing out or deleting the account: nothing of theirs stays on this device.
-  const leave = async () => {
+  const leave = async (to = "/signin") => {
     queryClient.clear();
     void setAppBadge(0);
     clearTrayState();
-    await navigate("/signin", { replace: true });
+    await navigate(to, { replace: true });
   };
   const signOut = useMutation({
     mutationFn: requestSignOut,
-    onSuccess: leave,
+    onSuccess: () => leave(),
   });
 
   return (
@@ -54,10 +53,14 @@ export function AccountPage() {
 }
 
 // Deletes everything Git Buddy keeps about the user, after asking.
-function DeleteAccount({ onDeleted }: { onDeleted: () => Promise<void> }) {
+function DeleteAccount({
+  onDeleted,
+}: {
+  onDeleted: (to: string) => Promise<void>;
+}) {
   const [asking, setAsking] = useState(false);
   const remove = useMutation({
-    mutationFn: () => api("/me", { method: "DELETE" }),
+    mutationFn: requestAccountDeletion,
     onSuccess: onDeleted,
   });
   if (!asking) {

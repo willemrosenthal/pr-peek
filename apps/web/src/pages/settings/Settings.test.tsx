@@ -132,7 +132,7 @@ it("asks before deleting the account, then deletes it and goes to sign in", asyn
       "GET /api/me": () => (signedIn ? json(me()) : signedOut()),
       "DELETE /api/me": () => {
         signedIn = false;
-        return noContent();
+        return json({ githubRevoked: true });
       },
     }),
   );
@@ -161,6 +161,41 @@ it("asks before deleting the account, then deletes it and goes to sign in", asyn
   );
   await screen.findByRole("link", { name: "Sign in with GitHub" });
   expect(router.state.location.pathname).toBe("/signin");
+  expect(screen.queryByRole("link", { name: "Authorized OAuth Apps" })).toBe(
+    null,
+  );
+});
+
+it("asks to revoke Git Buddy on GitHub when GitHub didn't confirm it", async () => {
+  let signedIn = true;
+  fakeApi(
+    signedInApi({
+      "GET /api/me": () => (signedIn ? json(me()) : signedOut()),
+      "DELETE /api/me": () => {
+        signedIn = false;
+        return json({ githubRevoked: false });
+      },
+    }),
+  );
+  renderApp("/settings/account");
+
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Delete my account" }),
+  );
+  await userEvent.click(
+    within(screen.getByRole("alert")).getByRole("button", {
+      name: "Delete my account",
+    }),
+  );
+  const link = await screen.findByRole("link", {
+    name: "Authorized OAuth Apps",
+  });
+  expect(link.getAttribute("href")).toBe(
+    "https://github.com/settings/applications",
+  );
+  expect(link.closest("[role=alert]")?.textContent).toContain(
+    "Your account is deleted, but GitHub didn't confirm",
+  );
 });
 
 describe("after a change to what the rules find", () => {

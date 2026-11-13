@@ -6,7 +6,6 @@ import {
   fakeApi,
   json,
   me,
-  noContent,
   signedInApi,
   signedOut,
 } from "../test/fake-api";
@@ -43,7 +42,7 @@ describe("a sign-up request that waits", () => {
         signedIn ? json(me({ pending: true })) : signedOut(),
       "DELETE /api/me": () => {
         signedIn = false;
-        return noContent();
+        return json({ githubRevoked: true });
       },
     });
     renderApp("/");

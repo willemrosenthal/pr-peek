@@ -141,8 +141,9 @@ export function PrivacyPage() {
             <li>Error reports in Sentry: 30 days.</li>
             <li>
               Delete my account, in Settings, deletes it all right away, signs
-              you out everywhere, and gives up Git Buddy's GitHub access. After
-              7 days it's gone from the backups too.
+              you out everywhere, and gives up Git Buddy's GitHub access. If
+              GitHub doesn't confirm that last part, Git Buddy tells you to
+              revoke it on GitHub. After 7 days it's gone from the backups too.
             </li>
           </ul>
         </section>
