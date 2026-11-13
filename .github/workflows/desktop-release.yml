@@ -145,6 +145,39 @@ jobs:
           xcrun stapler validate "$app"
           spctl --assess --type execute -vv "$app"
 
+      # Tauri notarizes the app but only signs the .dmg around it. A Mac that checks the
+      # download itself, like a managed work Mac, rejects a .dmg Apple hasn't seen. So
+      # send the .dmg to Apple too, staple its ticket, check it, and replace the one in
+      # the draft under the same name.
+      - name: Notarize the .dmg
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          file="Git Buddy_${VERSION}_universal.dmg"
+          dmg="apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/$file"
+          # Carry on when Apple rejects it, so the log shows the id that notarytool log needs.
+          result=$(xcrun notarytool submit "$dmg" --wait --timeout 30m --output-format json \
+            --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER") || true
+          echo "$result"
+          if [ "$(jq -r .status <<< "$result")" != "Accepted" ]; then
+            echo "::error::Apple didn't accept the .dmg. Run notarytool log with its id to see why."
+            exit 1
+          fi
+          xcrun stapler staple "$dmg"
+          xcrun stapler validate "$dmg"
+          spctl --assess --type open --context context:primary-signature -vv "$dmg"
+
+          # GitHub turns the space in the name into a dot, so look the name up.
+          name=$(gh release view "$TAG" --json assets \
+            --jq '.assets[].name | select(endswith("_" + env.VERSION + "_universal.dmg"))')
+          if [ -z "$name" ] || [ "$(wc -l <<< "$name")" -ne 1 ]; then
+            echo "::error::The draft should have one $file to replace. It has: $name"
+            exit 1
+          fi
+          cp "$dmg" "$RUNNER_TEMP/$name"
+          gh release upload "$TAG" "$RUNNER_TEMP/$name" --clobber
+
       # The update in the draft's latest.json downloads the way the app's updater gets it,
       # for both Mac chips. Its links are GitHub API links, which send the file when asked
       # for application/octet-stream. The token reaches the draft, and avoids GitHub's
