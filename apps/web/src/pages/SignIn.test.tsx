@@ -37,16 +37,30 @@ it("sends signed in users to the list", async () => {
 });
 
 const INVITE_ONLY = /invite only for now/;
+const approval = (on: boolean) => ({
+  "GET /api/auth/sign-up": () => json({ approval: on }),
+});
 
-it("says sign-up is invite only", async () => {
-  fakeApi({ "GET /api/me": signedOut });
+it("says sign-up is invite only while an admin approves new users", async () => {
+  fakeApi({ "GET /api/me": signedOut, ...approval(true) });
   renderApp("/signin");
   expect(await screen.findByText(INVITE_ONLY)).toBeTruthy();
+});
+
+it("has no invite talk while anyone can sign up", async () => {
+  const fetch = fakeApi({ "GET /api/me": signedOut });
+  renderApp("/signin");
+  expect(await githubLink()).toBeTruthy();
+  await waitFor(() =>
+    expect(callsTo(fetch, "/api/auth/sign-up")).toHaveLength(1),
+  );
+  expect(screen.queryByText(INVITE_ONLY)).toBe(null);
 });
 
 it("lets users whose GitHub sign in stopped working sign in again, with no invite talk", async () => {
   const fetch = fakeApi({
     "GET /api/me": () => json(me({ needsReauth: true })),
+    ...approval(true),
   });
   renderApp("/signin");
   expect(await githubLink()).toBeTruthy();

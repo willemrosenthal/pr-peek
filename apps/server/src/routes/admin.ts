@@ -1,13 +1,15 @@
-import type {
-  AdminOverviewResponse,
-  SignUpRequestsResponse,
-  TestAlertResponse,
+import {
+  signUpApprovalBody,
+  type AdminOverviewResponse,
+  type SignUpRequestsResponse,
+  type TestAlertResponse,
 } from "@pr-peek/core";
 import express, { type RequestHandler, type Router } from "express";
 import { readOverview } from "../admin";
 import { deleteAccount, type AccountDeps } from "../account";
+import { approvesSignUps, setApprovesSignUps } from "../app-settings";
 import type { SendApple } from "../apns";
-import { HttpError } from "../http-error";
+import { HttpError, parseInput } from "../http-error";
 import { deliver, NOTIFY_TTL_SECONDS, type SendPush } from "../push";
 import { userLimiter } from "../rate-limit";
 import { currentUser, requireUser } from "./auth";
@@ -57,8 +59,9 @@ export function adminRouter(deps: AdminDeps): Router {
     res.json({ ip: req.ip, forwardedFor: req.get("x-forwarded-for") ?? null });
   });
 
-  // Sign-up requests waiting for an admin, oldest first.
+  // Sign-up requests waiting for an admin, oldest first, and whether new users wait.
   router.get("/admin/requests", async (_req, res) => {
+    const approveSignUps = await approvesSignUps(deps.db);
     const users = await deps.db.user.findMany({
       where: { approvedAt: null },
       orderBy: { createdAt: "asc" },
@@ -76,8 +79,16 @@ export function adminRouter(deps: AdminDeps): Router {
         ...user,
         askedAt: createdAt.toISOString(),
       })),
+      approveSignUps,
     };
     res.json(body);
+  });
+
+  // Turns approving new users on or off. Turning it off leaves waiting requests here.
+  router.put("/admin/sign-up-approval", async (req, res) => {
+    const { on } = parseInput(signUpApprovalBody, req.body);
+    await setApprovesSignUps(deps.db, on);
+    res.sendStatus(204);
   });
 
   // Lets them in. Their next request opens their list.

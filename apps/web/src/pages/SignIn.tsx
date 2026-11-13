@@ -4,7 +4,7 @@ import { Alert } from "../components/Alert";
 import { ButtonLink } from "../components/Button";
 import { HelpLinks } from "../components/HelpLinks";
 import { useInIosApp } from "../hooks/useIsTray";
-import { useMe } from "../queries";
+import { useMe, useSignUpInfo } from "../queries";
 import styles from "./SignIn.module.css";
 
 // Messages for the `?error=` codes the server's GitHub callback sends.
@@ -39,6 +39,7 @@ const FEATURES = [
 
 export function SignIn() {
   const me = useMe();
+  const signUpInfo = useSignUpInfo();
   const [params] = useSearchParams();
   // Already the app on this phone.
   const inIosApp = useInIosApp();
@@ -93,13 +94,16 @@ export function SignIn() {
             too. Your GitHub access and the pull requests it finds are kept
             there, encrypted, not on your device.
           </p>
-          {/* Signing in again needs no approval. Waits for `me`, so it doesn't flash. */}
-          {!me.isPending && !me.data?.needsReauth && (
-            <p className={styles.hint}>
-              It's invite only for now: signing in sends a request, and you'll
-              get in once it's approved.
-            </p>
-          )}
+          {/* Only while an admin approves new users. Signing in again needs no approval.
+              Waits for `me`, so it doesn't flash. */}
+          {signUpInfo.data?.approval &&
+            !me.isPending &&
+            !me.data?.needsReauth && (
+              <p className={styles.hint}>
+                It's invite only for now: signing in sends a request, and you'll
+                get in once it's approved.
+              </p>
+            )}
         </section>
 
         <HelpLinks install={!inIosApp} />

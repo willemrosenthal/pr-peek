@@ -452,9 +452,34 @@ describe("sign-up requests", () => {
     expect(oauth.revokeGrant).not.toHaveBeenCalled();
   });
 
+  it("turns approving new users on and off", async () => {
+    const { agent } = await setup();
+    const approval = async () =>
+      bodyOf<SignUpRequestsResponse>(await agent.get("/api/admin/requests"))
+        .approveSignUps;
+    const turn = (on: unknown) =>
+      agent
+        .put("/api/admin/sign-up-approval")
+        .set("Origin", APP_URL)
+        .send({ on });
+
+    expect(await approval()).toBe(false);
+    expect((await turn(true)).status).toBe(204);
+    expect(await approval()).toBe(true);
+    expect((await turn(false)).status).toBe(204);
+    expect(await approval()).toBe(false);
+    expect((await turn("yes")).status).toBe(400);
+  });
+
   it("is for admins only", async () => {
     const { agent } = await setup({ admin: false });
     const user = await waiting(7, "dana", 1);
+
+    const turnOn = await agent
+      .put("/api/admin/sign-up-approval")
+      .set("Origin", APP_URL)
+      .send({ on: true });
+    expect(turnOn.status).toBe(404);
 
     expect((await agent.get("/api/admin/requests")).status).toBe(404);
     expect(

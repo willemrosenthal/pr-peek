@@ -9,6 +9,7 @@ import {
   json,
   me,
   noContent,
+  sentBodies,
   signedInApi,
   signUpRequest,
   type Handlers,
@@ -20,7 +21,8 @@ function adminApi(overrides: Handlers = {}) {
     signedInApi({
       "GET /api/me": () => json(me({ isAdmin: true })),
       "GET /api/admin/overview": () => json(adminOverview()),
-      "GET /api/admin/requests": () => json({ requests: [] }),
+      "GET /api/admin/requests": () =>
+        json({ approveSignUps: true, requests: [] }),
       ...overrides,
     }),
   );
@@ -34,7 +36,8 @@ describe("the Admin page", () => {
     fakeApi(
       signedInApi({
         "GET /api/me": () => json(me({ isAdmin })),
-        "GET /api/admin/requests": () => json({ requests: [] }),
+        "GET /api/admin/requests": () =>
+          json({ approveSignUps: true, requests: [] }),
       }),
     );
     renderApp("/settings");
@@ -48,7 +51,10 @@ describe("the Admin page", () => {
   it("counts sign-ups waiting on the home screen", async () => {
     adminApi({
       "GET /api/admin/requests": () =>
-        json({ requests: [signUpRequest(), signUpRequest({ id: "r2" })] }),
+        json({
+          approveSignUps: true,
+          requests: [signUpRequest(), signUpRequest({ id: "r2" })],
+        }),
     });
     renderApp("/settings");
     expect(
@@ -135,7 +141,8 @@ describe("the Admin page", () => {
   it("approves a request, then shows the list without it", async () => {
     let waiting = [signUpRequest()];
     const fetch = adminApi({
-      "GET /api/admin/requests": () => json({ requests: waiting }),
+      "GET /api/admin/requests": () =>
+        json({ approveSignUps: true, requests: waiting }),
       "POST /api/admin/requests/r1/approve": () => {
         waiting = [];
         return noContent();
@@ -161,10 +168,41 @@ describe("the Admin page", () => {
     expect(callsTo(fetch, "/api/admin/requests/r1/approve")).toHaveLength(1);
   });
 
+  it("turns approving new users on, and shows the requests then", async () => {
+    let on = false;
+    const fetch = adminApi({
+      "GET /api/admin/requests": () =>
+        json({ approveSignUps: on, requests: [] }),
+      "PUT /api/admin/sign-up-approval": () => {
+        on = true;
+        return noContent();
+      },
+    });
+    renderApp("/settings/admin");
+
+    const toggle = await screen.findByRole("switch", {
+      name: "Approve new users",
+    });
+    expect(screen.getByText(/Anyone can sign up/)).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Sign-up requests" })).toBe(
+      null,
+    );
+
+    await userEvent.click(toggle);
+    expect(
+      await screen.findByRole("region", { name: "Sign-up requests" }),
+    ).toBeTruthy();
+    expect(screen.getByText(/New users wait below/)).toBeTruthy();
+    expect(sentBodies(fetch, "PUT /api/admin/sign-up-approval")).toEqual([
+      { on: true },
+    ]);
+  });
+
   it("declines a request", async () => {
     let waiting = [signUpRequest()];
     const fetch = adminApi({
-      "GET /api/admin/requests": () => json({ requests: waiting }),
+      "GET /api/admin/requests": () =>
+        json({ approveSignUps: true, requests: waiting }),
       "DELETE /api/admin/requests/r1": () => {
         waiting = [];
         return noContent();
@@ -181,7 +219,8 @@ describe("the Admin page", () => {
 
   it("opens on Sign-ups, with the count, and keeps the tab in the URL", async () => {
     adminApi({
-      "GET /api/admin/requests": () => json({ requests: [signUpRequest()] }),
+      "GET /api/admin/requests": () =>
+        json({ approveSignUps: true, requests: [signUpRequest()] }),
     });
     const { router } = renderApp("/settings/admin");
 

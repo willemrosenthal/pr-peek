@@ -36,12 +36,14 @@ export async function markActive(
 }
 
 // Creates or updates the user after they sign in with GitHub. Never touches their
-// personal access token.
+// personal access token. A new user is approved at `approvedAt`, or waits for an admin
+// when it's null.
 export async function upsertGitHubUser(
   db: Db,
   githubUser: GitHubUser,
   tokens: GitHubTokens,
   key: Buffer,
+  approvedAt: Date | null = null,
 ): Promise<{ user: User; isNew: boolean }> {
   const profile = {
     login: githubUser.login,
@@ -74,6 +76,7 @@ export async function upsertGitHubUser(
     },
     create: {
       githubId: githubUser.id,
+      approvedAt,
       ...profile,
       ...tokenFields,
       settings: { create: {} },

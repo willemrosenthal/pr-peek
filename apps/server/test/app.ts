@@ -6,6 +6,7 @@ import { expect } from "vitest";
 import { createApp } from "../src/app";
 import type { Db } from "../src/db";
 import type { SendPush } from "../src/push";
+import { setApprovesSignUps } from "../src/app-settings";
 import { authRouter } from "../src/routes/auth";
 import { sessionMiddleware } from "../src/session";
 import { fakeOAuth, TEST_KEY } from "./fakes";
@@ -65,13 +66,15 @@ export async function startSignIn(agent: Agent): Promise<string> {
   );
 }
 
-// Signs in as the fake GitHub user (octocat), approved unless `pending`.
+// Signs in as the fake GitHub user (octocat), approved unless `pending`. `pending` turns
+// on approving sign-ups, so a new user waits.
 export async function signIn(agent: Agent, { pending = false } = {}) {
+  const db = databases.get(agent);
+  if (pending && db) await setApprovesSignUps(db, true);
   const state = await startSignIn(agent);
   const res = await agent.get(
     `/api/auth/github/callback?code=the-code&state=${state}`,
   );
-  const db = databases.get(agent);
   if (pending || !db) return res;
   const me = await agent.get("/api/me");
   if (me.ok) {

@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 // From GET /api/admin/overview: how Git Buddy is running, for admins. Days and hours
 // are UTC. Times are ISO strings. Each list is small: grouped and limited by the server.
 export interface AdminOverviewResponse {
@@ -92,4 +94,10 @@ export interface SignUpRequestDto {
 export interface SignUpRequestsResponse {
   // Oldest first.
   requests: SignUpRequestDto[];
+  // On: new users wait here for an admin. Off: they're let in right away.
+  approveSignUps: boolean;
 }
+
+// PUT /api/admin/sign-up-approval: turns approving new users on or off.
+export const signUpApprovalBody = z.object({ on: z.boolean() });
+export type SignUpApprovalBody = z.infer<typeof signUpApprovalBody>;

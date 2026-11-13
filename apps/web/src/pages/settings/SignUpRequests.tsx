@@ -4,11 +4,16 @@ import { useState } from "react";
 import { api, ApiError } from "../../api";
 import { Alert } from "../../components/Alert";
 import { Button } from "../../components/Button";
+import { Card, CardRow } from "../../components/Card";
+import { RowText } from "../../components/RowText";
+import { Switch } from "../../components/Switch";
 import { useNow } from "../../hooks/useNow";
 import { queryKeys, useSignUpRequests } from "../../queries";
 import styles from "./SignUpRequests.module.css";
 
-// People waiting to use Git Buddy, with Approve and Decline. Hidden until the list loads.
+// Whether new users wait for an admin, and the people waiting, with Approve and Decline.
+// Hidden until the list loads. With approval off, the list shows only while someone still
+// waits from before.
 export function SignUpRequests() {
   const requests = useSignUpRequests();
   const queryClient = useQueryClient();
@@ -37,37 +42,77 @@ export function SignUpRequests() {
   if (!requests.data) return null;
   const list = requests.data.requests;
   return (
-    <section className={styles.section} aria-label="Sign-up requests">
-      <div className={styles.top}>
-        <h3 className={styles.title}>Sign-up requests</h3>
-        <span className={styles.hint}>{list.length} waiting</span>
-      </div>
-      <p className={styles.hint}>
-        You get a push for each new request. People here can't see anything yet,
-        and Git Buddy doesn't sync for them.
-      </p>
-      {decide.isError && <Alert>{decide.error.message}</Alert>}
-      {list.length > 0 ? (
-        <ul className={styles.list}>
-          {list.map((request) => (
-            <Row
-              key={request.id}
-              request={request}
-              busy={decide.isPending}
-              onDecide={(approve) => decide.mutate({ request, approve })}
-            />
-          ))}
-        </ul>
-      ) : (
-        <p className={styles.empty}>No requests waiting.</p>
+    <>
+      <ApprovalSwitch on={requests.data.approveSignUps} />
+      {(requests.data.approveSignUps || list.length > 0) && (
+        <section className={styles.section} aria-label="Sign-up requests">
+          <div className={styles.top}>
+            <h3 className={styles.title}>Sign-up requests</h3>
+            <span className={styles.hint}>{list.length} waiting</span>
+          </div>
+          <p className={styles.hint}>
+            People here can't see anything yet, and Git Buddy doesn't sync for
+            them.
+          </p>
+          {decide.isError && <Alert>{decide.error.message}</Alert>}
+          {list.length > 0 ? (
+            <ul className={styles.list}>
+              {list.map((request) => (
+                <Row
+                  key={request.id}
+                  request={request}
+                  busy={decide.isPending}
+                  onDecide={(approve) => decide.mutate({ request, approve })}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className={styles.empty}>No requests waiting.</p>
+          )}
+          <p className={styles.hint} role="status">
+            {done}
+          </p>
+          <p className={styles.hint}>
+            Declining deletes what Git Buddy has on them. They can ask again
+            later.
+          </p>
+        </section>
       )}
-      <p className={styles.hint} role="status">
-        {done}
-      </p>
-      <p className={styles.hint}>
-        Declining deletes what Git Buddy has on them. They can ask again later.
-      </p>
-    </section>
+    </>
+  );
+}
+
+// Turns approving new users on or off. Shows the new state while it saves.
+function ApprovalSwitch({ on }: { on: boolean }) {
+  const queryClient = useQueryClient();
+  const save = useMutation({
+    mutationFn: (next: boolean) =>
+      api("/admin/sign-up-approval", { method: "PUT", body: { on: next } }),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.signUpRequests }),
+  });
+  const shown = save.isPending ? save.variables : on;
+  const label = "Approve new users";
+  return (
+    <Card label="Sign-ups">
+      <CardRow>
+        <RowText
+          label={label}
+          hint={`${
+            shown
+              ? "New users wait below until you approve them."
+              : "Anyone can sign up and start right away."
+          } You get a push for each new user.`}
+        />
+        <Switch
+          label={label}
+          checked={shown}
+          onChange={(next) => save.mutate(next)}
+          disabled={save.isPending}
+        />
+        {save.isError && <Alert>{save.error.message}</Alert>}
+      </CardRow>
+    </Card>
   );
 }
 
