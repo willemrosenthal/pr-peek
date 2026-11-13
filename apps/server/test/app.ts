@@ -57,8 +57,8 @@ export function bodyOf<T>(res: request.Response): T {
 }
 
 // Starts sign in and returns the `state` value we sent to GitHub.
-export async function startSignIn(agent: Agent, query = ""): Promise<string> {
-  const res = await agent.get(`/api/auth/github${query}`);
+export async function startSignIn(agent: Agent): Promise<string> {
+  const res = await agent.get("/api/auth/github");
   expect(res.status).toBe(302);
   return (
     new URL(res.headers.location as string).searchParams.get("state") ?? ""

@@ -40,8 +40,8 @@ const sameOwners = (a: string[], b: string[]) =>
 export const TOKEN_ASKS = 30;
 const TOKEN_ASKS_WINDOW_MS = 15 * 60 * 1000;
 
-// Personal access tokens the user adds for syncs, for orgs that block our OAuth App. A
-// fine-grained token reaches one org, so a user can add several.
+// Personal access tokens the user adds. Signing in only reads public repos, so these are
+// how private repos sync. A fine-grained token reaches one owner, so a user can add several.
 export function githubTokenRouter(deps: GitHubTokenDeps): Router {
   const router = express.Router();
   router.use("/github-tokens", requireUser(deps.db));
@@ -69,12 +69,14 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
       );
     }
     // Classic tokens list their scopes. Fine-grained ones don't, so GitHub decides later.
+    // `public_repo` is still accepted, so older tokens keep working, but no longer suggested:
+    // signing in already reads public repos.
     const { scopes } = checked;
     if (scopes && !scopes.includes("repo") && !scopes.includes("public_repo")) {
       throw new HttpError(
         400,
         "missing_scope",
-        "The token needs the repo scope (or public_repo for public repos only).",
+        "The token needs the repo scope.",
       );
     }
     const fields = encryptPersonalToken(

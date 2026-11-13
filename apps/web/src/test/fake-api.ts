@@ -392,7 +392,7 @@ export const me = (
     login: "octocat",
     name: "The Octocat",
     avatarUrl: null,
-    scopes: ["repo", "read:org"],
+    scopes: ["read:org"],
   },
   githubTokens: [],
   needsReauth: false,

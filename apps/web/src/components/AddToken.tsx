@@ -312,19 +312,21 @@ function FineGrainedSteps() {
   return (
     <>
       <p className={styles.kindHint}>
-        Reaches only the org you pick, with read-only access, so it's the safer
-        kind. Add one for each org. GitHub doesn't let these tokens read check
-        runs, so failed checks from GitHub Actions and similar tools aren't
-        named. Whether checks passed still shows.
+        Can be read-only, and reaches only the account or org and repos you
+        pick, so it's the safer kind. Set it to read-only: Git Buddy can't check
+        this for you. Add one for each account or org. GitHub doesn't let these
+        tokens read check runs, so failed checks from GitHub Actions and similar
+        tools aren't named. Whether checks passed still shows.
       </p>
       <MakeStep
         href={FINE_GRAINED_URL}
         label="Make a fine-grained token on GitHub"
       >
         <li>
-          Set <strong>Resource owner</strong> to your org. Set{" "}
-          <strong>Repository access</strong> to All repositories, or pick the
-          repos you watch here. Pick an expiry you're happy with.
+          Set <strong>Resource owner</strong> to your org, or to you for your
+          own repos. Set <strong>Repository access</strong> to All repositories,
+          or pick the repos you watch here. Pick a short expiry, like 30 days.
+          Git Buddy reminds you before it ends.
         </li>
         <li>
           Under <strong>Repository permissions</strong>, set these to Read-only:{" "}
@@ -355,9 +357,8 @@ function ClassicSteps() {
       <MakeStep href={CLASSIC_URL} label="Make a classic token on GitHub">
         <li>
           The link ticks <code>repo</code> (its sub-boxes tick with it) and{" "}
-          <code>read:org</code>. Leave the rest. For public repos only, tick
-          just <code>public_repo</code> instead of <code>repo</code>. Pick an
-          expiry you're happy with.
+          <code>read:org</code>. Leave the rest. Pick a short expiry, like 30
+          days. Git Buddy reminds you before it ends.
         </li>
         <li>
           If your company uses single sign-on, click{" "}

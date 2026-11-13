@@ -860,7 +860,7 @@ describe("empty and error states", () => {
     );
     const { router } = renderApp("/");
     expect(
-      await screen.findByRole("heading", { name: "Repos from your orgs" }),
+      await screen.findByRole("heading", { name: "Private repos" }),
     ).toBeTruthy();
     expect(router.state.location.pathname).toBe("/onboarding");
   });

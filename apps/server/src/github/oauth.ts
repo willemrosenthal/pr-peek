@@ -4,13 +4,10 @@
 import { Octokit } from "octokit";
 import { listTokenOwners } from "./repos";
 
-export type ScopeChoice = "full" | "public";
-
-const SCOPES: Record<ScopeChoice, string> = {
-  // `repo` is needed to read private repos. GitHub has no read-only version for OAuth Apps.
-  full: "repo read:org notifications",
-  public: "public_repo read:org notifications",
-};
+// Read-only on purpose (plan 22). Any token reads public repos, and `read:org` finds the
+// user's teams. Private repos need `repo`, which can also write, so they come only through
+// fine-grained tokens the user adds.
+const SIGN_IN_SCOPE = "read:org";
 
 export interface GitHubTokens {
   accessToken: string;
@@ -38,11 +35,7 @@ export interface CheckedToken {
 }
 
 export interface GitHubOAuth {
-  authorizeUrl(options: {
-    state: string;
-    scope: ScopeChoice;
-    redirectUri: string;
-  }): string;
+  authorizeUrl(options: { state: string; redirectUri: string }): string;
   exchangeCode(code: string, redirectUri: string): Promise<GitHubTokens>;
   refresh(refreshToken: string): Promise<GitHubTokens>;
   getUser(accessToken: string): Promise<GitHubUser>;
@@ -159,12 +152,12 @@ export function createGitHubOAuth(options: Options): GitHubOAuth {
     });
 
   return {
-    authorizeUrl({ state, scope, redirectUri }) {
+    authorizeUrl({ state, redirectUri }) {
       const url = new URL("https://github.com/login/oauth/authorize");
       url.search = new URLSearchParams({
         client_id: options.clientId,
         redirect_uri: redirectUri,
-        scope: SCOPES[scope],
+        scope: SIGN_IN_SCOPE,
         state,
       }).toString();
       return url.toString();

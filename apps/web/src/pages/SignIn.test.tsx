@@ -1,5 +1,4 @@
 import { screen, waitFor } from "@testing-library/react";
-import { userEvent } from "@testing-library/user-event";
 import { expect, it } from "vitest";
 import {
   callsTo,
@@ -14,14 +13,11 @@ import { renderApp } from "../test/render";
 const githubLink = () =>
   screen.findByRole("link", { name: "Sign in with GitHub" });
 
-it("can ask for public repos only", async () => {
+it("has one way to sign in, with no choice of access", async () => {
   fakeApi({ "GET /api/me": signedOut });
   renderApp("/signin");
-  const link = await githubLink();
-  expect(link.getAttribute("href")).toBe("/api/auth/github");
-
-  await userEvent.click(screen.getByLabelText("Public repos only"));
-  expect(link.getAttribute("href")).toBe("/api/auth/github?scope=public");
+  expect((await githubLink()).getAttribute("href")).toBe("/api/auth/github");
+  expect(screen.queryByRole("checkbox")).toBe(null);
 });
 
 it.each([

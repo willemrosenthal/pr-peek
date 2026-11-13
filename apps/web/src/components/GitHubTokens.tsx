@@ -49,12 +49,12 @@ export function GitHubTokens() {
         label={list.length > 0 ? "Your tokens" : "GitHub tokens"}
         footer={
           <>
-            For orgs that block Git Buddy's GitHub app. A fine-grained token
-            covers one org, so add one for each.{" "}
+            For private repos. Signing in only reads public ones. A fine-grained
+            token covers one account or org, so add one for each.{" "}
             {full
               ? `You have ${MAX_TOKENS} tokens, the most Git Buddy allows. Remove one to add another.`
               : "Each one adds a search to every sync."}{" "}
-            Tokens are encrypted, and only ever read your repos.
+            Tokens are encrypted, and Git Buddy only reads with them.
           </>
         }
       >

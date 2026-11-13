@@ -79,17 +79,27 @@ export function PrivacyPage() {
           <h2 className={styles.sectionTitle}>Your GitHub access</h2>
           <ul className={styles.list}>
             <li>
-              Signing in asks GitHub for <code>repo</code>,{" "}
-              <code>read:org</code>, and <code>notifications</code>. GitHub has
-              no read-only way to see private repos, so <code>repo</code> also
-              allows changes. Git Buddy only reads. It never changes anything on
-              GitHub. "Public repos only" asks for less.
+              Git Buddy runs on its own server, and the Mac and iPhone apps use
+              it too. Your GitHub access is kept and used there, encrypted, not
+              on your device.
             </li>
             <li>
-              A personal access token can do whatever you allowed when you made
-              it. A classic token with full <code>repo</code> access can do
-              anything you can do in your repos. Git Buddy still only reads with
-              it.
+              Git Buddy only reads. Signing in asks for nothing that can make
+              changes: just GitHub's <code>read:org</code>, to find your teams.
+              With it, Git Buddy sees public repos only.
+            </li>
+            <li>
+              Private repos come only through personal access tokens you make. A
+              fine-grained token is safer: give it read-only access, only the
+              repos you watch, and a short expiry. GitHub doesn't tell Git Buddy
+              what a token allows, so that's up to you. A classic token is
+              easier, but can do anything you can do in your repos. Git Buddy
+              still only reads with it.
+            </li>
+            <li>
+              Signed in before this changed? Your sign-in may still allow
+              changes through GitHub's <code>repo</code> permission. Revoke Git
+              Buddy in Authorized OAuth Apps, below, and sign in again.
             </li>
             <li>
               To take Git Buddy's access away, revoke it in GitHub's{" "}

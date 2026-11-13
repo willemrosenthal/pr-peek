@@ -2,8 +2,6 @@
 
 Git Buddy shows the GitHub pull requests that need you: reviews you owe, replies to your comments, and reviews, comments, or failed checks on your own PRs. It sends a notification when something new needs you, so you don't have to keep checking GitHub.
 
-Use it at **[git-buddy.com](https://www.git-buddy.com)**. Sign in with GitHub.
-
 ## Install it
 
 ### Mac menu bar app
@@ -44,6 +42,12 @@ You can install Git Buddy the same way on a computer, so it opens in its own win
 - **Safari on a Mac:** open git-buddy.com, then choose File, then Add to Dock.
 
 More help: [git-buddy.com/install](https://www.git-buddy.com/install).
+
+## Private repos
+
+Git Buddy only reads. Signing in asks for nothing that can change your code, and lets it see public repos. For private repos, add a personal access token in Settings. A fine-grained one is safer: read-only, limited to the repos you watch, with a short expiry. Add one for each account or org. A classic token covers everything in one, but can make changes. Settings walks you through both.
+
+Git Buddy runs on its own server, and so your GitHub access is kept there, encrypted. See [Privacy](https://www.git-buddy.com/privacy).
 
 ## Using it
 
