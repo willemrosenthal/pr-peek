@@ -2,8 +2,6 @@
 
 Git Buddy shows the GitHub pull requests that need you: reviews you owe, replies to your comments, and reviews, comments, or failed checks on your own PRs. It sends a notification when something new needs you, so you don't have to keep checking GitHub.
 
-Use it at **[git-buddy.com](https://www.git-buddy.com)**. Sign in with GitHub.
-
 ## Install it
 
 ### Mac menu bar app
