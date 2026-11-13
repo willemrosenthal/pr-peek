@@ -43,6 +43,12 @@ You can install Git Buddy the same way on a computer, so it opens in its own win
 
 More help: [git-buddy.com/install](https://www.git-buddy.com/install).
 
+## Private repos
+
+Git Buddy only reads, and never asks for anything that can change your code. Signing in lets it see public repos. For private repos, add a fine-grained token in Settings: read-only, limited to the repos you watch, with a short expiry. Add one for each account or org. Settings walks you through it.
+
+Git Buddy runs on its own server, and so your GitHub access is kept there, encrypted. See [Privacy](https://www.git-buddy.com/privacy).
+
 ## Using it
 
 - **Tap a PR** to open it on GitHub.

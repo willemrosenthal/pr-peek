@@ -229,7 +229,7 @@ it("starts by explaining org repos need a token, and adds one there", async () =
   renderApp("/onboarding");
 
   expect(
-    await screen.findByRole("heading", { name: "Repos from your orgs" }),
+    await screen.findByRole("heading", { name: "Private repos" }),
   ).toBeTruthy();
   expect(screen.getByText("Needs a token")).toBeTruthy();
 
@@ -314,7 +314,7 @@ it("starts at the first step when the URL's step is unknown", async () => {
   onboardingApi();
   renderApp("/onboarding?step=nope");
   expect(
-    await screen.findByRole("heading", { name: "Repos from your orgs" }),
+    await screen.findByRole("heading", { name: "Private repos" }),
   ).toBeTruthy();
 });
 
@@ -383,7 +383,7 @@ it("starts over once it's done", async () => {
 
   renderApp("/onboarding");
   expect(
-    await screen.findByRole("heading", { name: "Repos from your orgs" }),
+    await screen.findByRole("heading", { name: "Private repos" }),
   ).toBeTruthy();
 });
 

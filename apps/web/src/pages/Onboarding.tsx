@@ -1,5 +1,5 @@
 import { MAX_TOKENS, type TokenDto, type TokensResponse } from "@pr-peek/core";
-import { Building2, Check, User } from "lucide-react";
+import { Building2, Check, Globe, Lock } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { api } from "../api";
@@ -150,8 +150,9 @@ function TokenRow({
   );
 }
 
-// Orgs usually block outside apps, so their repos need a token. Skippable: the repos
-// step offers it again, and so does Settings.
+// Signing in only reads public repos, so private ones, the user's own too, need a
+// fine-grained token (plan 22). Skippable: the repos step offers it again, and so does
+// Settings.
 function OrgsStep({ onNext }: { onNext: () => void }) {
   const tokens = useGitHubTokens();
   const [adding, setAdding] = useState<Adding | null>(null);
@@ -162,16 +163,17 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
 
   return (
     <section className={styles.step}>
-      <h2 className={styles.stepTitle}>Repos from your orgs</h2>
+      <h2 className={styles.stepTitle}>Private repos</h2>
       <p className={styles.hint}>
-        Your own repos work right away. Orgs usually require a GitHub token.
+        Public repos work right away. Private repos, yours or your org's, need a
+        read-only GitHub token.
       </p>
       <Card label="What Git Buddy can reach">
-        <AccessRow icon={<User />} label="Your repos" ready status="Ready" />
+        <AccessRow icon={<Globe />} label="Public repos" ready status="Ready" />
         {list.length === 0 ? (
           <AccessRow
-            icon={<Building2 />}
-            label="Org repos"
+            icon={<Lock />}
+            label="Private repos"
             ready={false}
             status="Needs a token"
           />
@@ -203,11 +205,11 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
       </div>
       <p className={styles.note}>
         {list.length === 0
-          ? "No orgs, or not sure? Skip it. If an org's repos are missing on the next step, you can add a token there."
+          ? "Only public repos, or not sure? Skip it. If private repos are missing on the next step, you can add a token there."
           : hasClassic
             ? "A classic token covers every org you're in."
-            : "A fine-grained token covers one org. Add one for each org you work in."}{" "}
-        Tokens are encrypted, and only ever read your repos.
+            : "A token covers one account or org. Add one for each with private repos you watch."}{" "}
+        Tokens are encrypted, and Git Buddy only reads with them.
       </p>
       <AddTokenSheet
         adding={adding}

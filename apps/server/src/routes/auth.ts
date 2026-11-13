@@ -10,7 +10,7 @@ import { awakeAdmins, pushToAdmins } from "../admin-push";
 import type { SendApple } from "../apns";
 import type { Db } from "../db";
 import type { User } from "../generated/prisma/client";
-import { GitHubAuthError, type ScopeChoice } from "../github/oauth";
+import { GitHubAuthError } from "../github/oauth";
 import { listTokens, tokenDto, type TokenDeps } from "../github/tokens";
 import { deleteAccount } from "../account";
 import type { SendPush } from "../push";
@@ -83,13 +83,10 @@ export function authRouter(deps: AuthDeps): Router {
   const limiter = attemptLimiter();
 
   router.get("/auth/github", limiter, async (req, res) => {
-    const scope: ScopeChoice = req.query.scope === "public" ? "public" : "full";
     const state = randomBytes(16).toString("hex");
     req.session.oauthState = state;
     await saveSession(req);
-    res.redirect(
-      deps.oauth.authorizeUrl({ state, scope, redirectUri: callbackUrl }),
-    );
+    res.redirect(deps.oauth.authorizeUrl({ state, redirectUri: callbackUrl }));
   });
 
   router.get("/auth/github/callback", limiter, async (req, res) => {

@@ -27,14 +27,11 @@ function setup(
 }
 
 describe("authorizeUrl", () => {
-  it("asks for full access by default", () => {
+  // Spelled out, not SIGN_IN_SCOPE: adding a scope that can write must fail this test.
+  it("asks only for read-only access", () => {
     const { oauth } = setup({});
     const url = new URL(
-      oauth.authorizeUrl({
-        state: "abc",
-        scope: "full",
-        redirectUri: REDIRECT,
-      }),
+      oauth.authorizeUrl({ state: "abc", redirectUri: REDIRECT }),
     );
     expect(url.origin + url.pathname).toBe(
       "https://github.com/login/oauth/authorize",
@@ -42,21 +39,9 @@ describe("authorizeUrl", () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({
       client_id: "client-id",
       redirect_uri: REDIRECT,
-      scope: "repo read:org",
+      scope: "read:org",
       state: "abc",
     });
-  });
-
-  it("asks for nothing that can write when public repos only is chosen", () => {
-    const { oauth } = setup({});
-    const url = new URL(
-      oauth.authorizeUrl({
-        state: "abc",
-        scope: "public",
-        redirectUri: REDIRECT,
-      }),
-    );
-    expect(url.searchParams.get("scope")).toBe("read:org");
   });
 });
 
