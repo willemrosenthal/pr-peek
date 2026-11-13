@@ -1,9 +1,12 @@
 import { Bell, CircleCheck, Eye } from "lucide-react";
-import { Navigate, useSearchParams } from "react-router";
+import { Navigate, useLocation, useSearchParams } from "react-router";
 import { Alert } from "../components/Alert";
 import { ButtonLink } from "../components/Button";
+import { GITHUB_AUTHORIZED_APPS } from "../build";
+import { ExternalLink } from "../components/ExternalLink";
 import { HelpLinks } from "../components/HelpLinks";
 import { useInIosApp } from "../hooks/useIsTray";
+import type { SignInState } from "../hooks/useLeave";
 import { useMe } from "../queries";
 import styles from "./SignIn.module.css";
 
@@ -40,6 +43,8 @@ const FEATURES = [
 export function SignIn() {
   const me = useMe();
   const [params] = useSearchParams();
+  // In the page's history entry, not the URL, so it can't be reloaded or shared.
+  const { githubAccessKept } = (useLocation().state ?? {}) as SignInState;
   // Already the app on this phone.
   const inIosApp = useInIosApp();
 
@@ -74,6 +79,17 @@ export function SignIn() {
         </ul>
 
         {error && <Alert>{error}</Alert>}
+        {githubAccessKept && (
+          <Alert>
+            Everything Git Buddy had on you is deleted, but GitHub didn't
+            confirm that Git Buddy's access is gone. Revoke Git Buddy in
+            GitHub's{" "}
+            <ExternalLink href={GITHUB_AUTHORIZED_APPS}>
+              Authorized OAuth Apps
+            </ExternalLink>
+            .
+          </Alert>
+        )}
 
         <section className={styles.panel}>
           <ButtonLink variant="primary" wide href="/api/auth/github">

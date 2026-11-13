@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { MeResponse } from "@pr-peek/core";
+import type { DeleteAccountResponse, MeResponse } from "@pr-peek/core";
 import express, {
   type RequestHandler,
   type Response,
@@ -178,11 +178,13 @@ export function authRouter(deps: AuthDeps): Router {
 
   // "Delete my account", or withdrawing a waiting sign-up request: takes back Git
   // Buddy's grant on GitHub, deletes everything we have, and signs out everywhere.
+  // Says whether GitHub confirmed, so the app can ask the user to revoke it there.
   router.delete("/me", signedIn, async (req, res) => {
-    await deleteAccount(deps, currentUser(res).id);
+    const { githubRevoked } = await deleteAccount(deps, currentUser(res).id);
     await destroySession(req);
     res.clearCookie(SESSION_COOKIE);
-    res.sendStatus(204);
+    const body: DeleteAccountResponse = { githubRevoked };
+    res.json(body);
   });
 
   return router;

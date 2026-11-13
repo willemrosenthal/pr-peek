@@ -10,6 +10,12 @@ export const githubTokenBody = z.object({
 });
 export type GitHubTokenBody = z.infer<typeof githubTokenBody>;
 
+// DELETE /api/me. githubRevoked is false when GitHub didn't confirm it took back Git
+// Buddy's access: the user should revoke it on GitHub.
+export interface DeleteAccountResponse {
+  githubRevoked: boolean;
+}
+
 export interface MeResponse {
   user: {
     id: string;

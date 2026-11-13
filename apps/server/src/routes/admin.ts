@@ -98,6 +98,8 @@ export function adminRouter(deps: AdminDeps): Router {
       select: { id: true },
     });
     if (!waiting) throw requestGone();
+    // Whether GitHub took the grant back is left out: the admin can't revoke it for
+    // them, and they never used Git Buddy.
     await deleteAccount(deps, waiting.id);
     res.sendStatus(204);
   });

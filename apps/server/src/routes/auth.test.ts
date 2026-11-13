@@ -1,4 +1,4 @@
-import type { MeResponse } from "@pr-peek/core";
+import type { DeleteAccountResponse, MeResponse } from "@pr-peek/core";
 import express from "express";
 import type request from "supertest";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -281,7 +281,8 @@ describe("DELETE /api/me", () => {
     await signIn(agent, { pending: true });
 
     const res = await agent.delete("/api/me").set("Origin", APP_URL);
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    expect(bodyOf<DeleteAccountResponse>(res)).toEqual({ githubRevoked: true });
     expect(await db.user.count()).toBe(0);
     expect((await agent.get("/api/me")).status).toBe(401);
   });
@@ -301,7 +302,7 @@ describe("DELETE /api/me", () => {
     });
 
     const res = await agent.delete("/api/me").set("Origin", APP_URL);
-    expect(res.status).toBe(204);
+    expect(bodyOf<DeleteAccountResponse>(res)).toEqual({ githubRevoked: true });
     // With a fresh token: the stored one had expired, so it was refreshed first.
     expect(oauth.revokeGrant).toHaveBeenCalledExactlyOnceWith("ghu_refreshed");
     expect(await db.user.count()).toBe(0);
@@ -311,7 +312,23 @@ describe("DELETE /api/me", () => {
     expect((await agent.get("/api/me")).status).toBe(401);
   });
 
-  it("still deletes the account when GitHub won't take back the grant", async () => {
+  it("says GitHub wasn't asked when the sign in stopped working", async () => {
+    const { agent, oauth } = makeApp();
+    await signIn(agent);
+    // No token left to ask GitHub with, so the grant stays there.
+    await db.user.updateMany({
+      data: { accessTokenEnc: null, refreshTokenEnc: null },
+    });
+
+    const res = await agent.delete("/api/me").set("Origin", APP_URL);
+    expect(bodyOf<DeleteAccountResponse>(res)).toEqual({
+      githubRevoked: false,
+    });
+    expect(oauth.revokeGrant).not.toHaveBeenCalled();
+    expect(await db.user.count()).toBe(0);
+  });
+
+  it("still deletes the account when GitHub won't take back the grant, and says so", async () => {
     const { agent } = makeApp(
       fakeOAuth({
         revokeGrant: () => Promise.reject(new Error("GitHub down")),
@@ -319,9 +336,11 @@ describe("DELETE /api/me", () => {
     );
     await signIn(agent);
 
-    expect((await agent.delete("/api/me").set("Origin", APP_URL)).status).toBe(
-      204,
-    );
+    const res = await agent.delete("/api/me").set("Origin", APP_URL);
+    expect(res.status).toBe(200);
+    expect(bodyOf<DeleteAccountResponse>(res)).toEqual({
+      githubRevoked: false,
+    });
     expect(await db.user.count()).toBe(0);
   });
 });

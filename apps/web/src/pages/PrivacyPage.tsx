@@ -1,4 +1,4 @@
-import { PRIVACY_EMAIL, REPO_URL } from "../build";
+import { GITHUB_AUTHORIZED_APPS, PRIVACY_EMAIL, REPO_URL } from "../build";
 import { BackToList } from "../components/BackToList";
 import { ExternalLink } from "../components/ExternalLink";
 import { useReturnToList } from "../hooks/useReturnToList";
@@ -107,7 +107,7 @@ export function PrivacyPage() {
             </li>
             <li>
               To take Git Buddy's access away, revoke it in GitHub's{" "}
-              <ExternalLink href="https://github.com/settings/applications">
+              <ExternalLink href={GITHUB_AUTHORIZED_APPS}>
                 Authorized OAuth Apps
               </ExternalLink>
               . Delete tokens you made in GitHub's{" "}
@@ -141,8 +141,9 @@ export function PrivacyPage() {
             <li>Error reports in Sentry: 30 days.</li>
             <li>
               Delete my account, in Settings, deletes it all right away, signs
-              you out everywhere, and gives up Git Buddy's GitHub access. After
-              7 days it's gone from the backups too.
+              you out everywhere, and gives up Git Buddy's GitHub access. If
+              GitHub doesn't confirm that last part, Git Buddy tells you to
+              revoke it on GitHub. After 7 days it's gone from the backups too.
             </li>
           </ul>
         </section>
