@@ -101,6 +101,25 @@ const SAVED_ENDPOINT_KEY = "push-endpoint";
 // The endpoint whose device the server knows is or isn't on a Mac.
 const MAC_SENT_KEY = "push-on-mac-sent";
 
+// Before signing out: the server stops sending to this browser, and the browser drops
+// its subscription, so nothing already on its way shows either. Turning notifications on
+// again subscribes again. Throws when the server couldn't remove it, like offline, so
+// signing out stops and can be tried again.
+export async function forgetWebPush() {
+  const current = await currentSubscription();
+  if (!current) return;
+  const { subscriptions } = await api<PushSubscriptionsResponse>(
+    "/push/subscriptions",
+  );
+  const mine = subscriptions.find(
+    (device) => device.endpoint === current.endpoint,
+  );
+  if (mine) await api(`/push/subscriptions/${mine.id}`, { method: "DELETE" });
+  await current.unsubscribe();
+  store(SAVED_ENDPOINT_KEY, null);
+  store(MAC_SENT_KEY, null);
+}
+
 // Run when the app opens. If the browser replaced its subscription, moves this device to
 // the new one. Tells the server once whether the device is on a Mac, for devices saved
 // before it asked. A device removed from another device stays removed. Returns true if

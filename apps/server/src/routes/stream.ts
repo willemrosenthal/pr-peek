@@ -3,10 +3,14 @@ import express, { type Router } from "express";
 import type { Db } from "../db";
 import { openItems, summarize } from "../item-list";
 import type { ItemsListener } from "../items-listener";
+import { sessionBelongsTo } from "../session";
 import { currentUser, requireUser } from "./auth";
 
 // Proxies close connections that stay quiet for too long.
 const KEEP_ALIVE_MS = 25_000;
+// How often an open stream checks its session still exists. Signing out, or the session
+// expiring, ends the stream within this long, whichever server it's on.
+const SESSION_CHECK_MS = 60_000;
 
 export interface StreamDeps {
   db: Db;
@@ -14,6 +18,7 @@ export interface StreamDeps {
   // Ends every open stream, so shutdown doesn't wait on them.
   signal?: AbortSignal;
   keepAliveMs?: number;
+  sessionCheckMs?: number;
   now?: () => Date;
 }
 
@@ -54,9 +59,20 @@ export function streamRouter(deps: StreamDeps): Router {
       deps.keepAliveMs ?? KEEP_ALIVE_MS,
     );
     const end = () => res.end();
+    // A stream opened before signing out would otherwise keep sending. If the store
+    // can't be read, keeps the stream and checks again next time.
+    const sessionCheck = setInterval(() => {
+      sessionBelongsTo(req, userId).then(
+        (signedIn) => {
+          if (!signedIn) end();
+        },
+        (err: unknown) => req.log.warn({ err }, "stream session check failed"),
+      );
+    }, deps.sessionCheckMs ?? SESSION_CHECK_MS);
 
     res.on("close", () => {
       clearInterval(keepAlive);
+      clearInterval(sessionCheck);
       unsubscribe();
       deps.signal?.removeEventListener("abort", end);
     });

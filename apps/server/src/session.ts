@@ -29,6 +29,21 @@ export const regenerateSession = (req: Request) =>
 export const saveSession = (req: Request) => promisified(req, "save");
 export const destroySession = (req: Request) => promisified(req, "destroy");
 
+// Whether the request's session is still in the store, signed in as this user. False
+// once they sign out, it expires, or their account is deleted. Reads the store, not
+// req.session, so it sees changes made by other requests and other servers.
+export function sessionBelongsTo(
+  req: Request,
+  userId: string,
+): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    req.sessionStore.get(req.sessionID, (err: Error | null, data) => {
+      if (err) reject(err);
+      else resolve(data?.userId === userId);
+    });
+  });
+}
+
 export interface SessionOptions {
   secret: string;
   // Only send the cookie over HTTPS. On in production.
