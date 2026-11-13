@@ -136,11 +136,13 @@ export function createApp(deps: AppDeps): Express {
 // which holds nothing private. Neither gives the query.
 function routeOf(req: Request) {
   const path = req.originalUrl.split("?")[0]!;
-  if (path !== API && !path.startsWith(`${API}/`)) return path;
+  // Express matches routes in any case, so /API/... reaches them too.
+  const lower = path.toLowerCase();
+  if (lower !== API && !lower.startsWith(`${API}/`)) return path;
+  // Every API router is mounted at /api. Not req.baseUrl: Express clears it when an
+  // error leaves the router.
   const route = req.route as { path?: unknown } | undefined;
-  return typeof route?.path === "string"
-    ? `${req.baseUrl}${route.path}`
-    : `${API}/*`;
+  return typeof route?.path === "string" ? `${API}${route.path}` : `${API}/*`;
 }
 
 function apiRouter(deps: AppDeps): express.Router {

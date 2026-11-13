@@ -50,7 +50,10 @@ describe("request logs", () => {
         ),
       )
       .get("/auth/github/callback", (_req, res) => res.redirect("/"))
-      .delete("/apple-devices/:token", (_req, res) => res.sendStatus(204));
+      .delete("/apple-devices/:token", (_req, res) => res.sendStatus(204))
+      .get("/boom/:token", () => {
+        throw new Error("boom");
+      });
     await send(request.agent(makeApp({ logger, routers: [router] })));
     const lines = output
       .trim()
@@ -83,6 +86,22 @@ describe("request logs", () => {
     // The route's warning shares the request's id, to find what it was for.
     expect(lines[0]!.msg).toBe("lookup failed");
     expect(lines[0]!.req.id).toBe(lines[1]!.req.id);
+  });
+
+  it("logs the route of one that fails, and of one asked for in capitals", async () => {
+    const { output, lines } = await logsOf(async (app) => {
+      await app.get("/api/boom/secret-token?code=secret-code");
+      await app
+        .delete("/API/apple-devices/secret-device-token")
+        .set("Origin", APP_URL);
+    });
+
+    expect(output).not.toContain("secret");
+    // The failure is logged where it happened, then the line when it ends.
+    expect(lines.map((line) => line.route).filter(Boolean)).toEqual([
+      "/api/boom/:token",
+      "/api/apple-devices/:token",
+    ]);
   });
 
   it("logs no headers, and an unknown API path without its parts", async () => {

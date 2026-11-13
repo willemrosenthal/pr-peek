@@ -48,12 +48,16 @@ export function createLogger(
       },
     },
     redact: [
+      // Request logs leave headers out (app.ts). These catch a request logged whole.
       "req.headers.cookie",
       "req.headers.authorization",
       'res.headers["set-cookie"]',
-      // GitHub client errors carry the request: its token, and a refresh's secrets.
+      // GitHub client errors carry the request: its token, a refresh's secrets, and
+      // URLs that can name private repos.
       "err.request.headers.authorization",
       "err.request.body",
+      "err.request.url",
+      "err.response.url",
       // Tokens logged by mistake, at the top or one level down.
       ...TOKEN_FIELDS.flatMap((field) => [field, `*.${field}`]),
     ],
