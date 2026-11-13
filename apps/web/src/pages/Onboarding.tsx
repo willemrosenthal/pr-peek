@@ -151,7 +151,7 @@ function TokenRow({
 }
 
 // Signing in only reads public repos, so private ones, the user's own too, need a
-// fine-grained token (plan 22). Skippable: the repos step offers it again, and so does
+// personal access token (plan 22). Skippable: the repos step offers it again, and so does
 // Settings.
 function OrgsStep({ onNext }: { onNext: () => void }) {
   const tokens = useGitHubTokens();
@@ -166,7 +166,7 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
       <h2 className={styles.stepTitle}>Private repos</h2>
       <p className={styles.hint}>
         Public repos work right away. Private repos, yours or your org's, need a
-        read-only GitHub token.
+        GitHub token.
       </p>
       <Card label="What Git Buddy can reach">
         <AccessRow icon={<Globe />} label="Public repos" ready status="Ready" />
@@ -208,7 +208,7 @@ function OrgsStep({ onNext }: { onNext: () => void }) {
           ? "Only public repos, or not sure? Skip it. If private repos are missing on the next step, you can add a token there."
           : hasClassic
             ? "A classic token covers every org you're in."
-            : "A token covers one account or org. Add one for each with private repos you watch."}{" "}
+            : "A fine-grained token covers one account or org. Add one for each with private repos you watch."}{" "}
         Tokens are encrypted, and Git Buddy only reads with them.
       </p>
       <AddTokenSheet

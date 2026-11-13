@@ -81,7 +81,7 @@ This file describes **what** we are building and **how the pieces fit**. The ste
 | Code quality      | ESLint, Prettier, Vitest, GitHub Actions CI                                                               |
 | Server            | Express, Prisma, Postgres, Zod, pino (logging)                                                            |
 | GitHub            | Octokit (REST + GraphQL) with throttling and retry plugins                                                |
-| Auth              | GitHub OAuth App (read-only), fine-grained tokens for private repos, cookie sessions, tokens encrypted    |
+| Auth              | GitHub OAuth App (read-only), personal access tokens for private repos, cookie sessions, tokens encrypted |
 | Background jobs   | pg-boss (job queue inside Postgres), run by a separate worker process                                     |
 | Push              | `web-push` with VAPID keys (the key pair that proves pushes come from us)                                 |
 | Live updates      | Server-Sent Events                                                                                        |

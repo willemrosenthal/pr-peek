@@ -45,7 +45,7 @@ More help: [git-buddy.com/install](https://www.git-buddy.com/install).
 
 ## Private repos
 
-Git Buddy only reads, and never asks for anything that can change your code. Signing in lets it see public repos. For private repos, add a fine-grained token in Settings: read-only, limited to the repos you watch, with a short expiry. Add one for each account or org. Settings walks you through it.
+Git Buddy only reads. Signing in asks for nothing that can change your code, and lets it see public repos. For private repos, add a personal access token in Settings. A fine-grained one is safer: read-only, limited to the repos you watch, with a short expiry. Add one for each account or org. A classic token covers everything in one, but can make changes. Settings walks you through both.
 
 Git Buddy runs on its own server, and so your GitHub access is kept there, encrypted. See [Privacy](https://www.git-buddy.com/privacy).
 

@@ -99,7 +99,7 @@ export function encryptTokens(
 const hashToken = (token: string) =>
   createHash("sha256").update(token).digest("hex");
 
-export const tokenKind = (token: string): TokenKind =>
+const tokenKind = (token: string): TokenKind =>
   token.startsWith("github_pat_") ? "fine_grained" : "classic";
 
 // The GitHubToken columns for a personal access token, ready to save.

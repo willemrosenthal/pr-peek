@@ -306,7 +306,7 @@ it("shows the most allowed, and stops offering Add there", async () => {
   expect(screen.queryByRole("button", { name: "Add a token" })).toBe(null);
 });
 
-it("offers only fine-grained tokens, even to replace a classic one", async () => {
+it("opens the sheet on the recommended fine-grained tab, with a tab for classic tokens", async () => {
   settingsApi({
     "GET /api/github-tokens": () =>
       json(
@@ -322,26 +322,40 @@ it("offers only fine-grained tokens, even to replace a classic one", async () =>
   });
   renderApp("/settings/account");
 
-  const fineGrainedOnly = (sheet: HTMLElement) => {
-    expect(
-      within(sheet)
-        .getByRole("link", { name: "Make a fine-grained token on GitHub" })
-        .getAttribute("href"),
-    ).toBe("https://github.com/settings/personal-access-tokens/new");
-    expect(within(sheet).queryByRole("tab")).toBe(null);
-  };
-
   await userEvent.click(
     await screen.findByRole("button", { name: "Add a token" }),
   );
   const sheet = await screen.findByRole("dialog");
-  fineGrainedOnly(sheet);
+  const fineGrained = within(sheet).getByRole("tab", { name: /Fine-grained/ });
+  expect(fineGrained.textContent).toContain("Recommended");
+  expect(fineGrained.getAttribute("aria-selected")).toBe("true");
+  // What the highlight's style keys on. Base UI's name for it, not data-selected.
+  expect(fineGrained.hasAttribute("data-active")).toBe(true);
+  expect(
+    within(sheet)
+      .getByRole("link", { name: "Make a fine-grained token on GitHub" })
+      .getAttribute("href"),
+  ).toBe("https://github.com/settings/personal-access-tokens/new");
 
+  await userEvent.click(
+    within(sheet).getByRole("tab", { name: "Classic token" }),
+  );
+  expect(
+    within(sheet)
+      .getByRole("link", { name: "Make a classic token on GitHub" })
+      .getAttribute("href"),
+  ).toContain("scopes=repo,read:org");
+
+  // Replacing a classic token opens on its tab.
   await userEvent.click(within(sheet).getByRole("button", { name: "Close" }));
   await userEvent.click(
     within(await cardFor("Everything")).getByRole("button", {
       name: "Replace Everything",
     }),
   );
-  fineGrainedOnly(await screen.findByRole("dialog"));
+  expect(
+    within(await screen.findByRole("dialog"))
+      .getByRole("tab", { name: "Classic token" })
+      .getAttribute("aria-selected"),
+  ).toBe("true");
 });
