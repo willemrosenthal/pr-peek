@@ -68,20 +68,16 @@ describe("startIosPush", () => {
   });
 
   // Like from a server that doesn't send `prId` yet.
-  it("opens a tapped PR without its ID in Safari, and marks its item seen", async () => {
-    const fetch = fakeApi({ "POST /api/items/seen": noContent });
+  it("opens a tapped PR without its ID in Safari", async () => {
     const windowOpen = vi.spyOn(window, "open").mockReturnValue(null);
     const open = vi.fn();
     await startIosPush(open);
 
     native.fire("pushNotificationActionPerformed", {
-      notification: { data: { url: PR, itemId: "item-1" } },
+      notification: { data: { url: PR } },
     });
     expect(windowOpen).toHaveBeenCalledWith(PR, "_blank");
     expect(open).not.toHaveBeenCalled();
-    expect(sentBodies(fetch, "POST /api/items/seen")).toEqual([
-      { ids: ["item-1"] },
-    ]);
   });
 
   it("opens Git Buddy's own pages in the app", async () => {

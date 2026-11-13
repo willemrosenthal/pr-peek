@@ -144,14 +144,13 @@ const showFocus = () =>
   document.documentElement.classList.remove("quiet-focus");
 
 // A native Mac notification, instead of a push to the browsers on this Mac. A click
-// opens `open`, the PR's preview in the app. Older Mac apps ignore it and open `url`.
+// opens `open`, like the PR's preview, in the app. Older Mac apps ignore it, and open
+// `url`.
 function showNotification(event: Event) {
   const payload = (event as CustomEvent<PushPayload>).detail;
   const { title, body, url } = payload;
   const open = notificationLink(payload);
-  call("notify", {
-    alert: { title, body, url, ...(open !== url && { open }) },
-  });
+  call("notify", { alert: { title, body, url, open } });
 }
 
 // The app page in a `pr-peek:open`. Only paths on this site, never other sites.

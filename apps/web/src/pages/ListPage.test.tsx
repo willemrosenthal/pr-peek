@@ -486,12 +486,12 @@ describe("opening a preview from a notification", () => {
         ...previewApi(asked),
       }),
     );
-    renderApp(`/?pr=${asked.pr.id}`);
+    const { router } = renderApp(`/?pr=${asked.pr.id}`);
 
     expect(
       await screen.findByRole("dialog", { name: asked.pr.title }),
     ).toBeTruthy();
-    expect(location.search).toBe("");
+    expect(router.state.location.search).toBe("");
   });
 
   it("says when the PR isn't on the list anymore", async () => {

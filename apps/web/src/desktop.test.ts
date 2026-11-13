@@ -90,7 +90,7 @@ describe("startDesktop", () => {
         new CustomEvent("pr-peek:notify", { detail: payload }),
       );
       expect(callsOf(invoke, "notify")).toEqual([
-        { alert: { title: "t", body: "b", url: "/x" } },
+        { alert: { title: "t", body: "b", url: "/x", open: "/x" } },
       ]);
     } finally {
       stop();
