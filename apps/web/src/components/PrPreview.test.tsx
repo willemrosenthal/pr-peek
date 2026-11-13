@@ -21,7 +21,9 @@ import {
   onTestFinished,
   vi,
 } from "vitest";
+import { haptic } from "../haptics";
 import { apiError, fakeApi, important, item, json } from "../test/fake-api";
+import { enterIosApp } from "../test/native";
 import {
   COPIED_MS,
   HOLD_MS,
@@ -30,6 +32,11 @@ import {
   type PreviewTarget,
 } from "./PrPreview";
 import styles from "./PrPreview.module.css";
+
+vi.mock("../haptics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../haptics")>()),
+  haptic: vi.fn(),
+}));
 
 const comment = (
   id: string,
@@ -371,6 +378,7 @@ describe("Open's menu", () => {
     fireEvent.click(await screen.findByRole("menuitem", { name: "Copy link" }));
     expect(writeText).toHaveBeenCalledWith(row.pr.url);
     expect(await screen.findByRole("link", { name: "Copied" })).toBeTruthy();
+    expect(haptic).toHaveBeenCalledWith("success");
     // The sheet stays open.
     expect(onClose).not.toHaveBeenCalled();
     // Halfway steps, since this fake clock also moves a little on its own.
@@ -419,6 +427,21 @@ describe("Open's menu", () => {
     fireEvent.touchEnd(open);
     expect(clickOpens(open)).toBe(false);
   });
+
+  it.each([
+    [true, [["firm"]]],
+    [false, []],
+  ])(
+    "ticks firmly as a held finger opens it, in the iPhone app: %s",
+    (inApp, ticks) => {
+      vi.mocked(haptic).mockClear();
+      if (inApp) enterIosApp();
+      const { open } = setupOpen();
+      fireEvent.touchStart(open, touch(200));
+      wait(HOLD_MS);
+      expect(vi.mocked(haptic).mock.calls).toEqual(ticks);
+    },
+  );
 
   // What a phone sends as a finger lifts from `link`. With the menu open under it, the
   // press lands outside the menu.

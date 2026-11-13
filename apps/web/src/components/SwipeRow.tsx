@@ -10,7 +10,7 @@ import {
   type WheelEvent,
 } from "react";
 import { cx } from "../cx";
-import { canVibrate, haptic } from "../haptics";
+import { canTickAnytime, haptic } from "../haptics";
 import { unflagAction } from "../important";
 import { rubberBand } from "../rubber-band";
 import styles from "./SwipeRow.module.css";
@@ -49,7 +49,7 @@ const CLOSE_MS = 180;
 // How long after a drag its click can still arrive. Some browsers send it a bit later.
 const CLICK_AFTER_DRAG_MS = 300;
 // How long a press is held, without moving, to open the preview.
-const LONG_PRESS_MS = 450;
+export const LONG_PRESS_MS = 450;
 // How long it's held before the preview starts loading. Taps and scrolls end sooner,
 // so they don't ask GitHub for anything.
 const PRESS_START_MS = 150;
@@ -214,8 +214,8 @@ export function SwipeRow({
   };
 
   const arm = (on: boolean) => {
-    // A tick as it gets far enough. Only Android can buzz while a finger moves.
-    if (on && !armedNow.current && canVibrate()) navigator.vibrate(8);
+    // A tick as it gets far enough, where one works while a finger moves.
+    if (on && !armedNow.current && canTickAnytime()) haptic("light");
     armedNow.current = on;
     setArmed(on);
   };
@@ -279,8 +279,8 @@ export function SwipeRow({
         // The pointer is already gone, so there's no release to wait for.
       }
     }
-    // A short buzz, where the device has one (not iPhones, while a finger is down).
-    if (canVibrate()) navigator.vibrate(10);
+    // A tick, where one works while a finger is down (not iPhones' browsers).
+    if (canTickAnytime()) haptic("firm");
     onLongPress?.();
   };
 
@@ -356,7 +356,7 @@ export function SwipeRow({
     if (!p?.on) return;
     blockNextClick(event.currentTarget);
     // A tick as it acts. iPhones can only do it as a finger lifts.
-    if (release(flung(p, event.timeStamp))) haptic();
+    if (release(flung(p, event.timeStamp))) haptic("light");
   };
 
   const onPointerCancel = () => {

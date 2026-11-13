@@ -32,6 +32,7 @@ import {
   type TouchEvent,
 } from "react";
 import { cx } from "../cx";
+import { canTickAnytime, haptic } from "../haptics";
 import { unflagAction } from "../important";
 import { usePrPreview } from "../queries";
 import { Button } from "./Button";
@@ -329,6 +330,8 @@ function OpenLink({ url }: { url: string }) {
     if (finger.current) {
       cancelHold();
       guardUntil.current = Infinity;
+      // A tick for the hold, where one works while the finger is down.
+      if (canTickAnytime()) haptic("firm");
     }
     setMenuOpen(true);
   };
@@ -387,6 +390,7 @@ function OpenLink({ url }: { url: string }) {
   const copy = () => {
     navigator.clipboard.writeText(url).then(
       () => {
+        haptic("success");
         setCopied(true);
         clearTimeout(copiedTimer.current);
         copiedTimer.current = window.setTimeout(

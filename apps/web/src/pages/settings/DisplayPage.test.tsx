@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
+import { haptic } from "../../haptics";
 import {
   apiError,
   callsTo,
@@ -20,6 +21,11 @@ import {
 import { appScale, NORMAL_SCALE, scaleLabel, SCALES } from "../../scale";
 import { sectionOrder } from "../../sections";
 import { renderApp } from "../../test/render";
+
+vi.mock("../../haptics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../haptics")>()),
+  haptic: vi.fn(),
+}));
 
 it("turns hiding bots on, and reloads the list", async () => {
   let hideBots = false;
@@ -87,6 +93,7 @@ it("shows authors only under Needs my review, in the preview too", async () => {
   expect(sentBodies(fetch, "PATCH /api/settings")).toEqual([
     { showAuthors: "review" },
   ]);
+  expect(haptic).toHaveBeenCalledWith("selection");
   await waitFor(() =>
     expect(screen.getByRole("radio", { name: "My reviews" })).toHaveProperty(
       "checked",

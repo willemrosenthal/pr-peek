@@ -7,6 +7,7 @@ import type { Choice } from "../../components/choice";
 import { Picker } from "../../components/Picker";
 import { Switch } from "../../components/Switch";
 import { cx } from "../../cx";
+import { haptic } from "../../haptics";
 import { useSaveRule } from "../../hooks/useSaveSettings";
 import styles from "./RulesPage.module.css";
 import settingsStyles from "./Settings.module.css";
@@ -100,11 +101,12 @@ function RuleRow({ rule }: { rule: RuleSettingDto }) {
           className={cx(styles.bell, shown.notify && styles.notifying)}
           aria-label={`Notify for ${rule.name}`}
           aria-checked={shown.notify}
-          onClick={() =>
+          onClick={() => {
+            haptic("selection");
             save.mutate({
               channels: shown.notify ? ["list"] : ["list", "push"],
-            })
-          }
+            });
+          }}
           disabled={save.isPending}
         >
           <BellIcon

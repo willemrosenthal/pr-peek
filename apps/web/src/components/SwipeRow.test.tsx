@@ -18,7 +18,9 @@ import {
   NOT_FAR_ENOUGH,
   stubPointerCapture,
 } from "../test/swipe";
+import { enterIosApp } from "../test/native";
 import {
+  LONG_PRESS_MS,
   PAST_ARMED_MAX_PX,
   ROW_GIVE,
   rowOffset,
@@ -227,7 +229,16 @@ describe("SwipeRow", () => {
     slowDrag(link, -40);
     expect(haptic).not.toHaveBeenCalled();
     drag(link, -FAR_ENOUGH);
-    expect(haptic).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(haptic).mock.calls).toEqual([["light"]]);
+  });
+
+  it("also ticks as a swipe gets far enough, in the iPhone app", () => {
+    vi.useFakeTimers();
+    vi.mocked(haptic).mockClear();
+    enterIosApp();
+    const { link } = setup();
+    hold(link, -FAR_ENOUGH);
+    expect(vi.mocked(haptic).mock.calls).toEqual([["light"]]);
   });
 
   it("lets the list scroll when the move is mostly down", async () => {
@@ -430,6 +441,18 @@ describe("SwipeRow long press", () => {
     fireEvent.pointerUp(link, { pointerId: 1 });
     fireEvent.click(link);
     expect(onLinkClick).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [true, [["firm"]]],
+    [false, []],
+  ])("ticks firmly as it opens, in the iPhone app: %s", (inApp, ticks) => {
+    vi.mocked(haptic).mockClear();
+    if (inApp) enterIosApp();
+    const { link } = setupPress();
+    press(link);
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    expect(vi.mocked(haptic).mock.calls).toEqual(ticks);
   });
 
   // True when nothing stopped the selection.

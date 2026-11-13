@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { cx } from "../cx";
-import { canVibrate, haptic } from "../haptics";
+import { canTickAnytime, haptic } from "../haptics";
 import { rubberBand } from "../rubber-band";
 import styles from "./PullToRefresh.module.css";
 
@@ -131,8 +131,8 @@ function usePull({ refreshing, onRefresh, enabled }: Options) {
       const arming = at >= ARM_PX && t.at < ARM_PX && !isRefreshing();
       if (arming) {
         setArms((n) => n + 1);
-        // A buzz, where the phone can buzz mid-pull.
-        if (canVibrate()) haptic();
+        // A tick as it crosses the line, where one works mid-pull.
+        if (canTickAnytime()) haptic("light");
       }
       t.at = at;
       setOffset(at);
@@ -145,8 +145,8 @@ function usePull({ refreshing, onRefresh, enabled }: Options) {
       setDragging(false);
       setOffset(0);
       if (event?.type !== "touchend" || t.at < ARM_PX || isRefreshing()) return;
-      // iPhones can only tick as the finger lifts.
-      if (!canVibrate()) haptic();
+      // iPhones' browsers can only tick as the finger lifts.
+      if (!canTickAnytime()) haptic("light");
       setFired(true);
       refresh();
     };

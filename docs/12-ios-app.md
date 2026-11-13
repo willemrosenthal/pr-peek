@@ -113,13 +113,13 @@ The web's tick (`haptics.ts`) only works right after a tap or a finger lifting, 
 
 ### 12.5 Haptics
 
-- [ ] Add `@capacitor/haptics`. `haptics.ts` calls it in the app, with three strengths, and keeps today's ticks on the web:
+- [x] Add `@capacitor/haptics`. `haptics.ts` calls it in the app (through `nativeHaptic` in `native.ts`), with four strengths, and keeps today's ticks on the web:
   - **Firm** (medium impact): a long press opens the PR preview, and a long press on Open opens its copy menu.
   - **Light** (light impact): pull to refresh crosses the line, at that moment, not on release. A swipe crosses into quiet or important, as today.
   - **Selection**: a switch flips, an urgency is picked, a segmented choice changes, the bell turns on or off.
   - **Success**: a link is copied.
-- [ ] Android's web app also ticks on the long presses, since `navigator.vibrate` works any time there.
-- [ ] Tests check each place asks for the right strength.
+- [x] Android's web app also ticks on the long presses, since `navigator.vibrate` works any time there. Ticks that come mid-gesture check `canTickAnytime()`. The new selection and success ticks also work in browsers, since they come right after a tap.
+- [x] Tests check each place asks for the right strength.
 
 ### 12.6 Rich notifications (Swift)
 
