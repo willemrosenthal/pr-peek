@@ -69,12 +69,14 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
       );
     }
     // Classic tokens list their scopes. Fine-grained ones don't, so GitHub decides later.
+    // `public_repo` is still accepted, so older tokens keep working, but no longer suggested:
+    // signing in already reads public repos.
     const { scopes } = checked;
     if (scopes && !scopes.includes("repo") && !scopes.includes("public_repo")) {
       throw new HttpError(
         400,
         "missing_scope",
-        "The token needs the repo scope (or public_repo for public repos only).",
+        "The token needs the repo scope.",
       );
     }
     const fields = encryptPersonalToken(

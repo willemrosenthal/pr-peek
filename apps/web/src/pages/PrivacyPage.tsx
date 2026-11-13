@@ -79,9 +79,9 @@ export function PrivacyPage() {
           <h2 className={styles.sectionTitle}>Your GitHub access</h2>
           <ul className={styles.list}>
             <li>
-              Git Buddy runs on its own server, and so do the Mac and iPhone
-              apps. Your GitHub access is kept there, encrypted, and used from
-              there. It doesn't stay on your device.
+              Git Buddy runs on its own server, and the Mac and iPhone apps use
+              it too. Your GitHub access is kept and used there, encrypted, not
+              on your device.
             </li>
             <li>
               Signing in asks GitHub for <code>repo</code> and{" "}
@@ -98,15 +98,6 @@ export function PrivacyPage() {
               the repos you watch, and a short expiry.
             </li>
             <li>
-              Adding a token doesn't shrink what you gave Git Buddy when you
-              signed in. To give it less, revoke Git Buddy in GitHub's{" "}
-              <ExternalLink href="https://github.com/settings/applications">
-                Authorized OAuth Apps
-              </ExternalLink>
-              , then sign in again with "Public repos only". A fine-grained
-              token can then add just the private repos you need.
-            </li>
-            <li>
               To take Git Buddy's access away, revoke it in GitHub's{" "}
               <ExternalLink href="https://github.com/settings/applications">
                 Authorized OAuth Apps
@@ -116,6 +107,12 @@ export function PrivacyPage() {
                 personal access tokens
               </ExternalLink>
               .
+            </li>
+            <li>
+              Adding a token doesn't shrink what you allowed when you signed in.
+              To give Git Buddy less, revoke it in Authorized OAuth Apps, then
+              sign in again with "Public repos only". A fine-grained token can
+              then add just the private repos you need.
             </li>
           </ul>
         </section>

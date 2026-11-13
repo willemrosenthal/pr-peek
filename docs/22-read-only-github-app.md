@@ -10,7 +10,7 @@
 - A GitHub App's token has only the App's permissions, and only reaches the repos where it's installed. We can make every permission read-only.
 - Orgs approve a read-only App more easily than an OAuth App that can write.
 
-Already done before this plan (PR for #219): "Public repos only" asks for just `read:org`, the unused `notifications` scope is gone, and the sign in and privacy pages say plainly that tokens are kept on our server.
+Already done before this plan ([#230](https://github.com/willemrosenthal/pr-peek/pull/230)): "Public repos only" asks for just `read:org`, the unused `notifications` scope is gone, and the sign in and privacy pages say plainly that tokens are kept on our server.
 
 ## Key decisions
 
