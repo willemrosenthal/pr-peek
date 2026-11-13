@@ -355,8 +355,10 @@ export function SwipeRow({
     if (p?.long) blockNextClick(event.currentTarget);
     if (!p?.on) return;
     blockNextClick(event.currentTarget);
-    // A tick as it acts. iPhones can only do it as a finger lifts.
-    if (release(flung(p, event.timeStamp))) haptic("light");
+    // One tick per swipe: here, unless it already ticked as it got far enough. iPhones'
+    // browsers can only tick as a finger lifts, and a flick can act without getting there.
+    const ticked = armedNow.current && canTickAnytime();
+    if (release(flung(p, event.timeStamp)) && !ticked) haptic("light");
   };
 
   const onPointerCancel = () => {

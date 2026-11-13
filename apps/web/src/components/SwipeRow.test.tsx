@@ -229,12 +229,17 @@ describe("SwipeRow", () => {
     expect(ticks()).toEqual(["light"]);
   });
 
-  it("also ticks as a swipe gets far enough, in the iPhone app", () => {
+  it("ticks as a swipe gets far enough instead, in the iPhone app", () => {
     vi.useFakeTimers();
     haptic.mockClear();
     enterIosApp();
-    const { link } = setup();
+    const { onToggle, link } = setup();
     hold(link, -FAR_ENOUGH);
+    expect(ticks()).toEqual(["light"]);
+    fireEvent.pointerUp(link, { pointerId: 1 });
+    vi.runAllTimers();
+    // It acted, without a second tick.
+    expect(onToggle).toHaveBeenCalled();
     expect(ticks()).toEqual(["light"]);
   });
 
