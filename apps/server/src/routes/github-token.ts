@@ -19,7 +19,6 @@ import {
   saveToken,
   sameLogin,
   tokenDto,
-  tokenKind,
   type CheckedPersonalToken,
 } from "../github/tokens";
 import { HttpError, parseInput } from "../http-error";
@@ -41,8 +40,8 @@ const sameOwners = (a: string[], b: string[]) =>
 export const TOKEN_ASKS = 30;
 const TOKEN_ASKS_WINDOW_MS = 15 * 60 * 1000;
 
-// Fine-grained personal access tokens the user adds. Signing in only reads public repos,
-// so these are how private repos sync. Each reaches one owner, so a user can add several.
+// Personal access tokens the user adds. Signing in only reads public repos, so these are
+// how private repos sync. A fine-grained token reaches one owner, so a user can add several.
 export function githubTokenRouter(deps: GitHubTokenDeps): Router {
   const router = express.Router();
   router.use("/github-tokens", requireUser(deps.db));
@@ -50,16 +49,8 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
   const limiter = userLimiter(TOKEN_ASKS_WINDOW_MS, TOKEN_ASKS);
 
   // Asks GitHub about a pasted token: that it works, is the user's, and what it reaches.
-  // Only fine-grained tokens: a classic one needs `repo` to read private repos, and that
-  // can also write (plan 22). Refused before it's sent to GitHub.
+  // Classic tokens reach everything the account can, so their owners aren't listed.
   async function check(user: User, token: string) {
-    if (tokenKind(token) !== "fine_grained") {
-      throw new HttpError(
-        400,
-        "classic_token",
-        "Git Buddy only takes fine-grained tokens. Unlike classic tokens, they can be made read-only.",
-      );
-    }
     const checked = await deps.oauth.checkToken(token).catch((err: unknown) => {
       if (err instanceof GitHubAuthError) {
         throw new HttpError(
@@ -77,17 +68,31 @@ export function githubTokenRouter(deps: GitHubTokenDeps): Router {
         `This token belongs to ${checked.user.login}. Use a token from ${user.login}.`,
       );
     }
+    // Classic tokens list their scopes. Fine-grained ones don't, so GitHub decides later.
+    // `public_repo` is still accepted, so older tokens keep working, but no longer suggested:
+    // signing in already reads public repos.
+    const { scopes } = checked;
+    if (scopes && !scopes.includes("repo") && !scopes.includes("public_repo")) {
+      throw new HttpError(
+        400,
+        "missing_scope",
+        "The token needs the repo scope.",
+      );
+    }
     const fields = encryptPersonalToken(
-      { token, expiresAt: checked.expiresAt, scopes: checked.scopes ?? [] },
+      { token, expiresAt: checked.expiresAt, scopes: scopes ?? [] },
       deps.key,
     );
-    const owners = await deps.oauth.tokenOwners(token);
+    const owners =
+      fields.kind === "classic" ? [] : await deps.oauth.tokenOwners(token);
     return { ...fields, owners } satisfies CheckedPersonalToken;
   }
 
-  // A name to start from: the org the token reaches.
+  // A name to start from: the org a fine-grained token reaches.
   const nameFor = (token: CheckedPersonalToken) =>
-    token.owners[0] ?? "Personal access token";
+    token.kind === "classic"
+      ? "Classic token"
+      : (token.owners[0] ?? "Personal access token");
 
   router.get("/github-tokens", async (_req, res) => {
     const user = currentUser(res);

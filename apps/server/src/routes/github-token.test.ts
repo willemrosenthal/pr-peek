@@ -33,8 +33,7 @@ const tokenIs =
   () =>
     Promise.resolve({
       user: githubUser(),
-      // Fine-grained tokens have no scopes.
-      scopes: null,
+      scopes: ["repo", "read:org"],
       expiresAt: hours(24 * 30),
       ...checked,
     });
@@ -55,7 +54,7 @@ async function setup(checkToken?: GitHubOAuth["checkToken"]) {
 }
 
 const user = () => db.user.findFirstOrThrow();
-const check = (agent: Agent, token = "github_pat_token") =>
+const check = (agent: Agent, token = "ghp_token") =>
   agent.post("/api/github-tokens/check").set("Origin", APP_URL).send({ token });
 
 it("needs sign in", async () => {
@@ -85,24 +84,13 @@ describe("a pasted token", () => {
     expect(res.body).toMatchObject({ error: { code: "bad_token" } });
   });
 
-  // A classic token needs `repo` for private repos, which can also write.
-  it("is refused when it's not fine-grained, without asking GitHub", async () => {
-    const { agent, oauth } = await setup();
-    for (const token of [
-      "ghp_classic",
-      "0123456789abcdef0123456789abcdef01234567",
-    ]) {
-      const res = await check(agent, token);
-      expect(res.status).toBe(400);
-      expect(res.body).toMatchObject({ error: { code: "classic_token" } });
-    }
-    const added = await agent
-      .post("/api/github-tokens")
-      .set("Origin", APP_URL)
-      .send({ token: "ghp_classic" });
-    expect(added.body).toMatchObject({ error: { code: "classic_token" } });
-    expect(oauth.checkToken).not.toHaveBeenCalled();
-    expect(await db.gitHubToken.count()).toBe(0);
+  it.each([
+    [["repo"], 200],
+    [["public_repo"], 200],
+    [["read:org"], 400],
+  ])("with scopes %o answers %i", async (scopes, status) => {
+    const { agent } = await setup(tokenIs({ scopes }));
+    expect((await check(agent)).status).toBe(status);
   });
 
   it("isn't asked about when it doesn't look like a token", async () => {
@@ -119,7 +107,7 @@ describe("a pasted token", () => {
     const res = await agent
       .post("/api/github-tokens/check")
       .set("Origin", "https://evil.example")
-      .send({ token: "github_pat_token" });
+      .send({ token: "ghp_token" });
     expect(res.status).toBe(403);
     expect(oauth.checkToken).not.toHaveBeenCalled();
   });
@@ -148,7 +136,7 @@ const removeToken = (agent: Agent, id: string) =>
 // GitHub reports a fine-grained token that reaches `owners`.
 function fineGrained(owners: string[]) {
   return fakeOAuth({
-    checkToken: tokenIs(),
+    checkToken: tokenIs({ scopes: null }),
     tokenOwners: () => Promise.resolve(owners),
   });
 }
@@ -241,20 +229,22 @@ describe("POST /api/github-tokens/check", () => {
 
 describe("POST /api/github-tokens", () => {
   it("adds tokens next to each other, named after what they reach", async () => {
-    const { agent } = await setupWith(fineGrained(["acme"]));
+    const { agent, oauth } = await setupWith(fineGrained(["acme"]));
     const res = await addToken(agent, "github_pat_acme");
     expect(res.status).toBe(201);
-    await addToken(agent, "github_pat_globex", "Globex");
+    await addToken(agent, "ghp_classic", "Everything");
 
     const tokens = await db.gitHubToken.findMany({
       orderBy: { createdAt: "asc" },
     });
     expect(tokens.map((t) => [t.name, t.kind])).toEqual([
       ["acme", "fine_grained"],
-      ["Globex", "fine_grained"],
+      ["Everything", "classic"],
     ]);
     expect(decrypt(tokens[0]!.tokenEnc, TEST_KEY)).toBe("github_pat_acme");
     expect(tokens[0]!.ownersCheckedAt).toBeInstanceOf(Date);
+    // Only the fine-grained one: a classic token reaches every owner.
+    expect(oauth.tokenOwners).toHaveBeenCalledTimes(1);
   });
 
   it("refuses a sixth token, and the same token twice", async () => {

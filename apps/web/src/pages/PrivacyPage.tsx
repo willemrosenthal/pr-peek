@@ -84,27 +84,22 @@ export function PrivacyPage() {
               on your device.
             </li>
             <li>
-              Git Buddy only reads, and asks for nothing that can make changes.
-              Signing in asks GitHub for <code>read:org</code>, to find your
-              teams. With it, Git Buddy sees public repos only.
+              Git Buddy only reads. Signing in asks for nothing that can make
+              changes: just GitHub's <code>read:org</code>, to find your teams.
+              With it, Git Buddy sees public repos only.
             </li>
             <li>
-              Private repos come only through fine-grained tokens you make. Give
-              each one read-only access, only the repos you watch, and a short
-              expiry. GitHub doesn't tell Git Buddy what a token allows, so
-              setting it to read-only is up to you. Git Buddy doesn't take
-              classic tokens, since they can change code.
+              Private repos come only through personal access tokens you make. A
+              fine-grained token is safer: give it read-only access, only the
+              repos you watch, and a short expiry. GitHub doesn't tell Git Buddy
+              what a token allows, so that's up to you. A classic token is
+              easier, but can do anything you can do in your repos. Git Buddy
+              still only reads with it.
             </li>
             <li>
               Signed in before this changed? Your sign-in may still allow
-              changes through GitHub's <code>repo</code> permission, and so can
-              a classic token you added. Revoke Git Buddy in Authorized OAuth
-              Apps, below, and sign in again. Replace classic tokens with
-              fine-grained ones, and delete the old ones in GitHub's{" "}
-              <ExternalLink href="https://github.com/settings/tokens">
-                classic tokens
-              </ExternalLink>
-              . Soon Git Buddy will do this for you.
+              changes through GitHub's <code>repo</code> permission. Revoke Git
+              Buddy in Authorized OAuth Apps, below, and sign in again.
             </li>
             <li>
               To take Git Buddy's access away, revoke it in GitHub's{" "}
@@ -112,8 +107,8 @@ export function PrivacyPage() {
                 Authorized OAuth Apps
               </ExternalLink>
               . Delete tokens you made in GitHub's{" "}
-              <ExternalLink href="https://github.com/settings/personal-access-tokens">
-                fine-grained tokens
+              <ExternalLink href="https://github.com/settings/tokens">
+                personal access tokens
               </ExternalLink>
               .
             </li>

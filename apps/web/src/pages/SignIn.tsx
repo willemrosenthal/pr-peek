@@ -84,9 +84,9 @@ export function SignIn() {
             teams, and nothing it asks for can make changes.
           </p>
           <p className={styles.hint}>
-            For private repos, you add a fine-grained token after signing in.
-            Make it read-only, and limit it to the repos you pick. If your
-            company has to approve tokens, ask an org owner.
+            For private repos, you add a personal access token after signing in.
+            A fine-grained one can be read-only, and limited to the repos you
+            pick. If your company has to approve tokens, ask an org owner.
           </p>
           <p className={styles.hint}>
             Git Buddy runs on its own server, and the Mac and iPhone apps use it

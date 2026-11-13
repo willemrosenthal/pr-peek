@@ -4,7 +4,7 @@ Ideas for after launch, roughly in order of value. Each would get its own detail
 
 ## GitHub App with webhooks
 
-Plan [22. Read-only access](22-read-only-access.md) makes Git Buddy read-only with fine-grained tokens. A GitHub App would make that easier: one install instead of a token per org, no expiry to renew, and it can read check runs.
+Plan [22. Read-only access](completed/22-read-only-access.md) made signing in read-only, with personal access tokens for private repos. A GitHub App would make that easier: one install instead of a token per org, no expiry to renew, and it can read check runs.
 
 **What:** replace or complement the OAuth App with a **GitHub App**. Orgs install it on their repos, and GitHub sends our server an event (a **webhook**) the moment something happens.
 
