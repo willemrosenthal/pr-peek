@@ -5,7 +5,7 @@ import { useReturnToList } from "../hooks/useReturnToList";
 import styles from "./InfoPage.module.css";
 
 // Change this whenever the page changes in a way that matters.
-const LAST_CHANGED = "10 November 2026";
+const LAST_CHANGED = "13 November 2026";
 
 const Email = () => <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>;
 
@@ -48,16 +48,20 @@ export function PrivacyPage() {
             <li>
               For the repos you watch: pull request titles, links, authors, and
               states, with short notes like "sam asked for your review".
-              Comments aren't stored. A preview loads them from GitHub when you
-              open it.
+            </li>
+            <li>
+              For new comments and reviews, the note quotes the start of the
+              latest one, up to 200 characters, like sam: "Looks good, one nit".
+              Notifications show the same note. Whole comments aren't stored. A
+              preview loads them from GitHub when you open it.
             </li>
             <li>
               Your settings: time zone, quiet hours, rules, and the repos you
               watch.
             </li>
             <li>
-              For notifications: the address each browser or Mac gives Git Buddy
-              to send them to, and the device's name.
+              For notifications: the address each browser, Mac, or iPhone gives
+              Git Buddy to send them to, and the device's name.
             </li>
             <li>
               One cookie, to keep you signed in. No ads, no tracking cookies,
@@ -121,6 +125,7 @@ export function PrivacyPage() {
             <li>
               Your profile, tokens, and settings: while you have an account.
             </li>
+            <li>Things that need you, with their notes: until they're done.</li>
             <li>
               Things that needed you and are done: 30 days. Pull requests that
               leave your list: about 7 days, unless you flagged them.
@@ -158,6 +163,15 @@ export function PrivacyPage() {
               Apple, Google, Mozilla, and Microsoft deliver notifications to
               their browsers. Each notification is encrypted, so they can't read
               it.
+            </li>
+            <li>
+              Apple delivers notifications to the iPhone app. They travel to
+              Apple over a secure connection, but aren't encrypted for your
+              phone alone, so Apple could read them, as with any iPhone app.
+            </li>
+            <li>
+              Notifications show on your screen and stay in your device's
+              notification history, like any app's.
             </li>
           </ul>
         </section>
