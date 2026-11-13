@@ -3,6 +3,7 @@ import { extname, join, sep } from "node:path";
 import express, {
   type ErrorRequestHandler,
   type Express,
+  type Request,
   type RequestHandler,
   type Router,
 } from "express";
@@ -60,6 +61,26 @@ export function createApp(deps: AppDeps): Express {
       // check), so each goes to Sentry once.
       customLogLevel: (_req, res, err) =>
         err || res.statusCode >= 400 ? "warn" : "info",
+      // An allowlist, not the whole request. Its URL and headers can hold OAuth codes,
+      // private PR links, and device tokens. Every line says who asked, and the line
+      // when it ends says what for (routeOf), once the route is known.
+      serializers: {
+        req: (req: { id: unknown; raw: Request }) => ({
+          id: req.id,
+          method: req.raw.method,
+          ip: req.raw.ip,
+        }),
+        // A redirect's Location can hold the OAuth state.
+        res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
+      },
+      customSuccessObject: (req, _res, line: object) => ({
+        ...line,
+        route: routeOf(req as Request),
+      }),
+      customErrorObject: (req, _res, _err, line: object) => ({
+        ...line,
+        route: routeOf(req as Request),
+      }),
     }),
   );
   app.use(
@@ -108,6 +129,18 @@ export function createApp(deps: AppDeps): Express {
   app.use(notFound);
   app.use(errorHandler);
   return app;
+}
+
+// What a request was for, safe to log. An API request gives its route's pattern, like
+// /api/apple-devices/:token, never the token itself. A page or file gives its path,
+// which holds nothing private. Neither gives the query.
+function routeOf(req: Request) {
+  const path = req.originalUrl.split("?")[0]!;
+  if (path !== API && !path.startsWith(`${API}/`)) return path;
+  const route = req.route as { path?: unknown } | undefined;
+  return typeof route?.path === "string"
+    ? `${req.baseUrl}${route.path}`
+    : `${API}/*`;
 }
 
 function apiRouter(deps: AppDeps): express.Router {
