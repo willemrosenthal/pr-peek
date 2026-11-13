@@ -324,7 +324,8 @@ function FineGrainedSteps() {
         <li>
           Set <strong>Resource owner</strong> to your org. Set{" "}
           <strong>Repository access</strong> to All repositories, or pick the
-          repos you watch here. Pick an expiry you're happy with.
+          repos you watch here. Pick a short expiry, like 30 days. Git Buddy
+          reminds you before it ends.
         </li>
         <li>
           Under <strong>Repository permissions</strong>, set these to Read-only:{" "}
@@ -355,9 +356,8 @@ function ClassicSteps() {
       <MakeStep href={CLASSIC_URL} label="Make a classic token on GitHub">
         <li>
           The link ticks <code>repo</code> (its sub-boxes tick with it) and{" "}
-          <code>read:org</code>. Leave the rest. For public repos only, tick
-          just <code>public_repo</code> instead of <code>repo</code>. Pick an
-          expiry you're happy with.
+          <code>read:org</code>. Leave the rest. Pick a short expiry, like 30
+          days. Git Buddy reminds you before it ends.
         </li>
         <li>
           If your company uses single sign-on, click{" "}

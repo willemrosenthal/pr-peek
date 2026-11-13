@@ -94,11 +94,16 @@ export function SignIn() {
             Public repos only
           </label>
           <p className={styles.hint}>
-            GitHub will ask to let Git Buddy see your repos, teams, and
-            notifications. GitHub has no read-only way to see private repos, so
-            its <code>repo</code> permission also allows changes. Git Buddy only
-            reads. It never changes anything on GitHub. Pick "Public repos only"
-            to keep private repos out.
+            GitHub will ask to let Git Buddy see your repos and teams. GitHub
+            has no read-only way to see private repos, so its <code>repo</code>{" "}
+            permission also allows changes. Git Buddy only reads. It never
+            changes anything on GitHub. Pick "Public repos only" to ask for
+            nothing that can make changes, and keep private repos out.
+          </p>
+          <p className={styles.hint}>
+            Git Buddy runs on its own server, and the Mac and iPhone apps use it
+            too. Your GitHub access and the pull requests it finds are kept
+            there, encrypted, not on your device.
           </p>
           {/* Signing in again needs no approval. Waits for `me`, so it doesn't flash. */}
           {!me.isPending && !me.data?.needsReauth && (
@@ -108,8 +113,9 @@ export function SignIn() {
             </p>
           )}
           <p className={styles.hint}>
-            If your company blocks Git Buddy, sign in anyway. You can add a
-            personal access token after.
+            If your company blocks Git Buddy, ask an org owner to approve it.
+            Where your company allows it, you can add a personal access token
+            after signing in instead.
           </p>
         </section>
 

@@ -79,17 +79,23 @@ export function PrivacyPage() {
           <h2 className={styles.sectionTitle}>Your GitHub access</h2>
           <ul className={styles.list}>
             <li>
-              Signing in asks GitHub for <code>repo</code>,{" "}
-              <code>read:org</code>, and <code>notifications</code>. GitHub has
-              no read-only way to see private repos, so <code>repo</code> also
-              allows changes. Git Buddy only reads. It never changes anything on
-              GitHub. "Public repos only" asks for less.
+              Git Buddy runs on its own server, and the Mac and iPhone apps use
+              it too. Your GitHub access is kept and used there, encrypted, not
+              on your device.
+            </li>
+            <li>
+              Signing in asks GitHub for <code>repo</code> and{" "}
+              <code>read:org</code>. GitHub has no read-only way to see private
+              repos, so <code>repo</code> also allows changes. Git Buddy only
+              reads. It never changes anything on GitHub. "Public repos only"
+              asks for just <code>read:org</code>, which can't change anything.
             </li>
             <li>
               A personal access token can do whatever you allowed when you made
               it. A classic token with full <code>repo</code> access can do
               anything you can do in your repos. Git Buddy still only reads with
-              it.
+              it. A fine-grained token is safer: give it read-only access, only
+              the repos you watch, and a short expiry.
             </li>
             <li>
               To take Git Buddy's access away, revoke it in GitHub's{" "}
@@ -101,6 +107,12 @@ export function PrivacyPage() {
                 personal access tokens
               </ExternalLink>
               .
+            </li>
+            <li>
+              Adding a token doesn't shrink what you allowed when you signed in.
+              To give Git Buddy less, revoke it in Authorized OAuth Apps, then
+              sign in again with "Public repos only". A fine-grained token can
+              then add just the private repos you need.
             </li>
           </ul>
         </section>

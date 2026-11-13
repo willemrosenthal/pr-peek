@@ -63,6 +63,7 @@ Plans can be edited while in progress when we learn something. Completed plans a
 | 19  | [Admin page](19-admin.md)                                 | What Git Buddy costs to run: egress per day and month, busy queries, worker load. Counted without adding traffic                     |
 | 20  | ✅ [Several tokens](completed/20-tokens.md)               | Several personal access tokens, one per strict org. Each owner syncs with the token that reaches it. Expiry reminders and key checks |
 | 21  | ✅ [Settings redesign](completed/21-settings-redesign.md) | A home screen with a short page per topic, rows that fit a phone, one line per rule                                                  |
+| 22  | [Read-only access](22-read-only-access.md)                | Git Buddy holds nothing that can write. Sign in reads public repos, fine-grained tokens read private ones. Old write grants revoked  |
 
 ## Running in parallel
 

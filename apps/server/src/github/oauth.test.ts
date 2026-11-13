@@ -42,12 +42,12 @@ describe("authorizeUrl", () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({
       client_id: "client-id",
       redirect_uri: REDIRECT,
-      scope: "repo read:org notifications",
+      scope: "repo read:org",
       state: "abc",
     });
   });
 
-  it("asks for public repos only when chosen", () => {
+  it("asks for nothing that can write when public repos only is chosen", () => {
     const { oauth } = setup({});
     const url = new URL(
       oauth.authorizeUrl({
@@ -56,9 +56,7 @@ describe("authorizeUrl", () => {
         redirectUri: REDIRECT,
       }),
     );
-    expect(url.searchParams.get("scope")).toBe(
-      "public_repo read:org notifications",
-    );
+    expect(url.searchParams.get("scope")).toBe("read:org");
   });
 });
 
