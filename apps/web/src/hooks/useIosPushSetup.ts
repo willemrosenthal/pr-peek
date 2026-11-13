@@ -1,23 +1,17 @@
-import type { AppleTestResponse } from "@pr-peek/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "../api";
 import { iosPushStatus, openIosSettings, turnOnIosPush } from "../iosPush";
 
 const STATUS_KEY = ["ios-push-status"];
 
 // Notifications in the iPhone app (plan 12): whether they're on, and ways to turn them
-// on, open iPhone Settings, and send a test. The status checks again when the app comes
-// back, like from iPhone Settings.
+// on and open iPhone Settings. The status checks again when the app comes back, like
+// from iPhone Settings.
 export function useIosPushSetup() {
   const queryClient = useQueryClient();
   const status = useQuery({ queryKey: STATUS_KEY, queryFn: iosPushStatus });
   const turnOn = useMutation({
     mutationFn: turnOnIosPush,
     onSettled: () => queryClient.invalidateQueries({ queryKey: STATUS_KEY }),
-  });
-  const test = useMutation({
-    mutationFn: () =>
-      api<AppleTestResponse>("/apple-devices/test", { method: "POST" }),
   });
 
   return {
@@ -28,6 +22,5 @@ export function useIosPushSetup() {
     turningOn: turnOn.isPending,
     turnOnError: turnOn.error,
     openSettings: () => void openIosSettings().catch(() => undefined),
-    test,
   };
 }

@@ -1,10 +1,6 @@
-import {
-  EXPIRING_DAYS,
-  type AdminOverviewResponse,
-  type TestAlertResponse,
-} from "@pr-peek/core";
-import { useMutation } from "@tanstack/react-query";
+import { EXPIRING_DAYS, type AdminOverviewResponse } from "@pr-peek/core";
 import type { ReactNode } from "react";
+import { useSearchParams } from "react-router";
 import {
   DAY_MS,
   egressPace,
@@ -19,13 +15,14 @@ import {
   sum,
   type Reading,
 } from "../../admin";
-import { api, ApiError } from "../../api";
+import { ApiError } from "../../api";
 import { Alert } from "../../components/Alert";
 import { BarChart, type Bar } from "../../components/BarChart";
-import { Button } from "../../components/Button";
+import { Segmented } from "../../components/Segmented";
 import { cx } from "../../cx";
-import { useAdminOverview } from "../../queries";
+import { useAdminOverview, useSignUpRequests } from "../../queries";
 import styles from "./AdminPage.module.css";
+import { AdminTests } from "./AdminTests";
 import { SignUpRequests } from "./SignUpRequests";
 import { SettingsPage } from "./SettingsLayout";
 
@@ -45,48 +42,71 @@ const MONTHS = [
 ];
 const dayLabel = (at: Date) => `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]}`;
 
-// How Git Buddy is running, and what it costs. Admins only: Settings only links here for them,
-// and the server answers 404 to anyone else.
+const TABS = ["sign-ups", "stats", "tests"] as const;
+type Tab = (typeof TABS)[number];
+
+const isTab = (value: string | null): value is Tab =>
+  TABS.includes(value as Tab);
+
+// Sign-up requests, how Git Buddy is running and what it costs, and test notifications,
+// each in its own tab. The tab is in the URL, so a reload stays on it. Admins only:
+// Settings only links here for them, and the server answers 404 to anyone else.
 export function AdminPage() {
-  const overview = useAdminOverview();
+  const [params, setParams] = useSearchParams();
+  const asked = params.get("tab");
+  const tab = isTab(asked) ? asked : "sign-ups";
+  const requests = useSignUpRequests();
+  const waiting = requests.data?.requests.length ?? 0;
+  // Keeps the other params, like the menu bar app's `shell=tray`.
+  const show = (next: Tab) =>
+    setParams(
+      (current) => {
+        current.set("tab", next);
+        return current;
+      },
+      { replace: true },
+    );
+
+  if (requests.error instanceof ApiError && requests.error.status === 404) {
+    return (
+      <SettingsPage title="Admin">
+        <Alert>Only admins can see this.</Alert>
+      </SettingsPage>
+    );
+  }
   return (
     <SettingsPage title="Admin">
-      <p className={styles.hint}>
-        How Git Buddy is running, and what it costs. Days and hours are UTC.
-      </p>
-      <SignUpRequests />
-      <TestAlert />
-      {overview.isPending && <p className={styles.hint}>Loading</p>}
-      {overview.isError && (
-        <Alert>
-          {overview.error instanceof ApiError && overview.error.status === 404
-            ? "Only admins can see this."
-            : overview.error.message}
-        </Alert>
-      )}
-      {overview.data && <Overview overview={overview.data} />}
+      <Segmented
+        label="Admin section"
+        value={tab}
+        options={[
+          {
+            value: "sign-ups",
+            label: waiting > 0 ? `Sign-ups (${waiting})` : "Sign-ups",
+          },
+          { value: "stats", label: "Stats" },
+          { value: "tests", label: "Tests" },
+        ]}
+        onChange={show}
+      />
+      {tab === "sign-ups" && <SignUpRequests />}
+      {tab === "stats" && <Stats />}
+      {tab === "tests" && <AdminTests />}
     </SettingsPage>
   );
 }
 
-function TestAlert() {
-  const send = useMutation({
-    mutationFn: () =>
-      api<TestAlertResponse>("/admin/test-alert", { method: "POST" }),
-  });
+function Stats() {
+  const overview = useAdminOverview();
   return (
-    <div className={styles.actions}>
-      <Button onClick={() => send.mutate()} disabled={send.isPending}>
-        Send a test alert
-      </Button>
-      <p className={styles.hint} role="status">
-        {send.data &&
-          (send.data.sent
-            ? "Sent. Check your phone."
-            : "None of your devices took it. Turn on notifications in Devices.")}
+    <>
+      <p className={styles.hint}>
+        How Git Buddy is running, and what it costs. Days and hours are UTC.
       </p>
-      {send.isError && <Alert>{send.error.message}</Alert>}
-    </div>
+      {overview.isPending && <p className={styles.hint}>Loading</p>}
+      {overview.isError && <Alert>{overview.error.message}</Alert>}
+      {overview.data && <Overview overview={overview.data} />}
+    </>
   );
 }
 
@@ -146,7 +166,7 @@ function Section({
   );
 }
 
-function Stats({ stats }: { stats: [string, string][] }) {
+function StatList({ stats }: { stats: [string, string][] }) {
   return (
     <dl className={styles.stats}>
       {stats.map(([label, value]) => (
@@ -212,7 +232,7 @@ function Egress({ overview }: { overview: AdminOverviewResponse }) {
         </>
       }
     >
-      <Stats
+      <StatList
         stats={[
           ["This month", formatBytes(egress.thisMonth)],
           ["On pace for", formatBytes(egressPace(overview))],
@@ -310,7 +330,7 @@ function Worker({ overview }: { overview: AdminOverviewResponse }) {
       title="Worker"
       hint="Jobs today, and per hour for the last 24 hours."
     >
-      <Stats
+      <StatList
         stats={[
           ["Jobs today", formatCount(jobs)],
           ["Failed", formatCount(failed)],
@@ -355,7 +375,7 @@ function GitHubAndPeople({ overview }: { overview: AdminOverviewResponse }) {
         title="GitHub today"
         hint="Each person's budget is 5,000 points an hour, shared by their syncs and the repo picker."
       >
-        <Stats
+        <StatList
           stats={[
             ["Requests", formatCount(github.requests)],
             [
@@ -370,14 +390,14 @@ function GitHubAndPeople({ overview }: { overview: AdminOverviewResponse }) {
         title="People and pushes"
         hint={`Pushes sent per day, last 14 days. ${formatCount(failed)} failed.`}
       >
-        <Stats
+        <StatList
           stats={[
             ["Users", formatCount(people.users)],
             ["Active, last 24 hours", formatCount(people.activeDay)],
             ["Active, last 7 days", formatCount(people.activeWeek)],
           ]}
         />
-        <Stats
+        <StatList
           stats={[
             ["Tokens working", formatCount(tokens.working)],
             [

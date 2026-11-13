@@ -58,7 +58,7 @@ describe("the Admin page", () => {
 
   it("shows each section, asking the server once", async () => {
     const fetch = adminApi();
-    renderApp("/settings/admin");
+    renderApp("/settings/admin?tab=stats");
 
     expect(await screen.findByText("38 MB")).toBeTruthy();
     for (const section of [
@@ -91,7 +91,7 @@ describe("the Admin page", () => {
     adminApi({
       "GET /api/admin/overview": () => json(adminOverview({ queries: null })),
     });
-    renderApp("/settings/admin");
+    renderApp("/settings/admin?tab=stats");
 
     expect(
       await screen.findByText(
@@ -121,7 +121,7 @@ describe("the Admin page", () => {
     [false, "None of your devices took it. Turn on notifications in Devices."],
   ])("sends a test alert, sent: %s", async (sent, message) => {
     adminApi({ "POST /api/admin/test-alert": () => json({ sent }) });
-    renderApp("/settings/admin");
+    renderApp("/settings/admin?tab=tests");
 
     await userEvent.click(
       await screen.findByRole("button", { name: "Send a test alert" }),
@@ -174,6 +174,71 @@ describe("the Admin page", () => {
     );
     expect(await screen.findByText("Declined dana-k.")).toBeTruthy();
     expect(callsTo(fetch, "/api/admin/requests/r1")).toHaveLength(1);
+  });
+
+  it("opens on Sign-ups, with the count, and keeps the tab in the URL", async () => {
+    adminApi({
+      "GET /api/admin/requests": () => json({ requests: [signUpRequest()] }),
+    });
+    const { router } = renderApp("/settings/admin");
+
+    const tabs = await screen.findByRole("radiogroup", {
+      name: "Admin section",
+    });
+    const signUps = await within(tabs).findByRole<HTMLInputElement>("radio", {
+      name: "Sign-ups (1)",
+    });
+    expect(signUps.checked).toBe(true);
+    expect(
+      screen.getByRole("region", { name: "Sign-up requests" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Send a test alert" })).toBe(
+      null,
+    );
+
+    await userEvent.click(within(tabs).getByRole("radio", { name: "Tests" }));
+    expect(
+      await screen.findByRole("button", { name: "Send a test alert" }),
+    ).toBeTruthy();
+    expect(router.state.location.search).toBe("?tab=tests");
+    expect(screen.queryByRole("region", { name: "Sign-up requests" })).toBe(
+      null,
+    );
+  });
+
+  it.each([
+    [{ sent: 1, failed: 0 }, "Sent to 1 iPhone. They arrive in a few seconds."],
+    [
+      { sent: 2, failed: 1 },
+      "Sent to 2 iPhones. They arrive in a few seconds. 1 didn't take them.",
+    ],
+    [{ sent: 0, failed: 1 }, "Apple couldn't deliver them. Try again later."],
+  ])("sends each kind to the iPhone apps, %o", async (answer, message) => {
+    const fetch = adminApi({
+      "POST /api/apple-devices/test": () => json(answer),
+    });
+    renderApp("/settings/admin?tab=tests");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Send to my iPhones" }),
+    );
+    expect(await screen.findByText(message)).toBeTruthy();
+    expect(callsTo(fetch, "/api/apple-devices/test")).toHaveLength(1);
+  });
+
+  it("says when no iPhone has notifications on", async () => {
+    adminApi({
+      "POST /api/apple-devices/test": () =>
+        apiError(404, "not_found", "Not found"),
+    });
+    renderApp("/settings/admin?tab=tests");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Send to my iPhones" }),
+    );
+    expect(
+      await screen.findByText(/None of your iPhones has notifications on/),
+    ).toBeTruthy();
   });
 
   it("says so when the requests can't load", async () => {
