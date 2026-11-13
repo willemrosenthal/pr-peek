@@ -154,9 +154,11 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
         run: |
-          dmg=$(ls apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg)
+          file="Git Buddy_${VERSION}_universal.dmg"
+          dmg="apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/$file"
+          # Carry on when Apple rejects it, so the log shows the id that notarytool log needs.
           result=$(xcrun notarytool submit "$dmg" --wait --timeout 30m --output-format json \
-            --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER")
+            --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER") || true
           echo "$result"
           if [ "$(jq -r .status <<< "$result")" != "Accepted" ]; then
             echo "::error::Apple didn't accept the .dmg. Run notarytool log with its id to see why."
@@ -166,9 +168,11 @@ jobs:
           xcrun stapler validate "$dmg"
           spctl --assess --type open --context context:primary-signature -vv "$dmg"
 
-          name=$(gh release view "$TAG" --json assets --jq '.assets[].name | select(endswith(".dmg"))')
-          if [ -z "$name" ]; then
-            echo "::error::The draft has no .dmg to replace."
+          # GitHub turns the space in the name into a dot, so look the name up.
+          name=$(gh release view "$TAG" --json assets \
+            --jq '.assets[].name | select(endswith("_" + env.VERSION + "_universal.dmg"))')
+          if [ -z "$name" ] || [ "$(wc -l <<< "$name")" -ne 1 ]; then
+            echo "::error::The draft should have one $file to replace. It has: $name"
             exit 1
           fi
           cp "$dmg" "$RUNNER_TEMP/$name"
