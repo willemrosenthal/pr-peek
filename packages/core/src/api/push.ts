@@ -107,8 +107,10 @@ export interface PushSubscriptionResponse {
 export interface PushPayload {
   title: string;
   body: string;
-  // Opened when the notification is tapped.
+  // Opened when the notification is tapped, by apps that can't open the PR's preview.
   url: string;
+  // The PR it's about. Newer apps open its preview on a tap, instead of `url`.
+  prId?: string;
   // A newer notification with the same tag replaces the old one.
   tag: string;
   itemId?: string;

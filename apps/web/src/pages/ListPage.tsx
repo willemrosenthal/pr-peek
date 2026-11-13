@@ -21,6 +21,7 @@ import {
 } from "../components/PrPreview";
 import { PullToRefresh } from "../components/PullToRefresh";
 import { cx } from "../cx";
+import { findPreview } from "../findPreview";
 import { useInInstalledApp, useIsTray } from "../hooks/useIsTray";
 import { useMarkSeen } from "../hooks/useMarkSeen";
 import { useQuickAdd } from "../hooks/useQuickAdd";
@@ -28,6 +29,7 @@ import { useStoredState } from "../hooks/useStoredState";
 import { useSync } from "../hooks/useSync";
 import { useWhenHidden } from "../hooks/useWhenHidden";
 import { useLocalSetting } from "../localSetting";
+import { PREVIEW_PARAM } from "../notificationLink";
 import {
   useItems,
   useMe,
@@ -86,6 +88,13 @@ function List() {
       setPreview(null);
       setAdding(null);
     }, [setAdding]),
+  );
+  useLinkedPreview(
+    setPreview,
+    useCallback(
+      () => setToast({ text: "That PR isn't on your list anymore" }),
+      [],
+    ),
   );
   // A PR just added, to scroll to once the list shows it.
   const [added, setAdded] = useState<string | null>(null);
@@ -180,6 +189,29 @@ function useAddLink() {
     [setParams],
   );
   return [params.get("add"), setLink] as const;
+}
+
+// Opens the preview of the PR in `?pr=`, like from a tapped notification, once the list
+// has loaded. Waits for a reload of the list too, since one kept from earlier may not
+// have a new PR yet. Then drops it from the address, so it opens once.
+function useLinkedPreview(onPreview: OnPreview, onMissing: () => void) {
+  const [params, setParams] = useSearchParams();
+  const prId = params.get(PREVIEW_PARAM);
+  const { data: list, isFetching } = useItems();
+  useEffect(() => {
+    if (!prId || !list) return;
+    const target = findPreview(list, prId);
+    if (!target && isFetching) return;
+    if (target) onPreview(target);
+    else onMissing();
+    setParams(
+      (current) => {
+        current.delete(PREVIEW_PARAM);
+        return current;
+      },
+      { replace: true },
+    );
+  }, [prId, list, isFetching, onPreview, onMissing, setParams]);
 }
 
 // Scrolls to the row of the PR `prId` once the list shows it, with a short highlight.

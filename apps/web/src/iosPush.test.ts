@@ -51,20 +51,33 @@ describe("startIosPush", () => {
     expect(native.PushNotifications.register).not.toHaveBeenCalled();
   });
 
-  it("opens a tapped PR in Safari, and marks its item seen", async () => {
+  it("opens a tapped PR's preview in the app, and marks its item seen", async () => {
     const fetch = fakeApi({ "POST /api/items/seen": noContent });
     const windowOpen = vi.spyOn(window, "open").mockReturnValue(null);
     const open = vi.fn();
     await startIosPush(open);
 
     native.fire("pushNotificationActionPerformed", {
-      notification: { data: { url: PR, itemId: "item-1" } },
+      notification: { data: { url: PR, prId: "pr-1", itemId: "item-1" } },
     });
-    expect(windowOpen).toHaveBeenCalledWith(PR, "_blank");
-    expect(open).not.toHaveBeenCalled();
+    expect(open).toHaveBeenCalledWith("/?pr=pr-1");
+    expect(windowOpen).not.toHaveBeenCalled();
     expect(sentBodies(fetch, "POST /api/items/seen")).toEqual([
       { ids: ["item-1"] },
     ]);
+  });
+
+  // Like from a server that doesn't send `prId` yet.
+  it("opens a tapped PR without its ID in Safari", async () => {
+    const windowOpen = vi.spyOn(window, "open").mockReturnValue(null);
+    const open = vi.fn();
+    await startIosPush(open);
+
+    native.fire("pushNotificationActionPerformed", {
+      notification: { data: { url: PR } },
+    });
+    expect(windowOpen).toHaveBeenCalledWith(PR, "_blank");
+    expect(open).not.toHaveBeenCalled();
   });
 
   it("opens Git Buddy's own pages in the app", async () => {

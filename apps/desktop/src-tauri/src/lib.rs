@@ -110,6 +110,16 @@ fn tell_page(window: &WebviewWindow, name: &str) {
     let _ = window.eval(format!("window.dispatchEvent(new Event('pr-peek:{name}'))"));
 }
 
+// Fires `pr-peek:open` in the page, with an app page to go to, like a PR's preview.
+fn open_in_page(window: &WebviewWindow, path: &str) {
+    let Ok(detail) = serde_json::to_string(path) else {
+        return;
+    };
+    let _ = window.eval(format!(
+        "window.dispatchEvent(new CustomEvent('pr-peek:open', {{ detail: {detail} }}))"
+    ));
+}
+
 // Shows the window and focuses it. The dropdown moves under the tray icon. A popped out
 // window stays where the user put it.
 fn show_window(window: &WebviewWindow) {
@@ -257,29 +267,45 @@ fn open_external(app: AppHandle, url: String, background: Option<bool>) -> Resul
     }
 }
 
-// A notification from the server, with the link a click opens.
+// A notification from the server, with the link a click opens. `open` is a page in the
+// app, like a PR's preview, which a click opens instead. Older pages leave it out.
 #[derive(Deserialize)]
 struct Alert {
     title: String,
     body: String,
     url: String,
+    open: Option<String>,
 }
 
 #[tauri::command]
 fn notify(app: AppHandle, alert: Alert) -> Result<(), String> {
     log_command(&format!("notify {:?}", alert.title));
-    app.notification()
+    let mut builder = app
+        .notification()
         .builder()
         .title(alert.title)
         .body(alert.body)
-        .extra("url", alert.url)
-        .show()
-        .map_err(|err| err.to_string())
+        .extra("url", alert.url);
+    if let Some(open) = alert.open {
+        builder = builder.extra("open", open);
+    }
+    builder.show().map_err(|err| err.to_string())
 }
 
-// A click on a notification opens its PR in the browser. Links within pr-peek, like the
-// morning summary's, open the dropdown instead.
-fn on_notification_click(app: &AppHandle, url: Option<&str>) {
+// A page in the app to open: a path on its own site, never another site.
+fn in_app_path(path: &str) -> Option<&str> {
+    (path.starts_with('/') && !path.starts_with("//")).then_some(path)
+}
+
+// A click on a notification opens its page in the app, like the PR's preview, in the
+// window. Without one, it opens its PR in the browser. Links within pr-peek, like the
+// morning summary's, open the window too.
+fn on_notification_click(app: &AppHandle, open: Option<&str>, url: Option<&str>) {
+    if let (Some(path), Some(window)) = (open.and_then(in_app_path), main_window(app)) {
+        show_window(&window);
+        open_in_page(&window, path);
+        return;
+    }
     let opened = url.is_some_and(|url| open_web_link(app, url).is_ok());
     if !opened {
         if let Some(window) = main_window(app) {
@@ -739,11 +765,13 @@ pub fn run() {
                 if action.action_id() != "tap" {
                     return;
                 }
-                let url = action
-                    .notification()
-                    .and_then(|shown| shown.extra().get("url"))
-                    .and_then(|url| url.as_str());
-                on_notification_click(&clicked, url);
+                let extra = |key| {
+                    action
+                        .notification()
+                        .and_then(|shown| shown.extra().get(key))
+                        .and_then(|value| value.as_str())
+                };
+                on_notification_click(&clicked, extra("open"), extra("url"));
             })?;
 
             // Another app may own the shortcut. The tray icon still works without it.

@@ -3,11 +3,13 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { inDropdown, rememberShell } from "./hooks/useIsTray";
 import { localSetting } from "./localSetting";
 import { linkLeavingApp } from "./links";
+import { notificationLink } from "./notificationLink";
 
 // The Mac menu bar app (apps/desktop). Everything here does nothing in a browser. The
 // native side fires `pr-peek:hidden`, `pr-peek:shown`, `pr-peek:refresh`, and
-// `pr-peek:update-ready` on `window`. This module fires `pr-peek:wake`, and shows each `pr-peek:notify` from the
-// live stream.
+// `pr-peek:update-ready` on `window`, and `pr-peek:open` with an app page to go to, from
+// a clicked notification. This module fires `pr-peek:wake`, and shows each
+// `pr-peek:notify` from the live stream.
 
 export const inDesktopApp = () => isTauri();
 
@@ -141,10 +143,21 @@ const quietFocus = () => document.documentElement.classList.add("quiet-focus");
 const showFocus = () =>
   document.documentElement.classList.remove("quiet-focus");
 
-// A native Mac notification, instead of a push to the browsers on this Mac.
+// A native Mac notification, instead of a push to the browsers on this Mac. A click
+// opens `open`, like the PR's preview, in the app. Older Mac apps ignore it, and open
+// `url`.
 function showNotification(event: Event) {
-  const { title, body, url } = (event as CustomEvent<PushPayload>).detail;
-  call("notify", { alert: { title, body, url } });
+  const payload = (event as CustomEvent<PushPayload>).detail;
+  const { title, body, url } = payload;
+  const open = notificationLink(payload);
+  call("notify", { alert: { title, body, url, open } });
+}
+
+// The app page in a `pr-peek:open`. Only paths on this site, never other sites.
+export function pageToOpen(event: Event): string | null {
+  const path = (event as CustomEvent<unknown>).detail;
+  if (typeof path !== "string") return null;
+  return path.startsWith("/") && !path.startsWith("//") ? path : null;
 }
 
 // Run once at startup. Returns a function that stops it, for tests.

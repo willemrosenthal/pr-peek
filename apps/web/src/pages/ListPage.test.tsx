@@ -477,6 +477,58 @@ describe("preview", () => {
   });
 });
 
+describe("opening a preview from a notification", () => {
+  it("opens the preview of the PR in the link, once", async () => {
+    const asked = item();
+    fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ review: [item(), asked] })),
+        ...previewApi(asked),
+      }),
+    );
+    const { router } = renderApp(`/?pr=${asked.pr.id}`);
+
+    expect(
+      await screen.findByRole("dialog", { name: asked.pr.title }),
+    ).toBeTruthy();
+    expect(router.state.location.search).toBe("");
+  });
+
+  it("says when the PR isn't on the list anymore", async () => {
+    fakeApi(
+      listApi({ "GET /api/items": () => json(groups({ review: [item()] })) }),
+    );
+    renderApp("/?pr=gone");
+
+    expect(
+      await screen.findByText("That PR isn't on your list anymore"),
+    ).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBe(null);
+  });
+
+  it("opens it when the Mac app passes on a click", async () => {
+    stubTauri();
+    const asked = item();
+    fakeApi(
+      listApi({
+        "GET /api/items": () => json(groups({ review: [asked] })),
+        ...previewApi(asked),
+      }),
+    );
+    renderApp("/settings?shell=tray");
+
+    await screen.findByRole("heading", { name: "Settings" });
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("pr-peek:open", { detail: `/?pr=${asked.pr.id}` }),
+      );
+    });
+    expect(
+      await screen.findByRole("dialog", { name: asked.pr.title }),
+    ).toBeTruthy();
+  });
+});
+
 describe("marking important", () => {
   const hasFlag = (row: { pr: { url: string } }) =>
     rowOf(row).textContent?.includes("Important: ");
