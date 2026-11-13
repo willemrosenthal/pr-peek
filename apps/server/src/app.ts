@@ -3,6 +3,7 @@ import { extname, join, sep } from "node:path";
 import express, {
   type ErrorRequestHandler,
   type Express,
+  type Request,
   type RequestHandler,
   type Router,
 } from "express";
@@ -60,6 +61,21 @@ export function createApp(deps: AppDeps): Express {
       // check), so each goes to Sentry once.
       customLogLevel: (_req, res, err) =>
         err || res.statusCode >= 400 ? "warn" : "info",
+      // An allowlist, not the whole request. Its URL and headers can hold OAuth codes,
+      // private PR links, and device tokens. Every line says who asked, and the line
+      // when it ends says what for (routeOf), once the route is known.
+      serializers: {
+        req: (req: { id: unknown; raw: Request }) => ({
+          id: req.id,
+          method: req.raw.method,
+          ip: req.raw.ip,
+        }),
+        // A redirect's Location can hold the OAuth state.
+        res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
+      },
+      customSuccessObject: (req, _res, line: object) => withRoute(req, line),
+      customErrorObject: (req, _res, _err, line: object) =>
+        withRoute(req, line),
     }),
   );
   app.use(
@@ -108,6 +124,29 @@ export function createApp(deps: AppDeps): Express {
   app.use(notFound);
   app.use(errorHandler);
   return app;
+}
+
+const withRoute = (req: object, line: object) => ({
+  ...line,
+  route: routeOf(req as Request),
+});
+
+// What a request was for, safe to log. An API route gives its pattern, like
+// /api/apple-devices/:token, never the token itself. Anything else gives only its
+// first part, like /api/desktop/* when sign in is required first, or /settings/* for
+// a page. That part is always a fixed word in our routes. Never the query.
+function routeOf(req: Request) {
+  // Express matches routes in any case, so /API/... reaches them too.
+  const path = req.originalUrl.split("?")[0]!.toLowerCase();
+  const isApi = path === API || path.startsWith(`${API}/`);
+  // Every API router is mounted at /api. Not req.baseUrl: Express clears it when an
+  // error leaves the router. Shared checks, like requireUser, run before any route.
+  const route = req.route as { path?: unknown } | undefined;
+  if (isApi && typeof route?.path === "string") return `${API}${route.path}`;
+  const prefix = isApi ? API : "";
+  const [first, ...rest] = path.slice(prefix.length).split("/").slice(1);
+  if (!first) return prefix || "/";
+  return `${prefix}/${first}${rest.length ? "/*" : ""}`;
 }
 
 function apiRouter(deps: AppDeps): express.Router {

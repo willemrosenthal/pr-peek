@@ -19,7 +19,7 @@ describe("createLogger", () => {
     expect(output).toContain("[Redacted]");
   });
 
-  it("redacts tokens in GitHub errors and in fields named for them", () => {
+  it("redacts tokens and URLs in GitHub errors, and fields named for tokens", () => {
     let output = "";
     const logger = createLogger(
       { LOG_LEVEL: "info" },
@@ -32,7 +32,9 @@ describe("createLogger", () => {
         request: {
           headers: { authorization: "token ghu_secret1" },
           body: "refresh_token=ghr_secret2&client_secret=secret3",
+          url: "https://api.github.com/repos/acme/secret7/pulls/1",
         },
+        response: { url: "https://api.github.com/repos/acme/secret8/pulls/1" },
       },
       tokens: { accessToken: "ghu_secret4", refreshToken: "ghr_secret5" },
       token: "ghp_secret6",

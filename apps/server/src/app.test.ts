@@ -23,6 +23,114 @@ function makeApp(overrides: Partial<AppDeps> = {}) {
   });
 }
 
+describe("request logs", () => {
+  interface Line {
+    msg: string;
+    req: Record<string, unknown>;
+    res?: unknown;
+    route?: string;
+  }
+
+  // Each request logs one line when it ends, plus any the route logs itself.
+  async function logsOf(send: (app: request.Agent) => Promise<unknown>) {
+    let output = "";
+    const logger = pino(
+      { level: "info" },
+      { write: (line: string) => (output += line) },
+    );
+    const router = express
+      .Router()
+      .get("/prs/lookup", (req, res) => {
+        req.log.warn("lookup failed");
+        res.sendStatus(404);
+      })
+      .get("/auth/github", (_req, res) =>
+        res.redirect(
+          "https://github.com/login/oauth/authorize?state=secret-state",
+        ),
+      )
+      .get("/auth/github/callback", (_req, res) => res.redirect("/"))
+      .delete("/apple-devices/:token", (_req, res) => res.sendStatus(204))
+      .get("/boom/:token", () => {
+        throw new Error("boom");
+      });
+    await send(request.agent(makeApp({ logger, routers: [router] })));
+    const lines = output
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Line);
+    return { output, lines };
+  }
+
+  it("logs API routes by their pattern, without queries or parameters", async () => {
+    const { output, lines } = await logsOf(async (app) => {
+      await app.get(
+        "/api/prs/lookup?link=https://github.com/acme/secret-repo/pull/1",
+      );
+      await app.get(
+        "/api/auth/github/callback?code=secret-code&state=secret-state",
+      );
+      await app
+        .delete("/api/apple-devices/secret-device-token")
+        .set("Origin", APP_URL);
+    });
+
+    expect(output).not.toContain("secret");
+    expect(lines.map((line) => line.route)).toEqual([
+      // The route's own warning, then the line when it ends.
+      undefined,
+      "/api/prs/lookup",
+      "/api/auth/github/callback",
+      "/api/apple-devices/:token",
+    ]);
+    // The route's warning shares the request's id, to find what it was for.
+    expect(lines[0]!.msg).toBe("lookup failed");
+    expect(lines[0]!.req.id).toBe(lines[1]!.req.id);
+  });
+
+  it("logs the route of one that fails, and of one asked for in capitals", async () => {
+    const { output, lines } = await logsOf(async (app) => {
+      await app.get("/api/boom/secret-token?code=secret-code");
+      await app
+        .delete("/API/apple-devices/secret-device-token")
+        .set("Origin", APP_URL);
+    });
+
+    expect(output).not.toContain("secret");
+    // The failure is logged where it happened, then the line when it ends.
+    expect(lines.map((line) => line.route).filter(Boolean)).toEqual([
+      "/api/boom/:token",
+      "/api/apple-devices/:token",
+    ]);
+  });
+
+  it("logs no headers, and only the first part of a path no route took", async () => {
+    const { output, lines } = await logsOf(async (app) => {
+      await app.get("/api/auth/github");
+      await app
+        .get("/api/nothing-here/secret-path")
+        .set("Authorization", "Bearer secret-token")
+        .set("Referer", "https://git-buddy.example/add?url=secret-link");
+      await app.get("/add?url=https://github.com/acme/secret-repo/pull/1");
+      await app.get("/acme/secret-repo/pull/1");
+      // Blocked by the same-origin check, before any route.
+      await app.delete("/api/apple-devices/secret-device-token");
+    });
+
+    expect(output).not.toContain("secret");
+    expect(lines.map((line) => line.route)).toEqual([
+      "/api/auth/github",
+      "/api/nothing-here/*",
+      "/add",
+      "/acme/*",
+      "/api/apple-devices/*",
+    ]);
+    expect(lines[4]!.res).toEqual({ statusCode: 403 });
+    expect(Object.keys(lines[1]!.req).sort()).toEqual(["id", "ip", "method"]);
+    expect(lines[0]!.res).toEqual({ statusCode: 302 });
+  });
+});
+
 it("reads the user's IP past TRUST_PROXY_HOPS proxies", async () => {
   const ipRouter = express.Router().get("/ip", (req, res) => {
     res.json({ ip: req.ip });
