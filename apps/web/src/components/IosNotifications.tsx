@@ -1,4 +1,4 @@
-import { useIosPushSetup } from "../hooks/useIosPushSetup";
+import { useIosPushSetup, type IosPushSetup } from "../hooks/useIosPushSetup";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import styles from "./Notifications.module.css";
@@ -7,7 +7,16 @@ import styles from "./Notifications.module.css";
 // to iPhone Settings when they were turned off there. The Admin page sends a test.
 export function IosNotifications() {
   const push = useIosPushSetup();
+  return (
+    <div className={styles.turnOn}>
+      <Status push={push} />
+      {/* Even once allowed: registering can still fail. The next open tries again. */}
+      {push.turnOnError && <Alert>{push.turnOnError.message}</Alert>}
+    </div>
+  );
+}
 
+function Status({ push }: { push: IosPushSetup }) {
   switch (push.status) {
     case undefined:
       return null;
@@ -17,25 +26,22 @@ export function IosNotifications() {
       );
     case "off":
       return (
-        <div className={styles.turnOn}>
-          <Button
-            variant="primary"
-            disabled={push.turningOn}
-            onClick={push.turnOn}
-          >
-            Turn on notifications
-          </Button>
-          {push.turnOnError && <Alert>{push.turnOnError.message}</Alert>}
-        </div>
+        <Button
+          variant="primary"
+          disabled={push.turningOn}
+          onClick={push.turnOn}
+        >
+          Turn on notifications
+        </Button>
       );
     case "blocked":
       return (
-        <div className={styles.turnOn}>
+        <>
           <p className={styles.hint}>
             Notifications are turned off for Git Buddy in iPhone Settings.
           </p>
           <Button onClick={push.openSettings}>Open iPhone Settings</Button>
-        </div>
+        </>
       );
     case "on":
       return <p>Notifications are on for this iPhone.</p>;

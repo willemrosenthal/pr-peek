@@ -4,67 +4,69 @@ import { api, ApiError } from "../../api";
 import { Alert } from "../../components/Alert";
 import { Button } from "../../components/Button";
 import styles from "./AdminPage.module.css";
+import { AdminSection } from "./AdminSection";
 
 // The Admin page's Tests tab: notifications sent to the admin's own devices.
 export function AdminTests() {
   return (
-    <div className={styles.overview}>
-      <TestAlert />
-      <IphoneTest />
+    <div className={styles.stack}>
+      <TestSection
+        title="Admin alert"
+        hint="One alert like the ones about Git Buddy itself, to each of your devices."
+        button="Send a test alert"
+        send={() =>
+          api<TestAlertResponse>("/admin/test-alert", { method: "POST" })
+        }
+        result={({ sent }) =>
+          sent
+            ? "Sent. Check your phone."
+            : "None of your devices took it. Turn on notifications in Settings, Notifications."
+        }
+      />
+      {/* Plan 12: checks each kind's tile in the iPhone app. */}
+      <TestSection
+        title="iPhone app"
+        hint="One of each kind of notification, with your picture, to your iPhone apps. Then a plain one, like the morning summary."
+        button="Send to my iPhones"
+        send={() =>
+          api<AppleTestResponse>("/apple-devices/test", { method: "POST" })
+        }
+        result={iphoneResult}
+        error={iphoneError}
+      />
     </div>
   );
 }
 
-function TestAlert() {
-  const send = useMutation({
-    mutationFn: () =>
-      api<TestAlertResponse>("/admin/test-alert", { method: "POST" }),
-  });
+// A button that sends a test, then says what happened.
+function TestSection<Answer>({
+  title,
+  hint,
+  button,
+  send,
+  result,
+  error = (err) => err.message,
+}: {
+  title: string;
+  hint: string;
+  button: string;
+  send: () => Promise<Answer>;
+  result: (answer: Answer) => string;
+  error?: (err: Error) => string;
+}) {
+  const test = useMutation({ mutationFn: send });
   return (
-    <section className={styles.section} aria-label="Admin alert">
-      <h3 className={styles.sectionTitle}>Admin alert</h3>
-      <p className={styles.hint}>
-        One alert like the ones about Git Buddy itself, to each of your devices.
-      </p>
+    <AdminSection title={title} hint={hint}>
       <div className={styles.actions}>
-        <Button onClick={() => send.mutate()} disabled={send.isPending}>
-          Send a test alert
+        <Button onClick={() => test.mutate()} disabled={test.isPending}>
+          {button}
         </Button>
         <p className={styles.hint} role="status">
-          {send.data &&
-            (send.data.sent
-              ? "Sent. Check your phone."
-              : "None of your devices took it. Turn on notifications in Devices.")}
+          {test.isSuccess && result(test.data)}
         </p>
       </div>
-      {send.isError && <Alert>{send.error.message}</Alert>}
-    </section>
-  );
-}
-
-// One of each kind of notification to your iPhone apps (plan 12), to check each tile.
-function IphoneTest() {
-  const send = useMutation({
-    mutationFn: () =>
-      api<AppleTestResponse>("/apple-devices/test", { method: "POST" }),
-  });
-  return (
-    <section className={styles.section} aria-label="iPhone app">
-      <h3 className={styles.sectionTitle}>iPhone app</h3>
-      <p className={styles.hint}>
-        One of each kind of notification, with your picture, to your iPhone
-        apps. Then a plain one, like the morning summary.
-      </p>
-      <div className={styles.actions}>
-        <Button onClick={() => send.mutate()} disabled={send.isPending}>
-          Send to my iPhones
-        </Button>
-        <p className={styles.hint} role="status">
-          {send.data && iphoneResult(send.data)}
-        </p>
-      </div>
-      {send.isError && <Alert>{iphoneError(send.error)}</Alert>}
-    </section>
+      {test.isError && <Alert>{error(test.error)}</Alert>}
+    </AdminSection>
   );
 }
 
@@ -76,8 +78,8 @@ function iphoneResult({ sent, failed }: AppleTestResponse) {
 }
 
 // The server has no iPhone app for this account yet.
-function iphoneError(error: Error) {
-  return error instanceof ApiError && error.status === 404
+function iphoneError(err: Error) {
+  return err instanceof ApiError && err.status === 404
     ? "None of your iPhones has notifications on. Turn them on in the app's Settings, Notifications."
-    : error.message;
+    : err.message;
 }

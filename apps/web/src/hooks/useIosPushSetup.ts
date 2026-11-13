@@ -3,6 +3,8 @@ import { iosPushStatus, openIosSettings, turnOnIosPush } from "../iosPush";
 
 const STATUS_KEY = ["ios-push-status"];
 
+export type IosPushSetup = ReturnType<typeof useIosPushSetup>;
+
 // Notifications in the iPhone app (plan 12): whether they're on, and ways to turn them
 // on and open iPhone Settings. The status checks again when the app comes back, like
 // from iPhone Settings.

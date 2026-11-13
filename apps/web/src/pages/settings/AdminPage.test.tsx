@@ -118,7 +118,10 @@ describe("the Admin page", () => {
 
   it.each([
     [true, "Sent. Check your phone."],
-    [false, "None of your devices took it. Turn on notifications in Devices."],
+    [
+      false,
+      "None of your devices took it. Turn on notifications in Settings, Notifications.",
+    ],
   ])("sends a test alert, sent: %s", async (sent, message) => {
     adminApi({ "POST /api/admin/test-alert": () => json({ sent }) });
     renderApp("/settings/admin?tab=tests");

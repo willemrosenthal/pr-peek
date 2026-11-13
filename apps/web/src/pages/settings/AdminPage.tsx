@@ -22,6 +22,7 @@ import { Segmented } from "../../components/Segmented";
 import { cx } from "../../cx";
 import { useAdminOverview, useSignUpRequests } from "../../queries";
 import styles from "./AdminPage.module.css";
+import { AdminSection as Section } from "./AdminSection";
 import { AdminTests } from "./AdminTests";
 import { SignUpRequests } from "./SignUpRequests";
 import { SettingsPage } from "./SettingsLayout";
@@ -112,7 +113,7 @@ function Stats() {
 
 function Overview({ overview }: { overview: AdminOverviewResponse }) {
   return (
-    <div className={styles.overview}>
+    <div className={styles.stack}>
       <section aria-label="At a glance" className={styles.readings}>
         {readings(overview).map((reading) => (
           <ReadingTile key={reading.label} reading={reading} />
@@ -145,24 +146,6 @@ function ReadingTile({ reading }: { reading: Reading }) {
       <div className={styles.hint}>{reading.detail}</div>
       <div className={styles.rule}>{reading.rule}</div>
     </div>
-  );
-}
-
-function Section({
-  title,
-  hint,
-  children,
-}: {
-  title: string;
-  hint?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className={styles.section} aria-label={title}>
-      <h3 className={styles.sectionTitle}>{title}</h3>
-      {hint && <p className={styles.hint}>{hint}</p>}
-      {children}
-    </section>
   );
 }
 

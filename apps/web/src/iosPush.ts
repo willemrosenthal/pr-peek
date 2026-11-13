@@ -64,13 +64,11 @@ export async function openIosSettings() {
 }
 
 // Asks for permission, then registers, which saves the token (startIosPush). Call it
-// from a tap. False when notifications weren't allowed.
-export async function turnOnIosPush(): Promise<boolean> {
+// from a tap. Read iosPushStatus after, to know what they chose.
+export async function turnOnIosPush() {
   const { PushNotifications } = await loadNative();
   const { receive } = await PushNotifications.requestPermissions();
-  if (receive !== "granted") return false;
-  await PushNotifications.register();
-  return true;
+  if (receive === "granted") await PushNotifications.register();
 }
 
 // Before signing out: the server stops sending to this phone. Signing in again saves

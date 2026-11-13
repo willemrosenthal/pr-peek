@@ -271,6 +271,40 @@ describe("in the iPhone app", () => {
     expect(screen.queryByRole("list", { name: "This device" })).toBe(null);
   });
 
+  it("offers iPhone Settings after saying no", async () => {
+    native.permission.receive = "prompt";
+    native.PushNotifications.requestPermissions.mockImplementationOnce(() => {
+      native.permission.receive = "denied";
+      return Promise.resolve({ receive: "denied" });
+    });
+    fakeApi(signedInApi());
+    renderApp(PAGE);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Turn on notifications" }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Open iPhone Settings" }),
+    ).toBeTruthy();
+    expect(native.PushNotifications.register).not.toHaveBeenCalled();
+  });
+
+  it("says why when registering fails", async () => {
+    native.permission.receive = "prompt";
+    native.PushNotifications.requestPermissions.mockImplementationOnce(() => {
+      native.permission.receive = "granted";
+      return Promise.resolve({ receive: "granted" });
+    });
+    native.PushNotifications.register.mockRejectedValueOnce(
+      new Error("No network"),
+    );
+    fakeApi(signedInApi());
+    renderApp(PAGE);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Turn on notifications" }),
+    );
+    expect(await screen.findByText("No network")).toBeTruthy();
+  });
+
   it("opens iPhone Settings when notifications were turned off there", async () => {
     native.permission.receive = "denied";
     fakeApi(signedInApi());

@@ -92,13 +92,13 @@ describe("startIosPush", () => {
 
 describe("turnOnIosPush", () => {
   it("asks, then registers", async () => {
-    expect(await turnOnIosPush()).toBe(true);
+    await turnOnIosPush();
     expect(native.PushNotifications.register).toHaveBeenCalled();
   });
 
-  it("is false when notifications aren't allowed", async () => {
+  it("doesn't register when notifications aren't allowed", async () => {
     native.permission.receive = "denied";
-    expect(await turnOnIosPush()).toBe(false);
+    await turnOnIosPush();
     expect(native.PushNotifications.register).not.toHaveBeenCalled();
   });
 });
