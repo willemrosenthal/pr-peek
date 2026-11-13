@@ -193,7 +193,7 @@ it("ends the stream once its session signs out", async () => {
   const res = await stream.agent
     .post("/api/auth/signout")
     .set("Origin", APP_URL);
-  expect(res.status).toBe(204);
+  expect(res.status).toBe(200);
   await expect(stream.next()).rejects.toThrow("The stream ended");
   await vi.waitFor(() => expect(listening).toBe(0));
 });

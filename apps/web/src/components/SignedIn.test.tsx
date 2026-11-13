@@ -25,13 +25,13 @@ import {
   json,
   listApi,
   me,
-  noContent,
   sentBodies,
   signedInApi,
   signedOut,
   summary,
 } from "../test/fake-api";
 import { stubUserAgent, USER_AGENTS } from "../test/install";
+import { pauseWebPush } from "../push";
 import { stubPush, SUBSCRIPTION_KEYS, THIS_ENDPOINT } from "../test/push";
 import { FakeEventSource, latestStream } from "../test/fake-stream";
 import { renderApp } from "../test/render";
@@ -254,7 +254,7 @@ describe("the Mac menu bar", () => {
         "GET /api/summary": () => json(summary({ total: 4, hasFailing: true })),
         "POST /api/auth/signout": () => {
           signedIn = false;
-          return noContent();
+          return json({ deviceRemoved: false });
         },
       }),
     );
@@ -305,7 +305,7 @@ describe("the app badge", () => {
         "GET /api/summary": () => json(summary({ total: 4 })),
         "POST /api/auth/signout": () => {
           signedIn = false;
-          return noContent();
+          return json({ deviceRemoved: false });
         },
       }),
     );
@@ -362,6 +362,22 @@ describe("checking this device's notifications on open", () => {
         subscription: { endpoint: THIS_ENDPOINT, keys: SUBSCRIPTION_KEYS },
       },
     ]);
+  });
+
+  it("turns notifications back on for the user who signed out", async () => {
+    stubPush({ subscribed: THIS_ENDPOINT });
+    pauseWebPush(me().user.id);
+    const mine = device({ endpoint: THIS_ENDPOINT });
+    const fetch = withDevices([], {
+      "POST /api/push/subscriptions": () => json({ subscription: mine }, 201),
+    });
+    renderApp("/");
+
+    await waitFor(() =>
+      expect(sentBodies(fetch, "POST /api/push/subscriptions")).toEqual([
+        expect.objectContaining({ endpoint: THIS_ENDPOINT }),
+      ]),
+    );
   });
 
   it("leaves a device removed from another device removed", async () => {

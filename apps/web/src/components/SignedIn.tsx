@@ -12,8 +12,8 @@ import {
 import { useIosPush } from "../hooks/useIosPush";
 import { useLiveUpdates } from "../hooks/useLiveUpdates";
 import { useLocalSetting } from "../localSetting";
-import { recheckPush } from "../push";
-import { useReloadDevices, useSummary } from "../queries";
+import { recheckPush, resumeWebPush } from "../push";
+import { useMe, useReloadDevices, useSummary } from "../queries";
 
 // Wraps every signed in page. Keeps the list, the app badge, the Mac menu bar, and this
 // device's notifications current, in the iPhone app too.
@@ -41,13 +41,17 @@ export function SignedIn() {
   }, []);
 
   const reloadDevices = useReloadDevices();
+  const userId = useMe().data?.user.id;
   useEffect(() => {
-    recheckPush()
+    if (!userId) return;
+    // Notifications paused at sign out come back first, then the usual check.
+    resumeWebPush(userId)
+      .then(async (resumed) => (await recheckPush()) || resumed)
       .then(async (changed) => {
         if (changed) await reloadDevices();
       })
       // The next open tries again.
       .catch(() => undefined);
-  }, [reloadDevices]);
+  }, [userId, reloadDevices]);
   return <Outlet />;
 }

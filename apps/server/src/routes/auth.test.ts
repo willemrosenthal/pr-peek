@@ -1,4 +1,4 @@
-import type { MeResponse } from "@pr-peek/core";
+import type { MeResponse, SignOutResponse } from "@pr-peek/core";
 import express from "express";
 import type request from "supertest";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +6,7 @@ import {
   APP_URL,
   bodyOf,
   makeTestApp,
+  type Agent,
   signIn,
   startSignIn,
 } from "../../test/app";
@@ -181,12 +182,16 @@ describe("GET /api/me", () => {
 });
 
 describe("POST /api/auth/signout", () => {
+  const signOut = (agent: Agent, body?: object) =>
+    agent.post("/api/auth/signout").set("Origin", APP_URL).send(body);
+
   it("ends the session", async () => {
     const { agent } = makeApp();
     await signIn(agent);
 
-    const res = await agent.post("/api/auth/signout").set("Origin", APP_URL);
-    expect(res.status).toBe(204);
+    const res = await signOut(agent);
+    expect(res.status).toBe(200);
+    expect(bodyOf<SignOutResponse>(res)).toEqual({ deviceRemoved: false });
     expect((await agent.get("/api/me")).status).toBe(401);
   });
 
@@ -209,13 +214,15 @@ describe("POST /api/auth/signout", () => {
         ],
       });
 
+      const mine = await signOut(agent, { endpoint: browser });
+      expect(bodyOf<SignOutResponse>(mine)).toEqual({ deviceRemoved: true });
       // Someone else's endpoint is left alone, even if sent.
-      for (const endpoint of [browser, `${browser}-other`]) {
-        await agent.post("/api/auth/signout").set("Origin", APP_URL).send({
-          endpoint,
-        });
-        await signIn(agent, { pending });
-      }
+      await signIn(agent, { pending });
+      const theirs = await signOut(agent, { endpoint: `${browser}-other` });
+      expect(bodyOf<SignOutResponse>(theirs)).toEqual({
+        deviceRemoved: false,
+      });
+
       const left = await db.pushSubscription.findMany({
         orderBy: { endpoint: "asc" },
       });
@@ -230,11 +237,8 @@ describe("POST /api/auth/signout", () => {
     const { agent } = makeApp();
     await signIn(agent);
 
-    const res = await agent
-      .post("/api/auth/signout")
-      .set("Origin", APP_URL)
-      .send({ endpoint: 42 });
-    expect(res.status).toBe(204);
+    const res = await signOut(agent, { endpoint: 42 });
+    expect(res.status).toBe(200);
     expect((await agent.get("/api/me")).status).toBe(401);
   });
 

@@ -17,6 +17,12 @@ export const signOutBody = z.object({
   endpoint: z.string().max(2000).optional(),
 });
 
+export interface SignOutResponse {
+  // The endpoint was one of the user's devices, and now isn't. Signing in again as
+  // them saves it again.
+  deviceRemoved: boolean;
+}
+
 export interface MeResponse {
   user: {
     id: string;
