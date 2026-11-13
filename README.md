@@ -45,6 +45,16 @@ You can install Git Buddy the same way on a computer, so it opens in its own win
 
 More help: [git-buddy.com/install](https://www.git-buddy.com/install).
 
+## Using it
+
+- **Tap a PR** to open it on GitHub.
+- **Long press or right click a PR** to preview it: the description, the conversation, and who has reviewed. Swipe down to close.
+- **Swipe left** to quiet a PR. It moves to Quiet at the bottom. Tap its bell to bring it back.
+- **Swipe right** to flag a PR as important. Swipe again to remove the flag. A two-finger swipe works on a trackpad.
+- **Pull down** to refresh.
+- **Follow any PR**, even one outside your repos: paste or drop its link on the list, or tap "Add it by link" at the bottom. On Android, you can also share a link to Git Buddy.
+- **Tap a section heading** to collapse it.
+
 ## Working on Git Buddy
 
 See [docs/development.md](docs/development.md).
