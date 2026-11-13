@@ -84,9 +84,9 @@ export function PrivacyPage() {
               on your device.
             </li>
             <li>
-              Git Buddy only reads, and asks for nothing that can make changes.
-              Signing in asks GitHub for <code>read:org</code>, to find your
-              teams. With it, Git Buddy sees public repos only.
+              Git Buddy only reads. Signing in asks for nothing that can make
+              changes: just GitHub's <code>read:org</code>, to find your teams.
+              With it, Git Buddy sees public repos only.
             </li>
             <li>
               Private repos come only through personal access tokens you make. A

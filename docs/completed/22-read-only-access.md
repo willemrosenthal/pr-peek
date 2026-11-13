@@ -42,7 +42,7 @@
 
 ### 22.3 Words
 
-- [x] Privacy page: sign in reads public data only. Private repos only through fine-grained tokens you make. A line for people who signed in or added a classic token before, saying how to drop write access themselves.
+- [x] Privacy page: sign in reads public data only. Private repos only through fine-grained tokens you make. (22.4 allows classic tokens again.) A line for people who signed in or added a classic token before, saying how to drop write access themselves.
 - [x] `docs/security.md`, `docs/overview.md`, and the README (a new "Private repos" section).
 
 ### 22.4 Classic tokens again

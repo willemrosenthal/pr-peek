@@ -4,7 +4,7 @@ How Git Buddy keeps tokens safe, and the limits it watches.
 
 ## GitHub tokens
 
-Git Buddy asks for nothing that can write to GitHub (plan 22). The server has the key, since it reads tokens to sync, so a server break-in would expose them. Keeping them read-only limits what that exposes.
+Signing in asks for nothing that can write to GitHub (plan 22). The server has the key, since it reads tokens to sync, so a server break-in would expose them. A read-only sign in, and read-only fine-grained tokens by default, limit what that exposes. A classic token a user adds can still write.
 
 - Sign in asks only for `read:org`. It reads public repos and the user's teams.
 - Private repos come only through personal access tokens the user adds. Fine-grained is the default and recommended kind. Classic tokens still work if the user wants one, but reading private repos with one needs `repo`, which can also write.
