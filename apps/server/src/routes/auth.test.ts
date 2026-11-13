@@ -190,6 +190,42 @@ describe("POST /api/auth/signout", () => {
     expect((await agent.get("/api/me")).status).toBe(401);
   });
 
+  it.each([false, true])(
+    "deletes this browser's push device, only the user's own (waiting: %s)",
+    async (pending) => {
+      const { agent } = makeApp();
+      await signIn(agent, { pending });
+      const user = await db.user.findFirstOrThrow();
+      const other = await db.user.create({
+        data: { githubId: 43, login: "other" },
+      });
+      const keys = { p256dh: "p", auth: "a" };
+      const browser = "https://fcm.googleapis.com/fcm/send/browser";
+      await db.pushSubscription.createMany({
+        data: [
+          { userId: user.id, endpoint: browser, ...keys },
+          { userId: user.id, endpoint: `${browser}-phone`, ...keys },
+          { userId: other.id, endpoint: `${browser}-other`, ...keys },
+        ],
+      });
+
+      // Someone else's endpoint is left alone, even if sent.
+      for (const endpoint of [browser, `${browser}-other`]) {
+        await agent.post("/api/auth/signout").set("Origin", APP_URL).send({
+          endpoint,
+        });
+        await signIn(agent, { pending });
+      }
+      const left = await db.pushSubscription.findMany({
+        orderBy: { endpoint: "asc" },
+      });
+      expect(left.map((device) => device.endpoint)).toEqual([
+        `${browser}-other`,
+        `${browser}-phone`,
+      ]);
+    },
+  );
+
   it("is blocked from other sites", async () => {
     const { agent } = makeApp();
     await signIn(agent);

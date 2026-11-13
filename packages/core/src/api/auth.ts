@@ -10,6 +10,13 @@ export const githubTokenBody = z.object({
 });
 export type GitHubTokenBody = z.infer<typeof githubTokenBody>;
 
+// POST /api/auth/signout. This browser's push endpoint, if it has one, so its device
+// stops getting the user's notifications. Not checked like a new device's: it's only
+// looked up among the user's own.
+export const signOutBody = z.object({
+  endpoint: z.string().max(2000).optional(),
+});
+
 export interface MeResponse {
   user: {
     id: string;

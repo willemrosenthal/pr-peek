@@ -47,7 +47,7 @@ interface StreamTimes {
   sessionCheckMs?: number;
 }
 
-function makeApp({ keepAliveMs = 60_000, sessionCheckMs = 60_000 } = {}) {
+function makeApp(times: StreamTimes = {}) {
   return makeTestApp(db, {
     routers: [
       streamRouter({
@@ -63,8 +63,7 @@ function makeApp({ keepAliveMs = 60_000, sessionCheckMs = 60_000 } = {}) {
           },
         },
         signal: shutdown.signal,
-        keepAliveMs,
-        sessionCheckMs,
+        ...times,
         now: () => NOW,
       }),
     ],
@@ -189,6 +188,7 @@ it("ends the stream once its session signs out", async () => {
   await expect(stream.next()).rejects.toThrow("The stream ended");
   await vi.waitFor(() => expect(listening).toBe(0));
 });
+
 it("stops listening when the client leaves", async () => {
   const stream = await openStream();
   expect(listening).toBe(1);

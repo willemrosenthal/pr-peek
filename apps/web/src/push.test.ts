@@ -1,15 +1,7 @@
 import { describe, expect, it, onTestFinished } from "vitest";
-import {
-  callsTo,
-  device,
-  fakeApi,
-  json,
-  noContent,
-  offline,
-} from "./test/fake-api";
 import { stubDisplayMode, stubUserAgent, USER_AGENTS } from "./test/install";
 import { stubPush, THIS_ENDPOINT } from "./test/push";
-import { deviceLabel, forgetWebPush, onMac, pushSupport } from "./push";
+import { deviceLabel, dropWebPush, onMac, pushSupport } from "./push";
 
 describe("deviceLabel", () => {
   it.each([
@@ -65,42 +57,15 @@ describe("pushSupport", () => {
   });
 });
 
-describe("forgetWebPush", () => {
-  it("removes this browser's device, and unsubscribes it", async () => {
+describe("dropWebPush", () => {
+  it("unsubscribes this browser", async () => {
     const push = stubPush({ subscribed: THIS_ENDPOINT });
-    const mine = device({ endpoint: THIS_ENDPOINT });
-    const fetch = fakeApi({
-      "GET /api/push/subscriptions": () =>
-        json({ subscriptions: [device(), mine] }),
-      [`DELETE /api/push/subscriptions/${mine.id}`]: noContent,
-    });
-    await forgetWebPush();
-    expect(callsTo(fetch, `/api/push/subscriptions/${mine.id}`)).toHaveLength(
-      1,
-    );
+    await dropWebPush();
     expect(push.subscription()).toBeNull();
-  });
-
-  it("still unsubscribes when the server no longer has the device", async () => {
-    const push = stubPush({ subscribed: THIS_ENDPOINT });
-    fakeApi({
-      "GET /api/push/subscriptions": () => json({ subscriptions: [device()] }),
-    });
-    await forgetWebPush();
-    expect(push.subscription()).toBeNull();
-  });
-
-  it("keeps the subscription when the server can't be reached, to try again", async () => {
-    const push = stubPush({ subscribed: THIS_ENDPOINT });
-    fakeApi({ "GET /api/push/subscriptions": offline });
-    await expect(forgetWebPush()).rejects.toThrow();
-    expect(push.subscription()?.endpoint).toBe(THIS_ENDPOINT);
   });
 
   it("does nothing in a browser that never turned push on", async () => {
     stubPush();
-    const fetch = fakeApi({});
-    await forgetWebPush();
-    expect(fetch).not.toHaveBeenCalled();
+    await expect(dropWebPush()).resolves.toBeUndefined();
   });
 });

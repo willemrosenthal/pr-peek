@@ -60,7 +60,7 @@ export function streamRouter(deps: StreamDeps): Router {
     );
     const end = () => res.end();
     // A stream opened before signing out would otherwise keep sending. If the store
-    // can't be read, keeps the stream and checks again next time.
+    // can't be read, it keeps the stream and checks again next time.
     const sessionCheck = setInterval(() => {
       sessionBelongsTo(req, userId).then(
         (signedIn) => {

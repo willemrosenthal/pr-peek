@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { MeResponse } from "@pr-peek/core";
+import { signOutBody, type MeResponse } from "@pr-peek/core";
 import express, {
   type RequestHandler,
   type Response,
@@ -11,6 +11,7 @@ import type { SendApple } from "../apns";
 import type { Db } from "../db";
 import type { User } from "../generated/prisma/client";
 import { GitHubAuthError } from "../github/oauth";
+import { parseInput } from "../http-error";
 import { listTokens, tokenDto, type TokenDeps } from "../github/tokens";
 import { deleteAccount } from "../account";
 import type { SendPush } from "../push";
@@ -133,7 +134,16 @@ export function authRouter(deps: AuthDeps): Router {
     }
   });
 
+  // Signs out. With this browser's push endpoint, its device stops getting the user's
+  // notifications too. Done here, not through /push, so a waiting sign-up can do it.
   router.post("/auth/signout", async (req, res) => {
+    const { endpoint } = parseInput(signOutBody, req.body ?? {});
+    const userId = req.session.userId;
+    if (endpoint && userId) {
+      await deps.db.pushSubscription.deleteMany({
+        where: { endpoint, userId },
+      });
+    }
     await destroySession(req);
     res.clearCookie(SESSION_COOKIE);
     res.sendStatus(204);
