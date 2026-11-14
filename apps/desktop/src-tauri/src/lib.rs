@@ -81,17 +81,21 @@ fn popped_out(app: &AppHandle) -> bool {
     app.state::<PoppedOut>().0.load(Ordering::Relaxed)
 }
 
+// The hosted web app. Keep it in step with capabilities/web-app.json.
+const HOSTED_APP: &str = "https://www.git-buddy.com";
+
 // The local Vite server, which dev builds load instead of the hosted web app.
 const DEV_SERVER: &str = "http://localhost:5173";
 
-// The hosted web app. Release builds always load it. Dev builds load the local Vite
-// server, or PR_PEEK_URL when set. Only the URLs in capabilities/web-app.json, plus the
-// dev server in dev builds (dev_server_capability), can call the commands below.
+// The page the window loads. Release builds always load the hosted web app. Dev builds
+// load the dev server, or PR_PEEK_URL when set. Only the URLs in
+// capabilities/web-app.json, plus the dev server in dev builds (dev_server_capability),
+// can call the commands below.
 fn app_url() -> String {
     if cfg!(debug_assertions) {
         std::env::var("PR_PEEK_URL").unwrap_or_else(|_| DEV_SERVER.to_string())
     } else {
-        "https://www.git-buddy.com".to_string()
+        HOSTED_APP.to_string()
     }
 }
 
